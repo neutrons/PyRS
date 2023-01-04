@@ -114,7 +114,8 @@ class PoleFigureCalculator:
             self.calculate_pole_figure()
             return self._pole_figure_dict[peak_id]
 
-    def export_pole_figure(self, detector_id_list,  file_name, file_type, file_header=''):
+    def export_pole_figure(self, output_folder: str = '', peak_id_list: list = [], peak_name_list: list = [],
+                           run_number: int = 0, file_type: str = 'mtex', file_header: str = ''):
         """
         exported the calculated pole figure
         :param detector_id_list: list of detector IDs to write the pole figure file
@@ -126,22 +127,24 @@ class PoleFigureCalculator:
         # TESTME - 20180711 - Clean this method and allow user to specifiy header
 
         # process detector ID list
-        if detector_id_list is None:
-            detector_id_list = self.get_detector_ids()
+        if peak_id_list is None:
+            peak_id_list = self.get_detector_ids()
         else:
-            checkdatatypes.check_list('Detector IDs', detector_id_list)
+            checkdatatypes.check_list('Detector IDs', peak_id_list)
 
-        # check inputs
-        checkdatatypes.check_file_name(file_name, check_exist=False, check_writable=True)
-        checkdatatypes.check_string_variable('Output pole figure file type/format', file_type)
+        for i_peak in range(len(peak_id_list)):
+            file_name = '{}/HB2B_{}_{}'.format(output_folder, run_number, peak_name_list[i_peak])
+            # check inputs
+            checkdatatypes.check_file_name(file_name, check_exist=False, check_writable=True)
+            checkdatatypes.check_string_variable('Output pole figure file type/format', file_type)
 
-        # it is a dictionary now
-        if file_type.lower() == 'ascii':
-            # export pole figure arrays as ascii column file
-            export_arrays_to_ascii(self._pole_figure_dict, detector_id_list, file_name)
-        elif file_type.lower() == 'mtex':
-            # export to MTEX format
-            export_to_mtex(self._pole_figure_dict, detector_id_list, file_name, header=file_header)
+            # it is a dictionary now
+            if file_type.lower() == 'ascii':
+                # export pole figure arrays as ascii column file
+                export_arrays_to_ascii(self._pole_figure_dict, peak_id_list, file_name)
+            elif file_type.lower() == 'mtex':
+                # export to MTEX format
+                export_to_mtex(self._pole_figure_dict, [peak_id_list[i_peak]], file_name, header=file_header)
 
         return
 
@@ -162,11 +165,7 @@ class PoleFigureCalculator:
         log_index = to_int('Sample log index', log_index)
 
         # get raw parameters' fitted value
-        log_index_vec, pole_figure_vec = self._pole_figure_dict[det_id]
-
-        # check
-        if log_index != int(log_index_vec[log_index]):
-            raise RuntimeError('Log index {0} does not match the value in log index vector')
+        pole_figure_vec = self._pole_figure_dict[det_id]
 
         pf_tuple = pole_figure_vec[log_index]
         alpha = pf_tuple[0]
@@ -224,7 +223,7 @@ class PoleFigureCalculator:
         self._pole_figure_dict = dict()
 
 
-def export_arrays_to_ascii(pole_figure_array_dict, detector_id_list, file_name):
+def export_arrays_to_ascii(pole_figure_array_dict: dict, peak_id_list: list, file_name: str):
     """
     export a dictionary of arrays to an ASCII file
     :param file_name:
@@ -232,19 +231,20 @@ def export_arrays_to_ascii(pole_figure_array_dict, detector_id_list, file_name):
     :param pole_figure_array_dict:
     :return:
     """
-    # check input types
-    checkdatatypes.check_dict('Pole figure array dictionary', pole_figure_array_dict)
-    checkdatatypes.check_list('Detector ID list', detector_id_list)
 
     print('[INFO] Export Pole Figure Arrays To ASCII:\nKeys: {0}\nValues[0]: {1}'
           ''.format(pole_figure_array_dict.keys(), pole_figure_array_dict.values()[0]))
 
-    # combine
-    pole_figure_array_list = list()
-    for pf_key in pole_figure_array_dict.keys():
-        index_vec, pole_figure_vec = pole_figure_array_dict[pf_key]
+    # check for correct file extension
+    if '.txt' not in file_name:
+        file_name = '{}.txt'.format(file_name.replace('.jul', ''))
 
-        if pf_key not in detector_id_list:
+    # combine
+    pole_figure_array_list = []
+    for pf_key in peak_id_list:
+        pole_figure_vec = pole_figure_array_dict[pf_key]
+
+        if pf_key not in peak_id_list:
             raise NotImplementedError('The data structure of pole figure array is not clear. '
                                       'Find out how detector IDs are involved.')
 
@@ -260,7 +260,7 @@ def export_arrays_to_ascii(pole_figure_array_dict, detector_id_list, file_name):
     return
 
 
-def export_to_mtex(pole_figure_array_dict, detector_id_list, file_name, header):
+def export_to_mtex(pole_figure_array_dict: dict, peak_id_list: list, file_name: str, header: str):
     """
     export to mtex format, which includes
     line 1: NRSF2
@@ -273,9 +273,10 @@ def export_to_mtex(pole_figure_array_dict, detector_id_list, file_name, header):
     :param header
     :return:
     """
-    # check input types
-    checkdatatypes.check_dict('Pole figure array dictionary', pole_figure_array_dict)
-    checkdatatypes.check_list('Detector ID list', detector_id_list)
+
+    # check for correct file extension
+    if '.jul' not in file_name:
+        file_name = '{}.jul'.format(file_name.replace('.jul', ''))
 
     # initialize output string: MTEX HEAD
     mtex = 'NRSF2\n'
@@ -285,15 +286,9 @@ def export_to_mtex(pole_figure_array_dict, detector_id_list, file_name, header):
     mtex += '{0}\n'.format(header)
 
     # writing data
-    pf_keys = sorted(pole_figure_array_dict.keys())
-    for pf_key in pf_keys:
-        print('[STUDY ]Pole figure key = {}.  It is in detector ID list {} = {}'
-              ''.format(pf_key, detector_id_list, pf_key in detector_id_list))
-        if pf_key not in detector_id_list:
-            raise NotImplementedError('The data structure of pole figure array is not clear. '
-                                      'Find out how detector IDs are involved.')
+    for pf_key in peak_id_list:
 
-        sample_log_index, pole_figure_array = pole_figure_array_dict[pf_key]
+        pole_figure_array = pole_figure_array_dict[pf_key]
         for i_pt in range(pole_figure_array.shape[0]):
             mtex += '{0:5.5f}\t{1:5.5f}\t{2:5.5f}\n' \
                     ''.format(pole_figure_array[i_pt, 0], pole_figure_array[i_pt, 1], pole_figure_array[i_pt, 2])

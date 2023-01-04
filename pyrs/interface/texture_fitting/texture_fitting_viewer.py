@@ -540,6 +540,7 @@ class FitSetupView(QGroupBox):
         self.fit_range = QGroupBox()
         self.fit_range_layout = QVBoxLayout()
         self.fit_range.setTitle("Peak Ranges")
+        self.fit_range.setFlat(True)
 
         self.save_load_fit = QGroupBox()
         self.save_load_fit_layout = QHBoxLayout()
@@ -553,6 +554,7 @@ class FitSetupView(QGroupBox):
         self.save_load_fit_layout.addWidget(self.load_fit_info)
         self.save_load_fit_layout.addWidget(self.save_fit_info)
         self.save_load_fit.setLayout(self.save_load_fit_layout)
+        self.save_load_fit.setFlat(True)
 
         self.fit_range_table = QTableWidget(self)
         self.fit_range_table.setColumnCount(4)
@@ -592,6 +594,7 @@ class FitSetupView(QGroupBox):
         sub_runs_select_layout.addWidget(self.lineEdit, 1, 0)
         sub_runs_select_layout.addWidget(example_label, 1, 1)
         self.sub_runs_select.setLayout(sub_runs_select_layout)
+        self.sub_runs_select.setFlat(True)
 
         self.fit_setup = QGroupBox()
         self.fit_setup.setTitle("Fitting Functions")
@@ -610,13 +613,23 @@ class FitSetupView(QGroupBox):
         self.fit_setup_layout.addWidget(self.peak_back)
         self.fit_setup_layout.addWidget(self.fit_peaks)
         self.fit_setup.setLayout(self.fit_setup_layout)
+        self.fit_setup.setFlat(True)
 
-        self.export = QPushButton("Export Peak Information")
-        self.export.clicked.connect(self.save_CSV)
+        self.export_setup = QGroupBox()
+        self.export_setup_layout = QHBoxLayout()
+        self.export_peak_info = QPushButton("Export Peak Information")
+        self.export_peak_info.clicked.connect(self.save_peak_CSV)
+        self.export_pole_figs = QPushButton("Export Polefigures")
+        self.export_pole_figs.clicked.connect(self.save_pole_fig)
+
+        self.export_setup_layout.addWidget(self.export_peak_info)
+        self.export_setup_layout.addWidget(self.export_pole_figs)
+        self.export_setup.setLayout(self.export_setup_layout)
+        self.export_setup.setFlat(True)
 
         self.peak_setup_layout.addWidget(self.sub_runs_select)
         self.peak_setup_layout.addWidget(self.fit_setup)
-        self.peak_setup_layout.addWidget(self.export)
+        self.peak_setup_layout.addWidget(self.export_setup)
 
         self.peak_setup.setLayout(self.peak_setup_layout)
 
@@ -653,7 +666,7 @@ class FitSetupView(QGroupBox):
 
         return
 
-    def save_CSV(self):
+    def save_peak_CSV(self):
         filename, _ = QFileDialog.getSaveFileName(self,
                                                   "Export Peak Information",
                                                   self._parent.model.get_default_csv_filename(),
@@ -663,10 +676,31 @@ class FitSetupView(QGroupBox):
 
         self._parent.controller.export_peak_data(filename, self._parent.fit_summary.fit_table_operator.fits)
 
+    def save_pole_fig(self):
+
+        peak_label_list = []
+        peaks_id_list = []
+        for peak_row in range(self.fit_range_table.rowCount()):
+            if (self.fit_range_table.item(peak_row, 0) is not None and
+                    self.fit_range_table.item(peak_row, 1) is not None):
+                peaks_id_list.append(peak_row + 1)
+                if self.fit_range_table.item(peak_row, 2) is None:
+                    peak_label_list.append('peak_{}'.format(peak_row + 1))
+                else:
+                    peak_label_list.append(self.fit_range_table.item(peak_row, 2).text())
+
+        output_folder = QFileDialog.getExistingDirectory(self,
+                                                         "Export Experimental Polefigure Information")
+
+        if not output_folder:
+            return
+
+        self._parent.controller.export_polar_projection(output_folder, peaks_id_list, peak_label_list)
+
     def save_json(self):
         filename, _ = QFileDialog.getSaveFileName(self,
                                                   "Export Peak Fit Information",
-                                                  self._parent.model.get_default_csv_filename(),
+                                                  self._parent.model.runnumber,
                                                   "JSON (*.json);;All Files (*)")
         if not filename:
             return
@@ -675,7 +709,7 @@ class FitSetupView(QGroupBox):
     def load_json(self):
         filename, _ = QFileDialog.getSaveFileName(self,
                                                   "Export Peak Fit Information",
-                                                  self._parent.model.get_default_csv_filename(),
+                                                  self._parent.model.runnumber,
                                                   "JSON (*.json);;All Files (*)")
         if not filename:
             return
@@ -891,7 +925,7 @@ class FitTable:
             if np.isnan(_microstrain):
                 str_strain_value = "nan"
             else:
-                str_strain_value = str(np.int(_microstrain))
+                str_strain_value = str(np.int32(_microstrain))
             _item = set_item(value=str_strain_value, fitting_worked=_fitting_worked)
             self._parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
             _global_col_index += 1
@@ -902,7 +936,7 @@ class FitTable:
             _global_col_index += 1
 
     def _get_d_spacing_to_display(self, peak_selected=1, peak_collection=None):
-        _d_reference = np.float(str(self._parent._parent.fit_setup.fit_range_table.item(peak_selected-1, 3).text()))
+        _d_reference = np.float32(str(self._parent._parent.fit_setup.fit_range_table.item(peak_selected-1, 3).text()))
 
         peak_collection.set_d_reference(values=_d_reference)
         values, error = peak_collection.get_dspacing_center()
@@ -1001,36 +1035,6 @@ class FitTable:
         _nbr_column = self.get_number_of_columns()
         selection_first_row = QTableWidgetSelectionRange(0, 0, 0, _nbr_column-1)
         self._parent.tableView_fitSummary.setRangeSelected(selection_first_row, True)
-
-
-class CSVExport(QGroupBox):
-    def __init__(self, parent=None):
-        self._parent = parent
-        super().__init__(parent=parent)
-        self.setTitle("CSV Export")
-        layout = QHBoxLayout()
-        self.export = QPushButton("Export Grid Information")
-        self.export.clicked.connect(self.save_CSV)
-        self.detailed = QCheckBox("Detailed")
-        layout.addWidget(self.export)
-        layout.addWidget(self.detailed)
-        self.setLayout(layout)
-
-        self.setEnabled(False)
-
-    def setEnabled(self, enabled):
-        self.export.setEnabled(enabled)
-        self.detailed.setEnabled(enabled)
-
-    def save_CSV(self):
-        self._parent.calculate_stress()
-        filename, _ = QFileDialog.getSaveFileName(self,
-                                                  "Export Grid Information",
-                                                  self._parent.model.get_default_csv_filename(),
-                                                  "CSV (*.csv);;All Files (*)")
-        if not filename:
-            return
-        self._parent.controller.write_stress_to_csv(filename, self.detailed.isChecked())
 
 
 class TextureFittingViewer(QMainWindow):

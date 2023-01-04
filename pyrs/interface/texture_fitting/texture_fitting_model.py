@@ -22,27 +22,29 @@ class TextureFittingModel(QObject):
         self.ws = None
         self.peak_fit_engine = None
         self._polefigureinterface = None
+        self._run_number = None
+
+    @property
+    def runnumber(self):
+        return self._run_number
 
     def set_workspaces(self, name, filenames):
         setattr(self, name, filenames)
 
-    def get_default_csv_filename(self):
-        runs = [[peak_collection.runnumber for peak_collection in getattr(self._stress, f'strain{d}').peak_collections]
-                for d in ('11', '22', '33')]
-        runnumbers = []
-        for runs in runs:
-            for runnumber in runs:
-                if runnumber != -1:
-                    runnumbers.append(str(runnumber))
-        return "HB2B_{}_stress_grid_{}.csv".format('_'.join(runnumbers),
-                                                   self.selectedPeak)
-
     def load_hidra_project_file(self, filename):
+
         try:
             source_project = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
             self.ws = HidraWorkspace(filename)
             self.ws.load_hidra_project(source_project, False, True)
             self.sub_runs = np.array(self.ws.get_sub_runs())
+
+            for part in filename.split('/')[-1].replace('.h5', '').split('_'):
+                try:
+                    self._run_number = int(part)
+                except ValueError:
+                    pass
+
         except Exception as e:
             self.failureMsg.emit(f"Failed to load {filename}. Check that this is a Hidra Project File",
                                  str(e),

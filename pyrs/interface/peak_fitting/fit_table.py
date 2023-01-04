@@ -67,7 +67,7 @@ class FitTable:
             if np.isnan(_microstrain):
                 str_strain_value = "nan"
             else:
-                str_strain_value = str(np.int(_microstrain))
+                str_strain_value = str(np.int32(_microstrain))
             _item = set_item(value=str_strain_value, fitting_worked=_fitting_worked)
             self.parent.ui.tableView_fitSummary.setItem(_row, _global_col_index, _item)
             _global_col_index += 1
@@ -78,7 +78,7 @@ class FitTable:
             _global_col_index += 1
 
     def _get_d_spacing_to_display(self, peak_selected=1, peak_collection=None):
-        _d_reference = np.float(str(self.parent.ui.peak_range_table.item(peak_selected-1, 3).text()))
+        _d_reference = np.float32(str(self.parent.ui.peak_range_table.item(peak_selected-1, 3).text()))
         peak_collection.set_d_reference(values=_d_reference)
         values, error = peak_collection.get_dspacing_center()
         if self.parent.ui.radioButton_fit_value.isChecked():

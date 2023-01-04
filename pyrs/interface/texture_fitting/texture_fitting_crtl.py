@@ -199,3 +199,12 @@ class TextureFittingCrtl:
 
         else:
             return None
+
+    def export_polar_projection(self, output_folder, peak_id_list, peak_label_list):
+
+        if self._model._polefigureinterface is not None:
+            self._model._polefigureinterface.calculate_pole_figure()
+            self._model._polefigureinterface.export_pole_figure(output_folder=output_folder,
+                                                                peak_id_list=peak_id_list,
+                                                                peak_name_list=peak_label_list,
+                                                                run_number=self._model.runnumber)
