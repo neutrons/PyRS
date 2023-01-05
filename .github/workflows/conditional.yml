@@ -16,6 +16,6 @@ jobs:
       - uses: actions/checkout@v2
       - name: test complex condition
         # if: ${{ github.ref == 'refs/heads/ci_jobs_conda_package_and_publish' || startsWith(github.ref, 'refs/heads/ci_jobs') }}
-        if: ${{ github.ref == 'refs/heads/ci_jobs_conda_package_and_publish' || startsWith(github.ref, 'refs/heads/jobs') }}
+        if: ${{ github.ref == 'refs/heads/jobs_conda_package_and_publish' || startsWith(github.ref, 'refs/heads/jobs') }}
         run: |
           echo "Condition passed!"
