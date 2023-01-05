@@ -1,7 +1,9 @@
 name: PyRS CI
 
 on:
-  pull_request:
+  push:
+    branches:
+      - ci_jobs_conda_package_and_publish
 
 jobs:
   test:
