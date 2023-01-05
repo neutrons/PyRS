@@ -67,7 +67,7 @@ class FitTable:
             if np.isnan(_microstrain):
                 str_strain_value = "nan"
             else:
-                str_strain_value = str(np.int(_microstrain))
+                str_strain_value = str(np.int32(_microstrain))
             _item = set_item(value=str_strain_value, fitting_worked=_fitting_worked)
             self.parent.ui.tableView_fitSummary.setItem(_row, _global_col_index, _item)
             _global_col_index += 1
