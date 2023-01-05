@@ -180,12 +180,12 @@ class PeakFitCalibration:
             self.engines.append([powder_engine, powder_lines, single_material])
 
         # calibration: numpy array. size as 7 for ... [6] for wave length
-        self._calib = np.array(8 * [0], dtype=np.float)
+        self._calib = np.array(8 * [0], dtype=np.float64)
         # calibration error: numpy array. size as 7 for ...
-        self._caliberr = np.array(8 * [-1], dtype=np.float)
+        self._caliberr = np.array(8 * [-1], dtype=np.float64)
 
         # calibration starting point: numpy array. size as 7 for ...
-        self._calib_start = np.array(8 * [0], dtype=np.float)
+        self._calib_start = np.array(8 * [0], dtype=np.float64)
 
         if wavelength is None:
             self.monosetting, self.tth_ref = get_ref_flags(powder_engine, pin_engine)
