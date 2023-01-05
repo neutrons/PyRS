@@ -55,6 +55,9 @@ jobs:
           python -c "import qtpy"
           python -c "import mantidqt"
 
+      - name: Print Conda Packages
+        run: conda list
+
       - name: Run PyRS tests
         run: xvfb-run --server-args="-screen 0 640x480x24" -a pytest --cov=pyrs --cov-report=xml --cov-report=term tests
 
