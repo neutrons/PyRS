@@ -15,13 +15,11 @@ from pyrs.utilities import get_input_project_file  # type: ignore
 from matplotlib import rcParams
 
 import numpy as np
-from scipy.interpolate import griddata
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
 # import subplots, tight_layout, figure
 from matplotlib.backend_bases import MouseButton
-from matplotlib.cm import coolwarm
 
 # import traceback
 import os
@@ -358,69 +356,21 @@ class PlotView(QWidget):
         self.layout().addWidget(self.toolbar)
 
     def update_diff_view(self, sub_run):
-        self.ax[0].clear()
-        self.ax[1].clear()
-        tth, int_vec = self._parent.controller.get_reduced_diffraction_data(sub_run,
-                                                                            self._parent.fit_summary.out_of_plan_angle)
 
-        self.ax[0].plot(tth[1:], int_vec[1:], 'k')
-
-        self.draw_fit_range(tth.min(), tth.max())
-
-        if self._parent.fit_summary.fit_table_operator.fit_result is not None:
-            sub_run_index = int(np.where(self._parent.model.sub_runs == sub_run)[0])
-
-            fit_data = self._parent.controller.get_fitted_data(sub_run_index,
-                                                               self._parent.fit_summary.out_of_plan_angle)
-
-            fit_index = fit_data[1] > 0
-            self.ax[0].plot(fit_data[0][fit_index], fit_data[1][fit_index], 'r')
-            self.ax[1].plot(fit_data[2][fit_index], fit_data[3][fit_index], 'r')
-
-        self.ax[1].set_xlabel(r"2$\theta$ ($deg.$)")
-        self.ax[0].set_ylabel("Intensity (ct.)")
-        self.ax[1].set_ylabel("Diff (ct.)")
+        self._parent._ctrl.update_diffraction_view(self.ax, self._parent, sub_run)
 
         plt.tight_layout()
 
         self.canvas.draw()
-
-    def draw_fit_range(self, tthmin, tthmax):
-
-        colors = ['b', 'g', 'm']
-
-        for i_entry in range(self._parent.fit_setup.fit_range_table.rowCount()):
-            try:
-                x0 = float(self._parent.fit_setup.fit_range_table.item(i_entry, 0).text())
-                x1 = float(self._parent.fit_setup.fit_range_table.item(i_entry, 1).text())
-
-                if (x0 > tthmin) and (x1 < tthmax):
-                    self.ax[0].axvline(x=x0, color=colors[i_entry])
-                    self.ax[0].axvline(x=x1, color=colors[i_entry])
-            except AttributeError:
-                pass
 
     def getWidget(self):
         return FixFigureCanvas(self.figure)
 
     def update_param_view(self, xlabel, ylabel, peak_number=1, out_of_plane=None):
 
-        if peak_number == "":
-            peak_number = 1
-
-        self.ax.clear()
-
-        xdata, ydata = self._parent._ctrl.get_log_plot(xlabel, ylabel, peak=int(peak_number),
-                                                       fit_object=self._parent.fit_summary.fit_table_operator,
-                                                       out_of_plane=out_of_plane)
-
-        if len(xdata) != len(ydata):
-            self.ax.errorbar(xdata, ydata[0], yerr=ydata[1], color='k', ls='None')
-        else:
-            self.ax.plot(xdata, ydata, color='k', marker='D', linestyle='None')
-
-        self.ax.set_xlabel(xlabel)
-        self.ax.set_ylabel(ylabel)
+        self._parent._ctrl.plot_2D_params(self.ax, xlabel, ylabel, peak_number,
+                                          fit_object=self._parent.fit_summary.fit_table_operator,
+                                          out_of_plane=out_of_plane)
 
         plt.tight_layout()
 
@@ -428,86 +378,9 @@ class PlotView(QWidget):
 
     def update_3D_view(self, xlabel, ylabel, zlabel, peak_number=1, out_of_plane=None, sub_run_list=[]):
 
-        def round_polar(vector, target):
-            return np.round(vector / target, 0) * target
-
-        self.ax.clear()
-
-        if peak_number == "":
-            peak_number = 1
-
-        xdata, ydata, zdata = self._parent._ctrl.get_log_plot(xlabel, ylabel, zname=zlabel, peak=int(peak_number),
-                                                              fit_object=self._parent.fit_summary.fit_table_operator,
-                                                              out_of_plane=out_of_plane, include_list=sub_run_list)
-
-        if len(xdata) != len(zdata):
-            zdata = zdata[0]
-
-        plot_scatter = False
-        if ((ydata.size == np.unique(ydata).size) or
-                (xdata.size == np.unique(xdata).size)):
-
-            plot_scatter = True
-
-        if (self._parent.VizSetup.polar_bt.isChecked()):
-            polar_data = self._parent._ctrl.extract_polar_projection(peak_number=int(peak_number))
-
-            if polar_data is not None:
-
-                alpha = round_polar(polar_data[:, 0], 5)
-                beta = round_polar(polar_data[:, 1], 5)
-
-                R, P = np.meshgrid(np.unique(alpha), np.unique(beta))
-                Z = griddata(((alpha, beta)), polar_data[:, 2], (R, P), method='nearest')
-
-                if self._parent.VizSetup.shift_bt.isChecked():
-                    X = (90 - R) * np.cos(np.deg2rad(P))
-                    Y = (90 - R) * np.sin(np.deg2rad(P))
-                else:
-                    X = R * np.cos(np.deg2rad(P))
-                    Y = R * np.sin(np.deg2rad(P))
-
-                self.ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm',
-                                     linewidth=0, antialiased=False)
-
-                xlabel = r'$\alpha$'
-                ylabel = r'$\beta$'
-                zlabel = r'Intensity'
-
-                plot_scatter = False
-            else:
-                plot_scatter = True
-
-        if (self._parent.VizSetup.contour_bt.isChecked()) and (not plot_scatter):
-            X, Y = np.meshgrid(np.unique(xdata), np.unique(ydata))
-            Z = griddata(((xdata, ydata)), zdata, (X, Y), method='nearest')
-
-            self.ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm',
-                                 linewidth=0, antialiased=False)
-
-        elif (self._parent.VizSetup.lines_bt.isChecked()) and (not plot_scatter):
-
-            X, Y = np.meshgrid(np.unique(xdata), np.unique(ydata))
-            Z = griddata(((xdata, ydata)), zdata, (X, Y), method='nearest')
-
-            norm = plt.Normalize(Z.min(), Z.max())
-            colors = coolwarm(norm(Z))
-            rcount, ccount, _ = colors.shape
-
-            surf = self.ax.plot_surface(X, Y, Z, rcount=rcount, ccount=ccount,
-                                        facecolors=colors, shade=False)
-            surf.set_facecolor((0, 0, 0, 0))
-
-        elif (self._parent.VizSetup.scatter_bt.isChecked()) or (plot_scatter):
-
-            norm = plt.Normalize(zdata.min(), zdata.max())
-            colors = coolwarm(norm(zdata))
-
-            self.ax.scatter(xdata, ydata, zdata, marker='D', color=colors)
-
-        self.ax.set_xlabel(xlabel)
-        self.ax.set_ylabel(ylabel)
-        self.ax.set_zlabel(zlabel)
+        self._parent._ctrl.plot_3D_params(self._parent, self.ax, xlabel, ylabel, zlabel, peak_number,
+                                          fit_object=self._parent.fit_summary.fit_table_operator,
+                                          out_of_plane=out_of_plane, include_list=sub_run_list)
 
         plt.tight_layout()
 
@@ -678,24 +551,13 @@ class FitSetupView(QGroupBox):
 
     def save_pole_fig(self):
 
-        peak_label_list = []
-        peaks_id_list = []
-        for peak_row in range(self.fit_range_table.rowCount()):
-            if (self.fit_range_table.item(peak_row, 0) is not None and
-                    self.fit_range_table.item(peak_row, 1) is not None):
-                peaks_id_list.append(peak_row + 1)
-                if self.fit_range_table.item(peak_row, 2) is None:
-                    peak_label_list.append('peak_{}'.format(peak_row + 1))
-                else:
-                    peak_label_list.append(self.fit_range_table.item(peak_row, 2).text())
-
         output_folder = QFileDialog.getExistingDirectory(self,
                                                          "Export Experimental Polefigure Information")
 
         if not output_folder:
             return
 
-        self._parent.controller.export_polar_projection(output_folder, peaks_id_list, peak_label_list)
+        self._parent.controller.export_polar_projection(output_folder, self.fit_range_table)
 
     def save_json(self):
         filename, _ = QFileDialog.getSaveFileName(self,
@@ -749,33 +611,15 @@ class FitSetupView(QGroupBox):
 
     def fit(self):
 
-        peak_label = []
-        tth_min = []
-        tth_max = []
-
-        for peak_row in range(self.fit_range_table.rowCount()):
-            if (self.fit_range_table.item(peak_row, 0) is not None and
-                    self.fit_range_table.item(peak_row, 1) is not None):
-
-                tth_min.append(float(self.fit_range_table.item(peak_row, 0).text()))
-                tth_max.append(float(self.fit_range_table.item(peak_row, 1).text()))
-                if self.fit_range_table.item(peak_row, 2) is None:
-                    peak_label.append('peak_{}'.format(peak_row + 1))
-                    self.fit_range_table.setItem(peak_row, 2, QTableWidgetItem('peak_{}'.format(peak_row + 1)))
-                else:
-                    peak_label.append(self.fit_range_table.item(peak_row, 2).text())
-
-            if self.fit_range_table.item(peak_row, 3) is None:
-                self.fit_range_table.setItem(peak_row, 3, QTableWidgetItem('1.0'))
-
-        fit_results = self._parent.controller.fit_peaks(tth_min, tth_max, peak_label,
-                                                        self.peak_model.currentText(), self.peak_back.currentText())
+        fit_results = self._parent.controller.fit_peaks(self.fit_range_table,
+                                                        self.peak_model.currentText(),
+                                                        self.peak_back.currentText())
 
         self._parent.fit_summary.fit_table_operator.set_fit_dict(fit_results)
         self._parent.fit_summary.fit_table_operator.initialize_fit_result_widgets()
         self._parent.fit_summary.fit_table_operator.populate_fit_result_table()
         self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[0])
-        self.setup_view_param(peaks=len(tth_min))
+        self.setup_view_param(peaks=self.fit_range_table.rowCount())
 
     def valuechange(self):
         self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[self.sl.value()])

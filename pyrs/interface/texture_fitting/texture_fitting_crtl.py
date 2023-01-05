@@ -1,4 +1,7 @@
 import numpy as np
+from scipy.interpolate import griddata
+import matplotlib.pyplot as plt
+from matplotlib.cm import coolwarm
 
 
 class TextureFittingCrtl:
@@ -113,7 +116,7 @@ class TextureFittingCrtl:
             zdata = extract_data(zname, fit_object, peak)
             return self.trim_data(xdata, ydata, zdata, include_list=parse_split_list(include_list))
 
-    def fit_peaks(self, min_tth, max_tth, peak_tag, peak_function_name, background_function_name,
+    def fit_peaks(self, fit_range_table, peak_function_name, background_function_name,
                   out_of_plane_angle=None):
 
         def _extract_fitted_data(fit_ws):
@@ -124,6 +127,21 @@ class TextureFittingCrtl:
                 diff_data[i_sub, :] = fit_ws.readY(int(i_sub))
 
             return tth_data, diff_data
+
+        peak_tag = []
+        min_tth = []
+        max_tth = []
+
+        for peak_row in range(fit_range_table.rowCount()):
+            if (fit_range_table.item(peak_row, 0) is not None and
+                    fit_range_table.item(peak_row, 1) is not None):
+
+                min_tth.append(float(fit_range_table.item(peak_row, 0).text()))
+                max_tth.append(float(fit_range_table.item(peak_row, 1).text()))
+                if fit_range_table.item(peak_row, 2) is None:
+                    peak_tag.append('peak_{}'.format(peak_row + 1))
+                else:
+                    peak_tag.append(fit_range_table.item(peak_row, 2).text())
 
         fit_results = {}
 
@@ -203,7 +221,18 @@ class TextureFittingCrtl:
         else:
             return None
 
-    def export_polar_projection(self, output_folder, peak_id_list, peak_label_list):
+    def export_polar_projection(self, output_folder, fit_range_table):
+
+        peak_label_list = []
+        peak_id_list = []
+        for peak_row in range(fit_range_table.rowCount()):
+            if (fit_range_table.item(peak_row, 0) is not None and
+                    fit_range_table.item(peak_row, 1) is not None):
+                peak_id_list.append(peak_row + 1)
+                if fit_range_table.item(peak_row, 2) is None:
+                    peak_label_list.append('peak_{}'.format(peak_row + 1))
+                else:
+                    peak_label_list.append(fit_range_table.item(peak_row, 2).text())
 
         if self._model._polefigureinterface is not None:
             self._model._polefigureinterface.calculate_pole_figure()
@@ -217,3 +246,153 @@ class TextureFittingCrtl:
         chi = np.unique(self._model.ws.get_sample_log_values("chi"))
 
         return not ((phi.size == 1) and (chi.size == 1))
+
+    def plot_2D_params(self, ax, xlabel, ylabel, peak_number, fit_object, out_of_plane):
+
+        if peak_number == "":
+            peak_number = 1
+
+        ax.clear()
+
+        xdata, ydata = self.get_log_plot(xlabel, ylabel, peak=int(peak_number),
+                                         fit_object=fit_object,
+                                         out_of_plane=out_of_plane)
+
+        if len(xdata) != len(ydata):
+            ax.errorbar(xdata, ydata[0], yerr=ydata[1], color='k', ls='None')
+        else:
+            ax.plot(xdata, ydata, color='k', marker='D', linestyle='None')
+
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+
+        return
+
+    def plot_3D_params(self, _parent, ax, xlabel, ylabel, zlabel, peak_number, fit_object, out_of_plane, include_list):
+
+        def round_polar(vector, target):
+            return np.round(vector / target, 0) * target
+
+        ax.clear()
+
+        if peak_number == "":
+            peak_number = 1
+
+        xdata, ydata, zdata = self.get_log_plot(xlabel, ylabel, zname=zlabel, peak=int(peak_number),
+                                                fit_object=_parent.fit_summary.fit_table_operator,
+                                                out_of_plane=out_of_plane, include_list=include_list)
+
+        if len(xdata) != len(zdata):
+            zdata = zdata[0]
+
+        plot_scatter = False
+        if ((ydata.size == np.unique(ydata).size) or
+                (xdata.size == np.unique(xdata).size)):
+
+            plot_scatter = True
+
+        if (_parent.VizSetup.polar_bt.isChecked()):
+            polar_data = _parent._ctrl.extract_polar_projection(peak_number=int(peak_number))
+
+            if polar_data is not None:
+
+                alpha = round_polar(polar_data[:, 0], 5)
+                beta = round_polar(polar_data[:, 1], 5)
+
+                R, P = np.meshgrid(np.unique(alpha), np.unique(beta))
+                Z = griddata(((alpha, beta)), polar_data[:, 2], (R, P), method='nearest')
+
+                if _parent.VizSetup.shift_bt.isChecked():
+                    X = (90 - R) * np.cos(np.deg2rad(P))
+                    Y = (90 - R) * np.sin(np.deg2rad(P))
+                else:
+                    X = R * np.cos(np.deg2rad(P))
+                    Y = R * np.sin(np.deg2rad(P))
+
+                ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm',
+                                linewidth=0, antialiased=False)
+
+                xlabel = r'$\alpha$'
+                ylabel = r'$\beta$'
+                zlabel = r'Intensity'
+
+                plot_scatter = False
+            else:
+                plot_scatter = True
+
+        if (_parent.VizSetup.contour_bt.isChecked()) and (not plot_scatter):
+            X, Y = np.meshgrid(np.unique(xdata), np.unique(ydata))
+            Z = griddata(((xdata, ydata)), zdata, (X, Y), method='nearest')
+
+            ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm',
+                            linewidth=0, antialiased=False)
+
+        elif (_parent.VizSetup.lines_bt.isChecked()) and (not plot_scatter):
+
+            X, Y = np.meshgrid(np.unique(xdata), np.unique(ydata))
+            Z = griddata(((xdata, ydata)), zdata, (X, Y), method='nearest')
+
+            norm = plt.Normalize(Z.min(), Z.max())
+            colors = coolwarm(norm(Z))
+            rcount, ccount, _ = colors.shape
+
+            surf = ax.plot_surface(X, Y, Z, rcount=rcount, ccount=ccount,
+                                   facecolors=colors, shade=False)
+
+            surf.set_facecolor((0, 0, 0, 0))
+
+        elif (_parent.VizSetup.scatter_bt.isChecked()) or (plot_scatter):
+
+            norm = plt.Normalize(zdata.min(), zdata.max())
+            colors = coolwarm(norm(zdata))
+
+            ax.scatter(xdata, ydata, zdata, marker='D', color=colors)
+
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        ax.set_zlabel(zlabel)
+
+        return
+
+    def update_diffraction_view(self, ax, _parent, sub_run):
+
+        def draw_fit_range(tthmin, tthmax):
+
+            colormap = plt.cm.jet
+            colors = [colormap(i) for i in np.linspace(0, 1, _parent.fit_setup.fit_range_table.rowCount())]
+
+            for i_entry in range(_parent.fit_setup.fit_range_table.rowCount()):
+                try:
+                    x0 = float(_parent.fit_setup.fit_range_table.item(i_entry, 0).text())
+                    x1 = float(_parent.fit_setup.fit_range_table.item(i_entry, 1).text())
+
+                    if (x0 > tthmin) and (x1 < tthmax):
+                        ax[0].axvline(x=x0, color=colors[i_entry])
+                        ax[0].axvline(x=x1, color=colors[i_entry])
+                except AttributeError:
+                    pass
+
+        ax[0].clear()
+        ax[1].clear()
+        tth, int_vec = self.get_reduced_diffraction_data(sub_run,
+                                                         _parent.fit_summary.out_of_plan_angle)
+
+        ax[0].plot(tth[1:], int_vec[1:], 'k')
+
+        draw_fit_range(tth.min(), tth.max())
+
+        if _parent.fit_summary.fit_table_operator.fit_result is not None:
+            sub_run_index = int(np.where(_parent.model.sub_runs == sub_run)[0])
+
+            fit_data = self.get_fitted_data(sub_run_index,
+                                            _parent.fit_summary.out_of_plan_angle)
+
+            fit_index = fit_data[1] > 0
+            ax[0].plot(fit_data[0][fit_index], fit_data[1][fit_index], 'r')
+            ax[1].plot(fit_data[2][fit_index], fit_data[3][fit_index], 'r')
+
+        ax[1].set_xlabel(r"2$\theta$ ($deg.$)")
+        ax[0].set_ylabel("Intensity (ct.)")
+        ax[1].set_ylabel("Diff (ct.)")
+
+        return

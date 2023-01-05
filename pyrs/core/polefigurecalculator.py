@@ -115,7 +115,7 @@ class PoleFigureCalculator:
             return self._pole_figure_dict[peak_id]
 
     def export_pole_figure(self, output_folder: str = '', peak_id_list: list = [], peak_name_list: list = [],
-                           run_number: int = 0, file_type: str = 'mtex', file_header: str = ''):
+                           run_number: int = 0, file_type: str = 'mtex', file_header: str = '') -> None:
         """
         exported the calculated pole figure
         :param detector_id_list: list of detector IDs to write the pole figure file
@@ -124,7 +124,6 @@ class PoleFigureCalculator:
         :param file_header: for MTEX format
         :return:
         """
-        # TESTME - 20180711 - Clean this method and allow user to specifiy header
 
         # process detector ID list
         if peak_id_list is None:
@@ -137,6 +136,9 @@ class PoleFigureCalculator:
             # check inputs
             checkdatatypes.check_file_name(file_name, check_exist=False, check_writable=True)
             checkdatatypes.check_string_variable('Output pole figure file type/format', file_type)
+
+            print('[INFO] Exporting polefigure = {} with peak ID {}'.format(peak_name_list[i_peak],
+                                                                            peak_id_list[i_peak]))
 
             # it is a dictionary now
             if file_type.lower() == 'ascii':
