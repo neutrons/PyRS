@@ -46,6 +46,7 @@ def generate_test_gaussian(vec_x, peak_center_list, peak_range_list, peak_height
         sigma = peak_range / 6. / (2. * np.sqrt(2. * np.log(2.)))
 
         # generate noise with amplitude of sqrt(peak_height)
+        print(f"peak_height_list[ipeak] = {peak_height_list[ipeak]}")
         noise = (np.random.random_sample(vec_x.shape[0]) - 0.5) * np.sqrt(peak_height_list[ipeak])
 
         # calculate Gaussian function based on input peak center and peak range
