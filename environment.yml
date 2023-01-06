@@ -7,9 +7,10 @@ dependencies:
 - python=3.8
 - mantidworkbench
 - qtpy
+- pyqt =5.12
 - pytest
 - pytest-cov
-- pytest-qt==3.3.0
+- pytest-qt
 - uncertainties
 - vtk
 - flake8
