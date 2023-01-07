@@ -4,8 +4,10 @@ on:
   workflow_dispatch:
   pull_request:
   push:
-    branches: [next]
-    tags: ['v*']
+    branches:
+      - next
+    tags:
+      - v*
 
 env:
   TRIGGER_URL: "https://code.ornl.gov/api/v4/projects/6012/trigger/pipeline"
@@ -54,8 +56,8 @@ jobs:
           python -c "import qtpy"
           python -c "import mantidqt"
 
-      - name: Run PyRS test with n=1
-        run: pytest -n 1 --cov=pyrs --cov-report=xml --cov-report=term tests
+      - name: Print Conda Packages
+        run: conda list
 
       - name: Run PyRS tests
         run: xvfb-run --server-args="-screen 0 640x480x24" -a pytest --cov=pyrs --cov-report=xml --cov-report=term tests
@@ -68,35 +70,33 @@ jobs:
           python setup.py bdist_wheel
           check-wheel-contents dist/pyrs-*.whl
 
-      - name: Build conda libraray
+      - name: Build conda package
+        # Build in all cases, for testing purposes
         run: |
-          echo GITHUB REF ${{ github.ref }}
           cd conda.recipe
           conda build --output-folder . . -c mantid
           conda verify noarch/pyrs-*py*.tar.bz2
 
-      - name: Deploy to Anaconda
+      - name: Publish to Anaconda
         shell: bash -l {0}
+        # Publish only for version tags (tag name starts with "v")
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
+          # IS_RC: "true" for release-candidate tags, e.g. "v1.0.0-rc1"
           IS_RC: ${{ contains(github.ref, 'rc') }}
-          IS_DEV: ${{ github.ref == 'refs/heads/next' }}
-
         run: |
           conda install -y anaconda-client
-          # label is main or rc depending on the tag-name
           CONDA_LABEL="main"
           if [ "${IS_RC}" = "true" ]; then CONDA_LABEL="rc"; fi
-          if [ "${IS_DEV}" = "true" ]; then CONDA_LABEL="dev"; fi
-          echo pushing ${{ github.ref }} with label $CONDA_LABEL
-          anaconda upload --label $CONDA_LABEL conda.recipe/noarch/pyrs-*.tar.bz2
+          echo "pushing ${{ github.ref }} with label ${CONDA_LABEL}"
+          anaconda upload --label ${CONDA_LABEL} conda.recipe/noarch/pyrs-*.tar.bz2
 
   trigger-deploy:
     runs-on: ubuntu-22.04
     needs: [ci]
-    # only trigger deploys from protected branches
-    if: ${{ github.ref_protected || github.ref_type == 'tag' }}
+    # Deploys from branch next or from a version tag
+    if: ${{ github.ref == 'refs/heads/next' || startsWith(github.ref, 'refs/tags/v') }}
     steps:
       - name: Determine Environment
         uses: neutrons/branch-mapper@main

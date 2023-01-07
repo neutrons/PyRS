@@ -214,8 +214,8 @@ class EventHandler:
             _value2 = GuiUtilities.get_item_value(table_ui, _row, 1)
 
             try:
-                _value1_float = np.float(_value1)
-                _value2_float = np.float(_value2)
+                _value1_float = np.float64(_value1)
+                _value2_float = np.float64(_value2)
                 _array = [_value1_float, _value2_float]
 
                 _value1 = np.nanmin(_array)
@@ -235,7 +235,7 @@ class EventHandler:
             _label = GuiUtilities.get_item_value(table_ui, _row, 2)
             list_fit_peak_labels.append(_label)
 
-            _d0 = np.float(str(GuiUtilities.get_item_value(table_ui, _row, 3)))
+            _d0 = np.float64(str(GuiUtilities.get_item_value(table_ui, _row, 3)))
             list_fit_peak_d0.append(_d0)
 
         # replace the list_peak_ranges and list_fit_peak_labels from mplfitplottingwidget.py
