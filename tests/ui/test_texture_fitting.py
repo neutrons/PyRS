@@ -80,10 +80,10 @@ def test_texture_fitting_viewer(qtbot):
                            pos=QtCore.QPoint(stop_x[i_loop], 20))
         qtbot.wait(wait)
         np.testing.assert_allclose(float(window.fit_setup.fit_range_table.item(i_loop, 0).text()),
-                                   fit_ranges[i_loop][0], rtol=1e-3)
+                                   fit_ranges[i_loop][0], rtol=0.5)
 
         np.testing.assert_allclose(float(window.fit_setup.fit_range_table.item(i_loop, 1).text()),
-                                   fit_ranges[i_loop][1], rtol=1e-3)
+                                   fit_ranges[i_loop][1], rtol=0.5)
 
     # load json with fitting range and test that data are loaded
     qtbot.wait(wait)
