@@ -532,7 +532,7 @@ class FitSetupView(QGroupBox):
         row = self.fit_range_table.rowCount() - 1
 
         if float(self.fit_range_table.item(row, 0).text()) > x1:
-            self.fit_range_table.setItem(row, 1, self.fit_range_table.item(row, 0).text())
+            self.fit_range_table.setItem(row, 1, QTableWidgetItem(self.fit_range_table.item(row, 0).text()))
             self.fit_range_table.setItem(row, 0, QTableWidgetItem(str(x1)))
         else:
             self.fit_range_table.setItem(row, 1, QTableWidgetItem(str(x1)))
@@ -543,7 +543,8 @@ class FitSetupView(QGroupBox):
         filename, _ = QFileDialog.getSaveFileName(self,
                                                   "Export Peak Information",
                                                   self._parent.model.get_default_csv_filename(),
-                                                  "CSV (*.csv);;All Files (*)")
+                                                  "CSV (*.csv);;All Files (*)",
+                                                  options=QFileDialog.DontUseNativeDialog)
         if not filename:
             return
 
@@ -552,7 +553,8 @@ class FitSetupView(QGroupBox):
     def save_pole_fig(self):
 
         output_folder = QFileDialog.getExistingDirectory(self,
-                                                         "Export Experimental Polefigure Information")
+                                                         "Export Experimental Polefigure Information",
+                                                         options=QFileDialog.DontUseNativeDialog)
 
         if not output_folder:
             return
@@ -562,20 +564,22 @@ class FitSetupView(QGroupBox):
     def save_json(self):
         filename, _ = QFileDialog.getSaveFileName(self,
                                                   "Export Peak Fit Information",
-                                                  self._parent.model.runnumber,
-                                                  "JSON (*.json);;All Files (*)")
+                                                  "JSON (*.json);;All Files (*)",
+                                                  options=QFileDialog.DontUseNativeDialog)
         if not filename:
             return
-        self._parent.controller.save_fit_range(filename)
+        self._parent.controller.save_fit_range(filename, self.fit_range_table)
 
     def load_json(self):
-        filename, _ = QFileDialog.getSaveFileName(self,
+        filename, _ = QFileDialog.getOpenFileName(self,
                                                   "Export Peak Fit Information",
-                                                  self._parent.model.runnumber,
-                                                  "JSON (*.json);;All Files (*)")
+                                                  "JSON (*.json);;All Files (*)",
+                                                  options=QFileDialog.DontUseNativeDialog)
         if not filename:
             return
-        self._parent.controller.load_fit_range(filename)
+
+        self.fit_range_table.setRowCount(0)
+        self._parent.controller.load_fit_range(filename, self.fit_range_table)
 
     def remove_peak_range_table_row(self, pos):
         it = self.fit_range_table.itemAt(pos)
@@ -988,6 +992,8 @@ class TextureFittingViewer(QMainWindow):
         self.splitter.addWidget(right)
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 5)
+
+        self.resize(1024, 1024)
 
     @property
     def controller(self):

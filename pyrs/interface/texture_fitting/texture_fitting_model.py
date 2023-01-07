@@ -2,6 +2,7 @@ import json
 import traceback
 from shutil import copyfile
 import numpy as np
+import os
 
 # from pyrs.dataobjects import HidraConstants  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
@@ -10,6 +11,7 @@ from qtpy.QtCore import Signal, QObject  # type:ignore
 # from pyrs.interface.gui_helper import pop_message
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
 from pyrs.core.polefigurecalculator import PoleFigureCalculator
+from qtpy.QtWidgets import QTableWidgetItem  # type:ignore
 
 
 class TextureFittingModel(QObject):
@@ -27,9 +29,6 @@ class TextureFittingModel(QObject):
     @property
     def runnumber(self):
         return self._run_number
-
-    def set_workspaces(self, name, filenames):
-        setattr(self, name, filenames)
 
     def load_hidra_project_file(self, filename):
 
@@ -51,64 +50,65 @@ class TextureFittingModel(QObject):
                                  traceback.format_exc())
             return None, dict()
 
-    def to_json(self, filename):
+    def to_json(self, filename, fit_range_table):
+
+        fileParts = os.path.splitext(filename)
+
+        if fileParts[1] != '.json':
+            filename = '{}.json'.format(fileParts[0])
+
         try:
             json_output = dict()
-            json_output['stress_case'] = self._stressCase
-            json_output['filenames_11'] = self.get_filenames_for_direction('11')
-            json_output['filenames_22'] = self.get_filenames_for_direction('22')
-            json_output['filenames_33'] = self.get_filenames_for_direction('33')
-            json_output['peak_tag'] = self.selectedPeak
-            json_output['youngs_modulus'] = self._youngs_modulus
-            json_output['poisson_ratio'] = self._poisson_ratio
-            if self._d0 is None:
-                json_output['d0'] = None
-            elif len(self._d0) == 5:  # ScalarFieldSample case
-                json_output['d0'] = {"d0": self._d0[0],
-                                     "d0_error": self._d0[1],
-                                     "vx": self._d0[2],
-                                     "vy": self._d0[3],
-                                     "vz": self._d0[4]}
-            else:
-                json_output['d0'] = {"d0": self._d0[0],
-                                     "d0_error": self._d0[1]}
+
+            for peak_row in range(fit_range_table.rowCount()):
+                if (fit_range_table.item(peak_row, 0) is not None and
+                        fit_range_table.item(peak_row, 1) is not None):
+
+                    if fit_range_table.item(peak_row, 2) is None:
+                        peak_tag = 'peak_{}'.format(peak_row + 1)
+                    else:
+                        peak_tag = fit_range_table.item(peak_row, 2).text()
+
+                    if fit_range_table.item(peak_row, 3) is None:
+                        d0 = 1.0
+                    else:
+                        d0 = float(fit_range_table.item(peak_row, 3).text())
+
+                json_output[str(peak_row)] = {"peak_range": [float(fit_range_table.item(peak_row, 0).text()),
+                                                             float(fit_range_table.item(peak_row, 1).text())],
+                                              "peak_label": peak_tag,
+                                              "d0": d0}
 
             with open(filename, 'w') as f:
                 json.dump(json_output, f)
+
         except Exception as e:
             self.failureMsg.emit(f"Failed save json file to {filename}",
                                  str(e),
                                  traceback.format_exc())
 
-    def from_json(self, filename):
+    def from_json(self, filename, fit_range_table):
         with open(filename) as f:
             data = json.load(f)
 
-        self._selectedPeak = data["peak_tag"]
+        for peak_entry in data.keys():
 
-        for direction in ('11', '22', '33'):
-            self.set_workspaces(f'e{direction}', data[f'filenames_{direction}'])
-            if getattr(self, f'e{direction}'):
-                self.create_strain(direction)
+            try:
+                float(data[peak_entry]["d0"])
+            except TypeError:
+                data[peak_entry]["d0"] = 1.0
 
-        d0_data = data["d0"]
-        if d0_data is None:
-            d0 = None
-        elif len(d0_data) == 2:
-            d0 = (d0_data['d0'], d0_data['d0_error'])
-        else:
-            d0 = (d0_data['d0'],
-                  d0_data['d0_error'],
-                  d0_data['vx'],
-                  d0_data['vy'],
-                  d0_data['vz'])
+            fit_range_table.insertRow(fit_range_table.rowCount())
+            fit_range_table.setItem(fit_range_table.rowCount() - 1, 0,
+                                    QTableWidgetItem(str(data[peak_entry]["peak_range"][0])))
+            fit_range_table.setItem(fit_range_table.rowCount() - 1, 1,
+                                    QTableWidgetItem(str(data[peak_entry]["peak_range"][1])))
+            fit_range_table.setItem(fit_range_table.rowCount() - 1, 2,
+                                    QTableWidgetItem(str(data[peak_entry]["peak_label"])))
+            fit_range_table.setItem(fit_range_table.rowCount() - 1, 3,
+                                    QTableWidgetItem(str(data[peak_entry]["d0"])))
 
-        self.calculate_stress(data["stress_case"],
-                              data["youngs_modulus"],
-                              data["poisson_ratio"],
-                              d0)
-
-        self.propertyUpdated.emit("modelUpdated")
+        return
 
     def fit_diff_peaks(self, min_tth, max_tth, peak_tag, _peak_function_name,
                        _background_function_name, out_of_plane_angle):

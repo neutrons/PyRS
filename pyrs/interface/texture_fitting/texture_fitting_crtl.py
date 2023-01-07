@@ -189,11 +189,11 @@ class TextureFittingCrtl:
     def save(self, filename, fit_result):
         self._model.save_fit_result(filename, fit_result)
 
-    def save_fit_range(self, filename):
-        self._model.to_json(filename)
+    def save_fit_range(self, filename, fit_range_table):
+        self._model.to_json(filename, fit_range_table)
 
-    def load_fit_range(self, filename):
-        self._model.to_json(filename)
+    def load_fit_range(self, filename, fit_range_table):
+        self._model.from_json(filename, fit_range_table)
 
     def export_peak_data(self, filename, fit_collection):
         pass
@@ -258,10 +258,19 @@ class TextureFittingCrtl:
                                          fit_object=fit_object,
                                          out_of_plane=out_of_plane)
 
-        if len(xdata) != len(ydata):
-            ax.errorbar(xdata, ydata[0], yerr=ydata[1], color='k', ls='None')
+        if type(ydata[0]) == np.ndarray:
+            yerr = ydata[1]
+            ydata = ydata[0]
         else:
-            ax.plot(xdata, ydata, color='k', marker='D', linestyle='None')
+            yerr = np.zeros_like(ydata)
+
+        if type(xdata[0]) == np.ndarray:
+            xerr = xdata[1]
+            xdata = xdata[0]
+        else:
+            xerr = np.zeros_like(xdata)
+
+        ax.errorbar(xdata, ydata, xerr=xerr, yerr=yerr, color='k', ls='None')
 
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
@@ -282,8 +291,17 @@ class TextureFittingCrtl:
                                                 fit_object=_parent.fit_summary.fit_table_operator,
                                                 out_of_plane=out_of_plane, include_list=include_list)
 
-        if len(xdata) != len(zdata):
+        if type(zdata[0]) == np.ndarray:
             zdata = zdata[0]
+
+        if type(xdata) == list:
+            xdata = np.array(xdata)
+
+        if type(ydata) == list:
+            ydata = np.array(ydata)
+
+        if type(zdata) == list:
+            zdata = np.array(zdata)
 
         plot_scatter = False
         if ((ydata.size == np.unique(ydata).size) or
@@ -374,6 +392,7 @@ class TextureFittingCrtl:
 
         ax[0].clear()
         ax[1].clear()
+
         tth, int_vec = self.get_reduced_diffraction_data(sub_run,
                                                          _parent.fit_summary.out_of_plan_angle)
 
