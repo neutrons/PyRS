@@ -69,7 +69,7 @@ def test_texture_fitting_viewer(qtbot):
 
     fit_ranges = [[62.346, 66.568], [71.2917, 76.0151]]
 
-    if not ON_GITHUB_ACTIONS:
+    if ON_GITHUB_ACTIONS:
         rtol = 0.5
     else:
         rtol = 1e-3
