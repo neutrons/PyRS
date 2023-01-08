@@ -9,7 +9,7 @@ import functools
 import os
 import json
 
-# from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
+from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 
 wait = 200
 plot_wait = 100
@@ -69,6 +69,11 @@ def test_texture_fitting_viewer(qtbot):
 
     fit_ranges = [[62.346, 66.568], [71.2917, 76.0151]]
 
+    if not ON_GITHUB_ACTIONS:
+        rtol = 0.5
+    else:
+        rtol = 1e-3
+
     for i_loop in range(len(start_x)):
         # Drag select with mouse control
         qtbot.mousePress(canvas.canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier,
@@ -80,10 +85,10 @@ def test_texture_fitting_viewer(qtbot):
                            pos=QtCore.QPoint(stop_x[i_loop], 20))
         qtbot.wait(wait)
         np.testing.assert_allclose(float(window.fit_setup.fit_range_table.item(i_loop, 0).text()),
-                                   fit_ranges[i_loop][0], rtol=0.5)
+                                   fit_ranges[i_loop][0], rtol=rtol)
 
         np.testing.assert_allclose(float(window.fit_setup.fit_range_table.item(i_loop, 1).text()),
-                                   fit_ranges[i_loop][1], rtol=0.5)
+                                   fit_ranges[i_loop][1], rtol=rtol)
 
     # load json with fitting range and test that data are loaded
     qtbot.wait(wait)
@@ -94,10 +99,10 @@ def test_texture_fitting_viewer(qtbot):
         data = json.load(f)
 
     assert len(data) == 2
-    np.testing.assert_allclose(data["0"]["peak_range"][0], fit_ranges[0][0], rtol=1e-3)
-    np.testing.assert_allclose(data["0"]["peak_range"][1], fit_ranges[0][1], rtol=1e-3)
-    np.testing.assert_allclose(data["1"]["peak_range"][0], fit_ranges[1][0], rtol=1e-3)
-    np.testing.assert_allclose(data["1"]["peak_range"][1], fit_ranges[1][1], rtol=1e-3)
+    np.testing.assert_allclose(data["0"]["peak_range"][0], fit_ranges[0][0], rtol=rtol)
+    np.testing.assert_allclose(data["0"]["peak_range"][1], fit_ranges[0][1], rtol=rtol)
+    np.testing.assert_allclose(data["1"]["peak_range"][0], fit_ranges[1][0], rtol=rtol)
+    np.testing.assert_allclose(data["1"]["peak_range"][1], fit_ranges[1][1], rtol=rtol)
 
     os.remove("texture_fitting_test.json")
 

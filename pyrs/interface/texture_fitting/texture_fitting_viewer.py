@@ -529,13 +529,14 @@ class FitSetupView(QGroupBox):
 
     def update_peak_tabel_entry(self, x1):
 
-        row = self.fit_range_table.rowCount() - 1
-
-        if float(self.fit_range_table.item(row, 0).text()) > x1:
-            self.fit_range_table.setItem(row, 1, QTableWidgetItem(self.fit_range_table.item(row, 0).text()))
-            self.fit_range_table.setItem(row, 0, QTableWidgetItem(str(x1)))
-        else:
-            self.fit_range_table.setItem(row, 1, QTableWidgetItem(str(x1)))
+        if x1 is not None:
+            row = self.fit_range_table.rowCount() - 1
+    
+            if float(self.fit_range_table.item(row, 0).text()) > x1:
+                self.fit_range_table.setItem(row, 1, QTableWidgetItem(self.fit_range_table.item(row, 0).text()))
+                self.fit_range_table.setItem(row, 0, QTableWidgetItem(str(x1)))
+            else:
+                self.fit_range_table.setItem(row, 1, QTableWidgetItem(str(x1)))
 
         return
 
