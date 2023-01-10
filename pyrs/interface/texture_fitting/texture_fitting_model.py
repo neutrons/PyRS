@@ -14,6 +14,7 @@ from pyrs.core.polefigurecalculator import PoleFigureCalculator
 from qtpy.QtWidgets import QTableWidgetItem  # type:ignore
 from qtpy.QtCore import Signal, QObject  # type:ignore
 
+
 class TextureFittingModel(QObject):
     propertyUpdated = Signal(str)
     failureMsg = Signal(str, str, str)
@@ -134,7 +135,7 @@ class TextureFittingModel(QObject):
         generator.write_csv(sample_logs, peaks)
 
         return
-    
+
     def save_fit_result(self, out_file_name='', fit_result=None):
         """Save the fit result, including a copy of the rest of the file if it does not exist at the specified path.
 
