@@ -195,8 +195,20 @@ class TextureFittingCrtl:
     def load_fit_range(self, filename, fit_range_table):
         self._model.from_json(filename, fit_range_table)
 
-    def export_peak_data(self, filename, fit_collection):
-        pass
+    def export_peak_data(self, out_folder):
+        for key in self._fits.keys():
+            if key == '':
+                sep = ''
+            else:
+                sep = '_'
+
+            self._model.export_fit_csv('{}/HB2B_{}{}{}.csv'.format(out_folder,
+                                                                   self._model.runnumber,
+                                                                   sep,
+                                                                   key),
+                                       self._fits[key].peakcollections)
+
+        return
 
     def parse_texture_fits(self, fit_obj, eta_mask, num_peaks):
 

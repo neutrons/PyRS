@@ -541,15 +541,13 @@ class FitSetupView(QGroupBox):
         return
 
     def save_peak_CSV(self):
-        filename, _ = QFileDialog.getSaveFileName(self,
-                                                  "Export Peak Information",
-                                                  self._parent.model.get_default_csv_filename(),
-                                                  "CSV (*.csv);;All Files (*)",
-                                                  options=QFileDialog.DontUseNativeDialog)
-        if not filename:
+        output_folder = QFileDialog.getExistingDirectory(self,
+                                                         "Export Peak Information",
+                                                         options=QFileDialog.DontUseNativeDialog)
+        if not output_folder:
             return
 
-        self._parent.controller.export_peak_data(filename, self._parent.fit_summary.fit_table_operator.fits)
+        self._parent.controller.export_peak_data(output_folder)
 
     def save_pole_fig(self):
 

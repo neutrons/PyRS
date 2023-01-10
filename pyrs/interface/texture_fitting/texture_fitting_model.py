@@ -7,12 +7,12 @@ import os
 # from pyrs.dataobjects import HidraConstants  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
-from qtpy.QtCore import Signal, QObject  # type:ignore
+from pyrs.core.summary_generator import SummaryGenerator
 # from pyrs.interface.gui_helper import pop_message
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
 from pyrs.core.polefigurecalculator import PoleFigureCalculator
 from qtpy.QtWidgets import QTableWidgetItem  # type:ignore
-
+from qtpy.QtCore import Signal, QObject  # type:ignore
 
 class TextureFittingModel(QObject):
     propertyUpdated = Signal(str)
@@ -124,6 +124,17 @@ class TextureFittingModel(QObject):
 
         return fit_result
 
+    def export_fit_csv(self, out_file_name, peaks):
+        sample_logs = self.ws._sample_logs
+
+        generator = SummaryGenerator(out_file_name,
+                                     log_list=sample_logs.keys())
+
+        generator.setHeaderInformation(dict())
+        generator.write_csv(sample_logs, peaks)
+
+        return
+    
     def save_fit_result(self, out_file_name='', fit_result=None):
         """Save the fit result, including a copy of the rest of the file if it does not exist at the specified path.
 
