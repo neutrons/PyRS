@@ -34,7 +34,6 @@ jobs:
       - name: Apt install deps
         run: |
           sudo apt update
-          sudo apt upgrade
           sudo apt-get install xvfb freeglut3-dev libglu1-mesa
 
       - name: Lint
