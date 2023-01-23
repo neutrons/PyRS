@@ -26,26 +26,40 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          auto-update-conda: true
-          miniforge-version: latest
-          channels: mantid,mantid/label/nightly,conda-forge
-          environment-file: environment.yml
-
       - name: Apt install deps
         run: |
           sudo apt update
           sudo apt-get install xvfb freeglut3-dev libglu1-mesa
 
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+
+      - name: Setup libmamba solver
+        run: |
+          conda install -n base conda-libmamba-solver
+          conda config --set solver libmamba
+
+      - name: Install requirements
+        run: |
+          # --quiet should turn off progress bars to make logs more readable
+          conda env create --file environment.yml --quiet
+          conda activate PyRS
+          conda env update --file development.yml --quiet
+
       - name: Lint
-        run: flake8 . --count
+        run: |
+          conda activate PyRS
+          flake8 . --count
 
       - name: mypy
-        run: mypy pyrs scripts tests
+        run: |
+          conda activate PyRS
+          mypy pyrs scripts tests
 
       - name: Mantid pre-requisites - create a properties file that turns off network access
         run: |
+          conda activate PyRS
           mkdir ~/.mantid
           echo "CheckMantidVersion.OnStartup=0" > ~/.mantid/Mantid.user.properties
           echo "UpdateInstrumentDefinitions.OnStartup=0" >> ~/.mantid/Mantid.user.properties
@@ -53,27 +67,34 @@ jobs:
 
       - name: Test mantid/workbench
         run: |
+          conda activate PyRS
           python -c "import mantid"
           python -c "import qtpy"
           python -c "import mantidqt"
 
       - name: Print Conda Packages
-        run: conda list
+        run: |
+          conda activate PyRS
+          conda list
 
       - name: Run PyRS tests
-        run: xvfb-run --server-args="-screen 0 640x480x24" -a pytest --cov=pyrs --cov-report=xml --cov-report=term tests
+        run: |
+          conda activate PyRS
+          xvfb-run --server-args="-screen 0 640x480x24" -a pytest --cov=pyrs --cov-report=xml --cov-report=term tests
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
 
       - name: Build python wheel # cannot be used without mantid
         run: |
+          conda activate PyRS
           python setup.py bdist_wheel
           check-wheel-contents dist/pyrs-*.whl
 
       - name: Build conda package
         # Build in all cases, for testing purposes
         run: |
+          conda activate PyRS
           cd conda.recipe
           conda build --output-folder . . -c mantid
           conda verify noarch/pyrs-*py*.tar.bz2
@@ -87,6 +108,7 @@ jobs:
           # IS_RC: "true" for release-candidate tags, e.g. "v1.0.0-rc1"
           IS_RC: ${{ contains(github.ref, 'rc') }}
         run: |
+          conda activate PyRS
           conda install -y anaconda-client
           CONDA_LABEL="main"
           if [ "${IS_RC}" = "true" ]; then CONDA_LABEL="rc"; fi
