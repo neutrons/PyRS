@@ -45,7 +45,7 @@ jobs:
           # --quiet should turn off progress bars to make logs more readable
           conda env create --file environment.yml --quiet
           conda activate PyRS
-          conda env update --file development.yml --quiet
+          conda env update --file environment.yml --quiet
 
       - name: Lint
         run: |
