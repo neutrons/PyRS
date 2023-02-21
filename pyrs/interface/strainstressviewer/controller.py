@@ -51,11 +51,8 @@ class Controller:
         else:
             return None
 
-    def validate_d0_grid_data(self, x_grid, y_grid, z_grid, d0_grid):
-        return self._model.validate_d0_grid_data(x_grid, y_grid, z_grid, d0_grid)
-
-    def process_d0_grid_data(self, x_grid, y_grid, z_grid, d0_grid, d0e_grid, default_d0, default_d0e):
-        return self._model.process_d0_grid_data(x_grid, y_grid, z_grid, d0_grid, d0e_grid, default_d0, default_d0e)
+    def validate_d0_grid_data(self, x_grid, y_grid, z_grid, d0_grid, d0e_grid, default_d0, default_d0e):
+        return self._model.validate_d0_grid_data(x_grid, y_grid, z_grid, d0_grid, d0e_grid, default_d0, default_d0e)
 
     def write_stress_to_csv(self, filename, detailed):
         self._model.write_stress_to_csv(filename, detailed)

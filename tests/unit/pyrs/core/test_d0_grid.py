@@ -38,7 +38,7 @@ class TestD0Grid:
 
         assert model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default, d0e_default)[0] == 0
 
-    def test_manipulation_full_match(self, test_data_dir: str):
+    def test_correction_full_match(self, test_data_dir: str):
         model = Model()
         model.stress = get_test_stress(test_data_dir)
         x, y, z, d0, d0e = np.loadtxt(test_data_dir + "/do-grid-all.csv", delimiter=',', unpack=True)
@@ -49,7 +49,7 @@ class TestD0Grid:
         assert np.array_equal(model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default, d0e_default)[4], d0)
         assert np.array_equal(model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default, d0e_default)[5], d0e)
 
-    def test_manipulation_partial_match(self, test_data_dir: str):
+    def test_correction_partial_match(self, test_data_dir: str):
         model = Model()
         model.stress = get_test_stress(test_data_dir)
         x, y, z, d0, d0e = np.loadtxt(test_data_dir + "/do-grid-some.csv", delimiter=',', unpack=True)
@@ -61,7 +61,7 @@ class TestD0Grid:
         assert np.array_equal(model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default, d0e_default)[4], d0_clean)
         assert np.array_equal(model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default, d0e_default)[5], d0e_clean)
 
-    def test_manipulation_no_match(self, test_data_dir: str):
+    def test_correction_no_match(self, test_data_dir: str):
         model = Model()
         model.stress = get_test_stress(test_data_dir)
         x, y, z, d0, d0e = np.loadtxt(test_data_dir + "/do-grid-none.csv", delimiter=',', unpack=True)
