@@ -229,8 +229,9 @@ class D0(QGroupBox):
 
     def set_d0_field(self, x, y, z, d0, d0e):
         if x is None:
-            self.d0_grid.clearContents()
+            self.d0_grid.setRowCount(0)
         else:
+            self.d0_grid.setRowCount(0)
             self.d0_grid.setRowCount(len(x))
 
             for n in range(len(x)):
@@ -280,7 +281,22 @@ class D0(QGroupBox):
                                                   "CSV (*.csv);;All Files (*)")
         if filename:
             x, y, z, d0, d0e = np.loadtxt(filename, delimiter=',', unpack=True)
-            self.set_d0_field(x, y, z, d0, d0e)
+            valid, x_clean, y_clean, z_clean, d0_clean, d0e_clean = self._parent.controller \
+                .validate_d0_grid_data(x, y, z, d0, d0e, float(self.d0.text()), float(self.d0e.text()))
+
+            if (valid == 1):
+                # all or excesss d0 grid coords
+                self.set_d0_field(x_clean, y_clean, z_clean, d0_clean, d0e_clean)
+            elif (valid == -1):
+                # no matching d0 grid coords
+                QMessageBox.information(self, 'Validation', "Grid was not loaded.\nNone of the coordinates in your \
+                    experimental data exist in the d0 grid provided. Choose a different d0 grid.", QMessageBox.Ok | QMessageBox.Ok)
+            else:
+                # some matching d0 grid coords
+                valid = QMessageBox.question(self, 'Validation', "Some of your coordinates in your experimental \
+                    data do not exist in the d0 grid provided - do you wish to continue?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                if (valid == QMessageBox.Yes):
+                    self.set_d0_field(x_clean, y_clean, z_clean, d0_clean, d0e_clean)
 
     def get_d0(self):
         if self.d0_grid_switch.currentText() == "Constant":
