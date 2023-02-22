@@ -290,11 +290,15 @@ class D0(QGroupBox):
             elif (valid == -1):
                 # no matching d0 grid coords
                 QMessageBox.information(self, 'Validation', "Grid was not loaded.\nNone of the coordinates in your \
-                    experimental data exist in the d0 grid provided. Choose a different d0 grid.", QMessageBox.Ok | QMessageBox.Ok)
+                                        experimental data exist in the d0 grid provided. Choose a different d0 grid.",
+                                        QMessageBox.Ok | QMessageBox.Ok)
+
             else:
                 # some matching d0 grid coords
                 valid = QMessageBox.question(self, 'Validation', "Some of your coordinates in your experimental \
-                    data do not exist in the d0 grid provided - do you wish to continue?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                                             data do not exist in the d0 grid provided - do you wish to continue?",
+                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
                 if (valid == QMessageBox.Yes):
                     self.set_d0_field(x_clean, y_clean, z_clean, d0_clean, d0e_clean)
 
