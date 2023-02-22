@@ -15,7 +15,6 @@ dependencies:
 - vtk
 - flake8
 - mypy
-- pandas
 - types-six
 - versioningit
 - conda-build
