@@ -54,7 +54,8 @@ class TestD0Grid:
         model = Model()
         model.stress = get_test_stress(test_data_dir)
         x, y, z, d0, d0e = np.loadtxt(test_data_dir + "/do-grid-some.csv", delimiter=',', unpack=True)
-        x_clean, y_clean, z_clean, d0_clean, d0e_clean = np.loadtxt(test_data_dir + "/do-grid-some-cleaned.csv", delimiter=',', unpack=True)
+        x_clean, y_clean, z_clean, d0_clean, d0e_clean = np.loadtxt(test_data_dir + "/do-grid-some-cleaned.csv",
+                                                                    delimiter=',', unpack=True)
 
         assert np.array_equal(model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default, d0e_default)[1], x_clean)
         assert np.array_equal(model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default, d0e_default)[2], y_clean)
