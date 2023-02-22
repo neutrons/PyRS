@@ -202,14 +202,14 @@ class Model(QObject):
 
     def validate_d0_grid_data(self, x_grid, y_grid, z_grid, d0_grid, d0e_grid, default_d0, default_d0e):
         # get stress facade values to validate d0
-        n_decimals=3
+        n_decimals = 3
         stress = self.stress
 
-        #convert to pandas df for joins
+        # convert to pandas df for joins
         stress_stacked = np.column_stack((stress.x.round(n_decimals), stress.y.round(n_decimals), stress.z.round(n_decimals)))
         grid_stacked = np.column_stack((x_grid.round(n_decimals), y_grid.round(n_decimals), z_grid.round(n_decimals), d0_grid, d0e_grid))
-        stress_df = pd.DataFrame(stress_stacked, columns = ['x','y','z'])
-        grid_df = pd.DataFrame(grid_stacked, columns = ['x','y','z','d0', 'd0e'])
+        stress_df = pd.DataFrame(stress_stacked, columns = ['x', 'y', 'z'])
+        grid_df = pd.DataFrame(grid_stacked, columns = ['x', 'y', 'z', 'd0', 'd0e'])
 
         # left join to show differences between dfs
         full_df = stress_df.merge(grid_df, on=["x", "y", "z"], how="left")
