@@ -68,8 +68,13 @@ class TestD0Grid:
         model.stress = get_test_stress(test_data_dir)
         x, y, z, d0, d0e = np.loadtxt(test_data_dir + "/do-grid-none.csv", delimiter=',', unpack=True)
 
-        assert np.array_equal(model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default, d0e_default)[1], None) # type: ignore
-        assert np.array_equal(model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default, d0e_default)[2], None) # type: ignore
-        assert np.array_equal(model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default, d0e_default)[3], None) # type: ignore
-        assert np.array_equal(model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default, d0e_default)[4], None) # type: ignore
-        assert np.array_equal(model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default, d0e_default)[5], None) # type: ignore
+        assert np.array_equal(model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default,
+                                                          d0e_default)[1], None)  # type: ignore
+        assert np.array_equal(model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default,
+                                                          d0e_default)[2], None)  # type: ignore
+        assert np.array_equal(model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default,
+                                                          d0e_default)[3], None)  # type: ignore
+        assert np.array_equal(model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default,
+                                                          d0e_default)[4], None)  # type: ignore
+        assert np.array_equal(model.validate_d0_grid_data(x, y, z, d0, d0e, d0_default,
+                                                          d0e_default)[5], None)  # type: ignore
