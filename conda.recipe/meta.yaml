@@ -36,6 +36,7 @@ requirements:
     - vtk
     - setuptools
     - versioningit
+    - pandas
 
   run:
     - configparser
@@ -43,6 +44,7 @@ requirements:
     - qtpy
     - uncertainties
     - vtk
+    - pandas
 
 test:
   imports:
