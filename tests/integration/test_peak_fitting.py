@@ -52,7 +52,7 @@ class PeakFittingTest:
                                                                effective_parameter=show_effective_params)
         # Plot peak width
         sub_run_vec = peak_params_matrix[:, 0]
-        peak_width = peak_params_matrix[:, 5]  # pyrs.projectfile.HidraConstants.Peak_FWHM for pandas output
+        peak_width = peak_params_matrix[:, 5]  # pyrs.projectfile.HidraConstants.Peak_FWHM
         plt.plot(sub_run_vec, peak_width, color='red', label='FWHM')
 
         # plt.show()

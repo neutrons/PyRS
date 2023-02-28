@@ -1,7 +1,6 @@
 import json
 import traceback
 import numpy as np
-import pandas as pd
 from pyrs.dataobjects.fields import StressField, StrainField, ScalarFieldSample
 from pyrs.core.stress_facade import StressFacade
 from pyrs.core.summary_generator_stress import SummaryGeneratorStress
@@ -205,7 +204,6 @@ class Model(QObject):
         n_decimals = 3
         stress = self.stress
 
-        # convert to pandas df for joins
         stress_stacked = np.column_stack((stress.x.round(n_decimals),
                                           stress.y.round(n_decimals),
                                           stress.z.round(n_decimals)))
