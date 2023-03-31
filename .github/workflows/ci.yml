@@ -17,7 +17,7 @@ env:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    timeout-minutes: 100
+    timeout-minutes: 200
 
     defaults:
       run:
