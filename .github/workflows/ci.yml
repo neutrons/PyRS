@@ -16,8 +16,8 @@ env:
 
 jobs:
   ci:
-    runs-on: ubuntu-20.04
-    timeout-minutes: 100
+    runs-on: ubuntu-latest
+    timeout-minutes: 200
 
     defaults:
       run:
