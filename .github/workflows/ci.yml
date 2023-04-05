@@ -93,8 +93,10 @@ jobs:
         # Build in all cases, for testing purposes
         run: |
           conda activate PyRS
+          # boa uses mamba to resolve dependencies
+          conda install -y anaconda-client boa
           cd conda.recipe
-          conda build --output-folder . . -c conda-forge -c mantid 
+          conda mambabuild --output-folder . . -c conda-forge -c mantid
           conda verify noarch/pyrs-*py*.tar.bz2
 
       - name: Publish to Anaconda
