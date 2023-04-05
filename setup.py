@@ -74,7 +74,6 @@ if __name__ == "__main__":
     """
     scripts = ['scripts/pyrsplot',
                'scripts/pyrs_calibration.py',
-               'scripts/pyrs_custom_calibration.py',
                'scripts/pyrs_calibration_correlation.py',
                'scripts/create_mask.py']
     setup(
