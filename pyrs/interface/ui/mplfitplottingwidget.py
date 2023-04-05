@@ -2,12 +2,14 @@
 # It consists of 2 plots (top one for experimental data and model, bottom one for residual, aka difference)
 # plus a tool bar
 
-from pyrs.interface.ui.mplgraphicsview1d import MyNavigationToolbar
+import matplotlib
 from matplotlib.figure import Figure
 import numpy as np
 from qtpy.QtWidgets import QWidget, QVBoxLayout  # type:ignore
 from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
 from pyrs.interface.ui.mplconstants import MplBasicColors
+from mantidqt.MPLwidgets import NavigationToolbar2QT as NavigationToolbar2
+from qtpy.QtCore import Signal  # type:ignore
 
 
 class MplFitPlottingWidget(QWidget):
@@ -51,6 +53,7 @@ class MplFitPlottingWidget(QWidget):
         self._button_pressed = False
         self._left_line = None
         self._right_line = None
+
         self._myCanvas.mpl_connect('button_press_event', self.button_clicked)
         self._myCanvas.mpl_connect('button_release_event', self.button_released)
         self._myCanvas.mpl_connect('motion_notify_event', self.mouse_moved)
@@ -207,29 +210,21 @@ class MplFitPlottingWidget(QWidget):
             lower_x_range = self._myCanvas.get_curr_x_range(True)
             if lower_x_range[1] - lower_x_range[0] > upper_x_range[1] - upper_x_range[0]:
                 # upper is in a smaller range, set lower's xrange
-                # upper_y_range = self._myCanvas.get_curr_y_range(False)
                 self._myCanvas.set_x_range(upper_x_range[0], upper_x_range[1], is_residual=True)
-                # self._myCanvas.set_y_range(upper_y_range[0], upper_y_range[1], is_residual=True)
             else:
                 # lower is in a smaller range, set upper's xrange
-                # lower_y_range = self._myCanvas.get_curr_y_range(True)
                 self._myCanvas.set_x_range(lower_x_range[0], lower_x_range[1], is_residual=False)
-                # self._myCanvas.set_y_range(lower_y_range[0], lower_y_range[1], is_residual=False)
         else:
             # a more elegant way to determine
             axis_pos = event.inaxes.get_position()
             if axis_pos.y0 < 0.348:
                 # make sure to avoid round error and the event is from lower subplot: set to upper subplots
                 lower_x_range = self._myCanvas.get_curr_x_range(True)
-                # lower_y_range = self._myCanvas.get_curr_y_range(True)
                 self._myCanvas.set_x_range(lower_x_range[0], lower_x_range[1], is_residual=False)
-                # self._myCanvas.set_y_range(lower_y_range[0], lower_y_range[1], is_residual=False)
             else:
                 # signal from upper subplot: set lower subplot
                 upper_x_range = self._myCanvas.get_curr_x_range(False)
-                # upper_y_range = self._myCanvas.get_curr_y_range(False)
                 self._myCanvas.set_x_range(upper_x_range[0], upper_x_range[1], is_residual=True)
-                # self._myCanvas.set_y_range(upper_y_range[0], upper_y_range[1], is_residual=True)
 
     def get_x_limit(self):
         """
@@ -301,32 +296,6 @@ class MplFitPlottingWidget(QWidget):
 
         self._myCanvas.draw()
 
-    def plot_data_model(self, data_set, data_label, model_set, model_label, residual_set):
-        """
-        plot data along with model
-        :param data_set:
-        :param data_label:
-        :param model_set:
-        :param model_label:
-        :param residual_set:
-        :return:
-        """
-        # clear plot
-        self.clear_canvas()
-
-        # plot and set
-        data_line_id = self._myCanvas.add_plot_upper_axis(data_set, label=data_label,
-                                                          line_color='black', line_marker='+',
-                                                          marker_size=4, line_style='--', line_width=1)
-        self._data_line_list.append(data_line_id)
-
-        model_line_id = self._myCanvas.add_plot_upper_axis(model_set, label=model_label,
-                                                           line_color='red', line_style='-', line_width=1)
-        self._model_line = model_line_id
-
-        diff_line_id = self._myCanvas.add_plot_lower_axis(residual_set)
-        self._residual_line = diff_line_id
-
     def reset_color(self):
         """
         reset the auto color index
@@ -349,8 +318,6 @@ class MplFitPlottingWidget(QWidget):
             self._curr_x_label = new_x_label
 
 
-# TEST - 20181124 - Make split diffraction view work!
-# TEST            - It can be an option to create new MplGraphics1D class as a special widget!
 class QtMplFitCanvas(FigureCanvas):
     """ Canvas containing 2 vertical plots and 1 tool bar
 
@@ -502,19 +469,6 @@ class QtMplFitCanvas(FigureCanvas):
 
         return x_lim
 
-    def get_curr_y_range(self, is_residual=False):
-        """
-        get Y range
-        :param is_residual: flag whether the returned value is for residual/lower plot
-        :return:
-        """
-        if is_residual:
-            y_lim = self._residual_subplot.get_ylim()
-        else:
-            y_lim = self._data_subplot.get_ylim()
-
-        return y_lim
-
     def remove_data_lines(self, line_index_list=None):
         """
         remove data line by line index
@@ -580,21 +534,123 @@ class QtMplFitCanvas(FigureCanvas):
 
         return
 
-    def set_y_range(self, y_min, y_max, is_residual):
+
+class MyNavigationToolbar(NavigationToolbar2):
+    """ A customized navigation tool bar attached to canvas
+    Note:
+    * home, left, right: will not disable zoom/pan mode
+    * zoom and pan: will turn on/off both's mode
+    Other methods
+    * drag_pan(self, event): event handling method for dragging canvas in pan-mode
+    """
+    NAVIGATION_MODE_NONE = 0
+    NAVIGATION_MODE_PAN = 1
+    NAVIGATION_MODE_ZOOM = 2
+
+    # This defines a signal called 'home_button_pressed' that takes 1 boolean
+    # argument for being in zoomed state or not
+    home_button_pressed = Signal()
+
+    # This defines a signal called 'canvas_zoom_released'
+    canvas_zoom_released = Signal(matplotlib.backend_bases.MouseEvent)
+
+    def __init__(self, parent, canvas):
+        """ Initialization
+        built-in methods
+        - drag_zoom(self, event): triggered during holding the mouse and moving
         """
-        set Y range .. x limit to either upper subplot or lower subplot
-        :param y_min:
-        :param y_max:
-        :param is_residual:
+        NavigationToolbar2.__init__(self, canvas, canvas)
+
+        # parent
+        self._myParent = parent
+        # tool bar mode
+        self._myMode = MyNavigationToolbar.NAVIGATION_MODE_NONE
+
+        # connect the events to parent
+        self.home_button_pressed.connect(self._myParent.evt_toolbar_home)
+        self.canvas_zoom_released.connect(self._myParent.evt_zoom_released)
+
+    @property
+    def is_zoom_mode(self):
+        """
+        check whether the tool bar is in zoom mode
+        Returns
+        -------
+        """
+        return self._myMode == MyNavigationToolbar.NAVIGATION_MODE_ZOOM
+
+    def get_mode(self):
+        """
+        :return: integer as none/pan/zoom mode
+        """
+        return self._myMode
+
+    # Overriding base's methods
+    def draw(self):
+        """
+        Canvas is drawn called by pan(), zoom()
         :return:
         """
-        if y_min >= y_max:
-            raise RuntimeError('Set wrong range to Y... min = {} >= max = {}'.format(y_min, y_max))
+        NavigationToolbar2.draw(self)
 
-        if is_residual:
-            self._residual_subplot.set_ylim([y_min, y_max])
+        self._myParent.evt_view_updated()
+
+    def home(self, *args):
+        """
+        Parameters
+        ----------
+        args
+        Returns
+        -------
+        """
+        # call super's home() method
+        NavigationToolbar2.home(self, args)
+
+        # send a signal to parent class for further operation
+        self.home_button_pressed.emit()
+
+    def pan(self, *args):
+        """
+        :param args:
+        :return:
+        """
+        NavigationToolbar2.pan(self, args)
+
+        if self._myMode == MyNavigationToolbar.NAVIGATION_MODE_PAN:
+            # out of pan mode
+            self._myMode = MyNavigationToolbar.NAVIGATION_MODE_NONE
         else:
-            self._data_subplot.set_ylim([y_min, y_max])
-        # END-IF
+            # into pan mode
+            self._myMode = MyNavigationToolbar.NAVIGATION_MODE_PAN
 
-        return
+    def zoom(self, *args):
+        """ Override zoom method from NavigationToolbar2
+        Turn on/off zoom (zoom button)
+        :param args:
+        :return:
+        """
+        NavigationToolbar2.zoom(self, args)
+
+        if self._myMode == MyNavigationToolbar.NAVIGATION_MODE_ZOOM:
+            # out of zoom mode
+            self._myMode = MyNavigationToolbar.NAVIGATION_MODE_NONE
+        else:
+            # into zoom mode
+            self._myMode = MyNavigationToolbar.NAVIGATION_MODE_ZOOM
+
+    def release_zoom(self, event):
+        """ Override zoom release (mouse released from zooming) method
+        :param event:
+        :return:
+        """
+        NavigationToolbar2.release_zoom(self, event)
+        print("zoom has been pressed: {}".format(type(event)))
+        self.canvas_zoom_released.emit(event)
+
+    def _update_view(self):
+        """
+        view update called by home(), back() and forward()
+        :return:
+        """
+        NavigationToolbar2._update_view(self)
+        self._myParent.evt_view_updated()

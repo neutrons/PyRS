@@ -145,6 +145,7 @@ class Plot:
             array of input sub_runs that has been cropped to exlcude inputs outside of the number of sublogs
 
         '''
+
         sub_run_list = np.array(sub_run_list)
         sub_run_index = (sub_run_list >= 1) == (sub_run_list < num_sub_runs)
 
@@ -190,7 +191,8 @@ class Plot:
 
         if self.parent.ui.radioButton_contour.isChecked():
             self.parent.ui.graphicsView_plot2D.figure.clear()
-            self.parent.ui.graphicsView_plot2D.ax = self.parent.ui.graphicsView_plot2D.figure.axes()
+            self.parent.ui.graphicsView_plot2D.ax = \
+                self.parent.ui.graphicsView_plot2D.figure.add_subplot(1, 1, 1)
             my_plot = self.parent.ui.graphicsView_plot2D.ax.contourf(x_axis, y_axis, z_axis)
 
             self.parent.ui.graphicsView_plot2D.colorbar = \
@@ -328,32 +330,3 @@ class Plot:
         print('[DB...BAT] 2D array shape: {}'.format(param_value_2darray.shape))
 
         return sub_run_vec, param_value_2darray[:, 0]
-
-    def get_meta_sample_data(self, name):
-        """
-        get meta data to plot.
-        the meta data can contain sample log data and fitted peak parameters
-        :param name:
-        :return:
-        """
-        # get data key
-        if self.parent._project_name is None:
-            pop_message(self, 'No data loaded', 'error')
-            return
-
-        sample_log_names = self.parent._core.reduction_service.get_sample_logs_names(self.parent._project_name)
-
-        if name == HidraConstants.SUB_RUNS:
-            # sub run vector
-            value_vector = np.array(self.parent._core.reduction_service.get_sub_runs(self.parent._project_name))
-        elif name in sample_log_names:
-            # sample log but not sub-runs
-            value_vector = self.parent._core.reduction_service.get_sample_log_value(self.parent._project_name, name)
-        elif name == 'Center of mass':
-            # center of mass is different????
-            # TODO - #84 - Make sure of it!
-            value_vector = self.parent._core.get_peak_center_of_mass(self.parent._project_name)
-        else:
-            value_vector = None
-
-        return value_vector

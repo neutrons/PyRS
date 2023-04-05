@@ -1,5 +1,5 @@
 import os
-from qtpy.QtWidgets import QVBoxLayout, QFileDialog, QMainWindow  # type:ignore
+from qtpy.QtWidgets import QVBoxLayout, QMainWindow  # type:ignore
 from qtpy import QtGui
 
 from pyrs.utilities import load_ui  # type: ignore
@@ -88,9 +88,8 @@ class FitPeaksWindow(QMainWindow):
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionSave.triggered.connect(self.save)
         self.ui.actionSaveAs.triggered.connect(self.save_as)
-        self.ui.actionAdvanced_Peak_Fit_Settings.triggered.connect(self.do_launch_adv_fit)
         self.ui.pushButton_exportCSV.clicked.connect(self.export_csv)
-        self.ui.actionQuick_Fit_Result_Check.triggered.connect(self.do_make_movie)
+        # self.ui.actionQuick_Fit_Result_Check.triggered.connect(self.do_make_movie)
         self.ui.lineEdit_subruns_2dplot.returnPressed.connect(self.list_subruns_2dplot_returned)
         self.ui.lineEdit_subruns_2dplot.textChanged.connect(self.list_subruns_2dplot_changed)
         self.ui.pushButton_save_peak_range.clicked.connect(self.clicked_save_peak_range)
@@ -125,12 +124,6 @@ class FitPeaksWindow(QMainWindow):
 
         # mutexes
         self._sample_log_names_mutex = False
-
-        # TODO - 20181124 - New GUI parameters (After FitPeaks)
-        # checkBox_showFitError
-        # checkBox_showFitValue
-        # others
-        # TODO - 20181124 - Make this table's column flexible!
         self.ui.tableView_fitSummary.setup(peak_param_names=list())
 
         o_gui = GuiUtilities(parent=self)
@@ -146,8 +139,8 @@ class FitPeaksWindow(QMainWindow):
         o_gui.enabled_sub_runs_interation_widgets(False)
 
         # for debugging only
-        self.ui.radioButton_contour.setEnabled(False)
-        self.ui.radioButton_3dline.setEnabled(False)
+        self.ui.radioButton_contour.setEnabled(True)
+        self.ui.radioButton_3dline.setEnabled(True)
 
     def save(self):
         o_handler = EventHandler(parent=self)
@@ -326,47 +319,15 @@ class FitPeaksWindow(QMainWindow):
         peak_range_table_labels = ['x_left', 'x_right', 'Label', D0 + " (" + ANGSTROMS + ")"]
         self.ui.peak_range_table.setHorizontalHeaderLabels(peak_range_table_labels)
 
-    def do_launch_adv_fit(self):
-        """
-        launch the dialog window for advanced peak fitting setup and control
-        :return:
-        """
-        if self._advanced_fit_dialog is None:
-            self._advanced_fit_dialog = pyrs.interface.advpeakfitdialog.SmartPeakFitControlDialog(self)
+    # def do_launch_adv_fit(self):
+    #     """
+    #     launch the dialog window for advanced peak fitting setup and control
+    #     :return:
+    #     """
+    #     if self._advanced_fit_dialog is None:
+    #         self._advanced_fit_dialog = pyrs.interface.advpeakfitdialog.SmartPeakFitControlDialog(self)
 
-        self._advanced_fit_dialog.show()
-
-    def do_make_movie(self):
-        """
-        plot all the fitted data for each scan log index and save the figure to PNG files
-        in order to make a movie for quick fit result check
-        :return:
-        """
-        # get target directory to save all the PNG files
-        target_dir = QFileDialog.getExistingDirectory(self, 'Select the directory to save PNGs for quick '
-                                                            'fit result checking movie',
-                                                      self._core.working_dir)
-        target_dir = str(target_dir)
-        if len(target_dir) == 0:
-            return
-
-        # plot
-        scan_log_indexes = self._core.get_peak_fit_scan_log_indexes(self._curr_data_key)
-        for sample_log_index in scan_log_indexes:
-            # reset the canvas
-            self._ui_graphicsView_fitSetup.reset_viewer()
-            # plot
-            self.plot_diff_data(sample_log_index, True)
-            png_name_i = os.path.join(target_dir, '{}_fit.png'.format(sample_log_index))
-            self._ui_graphicsView_fitSetup.canvas().save_figure(png_name_i)
-        # END-FOR
-
-        # TODO - 20180809 - Pop the following command
-        # TODO - continue - command to pop: ffmpeg -r 24 -framerate 8 -pattern_type glob -i '*_fit.png' out.mp4
-
-    def do_plot_2d_data(self):
-        # TODO - #84 - Implement this method
-        return
+    #     self._advanced_fit_dialog.show()
 
     def do_save_fit(self):
         """
@@ -389,27 +350,6 @@ class FitPeaksWindow(QMainWindow):
                                                   detailed_message='Supported are hdf5, h5, hdf, csv and dat',
                                                   message_type='error')
 
-    # def do_save_fit_result(self):
-    #     """
-    #     save fit result
-    #     :return:
-    #     """
-    #     # get file name
-    #     csv_filter = 'CSV Files(*.csv);;DAT Files(*.dat);;All Files(*.*)'
-    #     # with filter, the returned will contain 2 values
-    #     user_input = QFileDialog.getSaveFileName(self, 'CSV file for peak fitting result', self._core.working_dir,
-    #                                              csv_filter)
-    #     if isinstance(user_input, tuple) and len(user_input) == 2:
-    #         file_name = str(user_input[0])
-    #     else:
-    #         file_name = str(user_input)
-    #
-    #     if file_name == '':
-    #         # user cancels
-    #         return
-    #
-    #     self.export_fit_result(file_name)
-
     def do_quit(self):
         """
         close the window and quit
@@ -424,19 +364,6 @@ class FitPeaksWindow(QMainWindow):
         :return:
         """
         self.ui.tableView_fitSummary.export_table_csv(file_name)
-
-    # def fit_peaks_smart(self, peak_profiles_order):
-    #     """
-    #     fit peaks with a "smart" algorithm
-    #     :param peak_profiles_order: a list for peak profile to fit in specified order
-    #     :return:
-    #     """
-    #     try:
-    #         self._core.fit_peaks_smart_alg(self._curr_data_key, peak_profiles_order)
-    #     except RuntimeError as run_err:
-    #         err_msg = 'Smart peak fitting with order {} failed due to {}' \
-    #                   ''.format(peak_profiles_order, run_err)
-    #         pyrs.interface.gui_helper.pop_message(self, err_msg, 'error')
 
     def save_data_for_mantid(self, data_key, file_name):
         """

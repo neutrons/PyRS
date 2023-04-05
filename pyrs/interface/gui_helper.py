@@ -198,7 +198,7 @@ def parse_integers(int_list_string):
     int_list = list()
     try:
         for int_range in int_range_list:
-            column_counts = int_range.count(':')
+            column_counts = int_range.count(':') + int_range.count('-')
 
             if column_counts == 0:
                 # single value
@@ -206,7 +206,11 @@ def parse_integers(int_list_string):
 
             elif column_counts == 1:
                 # given a range
-                int_str_list = int_range.split(':')
+                if '-' in int_range:
+                    int_str_list = int_range.split('-')
+                else:
+                    int_str_list = int_range.split(':')
+
                 start_int = parse_rigorous_int_string(int_str_list[0])
                 end_int = parse_rigorous_int_string(int_str_list[1])
                 int_list.extend(range(start_int, end_int))
