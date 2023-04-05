@@ -38,13 +38,12 @@ def test_peak_fitting(qtbot, tmpdir):
     qtbot.mouseClick(window.ui.pushButton_browseHDF, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
 
-    # Select peak range, drag select
-
     # First get canvas
     canvas = window.ui.frame_PeakView.children()[1]._myCanvas
     # The get start and end mouse points to drag select
     start_x, start_y = canvas.figure.axes[0].transData.transform((78, 500))
     end_x, end_y = canvas.figure.axes[0].transData.transform((85, 500))
+
     # Drag select with mouse control
     qtbot.mousePress(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(start_x, start_y))
     qtbot.wait(wait)
@@ -63,6 +62,13 @@ def test_peak_fitting(qtbot, tmpdir):
     # Fit Peak(s)
     qtbot.mouseClick(window.ui.pushButton_FitPeaks, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
+
+    # Select peak range, drag select
+    qtbot.mouseClick(window.ui.radioButton_listSubRuns, QtCore.Qt.LeftButton)
+    qtbot.wait(wait)
+    qtbot.keyClick(window.ui.lineEdit_subruns_2dplot, str("0"))
+    qtbot.wait(wait)
+    qtbot.keyClick(window.ui.lineEdit_subruns_2dplot, QtCore.Qt.Key_Enter)
 
     # Export CSV ...
     # wait until dialog is loaded then handle it, this is required
@@ -145,3 +151,68 @@ def test_peak_fitting(qtbot, tmpdir):
     assert line.get_ydata().min() == pytest.approx(1.169389, rel=2e-2)
     assert line.get_ydata().max() == pytest.approx(1.170393, rel=2e-2)
     os.remove("HB2B_1423.csv")
+
+    for _ in range(15):
+        qtbot.keyClick(window.ui.comboBox_zaxisNames_2dplot, QtCore.Qt.Key_Down)
+        qtbot.wait(wait)
+
+    qtbot.keyClick(window.ui.lineEdit_subruns_2dplot, str("5"))
+    qtbot.keyClick(window.ui.lineEdit_subruns_2dplot, str(":"))
+    qtbot.keyClick(window.ui.lineEdit_subruns_2dplot, str("5"))
+    qtbot.keyClick(window.ui.lineEdit_subruns_2dplot, str("0"))
+    qtbot.wait(wait)
+    qtbot.keyClick(window.ui.lineEdit_subruns_2dplot, QtCore.Qt.Key_Enter)
+
+    qtbot.mouseClick(window.ui.radioButton_contour, QtCore.Qt.LeftButton)
+    qtbot.wait(wait)
+
+    qtbot.mouseClick(window.ui.radioButton_3dline, QtCore.Qt.LeftButton)
+    qtbot.wait(wait)
+
+
+def test_peak_selection(qtbot, tmpdir):
+    fit_peak_core = pyrscore.PyRsCore()
+    window = fitpeakswindow.FitPeaksWindow(None, fit_peak_core=fit_peak_core)
+    qtbot.addWidget(window)
+    window.show()
+    qtbot.wait(wait)
+
+    assert window.isVisible()
+
+    # This is the handle modal dialogs
+    def handle_dialog(filename):
+        # get a reference to the dialog and handle it here
+        dialog = window.findChild(QtWidgets.QFileDialog)
+        # get a File Name field
+        lineEdit = dialog.findChild(QtWidgets.QLineEdit)
+        # Type in file to load and press enter
+        qtbot.keyClicks(lineEdit, filename)
+        qtbot.wait(wait)
+        qtbot.keyClick(lineEdit, QtCore.Qt.Key_Enter)
+
+    # Browser Exp. Data File ...
+    # wait until dialog is loaded then handle it, this is required
+    # because the dialog is modal
+    QtCore.QTimer.singleShot(500, functools.partial(handle_dialog, "tests/data/HB2B_1423.h5"))
+    qtbot.mouseClick(window.ui.pushButton_browseHDF, QtCore.Qt.LeftButton)
+    qtbot.wait(wait)
+
+    # First get canvas
+    canvas = window.ui.frame_PeakView.children()[1]._myCanvas
+    # The get start and end mouse points to drag select
+    start_x1, start_y1 = canvas.figure.axes[0].transData.transform((78, 500))
+    end_x1, end_y1 = canvas.figure.axes[0].transData.transform((81.5, 500))
+    start_x2, start_y2 = canvas.figure.axes[0].transData.transform((82, 500))
+    end_x2, end_y2 = canvas.figure.axes[0].transData.transform((85, 500))
+
+    # Drag select with mouse control
+    qtbot.mousePress(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(start_x1, start_y1))
+    qtbot.wait(wait)
+    qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(end_x1, end_y1))
+    qtbot.wait(wait)
+
+    # Drag select with mouse control
+    qtbot.mousePress(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(start_x2, start_y2))
+    qtbot.wait(wait)
+    qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(end_x2, end_y2))
+    qtbot.wait(wait)

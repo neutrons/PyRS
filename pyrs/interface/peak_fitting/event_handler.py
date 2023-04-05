@@ -144,6 +144,7 @@ class EventHandler:
                         str(run_err), 'error')
 
     def list_subruns_2dplot(self):
+
         raw_input = str(self.parent.ui.lineEdit_subruns_2dplot.text())
         o_gui = GuiUtilities(parent=self.parent)
 

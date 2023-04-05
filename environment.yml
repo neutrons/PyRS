@@ -1,7 +1,6 @@
 name: PyRS
 channels:
 - conda-forge
-- default
 - mantid
 dependencies:
 - python=3.8
@@ -15,6 +14,7 @@ dependencies:
 - vtk
 - flake8
 - mypy
+- numpy
 - pandas
 - types-six
 - versioningit
