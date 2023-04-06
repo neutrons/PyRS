@@ -92,9 +92,8 @@ jobs:
       - name: Install Boa for conda build
         run: |
           conda activate PyRS
-          conda install -c conda-forge mamba
           # boa uses mamba to resolve dependencies
-          mamba install -y -c conda-forge anaconda-client boa
+          conda install -y -c conda-forge anaconda-client boa
 
       - name: Build conda package
         # Build in all cases, for testing purposes
