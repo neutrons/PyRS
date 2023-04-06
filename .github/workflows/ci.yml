@@ -89,12 +89,6 @@ jobs:
           python setup.py bdist_wheel
           check-wheel-contents dist/pyrs-*.whl
 
-      - name: Install Boa for conda build
-        run: |
-          conda activate PyRS
-          # boa uses mamba to resolve dependencies
-          conda install -y -c conda-forge anaconda-client boa
-
       - name: Build conda package
         # Build in all cases, for testing purposes
         run: |
