@@ -44,6 +44,8 @@ jobs:
         run: |
           # --quiet should turn off progress bars to make logs more readable
           conda env create --file environment.yml --quiet
+          # boa uses mamba to resolve dependencies
+          conda install -y -n PyRS anaconda-client boa
 
       - name: Lint
         run: |
@@ -93,8 +95,6 @@ jobs:
         # Build in all cases, for testing purposes
         run: |
           conda activate PyRS
-          # boa uses mamba to resolve dependencies
-          conda install -y anaconda-client boa
           cd conda.recipe
           conda mambabuild --output-folder . . -c conda-forge -c mantid
           conda verify noarch/pyrs-*py*.tar.bz2
