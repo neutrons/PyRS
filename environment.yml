@@ -5,6 +5,8 @@ channels:
 - mantid
 dependencies:
 - python=3.8
+- anaconda-client
+- boa
 - mantidworkbench
 - qtpy
 - pyqt =5.12
