@@ -60,7 +60,6 @@ class DetectorView(MplGraphicsView2D):
             counts2d = detector_counts
             image_size = counts2d.shape[0]
 
-        # Rotate 90 degree to match the view: IT COULD BE WRONG!
         self.add_2d_plot(np.rot90(counts2d), 0, image_size, 0, image_size)
 
         return

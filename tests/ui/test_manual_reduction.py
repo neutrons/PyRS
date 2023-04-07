@@ -4,12 +4,10 @@ import pytest
 import matplotlib
 matplotlib.use("Agg")
 from pyrs.interface.manual_reduction import manualreductionwindow  # noqa E402
-# from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 
 wait = 100
 
 
-# @pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Test hangs on github CI')
 def test_manual_reduction(qtbot, tmpdir):
     window = manualreductionwindow.ManualReductionWindow(None)
     qtbot.addWidget(window)
@@ -77,3 +75,67 @@ def test_manual_reduction(qtbot, tmpdir):
     # first data point is a nan so exclude it
     assert line.get_ydata()[1::].min() == pytest.approx(56.53846153846154)
     assert line.get_ydata()[1::].max() == pytest.approx(580.4936170212766)
+
+
+def test_manual_reduction_subruns(qtbot, tmpdir):
+    window = manualreductionwindow.ManualReductionWindow(None)
+    qtbot.addWidget(window)
+    window.show()
+    qtbot.wait(wait)
+
+    assert window.isVisible()
+
+    # set data
+    qtbot.keyClicks(window.ui.lineEdit_runNumber, "tests/data/HB2B_1431.nxs.h5")
+    qtbot.wait(wait)
+
+    # set mask
+    qtbot.mouseClick(window.ui.checkBox_defaultMaskFile, QtCore.Qt.LeftButton)
+    qtbot.wait(wait)
+    for _ in range(100):
+        qtbot.keyClick(window.ui.lineEdit_maskFile, QtCore.Qt.Key_Backspace)
+
+    qtbot.wait(wait)
+    qtbot.keyClicks(window.ui.lineEdit_maskFile, "tests/data/HB2B_Mask_12-18-19.xml")
+    qtbot.wait(wait)
+
+    # set calibration
+    qtbot.mouseClick(window.ui.checkBox_defaultCalibrationFile, QtCore.Qt.LeftButton)
+    qtbot.wait(wait)
+    for _ in range(100):
+        qtbot.keyClick(window.ui.lineEdit_calibrationFile, QtCore.Qt.Key_Backspace)
+    qtbot.wait(wait)
+    qtbot.keyClicks(window.ui.lineEdit_calibrationFile, "tests/data/HB2B_CAL_Si333.json")
+    qtbot.wait(wait)
+
+    # set vanadium
+    qtbot.keyClicks(window.ui.lineEdit_vanRunNumber, "tests/data/HB2B_1118.nxs.h5")
+    qtbot.wait(wait)
+
+    # set output directory
+    qtbot.keyClicks(window.ui.lineEdit_outputDirectory, str(tmpdir))
+    qtbot.wait(wait)
+
+    # push button to run manual reduction
+    qtbot.mouseClick(window.ui.pushButton_splitConvertSaveProject, QtCore.Qt.LeftButton)
+    qtbot.wait(wait * 10)
+
+    assert window.ui.progressBar.value() == 100
+
+    # plot the detector view
+    qtbot.mouseClick(window.ui.pushButton_plotDetView,  QtCore.Qt.LeftButton)
+    qtbot.wait(wait)
+
+    # change sub_run
+    for _ in range(10):
+        qtbot.keyClick(window.ui.comboBox_sub_runs, QtCore.Qt.Key_Down)
+        qtbot.wait(wait)
+
+    # change to Reduced Data view, I don't know how to do that with clicking
+    window.ui.tabWidget_View.setCurrentIndex(1)
+    qtbot.wait(wait)
+
+    # change sub_run
+    for _ in range(10):
+        qtbot.keyClick(window.ui.comboBox_sub_runs, QtCore.Qt.Key_Up)
+        qtbot.wait(wait)
