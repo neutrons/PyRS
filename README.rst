@@ -4,7 +4,7 @@ pyRS
 .. image:: https://github.com/neutrons/PyRS/actions/workflows/ci.yml/badge.svg?branch=next
   :target: https://github.com/neutrons/PyRS/actions?query=branch:next
 
-.. image:: https://codecov.io/gh/neutrons/PyRS/branch/master/graph/badge.svg
+.. image:: https://codecov.io/gh/neutrons/PyRS/branch/next/graph/badge.svg
   :target: https://codecov.io/gh/neutrons/PyRS
 
 Data reduction workflow
