@@ -62,6 +62,13 @@
      </spacer>
     </item>
     <item row="4" column="0">
+     <widget class="QPushButton" name="pushButton_fitTexture">
+      <property name="text">
+       <string>Texture Fitting Window</string>
+      </property>
+     </widget>
+    </item>
+    <item row="5" column="0">
      <widget class="QPushButton" name="pushButton_launchStrainStressCalculation">
       <property name="text">
        <string>Strain/Stress Calculation</string>

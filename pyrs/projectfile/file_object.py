@@ -226,7 +226,7 @@ class HidraProjectFile:
 
         Returns
         -------
-        None
+        None.
 
         """
         # Get mask names except default mask
@@ -921,6 +921,7 @@ class HidraProjectFile:
         var_data_set : dict
             dictionary of 2D arrays for reduced diffraction patterns' variances
         """
+
         # Check input
         checkdatatypes.check_numpy_arrays('Two theta vector', [two_theta_array], 2, False)
         checkdatatypes.check_dict('Diffraction data set', diff_data_set)

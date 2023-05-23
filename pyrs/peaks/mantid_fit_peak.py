@@ -81,6 +81,7 @@ class MantidPeakFitEngine(PeakFitEngine):
         peak_collection = self.__tables_to_peak_collection(peak_tag,
                                                            fit_return.OutputPeakParametersWorkspace,
                                                            fit_return.OutputParameterFitErrorsWorkspace)
+
         DeleteWorkspace(fit_return.OutputPeakParametersWorkspace)
         DeleteWorkspace(fit_return.OutputParameterFitErrorsWorkspace)
 
@@ -118,6 +119,7 @@ class MantidPeakFitEngine(PeakFitEngine):
                                      background_type=self._background_function, wavelength=self._wavelength,
                                      projectfilename=self._project_file_name,
                                      runnumber=self._runnumber)
+
         peak_object.set_peak_fitting_values(self._subruns, peak_params_value_array,
                                             peak_params_error_array, fit_cost_array)
 

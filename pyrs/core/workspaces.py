@@ -70,6 +70,18 @@ class HidraWorkspace:
         """
         return self._project_file_name
 
+    @property
+    def reduction_masks(self):
+        """ Reduction masks used for texture reduction
+
+        Returns
+        -------
+        list
+            list of dictionary names for reduction masks
+
+        """
+        return list(self._diff_data_set.keys())
+
     def _load_raw_counts(self, hidra_file):
         """ Load raw detector counts from HIDRA file
         :param hidra_file:
@@ -933,13 +945,14 @@ class HidraWorkspace:
             if type(sub_runs) is list:
                 sub_runs = numpy.array(sub_runs)
 
-            diff_key = list(self._diff_data_set.keys())[0]
             _diff_data_temp = {}
             _var_data_temp = {}
 
-            # sub_runs - 1 is used to convert sub_run naming into a numpy index
-            _diff_data_temp[diff_key] = self._diff_data_set[diff_key][sub_runs - 1]
-            _var_data_temp[diff_key] = self._var_data_set[diff_key][sub_runs - 1]
+            for diff_key in list(self._diff_data_set.keys()):
+
+                # sub_runs - 1 is used to convert sub_run naming into a numpy index
+                _diff_data_temp[diff_key] = self._diff_data_set[diff_key][sub_runs - 1]
+                _var_data_temp[diff_key] = self._var_data_set[diff_key][sub_runs - 1]
 
             hidra_project.write_reduced_diffraction_data_set(self._2theta_matrix[sub_runs - 1],
                                                              _diff_data_temp,
