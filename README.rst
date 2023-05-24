@@ -65,11 +65,6 @@ Anaconda environments are only supported on OSx (x86) and Linux using python 3.8
 
   PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
 
-For those setting up in a virtual environment, the dependencies are
-listed in ``requirements.txt`` and ``requirements_dev.txt``.  They can
-be supplide to ``conda create`` using the `--file`` argument, or to
-``pip install`` using the ``-R`` argument.
-
 Running and developing PyRS
 ---------------------------
 
