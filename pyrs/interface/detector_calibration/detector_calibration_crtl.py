@@ -1,7 +1,7 @@
 import numpy as np
-from scipy.interpolate import griddata
-import matplotlib.pyplot as plt
-from matplotlib.cm import coolwarm
+# from scipy.interpolate import griddata
+# import matplotlib.pyplot as plt
+# from matplotlib.cm import coolwarm
 
 
 class DetectorCalibrationCrtl:
@@ -31,7 +31,7 @@ class DetectorCalibrationCrtl:
             ax.imshow(self._model.get_2D_diffraction_counts(sub_run).T)
             ax.axis('off')
         else:
-            ax.cla()        
+            ax.cla()
             tth, int_vec, error_vec = self._model.get_reduced_diffraction_data(sub_run)
 
             ax.plot(tth[1:], int_vec[1:], 'k')

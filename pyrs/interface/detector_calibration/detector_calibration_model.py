@@ -43,7 +43,6 @@ class DetectorCalibrationModel(QObject):
         self.detector_params = [0, 0, 0, 0, 0, 0, 0, 0]
         self.sub_runs = np.array([1])
 
-
     @property
     def runnumber(self):
         return self._run_number
@@ -68,7 +67,7 @@ class DetectorCalibrationModel(QObject):
 
         self.reducer = ReductionApp()
         self.reducer.load_hidra_workspace(self._hydra_ws)
-        
+
         self.reducer.reduce_data(sub_runs=None, instrument_file=None,
                                  calibration_file=None, mask=None, num_bins=720)
 

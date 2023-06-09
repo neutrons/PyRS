@@ -5,6 +5,7 @@ from pyrs.interface.detector_calibration.detector_calibration_viewer import Dete
 from pyrs.interface.detector_calibration.detector_calibration_model import DetectorCalibrationModel  # noqa: E402
 from pyrs.interface.detector_calibration.detector_calibration_crtl import DetectorCalibrationCrtl  # noqa: E402
 
+
 class App(QApplication):
     def __init__(self, sys_argv):
         super().__init__(sys_argv)

@@ -3,8 +3,10 @@ from qtpy.QtWidgets import QLineEdit, QPushButton, QComboBox  # type:ignore
 from qtpy.QtWidgets import QGroupBox, QSplitter, QSpinBox  # type:ignore
 from qtpy.QtWidgets import QRadioButton, QFileDialog, QCheckBox  # type:ignore
 from qtpy.QtWidgets import QStyledItemDelegate, QDoubleSpinBox  # type:ignore
-from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QSlider, QTabWidget # type:ignore
-from qtpy.QtWidgets import QGridLayout, QMessageBox, QMenu  # type:ignore
+from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QSlider, QTabWidget  # type:ignore
+
+#  from qtpy.QtWidgets import QGridLayout, QMessageBox, QMenu  # type:ignore
+from qtpy.QtWidgets import QGridLayout, QMessageBox  # type:ignore
 from qtpy.QtWidgets import QMainWindow, QAction, QTableWidgetSelectionRange  # type:ignore
 from qtpy.QtGui import QColor  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
@@ -19,7 +21,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
 # import subplots, tight_layout, figure
-from matplotlib.backend_bases import MouseButton
+# from matplotlib.backend_bases import MouseButton
 
 # import traceback
 import os
@@ -63,14 +65,14 @@ class FileLoad(QWidget):
             self.lineEdit = QLineEdit()
             self.lineEdit.setReadOnly(False)
             self.lineEdit.setFixedWidth(50)
-            
+
             layout.addWidget(self.lineEdit)
-            
+
             self.browse_button = QPushButton("Load")
             self.browse_button.clicked.connect(self.loadRunNumber)
         elif name == "Load Calibration":
             self.browse_button = QPushButton("Load Calibration")
-            self.browse_button.clicked.connect(self.openFileDialog)            
+            self.browse_button.clicked.connect(self.openFileDialog)
         else:
             if name is None:
                 self.browse_button = QPushButton("Browse Exp Data")
@@ -165,7 +167,7 @@ class DiffractionWindow(QWidget):
         self.setLayout(panel_layout)
 
         self.tab_widgets = [PlotView(parent, True), PlotView(parent)]
-        
+
         self.tabs = QTabWidget()
         self.tabs.addTab(self.tab_widgets[0], "2D")
         self.tabs.addTab(self.tab_widgets[1], "1D")
@@ -464,7 +466,7 @@ class PeakLinesSetupView(QGroupBox):
     def setup_label(self, label_name, align=Qt.AlignRight):
         label = QLabel(label_name)
         label.setAlignment(align | Qt.AlignVCenter)
-        
+
         return label
 
     def setup_combo_box(self):
@@ -828,12 +830,10 @@ class DetectorCalibrationViewer(QMainWindow):
 
         left_layout.addStretch(0)
         left.setLayout(left_layout)
-# 
         self.splitter.addWidget(left)
 
         right = QWidget()
         right_layout = QVBoxLayout()
-
 
         self.viz_splitter = QSplitter(Qt.Vertical)
         self.compare_diff_data = DiffractionWindow(self)
