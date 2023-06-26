@@ -20,10 +20,12 @@ class DetectorCalibrationCrtl:
 
         powder = []
         for i_pos in range(sy.size):
+            try:
+                powder.append(self._powders[np.abs(self._sy - sy[i_pos]) < 2][0])
+            except IndexError:
+                pass
 
-            powder.append(self._powders[np.abs(self._sy - sy[i_pos]) < 2][0])
-
-        return powder
+        return self._model.get_powders
 
     def update_diffraction_view(self, ax, _parent, sub_run, two_d_data):
 
@@ -32,9 +34,11 @@ class DetectorCalibrationCrtl:
             ax.axis('off')
         else:
             ax.cla()
-            tth, int_vec, error_vec = self._model.get_reduced_diffraction_data(sub_run)
+            for mask in self._model._hydra_ws.reduction_masks:
+                tth, int_vec, error_vec = self._model.get_reduced_diffraction_data(sub_run, mask)
+                ax.plot(tth[1:], int_vec[1:], label=mask)
 
-            ax.plot(tth[1:], int_vec[1:], 'k')
+            ax.legend(frameon=False)
             ax.set_xlabel(r"2$\theta$ ($deg.$)")
             ax.set_ylabel("Intensity (ct.)")
             ax.set_ylabel("Diff (ct.)")

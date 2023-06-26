@@ -577,13 +577,14 @@ class HB2BReductionManager:
         # Generate eta roi vector
         eta_roi_vec = self.generate_eta_roi_vector(eta_step, eta_min, eta_max)
 
-        for eta_cent in eta_roi_vec:
-            # define mask to isolate narrow eta wedge
+        for eta_cent in eta_roi_vec:            # define mask to isolate narrow eta wedge
             # here a value of zero means do not use
             eta_mask = np.ones_like(eta_vec)
             eta_mask[eta_vec > (eta_cent + eta_step / 2.)] = 0
             eta_mask[eta_vec < (eta_cent - eta_step / 2.)] = 0
-            eta_mask[mask_vec] = 0
+
+            if mask_vec is not None:
+                eta_mask[mask_vec] = 0
 
             # Histogram data
             bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine,

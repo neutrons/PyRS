@@ -32,9 +32,12 @@ class DetectorCalibrationModel(QObject):
     def __init__(self, peak_fit_core):
         super().__init__()
         self._peak_fit = peak_fit_core
-        self.ws = None
+        self._hydra_ws = None
         self.peak_fit_engine = None
         self._run_number = None
+        self._powders = np.array(['Ni', 'Fe', 'Mo'])
+        self._powders_sy = np.array([62, 12, -13])
+        self._lattice = [3.523799438, 2.8663982, 3.14719963]
 
         self._instrument = DENEXDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D,
                                                  PIXEL_SIZE, PIXEL_SIZE,
@@ -60,6 +63,7 @@ class DetectorCalibrationModel(QObject):
         self.detector_params[6] = MonoSetting.getFromRotation(self._hydra_ws.get_sample_log_value('mrot', 1))
         self.set_subruns()
         self._reduce_diffraction_data()
+        self._eta_masks = self._hydra_ws.reduction_masks
 
         return
 
@@ -69,10 +73,10 @@ class DetectorCalibrationModel(QObject):
         self.reducer.load_hidra_workspace(self._hydra_ws)
 
         self.reducer.reduce_data(sub_runs=None, instrument_file=None,
-                                 calibration_file=None, mask=None, num_bins=720)
+                                 calibration_file=None, mask=None, num_bins=720, eta_step=3)
 
-    def get_reduced_diffraction_data(self, sub_run):
-        return self.reducer.get_diffraction_data(sub_run)
+    def get_reduced_diffraction_data(self, sub_run, mask):
+        return self.reducer.get_diffraction_data(sub_run, mask_id=mask)
 
     def _get_diffraction_counts(self, sub_run):
         return self._hydra_ws.get_detector_counts(sub_run)
@@ -139,3 +143,15 @@ class DetectorCalibrationModel(QObject):
                                     QTableWidgetItem(str(data[peak_entry]["d0"])))
 
         return
+
+    def get_powders(self):
+        sy = self._model.sy
+
+        powder = [''] * sy.size
+        for i_pos in range(sy.size):
+            try:
+                powder[i_pos] = self._powders[np.abs(self._sy - sy[i_pos]) < 2][0]
+            except IndexError:
+                pass
+
+        return powder
