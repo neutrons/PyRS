@@ -16,7 +16,7 @@ class DetectorCalibrationCrtl:
         self._model._init_calibration(nexus_file)
 
     def get_powders(self):
-        return self._model.get_powders()
+        return self._model.powders
 
     def update_diffraction_view(self, ax, _parent, sub_run, two_d_data):
 

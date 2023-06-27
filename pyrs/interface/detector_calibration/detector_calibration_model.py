@@ -47,10 +47,14 @@ class DetectorCalibrationModel(QObject):
     @property
     def sub_runs(self):
         return self._calibration_obj._hidra_ws.get_sub_runs()
+    
+    @property
+    def powders(self):
+        return self._calibration_obj.powders
 
     @property
     def sy(self):
-        return self._calibration_obj._hidra_ws.get_sample_log_values('sy')
+        return self._calibration_obj.sy
 
     @property
     def reduction_masks(self):
