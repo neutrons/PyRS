@@ -176,6 +176,7 @@ class HB2BReductionManager:
         else:
             # Read only
             file_mode = HidraProjectFileMode.READONLY
+
         project_h5_file = HidraProjectFile(project_file_name, mode=file_mode)
 
         # Load

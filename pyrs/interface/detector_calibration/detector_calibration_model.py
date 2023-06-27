@@ -11,18 +11,10 @@ from pyrs.core.powder_pattern import ReductionApp
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core import MonoSetting  # type: ignore
 
+from pyrs.calibration.mantid_peakfit_calibration import FitCalibration
+
 # Import instrument constants
 from pyrs.core.nexus_conversion import NUM_PIXEL_1D, PIXEL_SIZE, ARM_LENGTH
-
-
-def get_ref_flags(powder_engine, pin_engine):
-    def get_mono_setting(_engine):
-        try:
-            monosetting = MonoSetting.getFromIndex(_engine.get_sample_log_value('MonoSetting', 1))
-        except ValueError:
-            monosetting = MonoSetting.getFromRotation(_engine.get_sample_log_value('mrot', 1))
-
-        return monosetting
 
 
 class DetectorCalibrationModel(QObject):
@@ -32,7 +24,7 @@ class DetectorCalibrationModel(QObject):
     def __init__(self, peak_fit_core):
         super().__init__()
         self._peak_fit = peak_fit_core
-        self._hydra_ws = None
+        self._hidra_ws = None
         self.peak_fit_engine = None
         self._run_number = None
         self._powders = np.array(['Ni', 'Fe', 'Mo'])
@@ -44,45 +36,35 @@ class DetectorCalibrationModel(QObject):
                                                  ARM_LENGTH, False)
 
         self.detector_params = [0, 0, 0, 0, 0, 0, 0, 0]
-        self.sub_runs = np.array([1])
+        # self.sub_runs = np.array([1])
+
+        self._calibration_obj = None
 
     @property
     def runnumber(self):
         return self._run_number
 
     @property
+    def sub_runs(self):
+        return self._calibration_obj._hidra_ws.get_sub_runs()
+
+    @property
     def sy(self):
-        return self._hydra_ws.get_sample_log_values('sy')
+        return self._calibration_obj._hidra_ws.get_sample_log_values('sy')
 
-    def set_subruns(self):
-        self.sub_runs = self._hydra_ws.get_sub_runs()
+    @property
+    def reduction_masks(self):
+        return self._calibration_obj._hidra_ws.reduction_masks
 
-    def _load_nexus_data(self, nexus_file, mask_file=None):
-        converter = NeXusConvertingApp(nexus_file, mask_file)
-        self._hydra_ws = converter.convert()
-        self.detector_params[6] = MonoSetting.getFromRotation(self._hydra_ws.get_sample_log_value('mrot', 1))
-        self.set_subruns()
-        self._reduce_diffraction_data()
-        self._eta_masks = self._hydra_ws.reduction_masks
+    def _init_calibration(self, nexus_file):
+        self._calibration_obj = FitCalibration(nexus_file=nexus_file)
 
-        return
-
-    def _reduce_diffraction_data(self):
-
-        self.reducer = ReductionApp()
-        self.reducer.load_hidra_workspace(self._hydra_ws)
-
-        self.reducer.reduce_data(sub_runs=None, instrument_file=None,
-                                 calibration_file=None, mask=None, num_bins=720, eta_step=3)
 
     def get_reduced_diffraction_data(self, sub_run, mask):
-        return self.reducer.get_diffraction_data(sub_run, mask_id=mask)
-
-    def _get_diffraction_counts(self, sub_run):
-        return self._hydra_ws.get_detector_counts(sub_run)
+        return self._calibration_obj.reducer.get_diffraction_data(sub_run, mask_id=mask)
 
     def get_2D_diffraction_counts(self, sub_run):
-        return self._get_diffraction_counts(sub_run).reshape(NUM_PIXEL_1D, NUM_PIXEL_1D)
+        return self._calibration_obj._hidra_ws.get_detector_counts(sub_run).reshape(NUM_PIXEL_1D, NUM_PIXEL_1D)
 
     def to_json(self, filename, fit_range_table):
 
@@ -145,12 +127,10 @@ class DetectorCalibrationModel(QObject):
         return
 
     def get_powders(self):
-        sy = self._model.sy
-
-        powder = [''] * sy.size
-        for i_pos in range(sy.size):
+        powder = [''] * self.sy.size
+        for i_pos in range(self.sy.size):
             try:
-                powder[i_pos] = self._powders[np.abs(self._sy - sy[i_pos]) < 2][0]
+                powder[i_pos] = self._powders[np.abs(self._powders_sy - self.sy[i_pos]) < 2][0]
             except IndexError:
                 pass
 

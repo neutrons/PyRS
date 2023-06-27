@@ -13,19 +13,10 @@ class DetectorCalibrationCrtl:
         self._sy = np.array([62, 12, -13])
 
     def load_nexus(self, nexus_file):
-        self._model._load_nexus_data(nexus_file)
+        self._model._init_calibration(nexus_file)
 
     def get_powders(self):
-        sy = self._model.sy
-
-        powder = []
-        for i_pos in range(sy.size):
-            try:
-                powder.append(self._powders[np.abs(self._sy - sy[i_pos]) < 2][0])
-            except IndexError:
-                pass
-
-        return self._model.get_powders
+        return self._model.get_powders()
 
     def update_diffraction_view(self, ax, _parent, sub_run, two_d_data):
 
@@ -34,7 +25,7 @@ class DetectorCalibrationCrtl:
             ax.axis('off')
         else:
             ax.cla()
-            for mask in self._model._hydra_ws.reduction_masks:
+            for mask in self._model.reduction_masks:
                 tth, int_vec, error_vec = self._model.get_reduced_diffraction_data(sub_run, mask)
                 ax.plot(tth[1:], int_vec[1:], label=mask)
 

@@ -6,9 +6,13 @@ import os
 # Import pyrs modules
 from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.reduce_hb2b_pyrs import PyHB2BReduction
+from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
 from pyrs.core.reduction_manager import HB2BReductionManager
-from pyrs.core.instrument_geometry import DENEXDetectorGeometry
+from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
+from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
+from pyrs.core.nexus_conversion import NeXusConvertingApp
+from pyrs.core.powder_pattern import ReductionApp
 
 # Import instrument constants
 from pyrs.core.nexus_conversion import NUM_PIXEL_1D, PIXEL_SIZE, ARM_LENGTH
@@ -16,69 +20,6 @@ from pyrs.core.nexus_conversion import NUM_PIXEL_1D, PIXEL_SIZE, ARM_LENGTH
 # Import scipy libraries for minimization
 from scipy.optimize import least_squares
 from scipy.optimize import brute
-
-
-def quadratic_background(x, p0, p1, p2):
-    """Quadratic background
-
-    Y = p2 * x**2 + p1 * x + p0
-
-    Parameters
-    ----------
-    x: float or ndarray
-        x value
-    p0: float
-    p1: float
-    p2: float
-
-    Returns
-    -------
-    float or numpy array
-        background
-    """
-    return p2*x*x + p1*x + p0
-
-
-def linear_background(x, p0, p1, p2):
-    """linear background
-
-    Y = p1 * x + p0
-
-    Parameters
-    ----------
-    x: float or ndarray
-        x value
-    p0: float
-    p1: float
-    p2: float
-
-    Returns
-    -------
-    float or numpy array
-        background
-    """
-    return p2*x*x + p1*x + p0
-
-
-def GaussianModel(x, mu, sigma, Amp):
-    """Gaussian Model
-
-    Y = Amp/(sigma * np.sqrt(2 * np.pi)) * np.exp(- (x - mu)**2 / (2 * sigma**2))
-
-    Parameters
-    ----------
-    x: float or ndarray
-        x value
-    mu: float
-    sigma: float
-    Amp: float
-
-    Returns
-    -------
-    float or numpy array
-        Peak
-    """
-    return Amp/(sigma * np.sqrt(2 * np.pi)) * np.exp(- (x - mu)**2 / (2 * sigma**2))
 
 
 class GlobalParameter:
@@ -89,52 +30,13 @@ class GlobalParameter:
         return
 
 
-def get_ref_flags(powder_engine, pin_engine):
-    def get_mono_setting(_engine):
-        try:
-            monosetting = MonoSetting.getFromIndex(_engine.get_sample_log_value('MonoSetting', 1))
-        except ValueError:
-            monosetting = MonoSetting.getFromRotation(_engine.get_sample_log_value('mrot', 1))
-
-        return monosetting
-
-    def get_tth_ref(_engine):
-        try:
-            _engine.get_sample_log_value('2theta', 1)
-            tth_ref = '2theta'
-        except ValueError:
-            tth_ref = '2Theta'
-        return tth_ref
-
-    if (powder_engine is not None) and (pin_engine is not None):
-        if get_mono_setting(powder_engine) == get_mono_setting(pin_engine):
-            monosetting = get_mono_setting(powder_engine)
-        else:
-            raise RuntimeError('Powder and Pin data measured using different mono settings')
-
-        if get_tth_ref(powder_engine) == get_tth_ref(pin_engine):
-            tth_ref = get_tth_ref(powder_engine)
-        else:
-            raise RuntimeError('Powder and Pin data have different 2theta reference keys\n')
-    elif powder_engine is not None:
-        monosetting = get_mono_setting(powder_engine)
-        tth_ref = get_tth_ref(powder_engine)
-    elif pin_engine is not None:
-        monosetting = get_mono_setting(pin_engine)
-        tth_ref = get_tth_ref(pin_engine)
-    else:
-        raise RuntimeError('No data were provided as an input\n')
-
-    return monosetting, tth_ref
-
-
-class PeakFitCalibration:
+class FitCalibration:
     """
     Calibrate by grid searching algorithm using Brute Force or Monte Carlo random walk
     """
 
-    def __init__(self, hb2b_inst=None, powder_engine=None, pin_engine=None, powder_lines=None,
-                 single_material=True, wavelength=None):
+    def __init__(self, _inst=None, powder_engine=None, nexus_file=None,
+                 mask_file=None, eta_slice=3, bins=512):
         """
         Initialization
 
@@ -154,24 +56,25 @@ class PeakFitCalibration:
         """
 
         self.engines = []
+        self.eta_slices = eta_slice
+        self.bins = bins
 
         # define instrument setup
-        if hb2b_inst is None:
+        if _inst is None:
             self._instrument = DENEXDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D,
                                                      PIXEL_SIZE, PIXEL_SIZE,
                                                      ARM_LENGTH, False)
         else:
-            self._instrument = hb2b_inst
-
-        if pin_engine is not None:
-            dSpace = 3.59188696 * np.array([1./np.sqrt(11), 1./np.sqrt(12)])
-            self.engines.append([pin_engine, dSpace, True])
+            self._instrument = _inst
+        # # 'shift_x', 'shift_y', 'shift_z', 'rotation_x', 'rotation_y', and 'rotation_z'
+        # self._detectorshift = DENEXDetectorShift()
 
         if powder_engine is not None:
-            if powder_lines is None:
-                raise RuntimeError('User must define a list of dspace')
-
-            self.engines.append([powder_engine, powder_lines, single_material])
+            self._hidra_ws = powder_engine
+        elif nexus_file is not None:
+            self._reduce_diffraction_data(nexus_file)
+        else:
+            exit()
 
         # calibration: numpy array. size as 7 for ... [6] for wave length
         self._calib = np.array(8 * [0], dtype=np.float64)
@@ -181,15 +84,10 @@ class PeakFitCalibration:
         # calibration starting point: numpy array. size as 7 for ...
         self._calib_start = np.array(8 * [0], dtype=np.float64)
 
-        if wavelength is None:
-            # Set wave length
-            self.monosetting, self.tth_ref = get_ref_flags(powder_engine, pin_engine)
-            self._calib[6] = float(self.monosetting)
-            self._calib_start[6] = float(self.monosetting)
-        else:
-            self._calib[6] = wavelength
-            self._calib_start[6] = wavelength
-            self.monosetting = 1
+        # Set wave length
+        self.monosetting = MonoSetting.getFromRotation(self._hidra_ws.get_sample_log_value('mrot', 1))
+        self._calib[6] = float(self.monosetting)
+        self._calib_start[6] = float(self.monosetting)
 
         # Initalize calibration status to -1
         self._calibstatus = -1
@@ -205,12 +103,18 @@ class PeakFitCalibration:
         # define inital peak fitting data
         self.min_tth = None
         self.max_tth = None
-        self.eta_slices = 3
-        self.bins = 512
         self.inital_width = 0.5
         self.inital_AMP = 0.5
 
+        # self._fitting_ws = HidraWorkspace()
+        # self._fit_engine = PeakFitEngineFactory.getInstance(self._fitting_ws, 'PseudoVoigt', 'Linear',
+        #                                                     wavelength=self._calib[6], out_of_plane_angle=None)
+
         GlobalParameter.global_curr_sequence = 0
+
+    @staticmethod
+    def get_powder_lines(powder_engine):
+        pass
 
     @staticmethod
     def check_alignment_inputs(roi_vec_set):
@@ -260,6 +164,17 @@ class PeakFitCalibration:
         vec_2theta, vec_hist = data_set[:2]
 
         return vec_2theta, vec_hist
+
+    def _reduce_diffraction_data(self, nexus_file, mask_file=None, calibration=None):
+        converter = NeXusConvertingApp(nexus_file, mask_file)
+        self._hidra_ws = converter.convert()
+        if calibration is not None:
+            self._hidra_ws.set_instrument_geometry(calibration)
+
+        self.reducer = ReductionApp()
+        self.reducer.load_hidra_workspace(self._hidra_ws)
+        self.reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None,
+                                 mask=None, num_bins=self.bins, eta_step=self.eta_slices)
 
     def plot_data(self, x, y, fit):
         import matplotlib.pyplot as plt
