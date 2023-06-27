@@ -12,8 +12,32 @@ class DetectorCalibrationCrtl:
         self._powders = np.array(['Ni', 'Fe', 'Mo'])
         self._sy = np.array([62, 12, -13])
 
-    def load_nexus(self, nexus_file):
-        self._model._init_calibration(nexus_file)
+    @staticmethod
+    def validate_eta_tth(tth_bins, eta_bins):
+        if tth_bins == '':
+            tth_bins = 512
+        elif type(tth_bins) is str:
+            tth_bins = int(tth_bins)
+
+        if eta_bins == '':
+            eta_bins = 3
+        elif type(eta_bins) is str:
+            eta_bins = float(eta_bins)
+
+        return tth_bins, eta_bins
+
+    def load_nexus(self, nexus_file, tth_bins, eta_bins):
+        tth_bins, eta_bins = self.validate_eta_tth(tth_bins, eta_bins)
+
+        self._model._init_calibration(nexus_file, tth_bins, eta_bins)
+
+    def set_reduction_param(self, tth_bins, eta_bins):
+        tth_bins, eta_bins = self.validate_eta_tth(tth_bins, eta_bins)
+        self._model.set_reduction_param(tth_bins, eta_bins)
+
+
+    def fit_diffraction_peaks(self):
+        self._model.fit_diffraction_peaks()
 
     def get_powders(self):
         return self._model.powders

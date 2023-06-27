@@ -8,7 +8,6 @@ from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.reduce_hb2b_pyrs import PyHB2BReduction
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
-from pyrs.core.reduction_manager import HB2BReductionManager
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
 from pyrs.core.nexus_conversion import NeXusConvertingApp
@@ -105,6 +104,9 @@ class FitCalibration:
         self._ref_structure = np.array(['FCC', 'BCC', 'BCC'])
         self._ref_lattice = [3.523799438, 2.8663982, 3.14719963]
 
+
+
+        self.get_powder_lines()
         # self._fitting_ws = HidraWorkspace()
         # self._fit_engine = PeakFitEngineFactory.getInstance(self._fitting_ws, 'PseudoVoigt', 'Linear',
         #                                                     wavelength=self._calib[6], out_of_plane_angle=None)
@@ -116,10 +118,38 @@ class FitCalibration:
         return self._hidra_ws.get_sample_log_values('sy')
 
     @property
+    def sub_runs(self):
+        return self._hidra_ws.get_sub_runs()
+    
+    @property
     def powders(self):
         return self._powders
 
-    @staticmethod
+    def set_tthbins(self, tth_bins):
+        self.bins = tth_bins
+
+    def set_etabins(self, eta_bins):
+        self.eta_slices = eta_bins
+
+    def get_diff_peaks(self, sub_run):
+        '''
+        Determine peak position for reference lattice
+
+        Parameters
+        ----------
+        sub_run : int
+            sub-run index.
+
+        Returns
+        -------
+        np.array
+            array of two theta peaks for the reference powder.
+
+        '''
+
+        dspace = self._powders_lattice[sub_run] / self._diff_peaks[self._powders_struc[sub_run]]
+        return np.rad2deg(np.arcsin(self._calib[6] / 2 / dspace) * 2)
+
     def get_powder_lines(self):
         self._powders = [''] * self.sy.size
         self._powders_struc = [''] * self.sy.size
@@ -127,11 +157,16 @@ class FitCalibration:
 
         for i_pos in range(self.sy.size):
             try:
-                self._powders[i_pos] = self._ref_powders[np.abs(self._ref_powders_sy - self.sy[i_pos]) < 2][0]
-                self._powders_struc[i_pos] = self._ref_structure[np.abs(self._ref_powders_sy - self.sy[i_pos]) < 2][0]
-                self._powders_lattice[i_pos] = self._ref_lattice[np.abs(self._ref_powders_sy - self.sy[i_pos]) < 2][0]
+                index = np.where(np.abs(self._ref_powders_sy - self.sy[i_pos]) < 2)[0]
+                self._powders[i_pos] = self._ref_powders[index[0]]
+                self._powders_struc[i_pos] = self._ref_structure[index[0]]
+                self._powders_lattice[i_pos] = self._ref_lattice[index[0]]
             except IndexError:
                 pass
+
+        self._diff_peaks = {}
+        self._diff_peaks['BCC'] = np.sqrt(np.array([2, 4, 6, 8, 12, 10, 14, 18]))
+        self._diff_peaks['FCC'] = np.sqrt(np.array([3, 4, 8, 12, 11, 19]))
 
     def _reduce_diffraction_data(self, nexus_file, mask_file=None, calibration=None):
         converter = NeXusConvertingApp(nexus_file, mask_file)
@@ -156,47 +191,30 @@ class FitCalibration:
 
         return
 
-    def FitPeaks(self, x, y, Params, Peak_Num):
+    def fit_peaks(self):
 
-        def CalcPatt(x, y, PAR, Peak_Num):
-            Model = np.zeros_like(x)
-            Model += quadratic_background(x, PAR['p0'], PAR['p1'], PAR['p2'])
-            for ipeak in Peak_Num:
-                Model += GaussianModel(x, PAR['g%d_center' % ipeak], PAR['g%d_sigma' %
-                                                                         ipeak], PAR['g%d_amplitude' % ipeak])
-            return Model
+        self._fitting_ws = HidraWorkspace()
+        self._fitting_ws.set_sub_runs([1])
 
-        def residual(x0, x, y, ParamNames, Peak_Num):
-            PAR = dict(zip(ParamNames, x0))
-            Model = CalcPatt(x, y, PAR, Peak_Num)
-            return (y-Model)
+        for sub_run in self.sub_runs:
+            peaks = self.get_diff_peaks(sub_run)
+            for mask in self._hidra_ws.reduction_masks:
+                tth, int_vec, error_vec = self.reducer.get_diffraction_data(sub_run, mask_id=mask)
+                self._fitting_ws.set_reduced_diffraction_data(1, None, tth, int_vec, error_vec)
+                _fit_engine = PeakFitEngineFactory.getInstance(self._fitting_ws, 'PseudoVoigt', 'Linear',
+                                                               wavelength=self._calib[6], out_of_plane_angle=None)
 
-        x0 = list()
-        ParamNames = list()
-        LL, UL = [], []
+                # print((tth.min + 1) > peaks)))
 
-        Params['p0'] = [y[0], -np.inf, np.inf]
+            print(tth.min(), tth.max)
+            print((tth.min() + 1) > peaks)
+            print(((tth.max() - 1) < peaks))
+            print(((tth.min() + 1) > peaks) * ((tth.max() - 1) < peaks))
+            peaks = peaks[((tth.min() + 1) > peaks) * ((tth.max() - 1) < peaks)]
 
-        for pkey in list(Params.keys()):
-            x0.append(Params[pkey][0])
-            LL.append(Params[pkey][1])
-            UL.append(Params[pkey][2])
+            print(sub_run, peaks)
 
-            ParamNames.append(pkey)
-
-        # fit the functions
-        out = least_squares(residual, x0, bounds=[LL, UL], method='dogbox', ftol=1e-8, xtol=1e-8, gtol=1e-8,
-                            f_scale=1.0, max_nfev=None, args=(x, y, ParamNames, Peak_Num))
-
-        if self.plot_res:
-            self.plot_data(x, y, CalcPatt(x, y, dict(zip(ParamNames, x0)), Peak_Num))
-            self.plot_data(x, y, CalcPatt(x, y, dict(zip(ParamNames, out.x)), Peak_Num))
-            print(dict(zip(ParamNames, out.x))['g1_sigma'])
-
-        returnSetup = [dict(zip(ParamNames, out.x)), CalcPatt(x, y, dict(zip(ParamNames, out.x)), Peak_Num),
-                       out.status]
-
-        return returnSetup
+        # return returnSetup
 
     def FitDetector(self, fun, x0, jac='3-point', bounds=[], method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08,
                     x_scale=1.0, loss='linear', tr_options={}, jac_sparsity=None, f_scale=1.0, diff_step=None,
@@ -862,7 +880,6 @@ class FitCalibration:
         -------
         None
         """
-        from pyrs.core.instrument_geometry import DENEXDetectorShift
         # Form DENEXDetectorShift objects
         cal_shift = DENEXDetectorShift(self._calib[0], self._calib[1], self._calib[2], self._calib[3],
                                        self._calib[4], self._calib[5], self._calib[7])

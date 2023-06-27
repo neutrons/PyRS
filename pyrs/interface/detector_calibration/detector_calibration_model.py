@@ -27,9 +27,11 @@ class DetectorCalibrationModel(QObject):
         self._hidra_ws = None
         self.peak_fit_engine = None
         self._run_number = None
-        self._powders = np.array(['Ni', 'Fe', 'Mo'])
-        self._powders_sy = np.array([62, 12, -13])
-        self._lattice = [3.523799438, 2.8663982, 3.14719963]
+        self._calibration_obj = None
+
+        # self._powders = np.array(['Ni', 'Fe', 'Mo'])
+        # self._powders_sy = np.array([62, 12, -13])
+        # self._lattice = [3.523799438, 2.8663982, 3.14719963]
 
         self._instrument = DENEXDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D,
                                                  PIXEL_SIZE, PIXEL_SIZE,
@@ -47,7 +49,7 @@ class DetectorCalibrationModel(QObject):
     @property
     def sub_runs(self):
         return self._calibration_obj._hidra_ws.get_sub_runs()
-    
+
     @property
     def powders(self):
         return self._calibration_obj.powders
@@ -60,9 +62,17 @@ class DetectorCalibrationModel(QObject):
     def reduction_masks(self):
         return self._calibration_obj._hidra_ws.reduction_masks
 
-    def _init_calibration(self, nexus_file):
-        self._calibration_obj = FitCalibration(nexus_file=nexus_file)
+    def set_reduction_param(self, tth_bins, eta_bins):
+        if self._calibration_obj is not None:
+            self._calibration_obj.set_tthbins(tth_bins)
+            self._calibration_obj.set_etabins(eta_bins)
 
+    def _init_calibration(self, nexus_file, tth=512, eta=3.):
+        self._calibration_obj = FitCalibration(nexus_file=nexus_file, eta_slice=eta, bins=tth)
+
+    def fit_diffraction_peaks(self):
+        if self._calibration_obj is not None:
+            self._calibration_obj.fit_peaks()
 
     def get_reduced_diffraction_data(self, sub_run, mask):
         return self._calibration_obj.reducer.get_diffraction_data(sub_run, mask_id=mask)
@@ -129,13 +139,3 @@ class DetectorCalibrationModel(QObject):
                                     QTableWidgetItem(str(data[peak_entry]["d0"])))
 
         return
-
-    def get_powders(self):
-        powder = [''] * self.sy.size
-        for i_pos in range(self.sy.size):
-            try:
-                powder[i_pos] = self._powders[np.abs(self._powders_sy - self.sy[i_pos]) < 2][0]
-            except IndexError:
-                pass
-
-        return powder

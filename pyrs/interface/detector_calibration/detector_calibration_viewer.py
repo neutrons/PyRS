@@ -116,7 +116,10 @@ class FileLoad(QWidget):
         self.load_project_plot()
 
     def load_project_plot(self):
-        self._parent.controller.load_nexus(self._parent._project_file)
+        self._parent.controller.load_nexus(self._parent._project_file,
+                                           self._parent.peak_lines_setup.tthbin_lineEdit.text(),
+                                           self._parent.peak_lines_setup.etabin_lineEdit.text())
+
         self._parent.compare_diff_data.sl.setMaximum(self._parent.model.sub_runs.size)
         self._parent.compare_diff_data.valueChanged()
 
@@ -426,6 +429,7 @@ class PeakLinesSetupView(QGroupBox):
 
         self.calib_recipe = QGroupBox()
         calib_recipe_layout = QGridLayout()
+
         self.recipe_combos = {}
         calib_recipe_layout.addWidget(self.setup_label('Step'), 0, 0)
         calib_recipe_layout.addWidget(self.setup_label('Routine', Qt.AlignCenter), 0, 1)
@@ -438,21 +442,53 @@ class PeakLinesSetupView(QGroupBox):
         self.calib_recipe.setLayout(calib_recipe_layout)
 
         self.export_setup = QGroupBox()
-        self.export_setup_layout = QHBoxLayout()
-        self.export_peak_info = QPushButton("Load Recipe")
-        self.export_peak_info.clicked.connect(self.load_json)
-        self.export_pole_figs = QPushButton("Export Recipe")
-        self.export_pole_figs.clicked.connect(self.save_json)
+        export_setup_layout = QGridLayout()
 
-        self.export_setup_layout.addWidget(self.export_peak_info)
-        self.export_setup_layout.addWidget(self.export_pole_figs)
-        self.export_setup.setLayout(self.export_setup_layout)
+
+        tthbin_label = QLabel('2θ bin')
+        tthbin_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tthbin_lineEdit = QLineEdit()
+        self.tthbin_lineEdit.setText('512')
+        self.tthbin_lineEdit.setReadOnly(False)
+        self.tthbin_lineEdit.setFixedWidth(75)
+
+        etabin_label = QLabel('η bin')
+        etabin_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.etabin_lineEdit = QLineEdit()
+        self.etabin_lineEdit.setText('3')
+        self.etabin_lineEdit.setReadOnly(False)
+        self.etabin_lineEdit.setFixedWidth(50)
+
+        self.tthbin_lineEdit.textChanged.connect(self.set_reduction_param)
+        self.etabin_lineEdit.textChanged.connect(self.set_reduction_param)
+
+        
+        self.load_info = QPushButton("Load Recipe")
+        self.load_info.clicked.connect(self.load_json)
+        self.export_recipe = QPushButton("Export Recipe")
+        self.export_recipe.clicked.connect(self.save_json)
+        self.calibrate = QPushButton("Calibrate")
+        self.calibrate.clicked.connect(self.start_calibration)
+
+        export_setup_layout.addWidget(tthbin_label, 0, 0)
+        export_setup_layout.addWidget(self.tthbin_lineEdit, 0, 1)
+        export_setup_layout.addWidget(etabin_label, 0, 2)
+        export_setup_layout.addWidget(self.etabin_lineEdit, 0, 3)
+
+        export_setup_layout.addWidget(self.load_info, 1, 0, 1, 2)
+        export_setup_layout.addWidget(self.export_recipe, 1, 2, 1, 2)
+        export_setup_layout.addWidget(self.calibrate, 2, 0, 1, 4)
+
+        self.export_setup.setLayout(export_setup_layout)
         self.export_setup.setFlat(True)
 
+        # self.recipe_setup_layout.addWidget(self.define_reduction)
         self.recipe_setup_layout.addWidget(self.calib_recipe)
         self.recipe_setup_layout.addWidget(self.export_setup)
+        # self.recipe_setup_layout.addWidget(self.fit_setup)
 
         self.recipe_setup.setLayout(self.recipe_setup_layout)
+
 
         self.splitter.addWidget(self.calibration_setup)
         self.splitter.addWidget(self.recipe_setup)
@@ -463,6 +499,10 @@ class PeakLinesSetupView(QGroupBox):
 
         return
 
+    def set_reduction_param(self):
+        self._parent._ctrl.set_reduction_param(self.tthbin_lineEdit.text(),
+                                               self.etabin_lineEdit.text())
+
     def setup_label(self, label_name, align=Qt.AlignRight):
         label = QLabel(label_name)
         label.setAlignment(align | Qt.AlignVCenter)
@@ -471,9 +511,13 @@ class PeakLinesSetupView(QGroupBox):
 
     def setup_combo_box(self):
         temp_combo_box = QComboBox(self)
-        temp_combo_box.addItems(['', 'wavelength',
-                                 'rotations'])
+        temp_combo_box.addItems(['', 'wavelength', 'rotations', 'geometry', 'shifts',
+                                 'shift x', 'shift y', 'distance', 'full'])
+            
         return temp_combo_box
+
+    def start_calibration(self):
+        self._parent._ctrl.fit_diffraction_peaks()
 
     def setup_calibration_table(self, powders):
         self.calibrant_table.setRowCount(len(powders))
@@ -519,70 +563,15 @@ class FitSummaryView(QGroupBox):
 
         layout = QVBoxLayout()
 
-        self.summary_select = QGroupBox()
-        self.summary_select_layout = QHBoxLayout()
-
-        self.spinBox_peak_index = QSpinBox()
-        self.spinBox_peak_index.setRange(1, 1)
-
-        plot_labelY = QLabel("Peak Index")
-        plot_labelY.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-
-        self.out_of_plane = QComboBox()
-        self.oop_label = QLabel("out of plane")
-        self.oop_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.oop_label.setVisible(False)
-        self.out_of_plane.setVisible(False)
-
-        self.radioButton_fit_value = QRadioButton('Fit Param Values')
-        self.radioButton_fit_value.setChecked(True)
-        self.radioButton_fit_error = QRadioButton('Fit Param Errors')
-        self.radioButton_fit_value.clicked.connect(self.btn_click)
-        self.radioButton_fit_error.clicked.connect(self.btn_click)
-
-        self.summary_select_layout.addWidget(plot_labelY)
-        self.summary_select_layout.addWidget(self.spinBox_peak_index)
-        self.summary_select_layout.addWidget(self.oop_label)
-        self.summary_select_layout.addWidget(self.out_of_plane)
-        self.summary_select_layout.addWidget(self.radioButton_fit_value)
-        self.summary_select_layout.addWidget(self.radioButton_fit_error)
-
-        self.summary_select.setLayout(self.summary_select_layout)
-
         self.tableView_fitSummary = QTableWidget(self)
         self.tableView_fitSummary.setColumnCount(1)
 
-        layout.addWidget(self.summary_select)
         layout.addWidget(self.tableView_fitSummary)
+        layout.addStretch(20)
 
         self.setLayout(layout)
 
         self.fit_table_operator = FitTable(parent=self)
-
-    @property
-    def out_of_plan_angle(self):
-        return self.out_of_plane.currentText()
-
-    def btn_click(self):
-        if self.fit_table_operator.fit_result is not None:
-            self.fit_table_operator.initialize_fit_result_widgets()
-            self.fit_table_operator.populate_fit_result_table()
-
-    def setup_out_of_plane_angle(self, dict_keys):
-        if len(dict_keys) > 2:
-            angles = []
-            for key in list(dict_keys):
-                if '_var' not in key:
-                    angles.append(key)
-
-            self.out_of_plane.clear()
-            self.out_of_plane.addItems(angles)
-            self.oop_label.setVisible(True)
-            self.out_of_plane.setVisible(True)
-        else:
-            self.out_of_plane.clear()
-            self.oop_label.setVisible(False)
-            self.out_of_plane.setVisible(False)
 
 
 class FitTable:
@@ -841,13 +830,6 @@ class DetectorCalibrationViewer(QMainWindow):
 
         self.viz_splitter.addWidget(self.compare_diff_data)
         self.viz_splitter.addWidget(self.param_window)
-
-        # # Lower pannel for controlling 3D plotting
-        # self.VizSetup = SetupViz(self)
-        # self.VizSetup.plot_paramX.currentTextChanged.connect(self.update_3D_param_summary)
-        # self.VizSetup.plot_paramY.currentTextChanged.connect(self.update_3D_param_summary)
-        # self.VizSetup.plot_paramZ.currentTextChanged.connect(self.update_3D_param_summary)
-        # self.VizSetup.sub_runs_list.editingFinished.connect(self.update_3D_param_summary)
 
         # # add widgets to pannel layout
         # right_layout.addWidget(self.plot_select)
