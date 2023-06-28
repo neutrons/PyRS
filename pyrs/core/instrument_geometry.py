@@ -127,7 +127,7 @@ class DENEXDetectorShift:
     A class to handle and save instrument geometry calibration information
     """
 
-    def __init__(self, shift_x, shift_y, shift_z, rotation_x, rotation_y, rotation_z, two_theta_0=0.0):
+    def __init__(self, shift_x, shift_y, shift_z, rotation_x, rotation_y, rotation_z):
         """
         Initialization of instrument geometry setup for 1 denex detector
         :param shift_x: detector shift along x
@@ -146,15 +146,14 @@ class DENEXDetectorShift:
         self._rotation_x = rotation_x  # in Y-Z plane (horizontal), i.e, flip
         self._rotation_y = rotation_y  # in X-Z plane along Y axis (vertical), i.e., rotate
         self._rotation_z = rotation_z  # in X-Y plane along Z axis, i.e., spin at detector center
-        self._two_theta_0 = two_theta_0  # offset in two_theta arm for ideal 0
 
         # Need data from client to finish this
         self.calibrated_wave_length = {'Si001': 1.00}
 
     def __str__(self):
-        nice = '[Calibration]\nShift:    {},  {},  {}\nRotation: {}, {}, {}\nTwo_Theta_0: {}' \
+        nice = '[Calibration]\nShift:    {},  {},  {}\nRotation: {}, {}, {}\n' \
                ''.format(self.center_shift_x, self.center_shift_y, self.center_shift_z,
-                         self.rotation_x, self.rotation_y, self.rotation_z, self.two_theta_0)
+                         self.rotation_x, self.rotation_y, self.rotation_z)
 
         return nice
 
@@ -248,7 +247,6 @@ class DENEXDetectorShift:
         geometry_shift_dict['Rot_x'] = self._rotation_x
         geometry_shift_dict['Rot_y'] = self._rotation_y
         geometry_shift_dict['Rot_z'] = self._rotation_z
-        geometry_shift_dict['two_theta_0'] = self._two_theta_0
 
         return geometry_shift_dict
 
@@ -265,7 +263,6 @@ class DENEXDetectorShift:
         geometry_shift_dict['error_Rot_x'] = self._rotation_x
         geometry_shift_dict['error_Rot_y'] = self._rotation_y
         geometry_shift_dict['error_Rot_z'] = self._rotation_z
-        geometry_shift_dict['error_two_theta_0'] = self._two_theta_0
 
         return geometry_shift_dict
 
@@ -289,8 +286,6 @@ class DENEXDetectorShift:
             self._rotation_y = geometry_shift_dict['rotation y']
         if 'rotation z' in geometry_shift_dict:
             self._rotation_z = geometry_shift_dict['rotation z']
-        if 'two_theta_0' in geometry_shift_dict:
-            self._two_theta_0 = geometry_shift_dict['two_theta_0']
 
     # TODO - #86 - Synchronize with convert_to_dict and implement
     def set_from_dict_error(self):

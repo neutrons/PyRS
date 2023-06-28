@@ -76,19 +76,18 @@ class FitCalibration:
             exit()
 
         # calibration: numpy array. size as 7 for ... [6] for wave length
-        self._calib = np.array(8 * [0], dtype=np.float64)
+        self._calib = np.array(7 * [0], dtype=np.float64)
         # calibration error: numpy array. size as 7 for ...
-        self._caliberr = np.array(8 * [-1], dtype=np.float64)
+        self._caliberr = np.array(7 * [-1], dtype=np.float64)
 
         # calibration starting point: numpy array. size as 7 for ...
-        self._calib_start = np.array(8 * [0], dtype=np.float64)
+        self._calib_start = np.array(7 * [0], dtype=np.float64)
+
 
         # Set wave length
         self.monosetting = MonoSetting.getFromRotation(self._hidra_ws.get_sample_log_value('mrot', 1))
         self._calib[6] = float(self.monosetting)
         self._calib_start[6] = float(self.monosetting)
-
-        self._calibration = self._calib.reshape(-1, 1)
 
         # Initalize calibration status to -1
         self._calibstatus = -1
@@ -103,6 +102,7 @@ class FitCalibration:
 
         self.fitted_ws = None
 
+        self._exclude_subrun_list = []
         self._ref_powders = np.array(['Ni', 'Fe', 'Mo'])
         self._ref_powders_sy = np.array([62, 12, -13])
         self._ref_structure = np.array(['FCC', 'BCC', 'BCC'])
@@ -127,6 +127,9 @@ class FitCalibration:
     def powders(self):
         return self._powders
 
+    def set_exclude_subrun_list(self, exclude_list):
+        self._exclude_subrun_list = exclude_list
+
     def set_tthbins(self, tth_bins):
         self.bins = tth_bins
 
@@ -150,12 +153,13 @@ class FitCalibration:
         '''
 
         dspace = self._powders_lattice[sub_run] / self._diff_peaks[self._powders_struc[sub_run]]
-        return np.rad2deg(np.arcsin(self._calib[6] / 2 / dspace) * 2)
+        return np.rad2deg(np.arcsin(self._hidra_ws.get_wavelength(False, False) / 2 / dspace) * 2)
 
     def get_powder_lines(self):
         self._powders = [''] * self.sy.size
         self._powders_struc = [''] * self.sy.size
         self._powders_lattice = np.zeros_like(self.sy)
+        self._exclude_subrun_list = [False] * self.sy.size
 
         for i_pos in range(self.sy.size):
             try:
@@ -193,6 +197,11 @@ class FitCalibration:
 
         return
 
+    def initalize_calib_results(self):
+        self._calibration = self._calib.reshape(-1, 1)
+        self._residual_sum = []
+        self._residual_rmse = []
+
     def fit_peaks(self):
 
         self._fitting_ws = HidraWorkspace()
@@ -202,26 +211,27 @@ class FitCalibration:
         self.fitted_ws = [None] * self.sub_runs.size
 
         for i_run, sub_run in enumerate(self.sub_runs):
-            peaks = self.get_diff_peaks(sub_run - 1)
-            for i_mask, mask in enumerate(self._hidra_ws.reduction_masks):
-                tth, int_vec, error_vec = self.reducer.get_diffraction_data(sub_run, mask_id=mask)
-                self._fitting_ws.set_reduced_diffraction_data(i_mask + 1, None, tth, int_vec, error_vec)
-
-            _fit_engine = PeakFitEngineFactory.getInstance(self._fitting_ws, 'PseudoVoigt', 'Linear',
-                                                           wavelength=self._calib[6], out_of_plane_angle=None)
-
-            peaks = peaks[(peaks > (tth.min() + 1)) * (peaks < (tth.max() - 1))]
-
-            _ws = []
-            for peak in peaks:
-                # print(sub_run, peak, peaks)
-                fits = _fit_engine.fit_multiple_peaks(["peak_tags"], [peak - 2.5], [peak + 2.5])
-
-                _ws.append(fits.fitted)
-                center_errors = np.concatenate((center_errors,
-                                                fits.peakcollections[0].get_effective_params()[0]['Center'] - peak))
-
-            self.fitted_ws[i_run] = _ws
+            if self._exclude_subrun_list[i_run] == False:
+                peaks = self.get_diff_peaks(sub_run - 1)
+                for i_mask, mask in enumerate(self._hidra_ws.reduction_masks):
+                    tth, int_vec, error_vec = self.reducer.get_diffraction_data(sub_run, mask_id=mask)
+                    self._fitting_ws.set_reduced_diffraction_data(i_mask + 1, None, tth, int_vec, error_vec)
+    
+                _fit_engine = PeakFitEngineFactory.getInstance(self._fitting_ws, 'PseudoVoigt', 'Linear',
+                                                               wavelength=self._calib[6], out_of_plane_angle=None)
+    
+                peaks = peaks[(peaks > (tth.min() + 1)) * (peaks < (tth.max() - 1))]
+    
+                _ws = []
+                for peak in peaks:
+                    # print(sub_run, peak, peaks)
+                    fits = _fit_engine.fit_multiple_peaks(["peak_tags"], [peak - 2.5], [peak + 2.5])
+    
+                    _ws.append(fits.fitted)
+                    center_errors = np.concatenate((center_errors,
+                                                    fits.peakcollections[0].get_effective_params()[0]['Center'] - peak))
+    
+                self.fitted_ws[i_run] = _ws
 
         return center_errors
 
@@ -256,13 +266,18 @@ class FitCalibration:
                                 diff_step=diff_step, tr_solver=tr_solver, max_nfev=max_nfev,
                                 args=(ROI, ConPos, False, i_index, start, stop))
 
+            # out = least_squares(fun, x0, args=(ROI, ConPos, False, i_index, start, stop))
+
             J = out.jac
 
             if np.sum(J.T.dot(J)) < 1e-8:
                 var = np.diagonal(-2 * np.zeros_like(J.T.dot(J)))
             else:
-                cov = np.linalg.inv(J.T.dot(J))
-                var = np.sqrt(np.diagonal(cov))
+                try:
+                    cov = np.linalg.inv(J.T.dot(J))
+                    var = np.sqrt(np.diagonal(cov))
+                except np.linalg.LinAlgError:
+                    var = np.diagonal(-2 * np.zeros_like(J.T.dot(J)))
 
             return [out.x, var, out.status]
 
@@ -287,6 +302,9 @@ class FitCalibration:
         print('Iteration      {}'.format(GlobalParameter.global_curr_sequence))
         print('RMSE         = {}'.format(np.sqrt((residual**2).sum() / residual.shape[0])))
         print('Residual Sum = {}'.format(np.sum(residual)))
+
+        self._residual_sum.append(residual.sum())
+        self._residual_rmse.append(np.sqrt((residual**2).sum() / residual.shape[0]))
 
         return residual
 
@@ -316,6 +334,7 @@ class FitCalibration:
         :param x:
         :return:
         """
+
         paramVec = np.copy(self._calib)
         # paramVec[0] = x[0]
         paramVec[6] = x[0]
@@ -551,7 +570,7 @@ class FitCalibration:
 
         out = self.FitDetector(self.peak_alignment_shift, initalGuess, jac='3-point',
                                bounds=(bounds[0], bounds[1]), method='dogbox',
-                               ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear',
+                               ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=5.0, loss='linear',
                                f_scale=1.0, diff_step=1e-3, tr_solver='exact', tr_options={},
                                jac_sparsity=None, max_nfev=None, verbose=0,
                                ROI=None, ConPos=ConstrainPosition, start=start, stop=stop)
@@ -605,8 +624,8 @@ class FitCalibration:
             initalGuess = self.get_calib()
 
         out = self.FitDetector(self.peaks_alignment_all, initalGuess, jac='3-point',
-                               bounds=([-.05, -.05, -.15, -5.0, -5.0, -5.0, self._calib[6]-.05, -3.0],
-                                       [.05, .05, .15, 5.0, 5.0, 5.0, self._calib[6]+.05, 3.0]),
+                               bounds=([-.05, -.05, -.15, -5.0, -5.0, -5.0, self._calib[6]-.05],
+                                       [.05, .05, .15, 5.0, 5.0, 5.0, self._calib[6]+.05]),
                                method='dogbox', ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0,
                                loss='linear', f_scale=1.0, diff_step=None, tr_solver='exact', tr_options={},
                                jac_sparsity=None, max_nfev=None, verbose=0, start=start, stop=stop,
@@ -617,6 +636,9 @@ class FitCalibration:
         return
 
     def get_calib(self):
+        """
+        :return np.array: array of calibration poarams
+        """
         return np.array(self._calib)
 
     def get_shift(self):
@@ -770,11 +792,10 @@ class FitCalibration:
         """
         # Form DENEXDetectorShift objects
         cal_shift = DENEXDetectorShift(self._calib[0], self._calib[1], self._calib[2], self._calib[3],
-                                       self._calib[4], self._calib[5], self._calib[7])
+                                       self._calib[4], self._calib[5])
 
         cal_shift_error = DENEXDetectorShift(self._caliberr[0], self._caliberr[1], self._caliberr[2],
-                                             self._caliberr[3], self._caliberr[4], self._caliberr[5],
-                                             self._caliberr[7])
+                                             self._caliberr[3], self._caliberr[4], self._caliberr[5])
 
         wl = self._calib[6]
         wl_error = self._caliberr[6]

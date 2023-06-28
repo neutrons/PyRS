@@ -69,6 +69,7 @@ class DetectorCalibrationModel(QObject):
     def calibrate_detector(self, fit_recipe):
 
         if self._calibration_obj is not None:
+            self._calibration_obj.initalize_calib_results()
             for recipe in fit_recipe:
                 if recipe == "wavelength":
                     self._calibration_obj.calibrate_wave_length()
@@ -88,6 +89,11 @@ class DetectorCalibrationModel(QObject):
                     self._calibration_obj.FullCalibration()
 
             print(self._calibration_obj._calibration)
+            print(self._calibration_obj._residual_sum)
+            print(self._calibration_obj._residual_rmse)
+
+    def set_exclude_sub_runs(self, exclude_list):
+        self._calibration_obj.set_exclude_subrun_list(exclude_list)
 
     def get_reduced_diffraction_data(self, sub_run, mask):
         return self._calibration_obj.reducer.get_diffraction_data(sub_run, mask_id=mask)

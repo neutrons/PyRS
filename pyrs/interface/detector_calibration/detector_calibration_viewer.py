@@ -434,7 +434,7 @@ class PeakLinesSetupView(QGroupBox):
         for i_row in range(8):
             self.recipe_combos[i_row] = self.setup_combo_box()
             recipe_setup_layout.addWidget(self.setup_label('{}'.format(i_row + 1)), i_row + 1, 0)
-            recipe_setup_layout.addWidget(self.recipe_combos[i_row], i_row + 1, 1, 1, 4)
+            recipe_setup_layout.addWidget(self.recipe_combos[i_row], i_row + 1, 1, 1, 3)
 
 
         tthbin_label = QLabel('2θ bin')
@@ -498,15 +498,25 @@ class PeakLinesSetupView(QGroupBox):
         temp_combo_box = QComboBox(self)
         temp_combo_box.addItems(['', 'wavelength', 'rotations', 'geometry', 'shifts',
                                  'shift x', 'shift y', 'distance', 'full'])
-            
+
         return temp_combo_box
 
+    def get_exclude_list(self):
+        exclude_list = []
+        for i_row in range(self.calibrant_table.rowCount()):
+            exclude_list.append(self.calibrant_table.item(i_row, 1).checkState() != 0)
+
+        return np.array(exclude_list)
+
     def fit_peaks(self):
-        self._parent._ctrl.fit_diffraction_peaks()
+        exclude_list = self.get_exclude_list()
+        self._parent._ctrl.fit_diffraction_peaks(exclude_list)
 
     def calibrate_detector(self):
+        exclude_list = self.get_exclude_list()
         fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
-        self._parent._ctrl.calibrate_detector(fit_recipe)
+        # fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
+        self._parent._ctrl.calibrate_detector(fit_recipe, exclude_list)
 
     def setup_calibration_table(self, powders):
         self.calibrant_table.setRowCount(len(powders))
@@ -514,15 +524,11 @@ class PeakLinesSetupView(QGroupBox):
         for row, string in enumerate(powders):
             powder_item = QTableWidgetItem(string)
             powder_item.setText(string)
-            # powder_item.setAlignment(Qt.AlignCenter)
             chkBoxItem = QTableWidgetItem('')
             chkBoxItem.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-            # chkBoxItem.setAlignment(Qt.AlignCenter)
             chkBoxItem.setCheckState(0)
             self.calibrant_table.setItem(row, 0, powder_item)
             self.calibrant_table.setItem(row, 1, chkBoxItem)
-            # self.calibrant_table.setItem(row, 1, "1")
-            # self.calibrant_table.setItem(row, 0, Qt.QString(string))
 
     def save_json(self):
         filename, _ = QFileDialog.getSaveFileName(self,
@@ -554,14 +560,16 @@ class CalibrationSummaryView(QGroupBox):
         super().__init__(parent=parent)
 
         layout = QVBoxLayout()
+        # layout.addStretch(0, 10)
+        layout.setStretch(0, 1)
+        print(layout.maximumSize())
+        self.setLayout(layout)
 
         self.tableView_CalibSummary = QTableWidget(self)
         self.tableView_CalibSummary.setColumnCount(1)
+        # self.tableView_CalibSummary.setMinimumHeight(60)
 
         layout.addWidget(self.tableView_CalibSummary)
-        layout.addStretch(20)
-
-        self.setLayout(layout)
 
         labels = ['shift x', 'shift y', 'distance', 'rot x', 'rot y', 'rot z', 'wavelength']
         self.tableView_CalibSummary.setRowCount(len(labels))
@@ -663,7 +671,7 @@ class DetectorCalibrationViewer(QMainWindow):
 
         left_layout.addWidget(self.fit_splitter)
 
-        left_layout.addStretch(0)
+        left_layout.addStretch(10)
         left.setLayout(left_layout)
         self.splitter.addWidget(left)
 
@@ -687,7 +695,7 @@ class DetectorCalibrationViewer(QMainWindow):
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 1)
 
-        self.resize(1024, 1024)
+        self.resize(1024, 1080)
 
     @property
     def controller(self):

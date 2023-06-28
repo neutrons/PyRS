@@ -38,10 +38,12 @@ class DetectorCalibrationCrtl:
     def get_wavelength(self):
         return self._model.get_wavelength()
 
-    def fit_diffraction_peaks(self):
+    def fit_diffraction_peaks(self, exclude_list):
+        self._model.set_exclude_sub_runs(exclude_list)
         self._model.fit_diffraction_peaks()
 
-    def calibrate_detector(self, fit_recipe):
+    def calibrate_detector(self, fit_recipe, exclude_list):
+        self._model.set_exclude_sub_runs(exclude_list)
         self._model.calibrate_detector(fit_recipe)
 
     def get_powders(self):
