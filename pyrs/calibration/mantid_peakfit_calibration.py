@@ -88,6 +88,8 @@ class FitCalibration:
         self._calib[6] = float(self.monosetting)
         self._calib_start[6] = float(self.monosetting)
 
+        self._calibration = self._calib.reshape(-1, 1)
+
         # Initalize calibration status to -1
         self._calibstatus = -1
 
@@ -99,12 +101,12 @@ class FitCalibration:
 
         self.plot_res = False
 
+        self.fitted_ws = None
+
         self._ref_powders = np.array(['Ni', 'Fe', 'Mo'])
         self._ref_powders_sy = np.array([62, 12, -13])
         self._ref_structure = np.array(['FCC', 'BCC', 'BCC'])
         self._ref_lattice = [3.523799438, 2.8663982, 3.14719963]
-
-
 
         self.get_powder_lines()
         # self._fitting_ws = HidraWorkspace()
@@ -165,8 +167,8 @@ class FitCalibration:
                 pass
 
         self._diff_peaks = {}
-        self._diff_peaks['BCC'] = np.sqrt(np.array([2, 4, 6, 8, 12, 10, 14, 18]))
-        self._diff_peaks['FCC'] = np.sqrt(np.array([3, 4, 8, 12, 11, 19]))
+        self._diff_peaks['BCC'] = np.sqrt(np.array([2, 4, 6, 8, 10, 12]))
+        self._diff_peaks['FCC'] = np.sqrt(np.array([3, 4, 8, 11, 12, 19]))
 
     def _reduce_diffraction_data(self, nexus_file, mask_file=None, calibration=None):
         converter = NeXusConvertingApp(nexus_file, mask_file)
@@ -194,34 +196,39 @@ class FitCalibration:
     def fit_peaks(self):
 
         self._fitting_ws = HidraWorkspace()
-        self._fitting_ws.set_sub_runs([1])
+        self._fitting_ws.set_sub_runs(range(1, len(self._hidra_ws.reduction_masks) + 1))
 
-        for sub_run in self.sub_runs:
-            peaks = self.get_diff_peaks(sub_run)
-            for mask in self._hidra_ws.reduction_masks:
+        center_errors = np.array([])
+        self.fitted_ws = [None] * self.sub_runs.size
+
+        for i_run, sub_run in enumerate(self.sub_runs):
+            peaks = self.get_diff_peaks(sub_run - 1)
+            for i_mask, mask in enumerate(self._hidra_ws.reduction_masks):
                 tth, int_vec, error_vec = self.reducer.get_diffraction_data(sub_run, mask_id=mask)
-                self._fitting_ws.set_reduced_diffraction_data(1, None, tth, int_vec, error_vec)
-                _fit_engine = PeakFitEngineFactory.getInstance(self._fitting_ws, 'PseudoVoigt', 'Linear',
-                                                               wavelength=self._calib[6], out_of_plane_angle=None)
+                self._fitting_ws.set_reduced_diffraction_data(i_mask + 1, None, tth, int_vec, error_vec)
 
-                # print((tth.min + 1) > peaks)))
+            _fit_engine = PeakFitEngineFactory.getInstance(self._fitting_ws, 'PseudoVoigt', 'Linear',
+                                                           wavelength=self._calib[6], out_of_plane_angle=None)
 
-            print(tth.min(), tth.max)
-            print((tth.min() + 1) > peaks)
-            print(((tth.max() - 1) < peaks))
-            print(((tth.min() + 1) > peaks) * ((tth.max() - 1) < peaks))
-            peaks = peaks[((tth.min() + 1) > peaks) * ((tth.max() - 1) < peaks)]
+            peaks = peaks[(peaks > (tth.min() + 1)) * (peaks < (tth.max() - 1))]
 
-            print(sub_run, peaks)
+            _ws = []
+            for peak in peaks:
+                # print(sub_run, peak, peaks)
+                fits = _fit_engine.fit_multiple_peaks(["peak_tags"], [peak - 2.5], [peak + 2.5])
 
-        # return returnSetup
+                _ws.append(fits.fitted)
+                center_errors = np.concatenate((center_errors,
+                                                fits.peakcollections[0].get_effective_params()[0]['Center'] - peak))
+
+            self.fitted_ws[i_run] = _ws
+
+        return center_errors
 
     def FitDetector(self, fun, x0, jac='3-point', bounds=[], method='trf', ftol=1e-08, xtol=1e-08, gtol=1e-08,
                     x_scale=1.0, loss='linear', tr_options={}, jac_sparsity=None, f_scale=1.0, diff_step=None,
                     tr_solver=None, max_nfev=None, verbose=0, ROI=None, ConPos=False, kwargs='', epsfcn=1e-6,
                     factor=100.0, i_index=2, Brute=False, fDiff=1e-9, start=0, stop=0):
-
-        self.check_alignment_inputs(ROI)
 
         BOUNDS = []
         lL = bounds[1]
@@ -252,14 +259,14 @@ class FitCalibration:
             J = out.jac
 
             if np.sum(J.T.dot(J)) < 1e-8:
-                var = -2 * np.zeros_like(J.T.dot(J))
+                var = np.diagonal(-2 * np.zeros_like(J.T.dot(J)))
             else:
                 cov = np.linalg.inv(J.T.dot(J))
                 var = np.sqrt(np.diagonal(cov))
 
             return [out.x, var, out.status]
 
-    def get_alignment_residual(self, x, roi_vec_set=None, ConPeaks=False, ReturnFit=False, start=0, stop=0):
+    def get_alignment_residual(self, x):
         """ Cost function for peaks alignment to determine wavelength
         :param x: list/array of detector shift/rotation and neutron wavelength values
         :x[0]: shift_x, x[1]: shift_y, x[2]: shift_z, x[3]: rot_x, x[4]: rot_y, x[5]: rot_z, x[6]: wavelength
@@ -267,140 +274,19 @@ class FitCalibration:
         :return:
         """
 
-        pyrs_reducer = PyHB2BReduction(self._instrument, x[6])
+        self._calibration = np.concatenate((self._calibration, x.reshape(-1, 1)), axis=1)
+
+        self._hidra_ws.set_wavelength(x[6], False)
+        self._hidra_ws.set_detector_shift(DENEXDetectorShift(x[0], x[1], x[2], x[3], x[4], x[5]))
 
         GlobalParameter.global_curr_sequence += 1
 
-        residual = np.array([])
-
-        for engine_setup in self.engines:
-
-            datasets, dSpace, single_material = engine_setup
-
-            self._engine = datasets
-
-            two_theta_calib = np.arcsin(x[6] / 2. / dSpace) * 360. / np.pi
-            two_theta_calib = two_theta_calib[~np.isnan(two_theta_calib)]
-
-            if datasets is None:
-                stop = start
-                sub_runs = []
-            elif stop == 0:
-                sub_runs = self._engine.get_sub_runs()
-
-            for i_tth in sub_runs:
-                if ReturnFit:
-                    self.ReductionResults[i_tth] = {}
-
-                # print(self._instrument._instrument_geom_params.detector_size)
-                pyrs_reducer.build_instrument_prototype(-1. * self._engine.get_sample_log_value('2theta', i_tth),
-                                                        self._instrument._arm_length,
-                                                        x[0], x[1], x[2], x[3], x[4], x[5], x[7])
-
-                # Load raw counts
-                pyrs_reducer._detector_counts = self._engine.get_detector_counts(i_tth)
-
-                tths = pyrs_reducer._instrument.get_pixels_2theta(1)
-
-                if self.min_tth is None:
-                    self.min_tth = tths.min() + .5
-                    self.max_tth = tths.max() - .5
-
-                Eta_val = pyrs_reducer.get_eta_value()
-                maxEta = Eta_val.max() - 2
-                minEta = Eta_val.min() + 2
-
-                if roi_vec_set is None:
-                    eta_roi_vec = np.arange(minEta, maxEta, self.eta_slices)
-                else:
-                    eta_roi_vec = np.array(roi_vec_set)
-
-                resq = []
-
-                if single_material:
-                    CalibPeaks = two_theta_calib[np.where((two_theta_calib > self.min_tth) ==
-                                                          (two_theta_calib < self.max_tth))[0]]
-                else:
-                    CalibPeaks = np.array([two_theta_calib[i_tth - 1]])
-
-                if CalibPeaks.shape[0] > 0 and (not ConPeaks or self.singlepeak):
-                    CalibPeaks = np.array([CalibPeaks[0]])
-
-                if CalibPeaks.shape[0] >= 1:
-                    Peaks = []
-                    pars1 = {}
-                    pars1['p1'] = [0, -np.inf, np.inf]
-                    pars1['p2'] = [0, -np.inf, np.inf]
-
-                    for ipeak in range(len(CalibPeaks)):
-                        if (CalibPeaks[ipeak] > self.min_tth) and (CalibPeaks[ipeak] < self.max_tth):
-                            resq.append([])
-                            Peaks.append(ipeak)
-                            print(CalibPeaks[ipeak])
-                            pars1['g%d_center' % ipeak] = [CalibPeaks[ipeak], CalibPeaks[ipeak] - 0.5,
-                                                           CalibPeaks[ipeak] + 0.5]
-                            pars1['g%d_sigma' % ipeak] = [self.inital_width, 1e-3, 1.5]
-                            pars1['g%d_amplitude' % ipeak] = [self.inital_AMP, 0.001, 1e9]
-
-                    for i_roi in range(eta_roi_vec.shape[0]):
-                        # Define Mask
-                        Mask = np.zeros_like(Eta_val)
-                        if abs(eta_roi_vec[i_roi]) == eta_roi_vec[i_roi]:
-                            index = np.where((Eta_val < (eta_roi_vec[i_roi] + 1)) ==
-                                             (Eta_val > (eta_roi_vec[i_roi] - 1)))[0]
-                        else:
-                            index = np.where((Eta_val > (eta_roi_vec[i_roi] - 1)) ==
-                                             (Eta_val < (eta_roi_vec[i_roi] + 1)))[0]
-
-                        Mask[index] = 1.
-
-                        # reduce
-                        reduced_i = self.convert_to_2theta(pyrs_reducer, Mask, min_2theta=self.min_tth,
-                                                           max_2theta=self.max_tth, num_bins=self.bins)
-
-                        # fit peaks
-                        Fitresult = self.FitPeaks(reduced_i[0], reduced_i[1], pars1, Peaks)
-
-                        if ReturnFit:
-                            self.ReductionResults[i_tth][(i_roi, GlobalParameter.global_curr_sequence)] = \
-                                                 [reduced_i[0], reduced_i[1], Fitresult[1]]
-
-                        if Fitresult[2] == 5 or Fitresult[2] < 2:
-                            pass
-
-                        elif ConPeaks:
-                            for p_index in Peaks:
-                                if Fitresult[0]['g%d_center' % p_index] == CalibPeaks[p_index]:
-                                    residual = np.concatenate([residual, np.array([1000.])])
-                                else:
-                                    residual = np.concatenate([residual,
-                                                               np.array([((Fitresult[0]['g%d_center' % p_index] -
-                                                                           CalibPeaks[p_index]))])])
-                        else:
-                            for p_index in Peaks:
-                                residual = np.concatenate([residual,
-                                                           np.array([((Fitresult[0]['g%d_center' % p_index]))])])
-
-                # END-FOR
-
-            # END-FOR(tth)
-
-        if not ConPeaks:
-            residual -= np.average(residual)
-
-        if self._residualpoints is not None:
-            if residual.shape[0] < self._residualpoints:
-                residual = np.concatenate([residual, np.array([1000.0] * (self._residualpoints-residual.shape[0]))])
-            elif residual.shape[0] > self._residualpoints:
-                residual = residual[:self._residualpoints]
+        residual = self.fit_peaks()
 
         print("")
         print('Iteration      {}'.format(GlobalParameter.global_curr_sequence))
         print('RMSE         = {}'.format(np.sqrt((residual**2).sum() / residual.shape[0])))
         print('Residual Sum = {}'.format(np.sum(residual)))
-
-        if np.all(residual == 0.):
-            residual += 1000
 
         return residual
 
@@ -411,14 +297,13 @@ class FitCalibration:
         :param roi_vec_set: list/array of ROI/mask vector
         :return:
         """
+
         GlobalParameter.global_curr_sequence = -10
 
         if x is None:
-            residual = self.get_alignment_residual(self._calib, roi_vec_set, ConstrainPosition,
-                                                   ReturnFit, start=start, stop=stop)
+            residual = self.get_alignment_residual(self._calib)
         else:
-            residual = self.get_alignment_residual(x, roi_vec_set, ConstrainPosition, ReturnFit,
-                                                   start=start, stop=stop)
+            residual = self.get_alignment_residual(x)
 
         if ReturnScalar:
             residual = np.sqrt(np.mean(residual**2))
@@ -432,10 +317,11 @@ class FitCalibration:
         :return:
         """
         paramVec = np.copy(self._calib)
-        paramVec[0] = x[0]
-        paramVec[6] = x[1]
+        # paramVec[0] = x[0]
+        paramVec[6] = x[0]
+        # paramVec[6] = x[1]
 
-        residual = self.get_alignment_residual(paramVec, roi_vec_set, True)
+        residual = self.get_alignment_residual(paramVec)
 
         if ReturnScalar:
             residual = np.sqrt(np.mean(residual**2))
@@ -452,7 +338,7 @@ class FitCalibration:
         paramVec = np.copy(self._calib)
         paramVec[i_index] = x
 
-        residual = self.get_alignment_residual(paramVec, roi_vec_set, ConstrainPosition, False, start, stop)
+        residual = self.get_alignment_residual(paramVec)
 
         if ReturnScalar:
             residual = np.sqrt(np.mean(residual**2))
@@ -470,7 +356,7 @@ class FitCalibration:
         paramVec = np.copy(self._calib)
         paramVec[0:3] = x[:]
 
-        residual = self.get_alignment_residual(paramVec, roi_vec_set, ConstrainPosition, False, start, stop)
+        residual = self.get_alignment_residual(paramVec)
 
         if ReturnScalar:
             residual = np.sqrt(np.mean(residual**2))
@@ -489,7 +375,7 @@ class FitCalibration:
         paramVec = np.copy(self._calib)
         paramVec[3:6] = x[:]
 
-        residual = self.get_alignment_residual(paramVec, roi_vec_set, ConstrainPosition, False, start, stop)
+        residual = self.get_alignment_residual(paramVec)
 
         if ReturnScalar:
             residual = np.sqrt(np.mean(residual**2))
@@ -504,10 +390,11 @@ class FitCalibration:
         :param return_scalar:
         :return:
         """
+
         paramVec = np.copy(self._calib)
         paramVec[:6] = x[:]
 
-        residual = self.get_alignment_residual(paramVec, roi_vec_set, ConstrainPosition, False, start, stop)
+        residual = self.get_alignment_residual(paramVec)
 
         if ReturnScalar:
             residual = np.sqrt(np.mean(residual**2))
@@ -522,7 +409,7 @@ class FitCalibration:
         :return:
         """
 
-        residual = self.get_alignment_residual(x, roi_vec_set, True, False, start, stop)
+        residual = self.get_alignment_residual(x)
 
         if ReturnScalar:
             residual = np.sqrt(np.mean(residual**2))
@@ -567,16 +454,17 @@ class FitCalibration:
 #        GlobalParameter.global_curr_sequence = 0
 
         if initial_guess is None:
-            # initial_guess = self.get_wavelength()
-            initial_guess = np.concatenate((self.get_shiftx(), self.get_wavelength()))
+            initial_guess = self.get_wavelength()
+            # initial_guess = np.concatenate((self.get_shiftx(), self.get_wavelength()))
 
         out = self.FitDetector(self.peak_alignment_wavelength, initial_guess, jac='3-point',
-                               bounds=([-0.05, self._calib[6]-.01], [0.05, self._calib[6]+.01]), method='dogbox',
+                               bounds=([self._calib[6]-.025], [self._calib[6]+.025]), method='dogbox',
                                ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0,
                                diff_step=None, tr_solver='exact', factor=100., epsfcn=1e-8,
                                tr_options={}, jac_sparsity=None, max_nfev=None, verbose=0, start=start, stop=stop,
                                ROI=None, ConPos=ConstrainPosition, Brute=False, fDiff=1e-4)
 
+        print(out)
         self.set_wavelength(out)
 
         return

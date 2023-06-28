@@ -5,16 +5,12 @@ import numpy as np
 
 from qtpy.QtWidgets import QTableWidgetItem  # type:ignore
 from qtpy.QtCore import Signal, QObject  # type:ignore
-from pyrs.core.instrument_geometry import DENEXDetectorGeometry
 
-from pyrs.core.powder_pattern import ReductionApp
-from pyrs.core.nexus_conversion import NeXusConvertingApp
-from pyrs.core import MonoSetting  # type: ignore
 
 from pyrs.calibration.mantid_peakfit_calibration import FitCalibration
 
 # Import instrument constants
-from pyrs.core.nexus_conversion import NUM_PIXEL_1D, PIXEL_SIZE, ARM_LENGTH
+from pyrs.core.nexus_conversion import NUM_PIXEL_1D
 
 
 class DetectorCalibrationModel(QObject):
@@ -28,14 +24,6 @@ class DetectorCalibrationModel(QObject):
         self.peak_fit_engine = None
         self._run_number = None
         self._calibration_obj = None
-
-        # self._powders = np.array(['Ni', 'Fe', 'Mo'])
-        # self._powders_sy = np.array([62, 12, -13])
-        # self._lattice = [3.523799438, 2.8663982, 3.14719963]
-
-        self._instrument = DENEXDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D,
-                                                 PIXEL_SIZE, PIXEL_SIZE,
-                                                 ARM_LENGTH, False)
 
         self.detector_params = [0, 0, 0, 0, 0, 0, 0, 0]
         # self.sub_runs = np.array([1])
@@ -59,6 +47,10 @@ class DetectorCalibrationModel(QObject):
         return self._calibration_obj.sy
 
     @property
+    def get_wavelength(self):
+        return self._calibration_obj._hidra_ws.get_wavelength(False, False)
+
+    @property
     def reduction_masks(self):
         return self._calibration_obj._hidra_ws.reduction_masks
 
@@ -74,8 +66,35 @@ class DetectorCalibrationModel(QObject):
         if self._calibration_obj is not None:
             self._calibration_obj.fit_peaks()
 
+    def calibrate_detector(self, fit_recipe):
+
+        if self._calibration_obj is not None:
+            for recipe in fit_recipe:
+                if recipe == "wavelength":
+                    self._calibration_obj.calibrate_wave_length()
+                elif recipe == "rotations":
+                    self._calibration_obj.CalibrateRotation()
+                elif recipe == "geometry":
+                    self._calibration_obj.CalibrateGeometry()
+                elif recipe == "shifts":
+                    self._calibration_obj.CalibrateShift()
+                elif recipe == "shift x":
+                    self._calibration_obj.calibrate_shiftx()
+                elif recipe == "shift y":
+                    self._calibration_obj.calibrate_shifty()
+                elif recipe == "distance":
+                    self._calibration_obj.calibrate_distance()
+                elif recipe == "full":
+                    self._calibration_obj.FullCalibration()
+
+            print(self._calibration_obj._calibration)
+
     def get_reduced_diffraction_data(self, sub_run, mask):
         return self._calibration_obj.reducer.get_diffraction_data(sub_run, mask_id=mask)
+
+    def get_fitted_diffraction_data(self, sub_run):
+        if self._calibration_obj.fitted_ws is not None:
+            return self._calibration_obj.fitted_ws[sub_run - 1]
 
     def get_2D_diffraction_counts(self, sub_run):
         return self._calibration_obj._hidra_ws.get_detector_counts(sub_run).reshape(NUM_PIXEL_1D, NUM_PIXEL_1D)

@@ -25,7 +25,6 @@ import matplotlib.pyplot as plt
 
 # import traceback
 import os
-import copy
 
 COLOR_FAILED_FITTING = QColor(247, 173, 13)  # orange
 SUCCESS = "success"
@@ -124,6 +123,8 @@ class FileLoad(QWidget):
         self._parent.compare_diff_data.valueChanged()
 
         self._parent.peak_lines_setup.setup_calibration_table(self._parent._ctrl.get_powders())
+        print(self._parent._model.get_wavelength)
+        self._parent.calib_summary.set_wavelength(0, self._parent._model.get_wavelength)
 
     def setFilenamesText(self, filenames):
         self.lineEdit.setText(filenames)
@@ -413,7 +414,6 @@ class PeakLinesSetupView(QGroupBox):
         self.calibration_setup = QGroupBox()
         self.calibration_setup.setTitle("Calibration Powders")
         self.calibration_setup_layout = QVBoxLayout()
-        # self.fit_range.setFlat(True)
 
         self.calibrant_table = QTableWidget(self)
         self.calibrant_table.setColumnCount(2)
@@ -425,24 +425,16 @@ class PeakLinesSetupView(QGroupBox):
 
         self.recipe_setup = QGroupBox()
         self.recipe_setup.setTitle("Define Calibration Recipe")
-        self.recipe_setup_layout = QVBoxLayout()
-
-        self.calib_recipe = QGroupBox()
-        calib_recipe_layout = QGridLayout()
+        recipe_setup_layout = QGridLayout()
 
         self.recipe_combos = {}
-        calib_recipe_layout.addWidget(self.setup_label('Step'), 0, 0)
-        calib_recipe_layout.addWidget(self.setup_label('Routine', Qt.AlignCenter), 0, 1)
+        recipe_setup_layout.addWidget(self.setup_label('Step'), 0, 0)
+        recipe_setup_layout.addWidget(self.setup_label('Routine', Qt.AlignCenter), 0, 1)
 
         for i_row in range(8):
             self.recipe_combos[i_row] = self.setup_combo_box()
-            calib_recipe_layout.addWidget(self.setup_label('{}'.format(i_row + 1)), i_row + 1, 0)
-            calib_recipe_layout.addWidget(self.recipe_combos[i_row], i_row + 1, 1, 1, 4)
-
-        self.calib_recipe.setLayout(calib_recipe_layout)
-
-        self.export_setup = QGroupBox()
-        export_setup_layout = QGridLayout()
+            recipe_setup_layout.addWidget(self.setup_label('{}'.format(i_row + 1)), i_row + 1, 0)
+            recipe_setup_layout.addWidget(self.recipe_combos[i_row], i_row + 1, 1, 1, 4)
 
 
         tthbin_label = QLabel('2θ bin')
@@ -462,33 +454,26 @@ class PeakLinesSetupView(QGroupBox):
         self.tthbin_lineEdit.textChanged.connect(self.set_reduction_param)
         self.etabin_lineEdit.textChanged.connect(self.set_reduction_param)
 
-        
         self.load_info = QPushButton("Load Recipe")
         self.load_info.clicked.connect(self.load_json)
         self.export_recipe = QPushButton("Export Recipe")
         self.export_recipe.clicked.connect(self.save_json)
+        self.fit = QPushButton("Fit Peaks")
+        self.fit.clicked.connect(self.fit_peaks)
         self.calibrate = QPushButton("Calibrate")
-        self.calibrate.clicked.connect(self.start_calibration)
+        self.calibrate.clicked.connect(self.calibrate_detector)
 
-        export_setup_layout.addWidget(tthbin_label, 0, 0)
-        export_setup_layout.addWidget(self.tthbin_lineEdit, 0, 1)
-        export_setup_layout.addWidget(etabin_label, 0, 2)
-        export_setup_layout.addWidget(self.etabin_lineEdit, 0, 3)
+        recipe_setup_layout.addWidget(tthbin_label, 9, 0)
+        recipe_setup_layout.addWidget(self.tthbin_lineEdit, 9, 1)
+        recipe_setup_layout.addWidget(etabin_label, 9, 2)
+        recipe_setup_layout.addWidget(self.etabin_lineEdit, 9, 3)
 
-        export_setup_layout.addWidget(self.load_info, 1, 0, 1, 2)
-        export_setup_layout.addWidget(self.export_recipe, 1, 2, 1, 2)
-        export_setup_layout.addWidget(self.calibrate, 2, 0, 1, 4)
+        recipe_setup_layout.addWidget(self.load_info, 10, 0, 1, 2)
+        recipe_setup_layout.addWidget(self.export_recipe, 10, 2, 1, 2)
+        recipe_setup_layout.addWidget(self.fit, 11, 0, 1, 2)
+        recipe_setup_layout.addWidget(self.calibrate, 11, 2, 1, 2)
 
-        self.export_setup.setLayout(export_setup_layout)
-        self.export_setup.setFlat(True)
-
-        # self.recipe_setup_layout.addWidget(self.define_reduction)
-        self.recipe_setup_layout.addWidget(self.calib_recipe)
-        self.recipe_setup_layout.addWidget(self.export_setup)
-        # self.recipe_setup_layout.addWidget(self.fit_setup)
-
-        self.recipe_setup.setLayout(self.recipe_setup_layout)
-
+        self.recipe_setup.setLayout(recipe_setup_layout)
 
         self.splitter.addWidget(self.calibration_setup)
         self.splitter.addWidget(self.recipe_setup)
@@ -516,8 +501,12 @@ class PeakLinesSetupView(QGroupBox):
             
         return temp_combo_box
 
-    def start_calibration(self):
+    def fit_peaks(self):
         self._parent._ctrl.fit_diffraction_peaks()
+
+    def calibrate_detector(self):
+        fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
+        self._parent._ctrl.calibrate_detector(fit_recipe)
 
     def setup_calibration_table(self, powders):
         self.calibrant_table.setRowCount(len(powders))
@@ -556,144 +545,35 @@ class PeakLinesSetupView(QGroupBox):
         self._parent.controller.load_fit_range(filename, self.fit_range_table)
 
 
-class FitSummaryView(QGroupBox):
+class CalibrationSummaryView(QGroupBox):
+    COL_SIZE = 100
+    STATUS_COL_SIZE = 500  # last column
+
     def __init__(self, parent=None):
         self._parent = parent
         super().__init__(parent=parent)
 
         layout = QVBoxLayout()
 
-        self.tableView_fitSummary = QTableWidget(self)
-        self.tableView_fitSummary.setColumnCount(1)
+        self.tableView_CalibSummary = QTableWidget(self)
+        self.tableView_CalibSummary.setColumnCount(1)
 
-        layout.addWidget(self.tableView_fitSummary)
+        layout.addWidget(self.tableView_CalibSummary)
         layout.addStretch(20)
 
         self.setLayout(layout)
 
-        self.fit_table_operator = FitTable(parent=self)
+        labels = ['shift x', 'shift y', 'distance', 'rot x', 'rot y', 'rot z', 'wavelength']
+        self.tableView_CalibSummary.setRowCount(len(labels))
+        self.tableView_CalibSummary.setVerticalHeaderLabels(labels)
 
+        self.tableView_CalibSummary.setHorizontalHeaderLabels(['Starting'])
 
-class FitTable:
+        for i_row in range(7):
+            self.tableView_CalibSummary.setItem(i_row, 0, QTableWidgetItem("0"))
 
-    COL_SIZE = 100
-    STATUS_COL_SIZE = 500  # last column
-
-    def __init__(self, parent=None):
-        self._parent = parent
-        self.fits = None
-        self.fit_result = None
-
-    def initialize_fit_result_widgets(self):
-        self.change_fit(self._parent.out_of_plan_angle)
-        self._initialize_list_of_peaks()
-        self.initialize_table()
-        self.initialize_table_column_size()
-
-    def set_fit_dict(self, fit_dictionary):
-        self.fits = copy.copy(fit_dictionary)
-
-    def change_fit(self, key):
-        if self.fits is not None:
-            self.fit_result = copy.copy(self.fits[key])
-            self._clear_rows()
-            self.populate_fit_result_table()
-
-    def populate_fit_result_table(self):
-        _peak_selected = self._parent.spinBox_peak_index.value()
-        _peak_collection = self.fit_result.peakcollections[_peak_selected-1]  # peak 1 is at 0 index
-
-        _value = self._get_value_to_display(peak_collection=_peak_collection)
-        _chisq = _peak_collection.fitting_costs
-        _status = _peak_collection.get_fit_status()
-
-        _d_spacing = self._get_d_spacing_to_display(peak_selected=_peak_selected,
-                                                    peak_collection=_peak_collection)
-
-        _microstrain_mapping = self._get_microstrain_mapping_to_display(peak_collection=_peak_collection)
-
-        def set_item(value='', fitting_worked=True):
-            _item = QTableWidgetItem(value)
-            if not fitting_worked:
-                _item.setBackground(COLOR_FAILED_FITTING)
-            return _item
-
-        for _row, _row_value in enumerate(_value):
-            self._parent.tableView_fitSummary.insertRow(_row)
-            _global_col_index = 0
-
-            _fitting_worked = True if _status[_row] == SUCCESS else False
-
-            for _local_col_index, _col_value in enumerate(_row_value):
-                _item = set_item(value=str(np.round(_col_value, 5)), fitting_worked=_fitting_worked)
-                self._parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
-                _global_col_index += 1
-
-            # add chisq values (but forget when error is selected
-            if self._parent.radioButton_fit_value.isChecked():
-                _item = set_item(value=str(_chisq[_row]), fitting_worked=_fitting_worked)
-                self._parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
-                _global_col_index += 1
-
-            # add d-spacing
-            _item = set_item(value=str(_d_spacing[_row]), fitting_worked=_fitting_worked)
-            self._parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
-            _global_col_index += 1
-
-            # add strain calculation
-            _microstrain = _microstrain_mapping[_row]
-            if np.isnan(_microstrain):
-                str_strain_value = "nan"
-            else:
-                str_strain_value = str(np.int32(_microstrain))
-            _item = set_item(value=str_strain_value, fitting_worked=_fitting_worked)
-            self._parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
-            _global_col_index += 1
-
-            # add status message
-            _item = set_item(value=_status[_row], fitting_worked=_fitting_worked)
-            self._parent.tableView_fitSummary.setItem(_row, _global_col_index, _item)
-            _global_col_index += 1
-
-    def _get_d_spacing_to_display(self, peak_selected=1, peak_collection=None):
-        _d_reference = np.float32(str(self._parent._parent.fit_setup.fit_range_table.item(peak_selected-1, 3).text()))
-
-        peak_collection.set_d_reference(values=_d_reference)
-        values, error = peak_collection.get_dspacing_center()
-        if self._parent.radioButton_fit_value.isChecked():
-            return values
-        else:
-            return error
-
-    def _get_microstrain_mapping_to_display(self, peak_collection=None):
-        values, error = peak_collection.get_strain(units='microstrain')
-        if self._parent.radioButton_fit_value.isChecked():
-            return values
-        else:
-            return error
-
-    def _get_value_to_display(self, peak_collection):
-        values, error = peak_collection.get_effective_params()
-        if self._parent.radioButton_fit_value.isChecked():
-            return values
-        else:
-            return error
-
-    def fit_value_error_changed(self):
-        self._clear_rows()
-        self.populate_fit_result_table()
-
-    def _initialize_list_of_peaks(self):
-        nbr_peaks = len(self.fit_result.peakcollections)
-        self._parent.spinBox_peak_index.setRange(1, nbr_peaks)
-
-    def initialize_table(self):
-        self._clear_table()
-        columns_names = self._get_list_of_columns()
-        for _column in np.arange(len(columns_names)):
-            self._parent.tableView_fitSummary.insertColumn(_column)
-        self._parent.tableView_fitSummary.setHorizontalHeaderLabels(columns_names)
-        self.clean_param_names = self._get_list_of_columns(True)
+    def set_wavelength(self, column, item):
+        self.tableView_CalibSummary.setItem(6, column, QTableWidgetItem(str(item)))
 
     def initialize_table_column_size(self):
         nbr_column = self._parent.tableView_fitSummary.columnCount()
@@ -721,40 +601,6 @@ class FitTable:
     def _clear_table(self):
         self._clear_rows()
         self._clear_columns()
-
-    def _get_list_of_columns(self, plotting=False):
-        _peak_collection = self.fit_result.peakcollections[0]
-        values, _ = _peak_collection.get_effective_params()
-        column_names = values.dtype.names
-        clean_column_names = []
-        for _col_index, _col_value in enumerate(column_names):
-            if (_col_index == 0) and (not plotting):
-                # _col_value = 'Sub-run #'
-                _col_value = 'Peak Center'
-            clean_column_names.append(_col_value)
-
-        if self._parent.radioButton_fit_value.isChecked():
-            # also add chisq
-            clean_column_names.append('chisq')
-
-        # add d-spacing column
-        clean_column_names.append("d spacing")
-
-        if plotting:
-            clean_column_names.append("microstrain")
-        else:
-            # add strain-mapping column
-            clean_column_names.append("strain mapping (" + MICROSTRAIN + ")")
-
-            # add a status column
-            clean_column_names.append("Status message")
-
-        return clean_column_names
-
-    def select_first_row(self):
-        _nbr_column = self.get_number_of_columns()
-        selection_first_row = QTableWidgetSelectionRange(0, 0, 0, _nbr_column-1)
-        self._parent.tableView_fitSummary.setRangeSelected(selection_first_row, True)
 
 
 class DetectorCalibrationViewer(QMainWindow):
@@ -810,10 +656,10 @@ class DetectorCalibrationViewer(QMainWindow):
         self.fit_splitter.setHandleWidth(10)
 
         self.peak_lines_setup = PeakLinesSetupView(self)
-        self.fit_summary = FitSummaryView(self)
+        self.calib_summary = CalibrationSummaryView(self)
 
         self.fit_splitter.addWidget(self.peak_lines_setup)
-        self.fit_splitter.addWidget(self.fit_summary)
+        self.fit_splitter.addWidget(self.calib_summary)
 
         left_layout.addWidget(self.fit_splitter)
 
