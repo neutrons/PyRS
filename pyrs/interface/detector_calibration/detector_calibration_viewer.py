@@ -1,13 +1,13 @@
 from qtpy.QtWidgets import QHBoxLayout, QVBoxLayout, QLabel, QWidget  # type:ignore
 from qtpy.QtWidgets import QLineEdit, QPushButton, QComboBox  # type:ignore
-from qtpy.QtWidgets import QGroupBox, QSplitter, QSpinBox  # type:ignore
+from qtpy.QtWidgets import QGroupBox, QSplitter  # type:ignore
 from qtpy.QtWidgets import QRadioButton, QFileDialog, QCheckBox  # type:ignore
 from qtpy.QtWidgets import QStyledItemDelegate, QDoubleSpinBox  # type:ignore
 from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QSlider, QTabWidget  # type:ignore
 
 #  from qtpy.QtWidgets import QGridLayout, QMessageBox, QMenu  # type:ignore
 from qtpy.QtWidgets import QGridLayout, QMessageBox  # type:ignore
-from qtpy.QtWidgets import QMainWindow, QAction, QTableWidgetSelectionRange  # type:ignore
+from qtpy.QtWidgets import QMainWindow, QAction  # type:ignore
 from qtpy.QtGui import QColor  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 
@@ -20,8 +20,6 @@ import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
-# import subplots, tight_layout, figure
-# from matplotlib.backend_bases import MouseButton
 
 # import traceback
 import os
