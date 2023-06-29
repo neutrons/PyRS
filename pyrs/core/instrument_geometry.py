@@ -136,7 +136,6 @@ class DENEXDetectorShift:
         :param rotation_x: detector rotation about x
         :param rotation_y: detector rotation about y
         :param rotation_z: detector rotation about z
-        :param two_theta_0: Shift of the 2theta zero point
         """
 
         self._center_shift_x = shift_x
@@ -222,17 +221,6 @@ class DENEXDetectorShift:
     @rotation_z.setter
     def rotation_z(self, value: float) -> None:
         self._rotation_z = to_float('Rotation along Z direction', value, -360, 360)
-
-    @property
-    def two_theta_0(self):
-        """
-        :return float: Shift of the 2theta zero point
-        """
-        return self._two_theta_0
-
-    @two_theta_0.setter
-    def two_theta_0(self, value: float) -> None:
-        self._two_theta_0 = to_float('offset in two_theta arm for ideal 0', value, -360, 360)
 
     def convert_to_dict(self):
         """

@@ -123,7 +123,6 @@ class FileLoad(QWidget):
         self._parent.compare_diff_data.valueChanged()
 
         self._parent.peak_lines_setup.setup_calibration_table(self._parent._ctrl.get_powders())
-        print(self._parent._model.get_wavelength)
         self._parent.calib_summary.set_wavelength(0, self._parent._model.get_wavelength)
 
     def setFilenamesText(self, filenames):
@@ -496,8 +495,8 @@ class PeakLinesSetupView(QGroupBox):
 
     def setup_combo_box(self):
         temp_combo_box = QComboBox(self)
-        temp_combo_box.addItems(['', 'wavelength', 'rotations', 'geometry', 'shifts',
-                                 'shift x', 'shift y', 'distance', 'full'])
+        temp_combo_box.addItems(['', 'wavelength', 'wavelength+shift x', 'rotations', 'geometry',
+                                 'shifts', 'shift x', 'shift y', 'distance', 'full'])
 
         return temp_combo_box
 
@@ -509,10 +508,12 @@ class PeakLinesSetupView(QGroupBox):
         return np.array(exclude_list)
 
     def fit_peaks(self):
+        self.set_reduction_param()
         exclude_list = self.get_exclude_list()
         self._parent._ctrl.fit_diffraction_peaks(exclude_list)
 
     def calibrate_detector(self):
+        self.set_reduction_param()
         exclude_list = self.get_exclude_list()
         fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
         # fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]

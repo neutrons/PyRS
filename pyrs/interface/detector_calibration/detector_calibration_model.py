@@ -87,6 +87,8 @@ class DetectorCalibrationModel(QObject):
                     self._calibration_obj.calibrate_distance()
                 elif recipe == "full":
                     self._calibration_obj.FullCalibration()
+                elif recipe == 'wavelength+shift x':
+                    self._calibration_obj.calibrate_wave_shift()
 
             print(self._calibration_obj._calibration)
             print(self._calibration_obj._residual_sum)

@@ -135,8 +135,6 @@ class ResidualStressInstrument:
             # and rotate at origin
             self._pixel_matrix = self._rotate_detector(self._pixel_matrix, calib_matrix)
 
-            # shift two_theta by offset
-            two_theta += instrument_calibration.two_theta_0
         # END-IF-ELSE
 
         # push to +Z at length of detector arm

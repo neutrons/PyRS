@@ -1,6 +1,6 @@
 from pyrs.core import reduction_manager
-# from pyrs.utilities import checkdatatypes
 from pyrs.core import mask_util
+from pyrs.core import instrument_geometry
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities import calibration_file_io
 from matplotlib import pyplot as plt
@@ -154,7 +154,11 @@ class ReductionApp:
 
         # calibration file - WARNING the access to the calibration is radically different
         # depending on the value of this thing that is named like it is a bool
-        geometry_calibration = False
+        if self._hydra_ws.get_detector_shift() is not None:
+            geometry_calibration = True
+        else:
+            geometry_calibration = False
+
         if calibration_file is not None:
             if calibration_file.lower().endswith('.json'):
                 calib_values = calibration_file_io.read_calibration_json_file(calibration_file_name=calibration_file)
