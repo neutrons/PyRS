@@ -73,7 +73,7 @@ class MantidPeakFitEngine(PeakFitEngine):
                               MaxFitIterations=500,  # TODO increase to 500
                               **kwargs
                               )
-    
+
         # r is a class containing multiple outputs (workspaces)
         if fit_return is None:
             raise RuntimeError('return from FitPeaks cannot be None')

@@ -26,6 +26,9 @@ class DetectorCalibrationCrtl:
 
         return tth_bins, eta_bins
 
+    def export_calibration(self, filename=None):
+        self._model.export_calibration(filename=filename)
+
     def load_nexus(self, nexus_file, tth_bins, eta_bins):
         tth_bins, eta_bins = self.validate_eta_tth(tth_bins, eta_bins)
 
@@ -39,12 +42,14 @@ class DetectorCalibrationCrtl:
         return self._model.get_wavelength()
 
     def fit_diffraction_peaks(self, exclude_list):
+        # self.check_eta_tth_bins(tth_bins, eta_bins)
         self._model.set_exclude_sub_runs(exclude_list)
         self._model.fit_diffraction_peaks()
 
     def calibrate_detector(self, fit_recipe, exclude_list):
         self._model.set_exclude_sub_runs(exclude_list)
-        self._model.calibrate_detector(fit_recipe)
+        calibration, calibration_error = self._model.calibrate_detector(fit_recipe)
+        return calibration, calibration_error
 
     def get_powders(self):
         return self._model.powders
@@ -67,7 +72,6 @@ class DetectorCalibrationCrtl:
                     for i_sub in range(len(self._model.reduction_masks)):
                         ax.plot(fit_ws.readX(int(i_sub))[1:],
                                 fit_ws.readY(int(i_sub))[1:], '--')
-
 
             ax.legend(frameon=False)
             ax.set_xlabel(r"2$\theta$ ($deg.$)")

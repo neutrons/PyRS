@@ -1,14 +1,11 @@
 from qtpy.QtWidgets import QHBoxLayout, QVBoxLayout, QLabel, QWidget  # type:ignore
 from qtpy.QtWidgets import QLineEdit, QPushButton, QComboBox  # type:ignore
-from qtpy.QtWidgets import QGroupBox, QSplitter  # type:ignore
-from qtpy.QtWidgets import QRadioButton, QFileDialog, QCheckBox  # type:ignore
+from qtpy.QtWidgets import QGroupBox, QSplitter, QFileDialog  # type:ignore
 from qtpy.QtWidgets import QStyledItemDelegate, QDoubleSpinBox  # type:ignore
 from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QSlider, QTabWidget  # type:ignore
 
-#  from qtpy.QtWidgets import QGridLayout, QMessageBox, QMenu  # type:ignore
 from qtpy.QtWidgets import QGridLayout, QMessageBox  # type:ignore
-from qtpy.QtWidgets import QMainWindow, QAction  # type:ignore
-from qtpy.QtGui import QColor  # type:ignore
+from qtpy.QtWidgets import QMainWindow  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 
 from pyrs.interface.gui_helper import pop_message
@@ -23,11 +20,7 @@ import matplotlib.pyplot as plt
 
 # import traceback
 import os
-
-COLOR_FAILED_FITTING = QColor(247, 173, 13)  # orange
-SUCCESS = "success"
-MICROSTRAIN = u"\u00b5strain"
-
+import json
 
 scale_factor = 1
 marker_size = 5 * scale_factor
@@ -69,7 +62,7 @@ class FileLoad(QWidget):
             self.browse_button.clicked.connect(self.loadRunNumber)
         elif name == "Load Calibration":
             self.browse_button = QPushButton("Load Calibration")
-            self.browse_button.clicked.connect(self.openFileDialog)
+            self.browse_button.clicked.connect(self.openCalibFileDialog)
         else:
             if name is None:
                 self.browse_button = QPushButton("Browse Exp Data")
@@ -85,18 +78,31 @@ class FileLoad(QWidget):
         self._parent.fit_summary.fit_table_operator.fits = None
         self._parent.fit_summary.fit_table_operator.fit_result = None
 
+    def openCalibFileDialog(self):
+        self._parent._calibration_input, _ = QFileDialog.getOpenFileNames(self,
+                                                                          self.name,
+                                                                          "",
+                                                                          self.fileType,
+                                                                          options=QFileDialog.DontUseNativeDialog)
+
+        if self._parent._calibration_input:
+            if type(self._parent._calibration_input) is list:
+                self._parent._calibration_input = self._parent._calibration_input[0]
+
+            self._parent.calib_summary._cal_summary_table._initalize_calibration(self._parent._calibration_input)
+
     def openFileDialog(self):
-        self._parent._project_file, _ = QFileDialog.getOpenFileNames(self,
-                                                                     self.name,
-                                                                     "",
-                                                                     self.fileType,
-                                                                     options=QFileDialog.DontUseNativeDialog)
+        self._parent._nexus_file, _ = QFileDialog.getOpenFileNames(self,
+                                                                   self.name,
+                                                                   "",
+                                                                   self.fileType,
+                                                                   options=QFileDialog.DontUseNativeDialog)
 
-        if self._parent._project_file:
-            if type(self._parent._project_file) is list:
-                self._parent._project_file = self._parent._project_file[0]
+        if self._parent._nexus_file:
+            if type(self._parent._nexus_file) is list:
+                self._parent._nexus_file = self._parent._nexus_file[0]
 
-            self.load_project_plot()
+            self.load_nexus()
 
     def loadRunNumber(self):
 
@@ -108,20 +114,21 @@ class FileLoad(QWidget):
                         str(run_err), 'error')
             return
 
-        self._parent._project_file = os.path.join(project_dir, f'HB2B_{self.lineEdit.text()}.h5')
+        self._parent._nexus_file = os.path.join(project_dir, f'HB2B_{self.lineEdit.text()}.h5')
+        self._parent._run_number = int(self.lineEdit.text())
 
-        self.load_project_plot()
+        self.load_nexus()
 
-    def load_project_plot(self):
-        self._parent.controller.load_nexus(self._parent._project_file,
+    def load_nexus(self):
+        self._parent.controller.load_nexus(self._parent._nexus_file,
                                            self._parent.peak_lines_setup.tthbin_lineEdit.text(),
                                            self._parent.peak_lines_setup.etabin_lineEdit.text())
 
         self._parent.compare_diff_data.sl.setMaximum(self._parent.model.sub_runs.size)
         self._parent.compare_diff_data.valueChanged()
 
-        self._parent.peak_lines_setup.setup_calibration_table(self._parent._ctrl.get_powders())
-        self._parent.calib_summary.set_wavelength(0, self._parent._model.get_wavelength)
+        self._parent.peak_lines_setup.setup_calibration_table(self._parent.controller.get_powders())
+        self._parent.calib_summary._cal_summary_table.set_wavelength(0, self._parent.model.get_wavelength)
 
     def setFilenamesText(self, filenames):
         self.lineEdit.setText(filenames)
@@ -265,7 +272,7 @@ class PlotView(QWidget):
 
     def update_diff_view(self, sub_run):
 
-        self._parent._ctrl.update_diffraction_view(self.ax, self._parent, sub_run, self.two_dim)
+        self._parent.controller.update_diffraction_view(self.ax, self._parent, sub_run, self.two_dim)
 
         plt.tight_layout()
         self.canvas.draw()
@@ -275,7 +282,7 @@ class PlotView(QWidget):
 
     def update_param_view(self, x_item, y_item, x_text, y_text):
 
-        self._parent._ctrl.plot_2D_params(self.ax, x_item, y_item)
+        self._parent.controller.plot_2D_params(self.ax, x_item, y_item)
 
         self.ax.set_xlabel(x_text)
         self.ax.set_ylabel(y_text)
@@ -319,7 +326,6 @@ class PeakLinesSetupView(QGroupBox):
             recipe_setup_layout.addWidget(self.setup_label('{}'.format(i_row + 1)), i_row + 1, 0)
             recipe_setup_layout.addWidget(self.recipe_combos[i_row], i_row + 1, 1, 1, 3)
 
-
         tthbin_label = QLabel('2θ bin')
         tthbin_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.tthbin_lineEdit = QLineEdit()
@@ -333,9 +339,6 @@ class PeakLinesSetupView(QGroupBox):
         self.etabin_lineEdit.setText('3')
         self.etabin_lineEdit.setReadOnly(False)
         self.etabin_lineEdit.setFixedWidth(50)
-
-        self.tthbin_lineEdit.textChanged.connect(self.set_reduction_param)
-        self.etabin_lineEdit.textChanged.connect(self.set_reduction_param)
 
         self.load_info = QPushButton("Load Recipe")
         self.load_info.clicked.connect(self.load_json)
@@ -368,8 +371,8 @@ class PeakLinesSetupView(QGroupBox):
         return
 
     def set_reduction_param(self):
-        self._parent._ctrl.set_reduction_param(self.tthbin_lineEdit.text(),
-                                               self.etabin_lineEdit.text())
+        self._parent.controller.set_reduction_param(self.tthbin_lineEdit.text(),
+                                                    self.etabin_lineEdit.text())
 
     def setup_label(self, label_name, align=Qt.AlignRight):
         label = QLabel(label_name)
@@ -394,14 +397,16 @@ class PeakLinesSetupView(QGroupBox):
     def fit_peaks(self):
         self.set_reduction_param()
         exclude_list = self.get_exclude_list()
-        self._parent._ctrl.fit_diffraction_peaks(exclude_list)
+        self._parent.controller.fit_diffraction_peaks(exclude_list)
 
     def calibrate_detector(self):
         self.set_reduction_param()
         exclude_list = self.get_exclude_list()
         fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
-        # fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
-        self._parent._ctrl.calibrate_detector(fit_recipe, exclude_list)
+        calibration, calibration_error = self._parent.controller.calibrate_detector(fit_recipe,
+                                                                                    exclude_list)
+
+        self._parent.calib_summary._cal_summary_table.set_calibration(calibration, calibration_error)
 
     def setup_calibration_table(self, powders):
         self.calibrant_table.setRowCount(len(powders))
@@ -418,11 +423,44 @@ class PeakLinesSetupView(QGroupBox):
     def save_json(self):
         filename, _ = QFileDialog.getSaveFileName(self,
                                                   "Export Peak Fit Information",
-                                                  "JSON (*.json);;All Files (*)",
+                                                  "JSON (*.json)",
                                                   options=QFileDialog.DontUseNativeDialog)
         if not filename:
             return
-        self._parent.controller.save_fit_range(filename, self.fit_range_table)
+
+        output_dict = {}
+
+        # write nexus file
+        if self._parent._run_number is not None:
+            output_dict['run_number'] = self._parent._run_number
+
+        if self._parent._nexus_file is not None:
+            output_dict['nexus_file'] = self._parent._nexus_file
+
+        # write input calibration
+        if self._parent._calibration_input is not None:
+            output_dict['input_calibration'] = self._parent._calibration_input
+
+        # write exclude list
+        output_dict['exclude'] = self.get_exclude_list().tolist()
+
+        # write routines
+        Method = ''
+        for i_item in range(8):
+            if self.recipe_combos[i_item].currentText() != '':
+                Method = '{},{}'.format(Method, self.recipe_combos[i_item].currentText())
+
+        output_dict['Method'] = Method[1:]
+
+        # write tth bins
+        output_dict['tth_bin'] = self.tthbin_lineEdit.text()
+
+        # write eta bins
+        output_dict['eta_bin'] = self.etabin_lineEdit.text()
+
+        print(output_dict)
+        with open(filename, "w") as outfile:
+            outfile.write(json.dumps(output_dict, indent=4))
 
     def load_json(self):
         filename, _ = QFileDialog.getOpenFileName(self,
@@ -432,11 +470,115 @@ class PeakLinesSetupView(QGroupBox):
         if not filename:
             return
 
-        self.fit_range_table.setRowCount(0)
-        self._parent.controller.load_fit_range(filename, self.fit_range_table)
+        with open(filename, 'r') as openfile:
+            # Reading from json file
+            input_dict = json.load(openfile)
+
+        # load new nexus data if data are not currently loaded
+        if self._parent._nexus_file != input_dict['nexus_file']:
+            self._parent._nexus_file = input_dict['nexus_file']
+            self._parent.fileLoading.file_load_dilg.load_nexus()
+
+        # load input calibration if specified
+        try:
+            self._parent._calibration_input = input_dict['input_calibration']
+            if self._parent._calibration_input is not None:
+                pass
+        except KeyError:
+            pass
+
+        methods = ['', 'wavelength', 'wavelength+shift x', 'rotations', 'geometry',
+                   'shifts', 'shift x', 'shift y', 'distance', 'full']
+
+        for i_item, item in enumerate(input_dict['Method'].split(',')):
+            self.recipe_combos[i_item].setCurrentIndex(methods.index(item))
+
+        try:
+            for i_exclude, exclude in enumerate(input_dict['exclude']):
+                if exclude is True:
+                    self.calibrant_table.item(i_exclude, 1).setCheckState(1)
+        except KeyError:
+            pass
+
+        try:
+            self.tthbin_lineEdit.setText(input_dict['tth_bin'])
+        except KeyError:
+            pass
+
+        try:
+            self.etabin_lineEdit.setText(input_dict['eta_bin'])
+        except KeyError:
+            pass
 
 
 class CalibrationSummaryView(QGroupBox):
+    def __init__(self, parent=None):
+        self._parent = parent
+        super().__init__(parent=parent)
+
+        # self.recipe_setup = QGroupBox()
+        # self.recipe_setup.setTitle("Define Calibration Recipe")
+        # _layout = QGridLayout()
+        _layout = QHBoxLayout()
+
+        self._cal_summary_table = CalibrationSummaryTable()
+        # _layout.addWidget(self._cal_summary_table, 0, 0, 5, 1)
+        _layout.addWidget(self._cal_summary_table)
+
+        calib_summary = QGroupBox()
+        calib_layout = QGridLayout()
+
+        empty_label = QLabel('')
+        rmse_label = QLabel('RMSE')
+        rmse_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.rmse_lineEdit = QLineEdit()
+        self.rmse_lineEdit.setText('')
+        self.rmse_lineEdit.setReadOnly(True)
+        self.rmse_lineEdit.setFixedWidth(200)
+
+        delta_tth_label = QLabel('Δ 2θ')
+        delta_tth_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.delta_tth_lineEdit = QLineEdit()
+        self.delta_tth_lineEdit.setText('')
+        self.delta_tth_lineEdit.setReadOnly(True)
+        self.delta_tth_lineEdit.setFixedWidth(200)
+
+        for i_row in range(5):
+            calib_layout.addWidget(empty_label, i_row, 0)
+
+        calib_layout.addWidget(rmse_label, i_row + 1, 0)
+        calib_layout.addWidget(self.rmse_lineEdit, i_row + 1, 1)
+        calib_layout.addWidget(delta_tth_label, i_row + 2, 0)
+        calib_layout.addWidget(self.delta_tth_lineEdit, i_row + 2, 1)
+
+        self.export_calib_bttn = QPushButton("Export Calibration")
+        self.export_calib_bttn.clicked.connect(self.export_calib)
+        self.export_local_calib_bttn = QPushButton("Save Local Calibration")
+        self.export_local_calib_bttn.clicked.connect(self.export_local_calib)
+
+        calib_layout.addWidget(self.export_calib_bttn, i_row + 3, 0, 1, 2)
+        calib_layout.addWidget(self.export_local_calib_bttn, i_row + 4, 0, 1, 2)
+        calib_summary.setLayout(calib_layout)
+        _layout.addWidget(calib_summary)
+
+        self.setLayout(_layout)
+
+    def export_calib(self, filename=None):
+        self._parent.controller.export_calibration(filename=filename)
+
+    def export_local_calib(self):
+        filename, _ = QFileDialog.getSaveFileName(self,
+                                                  "Export Peak Fit Information",
+                                                  "JSON (*.json)",
+                                                  options=QFileDialog.DontUseNativeDialog)
+
+        if not filename:
+            return
+
+        self.export_calib(filename=filename)
+
+
+class CalibrationSummaryTable(QTableWidget):
     COL_SIZE = 100
     STATUS_COL_SIZE = 500  # last column
 
@@ -444,38 +586,36 @@ class CalibrationSummaryView(QGroupBox):
         self._parent = parent
         super().__init__(parent=parent)
 
-        layout = QVBoxLayout()
-        # layout.addStretch(0, 10)
-        layout.setStretch(0, 1)
-        print(layout.maximumSize())
-        self.setLayout(layout)
+        self.setColumnCount(1)
 
-        self.tableView_CalibSummary = QTableWidget(self)
-        self.tableView_CalibSummary.setColumnCount(1)
-        # self.tableView_CalibSummary.setMinimumHeight(60)
+        self.labels = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda']
 
-        layout.addWidget(self.tableView_CalibSummary)
+        self.setRowCount(len(self.labels))
+        self.setVerticalHeaderLabels(self.labels)
 
-        labels = ['shift x', 'shift y', 'distance', 'rot x', 'rot y', 'rot z', 'wavelength']
-        self.tableView_CalibSummary.setRowCount(len(labels))
-        self.tableView_CalibSummary.setVerticalHeaderLabels(labels)
-
-        self.tableView_CalibSummary.setHorizontalHeaderLabels(['Starting'])
+        self.setHorizontalHeaderLabels(['Starting'])
 
         for i_row in range(7):
-            self.tableView_CalibSummary.setItem(i_row, 0, QTableWidgetItem("0"))
+            self.setItem(i_row, 0, QTableWidgetItem("0"))
+
+    def _initalize_calibration(self, json_input):
+        with open(json_input, 'r') as openfile:
+            # Reading from json file
+            input_dict = json.load(openfile)
+
+        for i_lable, label in enumerate(self.labels):
+            self.setItem(i_lable, 0, QTableWidgetItem(str(input_dict[label])))
+
+    def set_calibration(self, calibration_list, calibration_error_list):
+
+        for i_calibration in range(len(calibration_list)):
+            calibration = calibration_list[i_calibration]
+            col_index = self._add_column()
+            for i_lable in range(len(self.labels)):
+                self.setItem(i_lable, col_index, QTableWidgetItem(str(calibration[i_lable])))
 
     def set_wavelength(self, column, item):
-        self.tableView_CalibSummary.setItem(6, column, QTableWidgetItem(str(item)))
-
-    def initialize_table_column_size(self):
-        nbr_column = self._parent.tableView_fitSummary.columnCount()
-        for _col in np.arange(nbr_column):
-            if _col < (nbr_column - 1):
-                _col_size = self.COL_SIZE
-            else:
-                _col_size = self.STATUS_COL_SIZE
-        self._parent.tableView_fitSummary.setColumnWidth(_col, _col_size)
+        self.setItem(6, column, QTableWidgetItem(str(item)))
 
     def _clear_rows(self):
         _nbr_row = self._parent.tableView_fitSummary.rowCount()
@@ -487,8 +627,13 @@ class CalibrationSummaryView(QGroupBox):
         for _ in np.arange(_nbr_column):
             self._parent.tableView_fitSummary.removeColumn(0)
 
+    def _add_column(self):
+        current_cols = self.get_number_of_columns()
+        self.setColumnCount(current_cols + 1)
+        return current_cols
+
     def get_number_of_columns(self):
-        _nbr_column = self._parent.tableView_fitSummary.columnCount()
+        _nbr_column = self.columnCount()
         return _nbr_column
 
     def _clear_table(self):
@@ -501,38 +646,13 @@ class DetectorCalibrationViewer(QMainWindow):
 
         self._model = detector_calib_model
         self._ctrl = detector_calib_ctrl
-        self._project_file = None
+        self._nexus_file = None
+        self._run_number = None
+        self._calibration_input = None
 
         super().__init__(parent)
 
         self.setWindowTitle("PyRS Detector Calibration Window")
-
-        mainMenu = self.menuBar()
-        fileMenu = mainMenu.addMenu('File')
-        self.saveAction = QAction('&Save', self)
-        self.saveAction.setShortcut('Ctrl+S')
-        self.saveAction.setStatusTip('Save project state')
-        self.saveAction.triggered.connect(self.save)
-        self.saveAction.setEnabled(False)
-        fileMenu.addAction(self.saveAction)
-
-        self.saveAction = QAction('&Save as', self)
-        self.saveAction.setStatusTip('Save project state')
-        self.saveAction.triggered.connect(self.saveas)
-        self.saveAction.setEnabled(False)
-        fileMenu.addAction(self.saveAction)
-
-        self.loadAction = QAction('&Load state', self)
-        self.loadAction.setStatusTip('Load application state')
-        self.loadAction.triggered.connect(self.load)
-        fileMenu.addAction(self.loadAction)
-
-        fileMenu.addSeparator()
-        exitAction = QAction('&Exit', self)
-        exitAction.setShortcut('Ctrl+Q')
-        exitAction.setStatusTip('Exit application')
-        exitAction.triggered.connect(self.close)
-        fileMenu.addAction(exitAction)
 
         self.splitter = QSplitter()
         self.splitter.setHandleWidth(10)
@@ -542,21 +662,15 @@ class DetectorCalibrationViewer(QMainWindow):
         left_layout = QVBoxLayout()
 
         self.fileLoading = FileLoading(self)
-        # self.setCentralWidget(self.fileLoading)
-        left_layout.addWidget(self.fileLoading)
-
-        self.fit_splitter = QSplitter(Qt.Vertical)
-        self.fit_splitter.setHandleWidth(10)
-
         self.peak_lines_setup = PeakLinesSetupView(self)
         self.calib_summary = CalibrationSummaryView(self)
 
-        self.fit_splitter.addWidget(self.peak_lines_setup)
-        self.fit_splitter.addWidget(self.calib_summary)
-
-        left_layout.addWidget(self.fit_splitter)
+        left_layout.addWidget(self.fileLoading)
+        left_layout.addWidget(self.peak_lines_setup)
+        left_layout.addWidget(self.calib_summary)
 
         left_layout.addStretch(10)
+
         left.setLayout(left_layout)
         self.splitter.addWidget(left)
 
@@ -571,16 +685,12 @@ class DetectorCalibrationViewer(QMainWindow):
         self.viz_splitter.addWidget(self.param_window)
 
         # # add widgets to pannel layout
-        # right_layout.addWidget(self.plot_select)
         right_layout.addWidget(self.viz_splitter)
-        # right_layout.addWidget(self.VizSetup)
         right.setLayout(right_layout)
 
         self.splitter.addWidget(right)
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 1)
-
-        self.resize(1024, 1080)
 
     @property
     def controller(self):
@@ -590,38 +700,6 @@ class DetectorCalibrationViewer(QMainWindow):
     def model(self):
         return self._model
 
-    def update_param_plots(self):
-        self.update_2D_param_summary()
-        self.update_3D_param_summary()
-
-    def update_2D_param_summary(self):
-        if self.model.ws is not None:
-            if (self.plot_select.get_X != "") and (self.plot_select.get_Y != ""):
-                self.param_window.update_param_view(self.plot_select.get_X,
-                                                    self.plot_select.get_Y,
-                                                    self.plot_select.get_PeakNum,
-                                                    self.plot_select.get_out_of_plan_angle)
-
-    def update_3D_param_summary(self):
-        if self.model.ws is not None:
-            if (self.VizSetup.get_X() != "") and (self.VizSetup.get_Y() != "") and (self.VizSetup.get_Z() != ""):
-                self.compare_param_window.update_3D_view(self.VizSetup.get_X(),
-                                                         self.VizSetup.get_Y(),
-                                                         self.VizSetup.get_Z(),
-                                                         self.plot_select.get_PeakNum,
-                                                         self.plot_select.get_out_of_plan_angle,
-                                                         self.VizSetup.get_sub_run_list())
-
-    def update_peak_selection(self):
-        self.fit_summary.fit_table_operator.change_fit(self.fit_summary.out_of_plan_angle)
-        self.update_param_plots()
-
-    def update_oop_select(self):
-        self.plot_select.out_of_plane.setCurrentIndex(self.fit_summary.out_of_plane.currentIndex())
-        self.fit_summary.fit_table_operator.change_fit(self.fit_summary.out_of_plan_angle)
-        self.fit_window.update_diff_view(self.model.sub_runs[self.fit_setup.sl.value()])
-        self.update_param_plots()
-
     def show_failure_msg(self, msg, info, details):
         self.viz_tab.set_message(msg)
         msgBox = QMessageBox()
@@ -630,24 +708,3 @@ class DetectorCalibrationViewer(QMainWindow):
         msgBox.setInformativeText(info)
         msgBox.setDetailedText(details)
         msgBox.exec()
-
-    def save(self):
-        if self._project_file is not None:
-            self.controller.save(self._project_file,
-                                 self._parent.fit_summary.fit_table_operator.fit_result)
-
-    def saveas(self):
-        filename, _ = QFileDialog.getSaveFileName(self,
-                                                  "Save HidraWorkspace",
-                                                  "",
-                                                  "HDF5 (*.h5);;All Files (*)")
-        if filename:
-            self.controller.save(filename, self._parent.fit_summary.fit_table_operator.fit_result)
-
-    def load(self):
-        filename, _ = QFileDialog.getOpenFileName(self,
-                                                  "Load Stress state",
-                                                  "",
-                                                  "JSON (*.json);;All Files (*)")
-        if filename:
-            self.controller.load(filename)

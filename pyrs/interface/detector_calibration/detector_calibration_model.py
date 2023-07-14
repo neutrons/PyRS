@@ -26,7 +26,6 @@ class WorkerObject(QObject):
     def set_calib(self, recipe):
         self._calib_routine = recipe
 
-
     @Slot()
     def startWork(self):
         for recipe in self._calib_routine:
@@ -63,6 +62,7 @@ class DetectorCalibrationModel(QObject):
         self.peak_fit_engine = None
         self._run_number = None
         self._calibration_obj = None
+        self._nexus_file = None
 
         self.detector_params = [0, 0, 0, 0, 0, 0, 0, 0]
         # self.sub_runs = np.array([1])
@@ -95,12 +95,16 @@ class DetectorCalibrationModel(QObject):
     def reduction_masks(self):
         return self._calibration_obj._hidra_ws.reduction_masks
 
+    def export_calibration(self, filename=None):
+        if self._calibration_obj is not None:
+            self._calibration_obj.write_calibration(file_name=filename)
+
     def set_reduction_param(self, tth_bins, eta_bins):
         if self._calibration_obj is not None:
-            self._calibration_obj.set_tthbins(tth_bins)
-            self._calibration_obj.set_etabins(eta_bins)
+            self._calibration_obj = FitCalibration(nexus_file=self._nexus_file, eta_slice=eta_bins, bins=tth_bins)
 
     def _init_calibration(self, nexus_file, tth=512, eta=3.):
+        self._nexus_file = nexus_file
         self._calibration_obj = FitCalibration(nexus_file=nexus_file, eta_slice=eta, bins=tth)
 
     def fit_diffraction_peaks(self):
@@ -119,6 +123,8 @@ class DetectorCalibrationModel(QObject):
 
         if self._calibration_obj is not None:
             # self._calibration_obj.initalize_calib_results()
+            calibration = []
+            calibration_error = []
             for recipe in fit_recipe:
                 if recipe == "wavelength":
                     self._calibration_obj.calibrate_wave_length()
@@ -138,6 +144,11 @@ class DetectorCalibrationModel(QObject):
                     self._calibration_obj.FullCalibration()
                 elif recipe == 'wavelength+shift x':
                     self._calibration_obj.calibrate_wave_shift()
+
+                calibration.append(self._calibration_obj.calibration_array)
+                calibration_error.append(self._calibration_obj.calibration_error_array)
+
+            return calibration, calibration_error
 
     def set_exclude_sub_runs(self, exclude_list):
         if self._calibration_obj is not None:

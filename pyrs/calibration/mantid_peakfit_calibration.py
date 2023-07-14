@@ -83,7 +83,6 @@ class FitCalibration:
 
         self.get_powder_lines()
 
-
     @property
     def sy(self):
         return self._hidra_ws.get_sample_log_values('sy')
@@ -91,10 +90,18 @@ class FitCalibration:
     @property
     def sub_runs(self):
         return self._hidra_ws.get_sub_runs()
-    
+
     @property
     def powders(self):
         return self._powders
+
+    @property
+    def calibration_array(self):
+        return self._calib
+
+    @property
+    def calibration_error_array(self):
+        return self._caliberr
 
     def set_exclude_subrun_list(self, exclude_list):
         self._exclude_subrun_list = exclude_list
@@ -177,7 +184,6 @@ class FitCalibration:
         self._calib[6] = float(self.monosetting)
         self._calib_start[6] = float(self.monosetting)
 
-        
         self._calibration = self._calib.reshape(-1, 1)
         self._residual_sum = []
         self._residual_rmse = []
@@ -191,7 +197,7 @@ class FitCalibration:
         self.fitted_ws = [None] * self.sub_runs.size
 
         for i_run, sub_run in enumerate(self.sub_runs):
-            if self._exclude_subrun_list[i_run] == False:
+            if self._exclude_subrun_list[i_run] is False:
                 peaks = self.get_diff_peaks(sub_run - 1)
                 for i_mask, mask in enumerate(self._hidra_ws.reduction_masks):
                     tth, int_vec, error_vec = self.reducer.get_diffraction_data(sub_run, mask_id=mask)
@@ -209,7 +215,8 @@ class FitCalibration:
 
                     _ws.append(fits.fitted)
                     center_errors = np.concatenate((center_errors,
-                                                    fits.peakcollections[0].get_effective_params()[0]['Center'] - peak))
+                                                    fits.peakcollections[0].get_effective_params()[0]['Center'] -
+                                                    peak))
 
                 self.fitted_ws[i_run] = _ws
 
@@ -736,6 +743,7 @@ class FitCalibration:
         -------
         None
         """
+
         # Form DENEXDetectorShift objects
         cal_shift = DENEXDetectorShift(self._calib[0], self._calib[1], self._calib[2], self._calib[3],
                                        self._calib[4], self._calib[5])
