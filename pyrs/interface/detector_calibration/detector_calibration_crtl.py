@@ -73,4 +73,18 @@ class DetectorCalibrationCrtl:
             ax.set_xlabel(r"2$\theta$ ($deg.$)")
             ax.set_ylabel("Intensity (ct.)")
             ax.set_ylabel("Diff (ct.)")
+
+        return
+
+    def plot_2D_params(self, ax, x_item, y_item):
+
+        ax.cla()
+
+        x, y = self._model.get_calibration_values(x_item, y_item)
+
+        if x.size != y.size:
+            x = np.arange(y.size)
+
+        ax.plot(x, y, 'ko--')
+
         return

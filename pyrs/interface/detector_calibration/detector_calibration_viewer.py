@@ -189,163 +189,46 @@ class DiffractionWindow(QWidget):
         self.tabs.currentWidget().update_diff_view(self.sl.value())
 
 
-class SetupViz(QWidget):
+class VisualizeResults(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._parent = parent
 
-        layout = QGridLayout()
-
-        self.shift_bt = QCheckBox("shift")
-        self.shift_bt.setChecked(False)
-        self.shift_bt.setVisible(False)
-        self.shift_bt.stateChanged.connect(lambda: self.btnstate(self.shift_bt))
-
-        self.polar_bt = QRadioButton("Polar")
-        self.polar_bt.setChecked(False)
-        self.polar_bt.toggled.connect(lambda: self.btnstate(self.polar_bt))
-        self.polar_bt.setVisible(False)
-
-        self.contour_bt = QRadioButton("Contour")
-        self.contour_bt.setChecked(False)
-        self.contour_bt.toggled.connect(lambda: self.btnstate(self.contour_bt))
-
-        self.lines_bt = QRadioButton("3D Lines")
-        self.lines_bt.setChecked(False)
-        self.lines_bt.toggled.connect(lambda: self.btnstate(self.lines_bt))
-
-        self.scatter_bt = QRadioButton("3D Scatter")
-        self.scatter_bt.setChecked(True)
-        self.scatter_bt.toggled.connect(lambda: self.btnstate(self.scatter_bt))
-
-        layout.addWidget(self.shift_bt, 0, 1)
-        layout.addWidget(self.polar_bt, 0, 2)
-        layout.addWidget(self.contour_bt, 0, 3)
-        layout.addWidget(self.lines_bt, 0, 4)
-        layout.addWidget(self.scatter_bt, 0, 5)
+        param_layout = QGridLayout()
+        # panel_layout = QVBoxLayout()
 
         self.plot_paramX = QComboBox()
-        self.plot_paramX.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz",
-                                   "phi", "chi", "omega"])
+        self.plot_paramX.addItems(["iteration", 'shift x', 'shift y', 'distance',
+                                   'rot x', 'rot y', 'rot z', 'wavelength'])
+
         plot_labelX = QLabel("X-axis")
         plot_labelX.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        layout.addWidget(plot_labelX, 1, 0)
-        layout.addWidget(self.plot_paramX, 1, 1)
         self.plot_paramY = QComboBox()
-        self.plot_paramY.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz",
-                                   "phi", "chi", "omega"])
+        self.plot_paramY.addItems(['shift x', 'shift y', 'distance',
+                                   'rot x', 'rot y', 'rot z', 'wavelength'])
+
+        self.plot_paramX.currentIndexChanged.connect(self.change_plot)
+        self.plot_paramY.currentIndexChanged.connect(self.change_plot)
+
         plot_labelY = QLabel("Y-axis")
         plot_labelY.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        layout.addWidget(plot_labelY, 1, 2)
-        layout.addWidget(self.plot_paramY, 1, 3)
-        self.plot_paramZ = QComboBox()
-        self.plot_paramZ.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz",
-                                   "phi", "chi", "omega"])
-        plot_labelZ = QLabel("Z-axis")
-        plot_labelZ.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        layout.addWidget(plot_labelZ, 1, 4)
-        layout.addWidget(self.plot_paramZ, 1, 5)
 
-        plot_label_sub = QLabel("List Sub Runs")
-        self.sub_runs_list = QLineEdit()
-        self.sub_runs_list.setReadOnly(False)
-        self.sub_runs_list.setFixedWidth(75)
-        example_label = QLabel('(ex: 1,2,3... or 3-5,8)')
-        layout.addWidget(plot_label_sub, 2, 3)
-        layout.addWidget(self.sub_runs_list, 2, 4)
-        layout.addWidget(example_label, 2, 5)
+        self.param_vew = PlotView(parent=parent, param_view=True)
 
-        self.setLayout(layout)
+        param_layout.addWidget(plot_labelX, 0, 0)
+        param_layout.addWidget(self.plot_paramX, 0, 1)
+        param_layout.addWidget(plot_labelY, 0, 2)
+        param_layout.addWidget(self.plot_paramY, 0, 3)
 
-    def btnstate(self, button):
-        self._parent.update_3D_param_summary()
+        param_layout.addWidget(self.param_vew, 1, 0, 5, 4)
 
-    def get_X(self):
-        return self.plot_paramX.currentText()
+        self.setLayout(param_layout)
 
-    def get_Y(self):
-        return self.plot_paramY.currentText()
-
-    def get_Z(self):
-        return self.plot_paramZ.currentText()
-
-    def get_sub_run_list(self):
-        return self.sub_runs_list.text()
-
-    def enable_polar_plot(self, dict_keys):
-        if (len(dict_keys) > 2) or self._parent.controller.texture_run():
-            self.polar_bt.setVisible(True)
-            self.shift_bt.setVisible(True)
-
-
-class PlotSelect(QGroupBox):
-    def __init__(self, parent=None):
-        self._parent = parent
-        super().__init__(parent)
-        layout = QHBoxLayout()
-        # layout.setFieldGrowthPolicy(0)
-        self.plot_paramX = QComboBox()
-        self.plot_paramX.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz",
-                                   "phi", "chi", "omega"])
-        plot_labelX = QLabel("X-axis")
-        plot_labelX.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        layout.addWidget(plot_labelX)
-        layout.addWidget(self.plot_paramX)
-        self.plot_paramY = QComboBox()
-        self.plot_paramY.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz",
-                                   "phi", "chi", "omega"])
-        plot_labelY = QLabel("Y-axis")
-        plot_labelY.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        layout.addWidget(plot_labelY)
-        layout.addWidget(self.plot_paramY)
-
-        self.out_of_plane = QComboBox()
-        self.oop_label = QLabel("out of plane")
-        self.oop_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.oop_label.setVisible(False)
-        self.out_of_plane.setVisible(False)
-        layout.addWidget(self.oop_label)
-        layout.addWidget(self.out_of_plane)
-
-        self.plot_peakNum = QComboBox()
-        peackNum_label = QLabel("Peak")
-        peackNum_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        layout.addWidget(peackNum_label)
-        layout.addWidget(self.plot_peakNum)
-
-        self.setLayout(layout)
-
-    @property
-    def get_out_of_plan_angle(self):
-        return self.out_of_plane.currentText()
-
-    @property
-    def get_Y(self):
-        return self.plot_paramY.currentText()
-
-    @property
-    def get_X(self):
-        return self.plot_paramX.currentText()
-
-    @property
-    def get_PeakNum(self):
-        return self.plot_peakNum.currentText()
-
-    def setup_out_of_plane_angle(self, dict_keys):
-        if len(dict_keys) > 2:
-            angles = []
-            for key in list(dict_keys):
-                if '_var' not in key:
-                    angles.append(key)
-
-            self.out_of_plane.clear()
-            self.out_of_plane.addItems(angles)
-            self.oop_label.setVisible(True)
-            self.out_of_plane.setVisible(True)
-        else:
-            self.out_of_plane.clear()
-            self.oop_label.setVisible(False)
-            self.out_of_plane.setVisible(False)
+    def change_plot(self):
+        self.param_vew.update_param_view(self.plot_paramX.currentIndex(),
+                                         self.plot_paramY.currentIndex(),
+                                         self.plot_paramX.currentText(),
+                                         self.plot_paramY.currentText())
 
 
 class FixFigureCanvas(FigureCanvas):
@@ -356,7 +239,7 @@ class FixFigureCanvas(FigureCanvas):
 
 
 class PlotView(QWidget):
-    def __init__(self, parent=None, two_dim=False):
+    def __init__(self, parent=None, two_dim=False, param_view=False):
         super().__init__(parent)
         self._parent = parent
 
@@ -371,28 +254,31 @@ class PlotView(QWidget):
         self.two_dim = two_dim
         if two_dim:
             self.ax.axis('off')
+        elif param_view:
+            self.ax.set_xlabel("")
+            self.ax.set_ylabel("")
         else:
             self.ax.set_xlabel(r"2$\theta$ ($deg.$)")
             self.ax.set_ylabel("Intensity (ct.)")
-            self.ax.set_ylabel("Diff (ct.)")
-            plt.tight_layout()
+
+        plt.tight_layout()
 
     def update_diff_view(self, sub_run):
 
         self._parent._ctrl.update_diffraction_view(self.ax, self._parent, sub_run, self.two_dim)
 
         plt.tight_layout()
-
         self.canvas.draw()
 
     def getWidget(self):
         return FixFigureCanvas(self.figure)
 
-    def update_param_view(self, xlabel, ylabel, peak_number=1, out_of_plane=None):
+    def update_param_view(self, x_item, y_item, x_text, y_text):
 
-        self._parent._ctrl.plot_2D_params(self.ax, xlabel, ylabel, peak_number,
-                                          fit_object=self._parent.fit_summary.fit_table_operator,
-                                          out_of_plane=out_of_plane)
+        self._parent._ctrl.plot_2D_params(self.ax, x_item, y_item)
+
+        self.ax.set_xlabel(x_text)
+        self.ax.set_ylabel(y_text)
 
         plt.tight_layout()
 
@@ -679,7 +565,7 @@ class DetectorCalibrationViewer(QMainWindow):
 
         self.viz_splitter = QSplitter(Qt.Vertical)
         self.compare_diff_data = DiffractionWindow(self)
-        self.param_window = PlotView(self)
+        self.param_window = VisualizeResults(self)
 
         self.viz_splitter.addWidget(self.compare_diff_data)
         self.viz_splitter.addWidget(self.param_window)

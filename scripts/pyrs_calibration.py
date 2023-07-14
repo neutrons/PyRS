@@ -1,9 +1,9 @@
 import numpy as np
 import time
 import os
-from pyrs.calibration import peakfit_calibration
-from pyrs.core.nexus_conversion import NeXusConvertingApp
-from pyrs.core import MonoSetting  # type: ignore
+from pyrs.calibration import mantid_peakfit_calibration
+from pyrs.utilities import get_nexus_file  # type: ignore
+
 
 # Define Default Material
 _Materials = {}
@@ -48,14 +48,15 @@ P_options += '["Si 220", "fFe 200", ....]\n'
 # DEFAULT VALUES FOR DATA PROCESSING
 INSTRUMENT_CALIBRATION = None
 DATA_MASK = None
+VAN_RUN = None
 POWDER_RUN = None
 IPTS_ = 22731
-PIN_RUN = None
-HFIR_CYCLE = None
 REFINE_METHOD = 'full'
 POWDER_LINES = []
 SAVE_CALIB = True
 WRITE_LATEST = False
+ETA_Slice = 3.
+TTH_Bins = 512
 
 # Allow a varriety of inputs to catch errors
 powderlineinput = ['powder lines', 'powder_lines', 'powderlines', 'powder line', 'powder_line', 'powderline']
@@ -72,13 +73,13 @@ method_options = ["full", "geometry", "shifts", "shift x", "shift_x", "shift y",
                   "distance", "rotations", "wavelength"]
 
 
-def _load_nexus_data(ipts, nexus_run, mask_file):
-    nexus_file = '/HFIR/HB2B/IPTS-{}/nexus/HB2B_{}.nxs.h5'.format(ipts, nexus_run)
-    converter = NeXusConvertingApp(nexus_file, mask_file)
-    hidra_ws = converter.convert()
+def _get_nexus_data(nexus_run):
 
-    return hidra_ws
-
+    try:
+        int(nexus_run)
+        return get_nexus_file(nexus_run)
+    except ValueError:
+        return nexus_run
 
 def _run_calibration(calibrator, calib_method):
     """
@@ -212,17 +213,10 @@ if __name__ == '__main__':
 
     check_method_input(REFINE_METHOD, SPLITTER)
 
-    if POWDER_RUN is not None:
-        POWDER_RUN = _load_nexus_data(IPTS_, POWDER_RUN, DATA_MASK)
-        single_material = False
-        mono = MonoSetting.getFromRotation(POWDER_RUN.get_sample_log_value('mrot', 1))
-    if PIN_RUN is not None:
-        PIN_RUN = _load_nexus_data(IPTS_, PIN_RUN, DATA_MASK)
-        single_material = True
-        mono = MonoSetting.getFromRotation(PIN_RUN.get_sample_log_value('mrot', 1))
+    nexus_file = _get_nexus_data(IPTS_, POWDER_RUN, DATA_MASK)
 
-    calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=POWDER_RUN, pin_engine=PIN_RUN,
-                                                        powder_lines=POWDER_LINES, single_material=single_material)
+    calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file=nexus_file, eta_slice=ETA_Slice, bins=TTH_Bins,
+                                                           mask=DATA_MASK, vanadium=VAN_RUN)
 
     if INSTRUMENT_CALIBRATION is not None:
         calibrator.get_archived_calibration(INSTRUMENT_CALIBRATION)
@@ -236,10 +230,11 @@ if __name__ == '__main__':
             FolderName = '/HFIR/HB2B/shared/CALIBRATION/cycle{}'.format(HFIR_CYCLE)
             if not os.path.exists(FolderName):
                 os.makedirs(FolderName)
-            CalibName = '/HFIR/HB2B/shared/CALIBRATION/cycle{}/HB2B_{}_{}.json'.format(HFIR_CYCLE, mono, datatime)
+            CalibName = '/HFIR/HB2B/shared/CALIBRATION/cycle{}/HB2B_{}_{}.json'.format(HFIR_CYCLE,
+                                                                                       calibrator.monosetting, datatime)
             calibrator.write_calibration(CalibName)
 
-        CalibName = '/HFIR/HB2B/shared/CALIBRATION/HB2B_{}_{}.json'.format(mono, datatime)
+        CalibName = '/HFIR/HB2B/shared/CALIBRATION/HB2B_{}_{}.json'.format(calibrator.monosetting, datatime)
         calibrator.write_calibration(CalibName)
 
         if WRITE_LATEST:

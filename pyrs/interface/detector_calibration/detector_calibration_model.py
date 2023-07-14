@@ -4,13 +4,52 @@ import os
 import numpy as np
 
 from qtpy.QtWidgets import QTableWidgetItem  # type:ignore
-from qtpy.QtCore import Signal, QObject  # type:ignore
-
+from qtpy.QtCore import Signal, QObject, Slot  # type:ignore
 
 from pyrs.calibration.mantid_peakfit_calibration import FitCalibration
 
 # Import instrument constants
 from pyrs.core.nexus_conversion import NUM_PIXEL_1D
+
+
+class WorkerObject(QObject):
+
+    signalStatus = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self._parent = parent
+
+        self._calib_routine = ''
+
+    def set_calib(self, recipe):
+        self._calib_routine = recipe
+
+
+    @Slot()
+    def startWork(self):
+        for recipe in self._calib_routine:
+            if recipe == "wavelength":
+                self._parent._calibration_obj.calibrate_wave_length()
+            elif recipe == "rotations":
+                self._parent._calibration_obj.CalibrateRotation()
+            elif recipe == "geometry":
+                self._parent._calibration_obj.CalibrateGeometry()
+            elif recipe == "shifts":
+                self._parent._calibration_obj.CalibrateShift()
+            elif recipe == "shift x":
+                self._parent._calibration_obj.calibrate_shiftx()
+            elif recipe == "shift y":
+                self._parent._calibration_obj.calibrate_shifty()
+            elif recipe == "distance":
+                self._parent._calibration_obj.calibrate_distance()
+            elif recipe == "full":
+                self._parent._calibration_obj.FullCalibration()
+            elif recipe == 'wavelength+shift x':
+                self._parent._calibration_obj.calibrate_wave_shift()
+
+        self.signalStatus.emit('Idle.')
 
 
 class DetectorCalibrationModel(QObject):
@@ -29,6 +68,8 @@ class DetectorCalibrationModel(QObject):
         # self.sub_runs = np.array([1])
 
         self._calibration_obj = None
+
+        self._worker_object = WorkerObject(parent=self)
 
     @property
     def runnumber(self):
@@ -66,10 +107,18 @@ class DetectorCalibrationModel(QObject):
         if self._calibration_obj is not None:
             self._calibration_obj.fit_peaks()
 
+    def get_calibration_values(self, x_item, y_item):
+        if x_item == 0:
+            _x = np.arange(self._calibration_obj._calibration.shape[1])
+        else:
+            _x = self._calibration_obj._calibration[x_item - 1, :]
+
+        return _x, self._calibration_obj._calibration[y_item, :]
+
     def calibrate_detector(self, fit_recipe):
 
         if self._calibration_obj is not None:
-            self._calibration_obj.initalize_calib_results()
+            # self._calibration_obj.initalize_calib_results()
             for recipe in fit_recipe:
                 if recipe == "wavelength":
                     self._calibration_obj.calibrate_wave_length()
@@ -90,12 +139,9 @@ class DetectorCalibrationModel(QObject):
                 elif recipe == 'wavelength+shift x':
                     self._calibration_obj.calibrate_wave_shift()
 
-            print(self._calibration_obj._calibration)
-            print(self._calibration_obj._residual_sum)
-            print(self._calibration_obj._residual_rmse)
-
     def set_exclude_sub_runs(self, exclude_list):
-        self._calibration_obj.set_exclude_subrun_list(exclude_list)
+        if self._calibration_obj is not None:
+            self._calibration_obj.set_exclude_subrun_list(exclude_list)
 
     def get_reduced_diffraction_data(self, sub_run, mask):
         return self._calibration_obj.reducer.get_diffraction_data(sub_run, mask_id=mask)
