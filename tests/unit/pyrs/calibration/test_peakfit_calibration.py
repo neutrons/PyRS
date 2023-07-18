@@ -5,28 +5,13 @@ import pytest
 import time
 import os
 import json
-import numpy as np
-from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
-from pyrs.core.workspaces import HidraWorkspace
+from pyrs.calibration import mantid_peakfit_calibration
 
-try:
-    from pyrs.calibration import peakfit_calibration
-except ImportError as e:
-    # import failed exception explains why - typing doesn't like changing type of variable
-    peakfit_calibration = str(e)  # type: ignore
 
 try:
     from scipy.optimize import least_squares
 except ImportError as e:
     least_squares = str(e)  # import failed exception explains why
-
-
-# Define powder dspace of LaB6 used for synthetic data
-dSpace = np.array([4.156826, 2.93931985, 2.39994461, 2.078413, 1.8589891, 1.69701711, 1.46965993,
-                   1.38560867, 1.3145038, 1.2533302, 1.19997231, 1.1528961, 1.11095848,
-                   1.0392065, 1.00817839, 0.97977328, 0.95364129, 0.92949455, 0.9070938,
-                   0.88623828, 0.84850855, 0.8313652, 0.81522065, 0.79998154, 0.77190321,
-                   0.75892912, 0.73482996])
 
 
 def are_equivalent_jsons(test_json_name, gold_json_name, atol):
@@ -119,33 +104,34 @@ def print_out_json_diff(json_file1_name, json_file2_name):
     return
 
 
-# On analysis cluster, it will fail due to lmfit is not supported
-@pytest.mark.skipif(isinstance(least_squares, str), reason=least_squares)
-def test_least_square():
+def test_wavelength():
     """Main test for the script
 
     Returns
     -------
 
     """
-    # Set up
-    # reduction engine
-    project_file_name = 'tests/data/HB2B_000.h5'
-    engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
-    engine_ws = HidraWorkspace('test')
-    engine_ws._load_sample_logs(engine)
-    engine_ws._load_raw_counts(engine)
+    # Define Fitting Routine
+    nexus_file = 'tests/data/calibration_tests/HB2B_3510.nxs.h5'
+
+    goldfile = 'tests/data/calibration_tests/HB2B_mantid_calib_lambda.json'
 
     t_start = time.time()
 
     # Initalize calibration
-    calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=engine_ws, powder_lines=dSpace)
+    calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file=nexus_file)
 
-    calibrator.UseLSQ = False
+    # Setup test constraints    
+    calibrator._keep_subrun_list = [True] * calibrator.sy.size
+    calibrator._keep_subrun_list[0] = False
+    calibrator.max_nfev = 3
+
+    # Calibrate
     calibrator.calibrate_wave_length()
-    calibrator._caliberr[6] = 1e-4
-    calibrator._caliberr[0] = 1e-4
+
     calibrator._calibstatus = 3
+
+    calibrator.print_calibration()
 
     # write out
     if os.path.exists('HB2B_CAL_Test.json'):
@@ -157,45 +143,50 @@ def test_least_square():
     print('Total Time: {}'.format(t_stop - t_start))
 
     # Compare output file with gold file for test
-    if are_equivalent_jsons('tests/data/HB2B_CAL_Si333.json', file_name, atol=1E-1):
+    if are_equivalent_jsons(goldfile, file_name, atol=5E-3):
         # Same: remove file generated in test
         os.remove(file_name)
     else:
-        print_out_json_diff('tests/data/HB2B_CAL_Si333.json', 'HB2B_CAL_Test.json')
-        assert False, 'Test output {} is different from gold file {}'.format(file_name,
-                                                                             'tests/data/HB2B_CAL_Si333.json')
+        print_out_json_diff(goldfile, 'HB2B_CAL_Test.json')
+        assert False, 'Test output {} is different from gold file {}'.format(file_name, goldfile)
 
     return
 
-
-@pytest.mark.skipif(isinstance(peakfit_calibration, str), reason=peakfit_calibration)  # type: ignore
-def test_leastsq():
+def test_all_refinements():
     """Main test for the script
 
     Returns
     -------
 
     """
-    # Set up
-    # reduction engine
-    project_file_name = 'tests/data/HB2B_000.h5'
-    engine = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
+    # Define Fitting Routine
+    nexus_file = 'tests/data/calibration_tests/HB2B_3510.nxs.h5'
 
-    # Convert HidraProjectFile into HidraWorkspace
-    engine_ws = HidraWorkspace('test')
-    engine_ws._load_sample_logs(engine)
-    engine_ws._load_raw_counts(engine)
+    goldfile = 'tests/data/calibration_tests/HB2B_mantid_calib.json'
 
     t_start = time.time()
 
     # Initalize calibration
-    calibrator = peakfit_calibration.PeakFitCalibration(powder_engine=engine_ws, powder_lines=dSpace)
+    calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file=nexus_file)
 
-    calibrator.UseLSQ = True
-    calibrator.calibrate_wave_length()
-    calibrator._caliberr[6] = 1e-4
-    calibrator._caliberr[0] = 1e-4
+    # Setup test constraints
+    calibrator._keep_subrun_list = [False] * calibrator.sy.size
+    calibrator._keep_subrun_list[0] = True
+    calibrator.max_nfev = 2
+
+    # Calibrate
+    calibrator.CalibrateRotation()
+    calibrator.CalibrateGeometry()
+    calibrator.CalibrateShift()
+    calibrator.calibrate_shiftx()
+    calibrator.calibrate_shifty()
+    calibrator.calibrate_distance()
+    calibrator.FullCalibration()
+    calibrator.calibrate_wave_shift()
+
     calibrator._calibstatus = 3
+
+    calibrator.print_calibration()
 
     # write out
     if os.path.exists('HB2B_CAL_Test.json'):
@@ -207,13 +198,54 @@ def test_leastsq():
     print('Total Time: {}'.format(t_stop - t_start))
 
     # Compare output file with gold file for test
-    if are_equivalent_jsons('tests/data/HB2B_CAL_Si333.json', file_name, atol=5E-3):
+    if are_equivalent_jsons(goldfile, file_name, atol=5E-3):
         # Same: remove file generated in test
         os.remove(file_name)
     else:
-        print_out_json_diff('tests/data/HB2B_CAL_Si333.json', 'HB2B_CAL_Test.json')
-        assert False, 'Test output {} is different from gold file {}'.format(file_name,
-                                                                             'tests/data/HB2B_CAL_Si333.json')
+        print_out_json_diff(goldfile, 'HB2B_CAL_Test.json')
+        assert False, 'Test output {} is different from gold file {}'.format(file_name, goldfile)
+
+    return
+
+def test_load_print_calibration():
+    """Main test for the script
+
+    Returns
+    -------
+
+    """
+    # Define Fitting Routine
+    nexus_file = 'tests/data/calibration_tests/HB2B_3510.nxs.h5'
+
+    goldfile = 'tests/data/calibration_tests/HB2B_mantid_calib_lambda.json'
+
+    t_start = time.time()
+
+    # Initalize calibration
+    calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file=nexus_file)
+
+    calibrator.get_archived_calibration(goldfile)
+
+    # set calibration status and errors as they are not loaded
+    calibrator._calibstatus = 3
+    calibrator._caliberr[6] = 0.0017686068225929259
+
+    # write out
+    if os.path.exists('HB2B_CAL_Test.json'):
+        os.remove('HB2B_CAL_Test.json')
+    file_name = os.path.join(os.getcwd(), 'HB2B_CAL_Test.json')
+    calibrator.write_calibration(file_name)
+
+    t_stop = time.time()
+    print('Total Time: {}'.format(t_stop - t_start))
+
+    # Compare output file with gold file for test
+    if are_equivalent_jsons(goldfile, file_name, atol=5E-3):
+        # Same: remove file generated in test
+        os.remove(file_name)
+    else:
+        print_out_json_diff(goldfile, 'HB2B_CAL_Test.json')
+        assert False, 'Test output {} is different from gold file {}'.format(file_name, goldfile)
 
     return
 

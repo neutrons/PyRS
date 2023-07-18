@@ -382,26 +382,26 @@ class PeakLinesSetupView(QGroupBox):
 
     def setup_combo_box(self):
         temp_combo_box = QComboBox(self)
-        temp_combo_box.addItems(['', 'wavelength', 'wavelength+shift x', 'rotations', 'geometry',
-                                 'shifts', 'shift x', 'shift y', 'distance', 'full'])
+        temp_combo_box.addItems(['', 'wavelength', 'wavelength_tth0', 'rotations', 'geometry',
+                                 'shifts', 'shift x', 'shift y', 'distance', 'full', 'tth0'])
 
         return temp_combo_box
 
-    def get_exclude_list(self):
-        exclude_list = []
+    def get_keep_list(self):
+        keep_list = []
         for i_row in range(self.calibrant_table.rowCount()):
-            exclude_list.append(self.calibrant_table.item(i_row, 1).checkState() != 0)
+            keep_list.append(self.calibrant_table.item(i_row, 1).checkState() == 0)
 
-        return np.array(exclude_list)
+        return np.array(keep_list)
 
     def fit_peaks(self):
         self.set_reduction_param()
-        exclude_list = self.get_exclude_list()
-        self._parent.controller.fit_diffraction_peaks(exclude_list)
+        keep_list = self.get_keep_list()
+        self._parent.controller.fit_diffraction_peaks(keep_list)
 
     def calibrate_detector(self):
         self.set_reduction_param()
-        exclude_list = self.get_exclude_list()
+        exclude_list = self.get_keep_list()
         fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
         calibration, calibration_error = self._parent.controller.calibrate_detector(fit_recipe,
                                                                                     exclude_list)
@@ -442,7 +442,7 @@ class PeakLinesSetupView(QGroupBox):
             output_dict['input_calibration'] = self._parent._calibration_input
 
         # write exclude list
-        output_dict['exclude'] = self.get_exclude_list().tolist()
+        output_dict['keep'] = self.get_keep_list().tolist()
 
         # write routines
         Method = ''
@@ -494,7 +494,7 @@ class PeakLinesSetupView(QGroupBox):
             self.recipe_combos[i_item].setCurrentIndex(methods.index(item))
 
         try:
-            for i_exclude, exclude in enumerate(input_dict['exclude']):
+            for i_exclude, exclude in enumerate(input_dict['keep']):
                 if exclude is True:
                     self.calibrant_table.item(i_exclude, 1).setCheckState(1)
         except KeyError:
@@ -588,14 +588,14 @@ class CalibrationSummaryTable(QTableWidget):
 
         self.setColumnCount(1)
 
-        self.labels = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'Lambda']
+        self.labels = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'TTH_0', 'Lambda']
 
         self.setRowCount(len(self.labels))
         self.setVerticalHeaderLabels(self.labels)
 
         self.setHorizontalHeaderLabels(['Starting'])
 
-        for i_row in range(7):
+        for i_row in range(8):
             self.setItem(i_row, 0, QTableWidgetItem("0"))
 
     def _initalize_calibration(self, json_input):
@@ -615,7 +615,7 @@ class CalibrationSummaryTable(QTableWidget):
                 self.setItem(i_lable, col_index, QTableWidgetItem(str(calibration[i_lable])))
 
     def set_wavelength(self, column, item):
-        self.setItem(6, column, QTableWidgetItem(str(item)))
+        self.setItem(7, column, QTableWidgetItem(str(item)))
 
     def _clear_rows(self):
         _nbr_row = self._parent.tableView_fitSummary.rowCount()

@@ -982,11 +982,10 @@ class PeakFitCalibration:
         from pyrs.core.instrument_geometry import DENEXDetectorShift
         # Form DENEXDetectorShift objects
         cal_shift = DENEXDetectorShift(self._calib[0], self._calib[1], self._calib[2], self._calib[3],
-                                       self._calib[4], self._calib[5], self._calib[7])
+                                       self._calib[4], self._calib[5])
 
         cal_shift_error = DENEXDetectorShift(self._caliberr[0], self._caliberr[1], self._caliberr[2],
-                                             self._caliberr[3], self._caliberr[4], self._caliberr[5],
-                                             self._caliberr[7])
+                                             self._caliberr[3], self._caliberr[4], self._caliberr[5])
 
         wl = self._calib[6]
         wl_error = self._caliberr[6]

@@ -88,7 +88,7 @@ class DENEXDetectorGeometry:
         self._pixel_size_y = to_float('Pixel size (y)', pixel_size_y, min_value=1E-7)
         self._detector_rows = to_int('Number of rows in detector', num_rows, min_value=1)
         self._detector_columns = to_int('Number of columns in detector', num_columns, min_value=1)
-        # TODO this isn't used - BUG?
+
         checkdatatypes.check_bool_variable('Flag indicating instrument setup been calibrated', calibrated)
 
     def apply_shift(self, geometry_shift):
@@ -127,7 +127,7 @@ class DENEXDetectorShift:
     A class to handle and save instrument geometry calibration information
     """
 
-    def __init__(self, shift_x, shift_y, shift_z, rotation_x, rotation_y, rotation_z):
+    def __init__(self, shift_x, shift_y, shift_z, rotation_x, rotation_y, rotation_z, tth_0):
         """
         Initialization of instrument geometry setup for 1 denex detector
         :param shift_x: detector shift along x
@@ -136,6 +136,7 @@ class DENEXDetectorShift:
         :param rotation_x: detector rotation about x
         :param rotation_y: detector rotation about y
         :param rotation_z: detector rotation about z
+        :param tth_0: shift of detector tth reference frame
         """
 
         self._center_shift_x = shift_x
@@ -145,6 +146,8 @@ class DENEXDetectorShift:
         self._rotation_x = rotation_x  # in Y-Z plane (horizontal), i.e, flip
         self._rotation_y = rotation_y  # in X-Z plane along Y axis (vertical), i.e., rotate
         self._rotation_z = rotation_z  # in X-Y plane along Z axis, i.e., spin at detector center
+
+        self._two_theta_0 = tth_0  # in rotation of detector arm about X
 
         # Need data from client to finish this
         self.calibrated_wave_length = {'Si001': 1.00}
@@ -221,6 +224,17 @@ class DENEXDetectorShift:
     @rotation_z.setter
     def rotation_z(self, value: float) -> None:
         self._rotation_z = to_float('Rotation along Z direction', value, -360, 360)
+
+    @property
+    def two_theta_0(self):
+        """
+        :return float: Shift of the 2theta zero point
+        """
+        return self._two_theta_0
+
+    @two_theta_0.setter
+    def two_theta_0(self, value: float) -> None:
+        self._two_theta_0 = to_float('offset in two_theta arm for ideal 0', value, -360, 360)
 
     def convert_to_dict(self):
         """
@@ -312,7 +326,7 @@ class DENEXDetectorShift:
         self.set_from_dict(instrument_dict)
 
 
-if __name__ == '__main__':
-    # Test main
-    shift = DENEXDetectorShift(0., 0., 0., 0., 0., 0.)
-    shift.to_json('geometry_shift_template.json')
+# if __name__ == '__main__':
+#     # Test main
+#     shift = DENEXDetectorShift(0., 0., 0., 0., 0., 0.)
+#     shift.to_json('geometry_shift_template.json')

@@ -45,8 +45,10 @@ class WorkerObject(QObject):
                 self._parent._calibration_obj.calibrate_distance()
             elif recipe == "full":
                 self._parent._calibration_obj.FullCalibration()
-            elif recipe == 'wavelength+shift x':
+            elif recipe == 'wavelength_tth0':
                 self._parent._calibration_obj.calibrate_wave_shift()
+            elif recipe == 'tth0':
+                self._parent._calibration_obj.calibrate_tth0()
 
         self.signalStatus.emit('Idle.')
 
@@ -142,17 +144,20 @@ class DetectorCalibrationModel(QObject):
                     self._calibration_obj.calibrate_distance()
                 elif recipe == "full":
                     self._calibration_obj.FullCalibration()
-                elif recipe == 'wavelength+shift x':
+                elif recipe == 'wavelength_tth0':
                     self._calibration_obj.calibrate_wave_shift()
+                elif recipe == 'tth0':
+                    self._calibration_obj.calibrate_tth0()
 
-                calibration.append(self._calibration_obj.calibration_array)
-                calibration_error.append(self._calibration_obj.calibration_error_array)
+                if recipe != '':
+                    calibration.append(self._calibration_obj.calibration_array)
+                    calibration_error.append(self._calibration_obj.calibration_error_array)
 
             return calibration, calibration_error
 
-    def set_exclude_sub_runs(self, exclude_list):
+    def set_keep_subrun_list(self, keep_list):
         if self._calibration_obj is not None:
-            self._calibration_obj.set_exclude_subrun_list(exclude_list)
+            self._calibration_obj.set_keep_subrun_list(keep_list)
 
     def get_reduced_diffraction_data(self, sub_run, mask):
         return self._calibration_obj.reducer.get_diffraction_data(sub_run, mask_id=mask)

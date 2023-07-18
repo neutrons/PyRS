@@ -41,13 +41,13 @@ class DetectorCalibrationCrtl:
     def get_wavelength(self):
         return self._model.get_wavelength()
 
-    def fit_diffraction_peaks(self, exclude_list):
+    def fit_diffraction_peaks(self, keep_list):
         # self.check_eta_tth_bins(tth_bins, eta_bins)
-        self._model.set_exclude_sub_runs(exclude_list)
+        self._model.set_keep_subrun_list(keep_list)
         self._model.fit_diffraction_peaks()
 
-    def calibrate_detector(self, fit_recipe, exclude_list):
-        self._model.set_exclude_sub_runs(exclude_list)
+    def calibrate_detector(self, fit_recipe, keep_list):
+        self._model.set_keep_subrun_list(keep_list)
         calibration, calibration_error = self._model.calibrate_detector(fit_recipe)
         return calibration, calibration_error
 
