@@ -137,7 +137,7 @@ class FitCalibration:
         self._hidra_ws._mask_dict = dict()
         self.reducer = ReductionApp()
         self.reducer.load_hidra_workspace(self._hidra_ws)
-        
+
         self.reducer.reduce_data(sub_runs=self.sub_runs[np.array(self._keep_subrun_list)], 
                                  instrument_file=None, calibration_file=None,
                                  mask=self.mask_file, num_bins=self.bins, eta_step=self.eta_slices,
@@ -221,7 +221,7 @@ class FitCalibration:
                 _ws = []
                 for peak in peaks:
                     # print(sub_run, peak, peaks)
-                    fits = _fit_engine.fit_multiple_peaks(["peak_tags"], [peak - 2.5], [peak + 2.5])
+                    fits = _fit_engine.fit_multiple_peaks(["peak_tags"], [peak - 3], [peak + 3])
 
                     _ws.append(fits.fitted)
                     center_errors = np.concatenate((center_errors,
@@ -249,6 +249,7 @@ class FitCalibration:
         residual = self.fit_peaks()
 
         print("")
+        print('{}'.format(self.get_tth0()))
         print('Iteration      {}'.format(self._calibration.shape[1]))
         print('RMSE         = {}'.format(np.sqrt((residual**2).sum() / residual.shape[0])))
         print('Residual Sum = {}'.format(np.sum(residual)))
@@ -549,7 +550,7 @@ class FitCalibration:
                                     LL=[-5.0], UL=[5.0], i_index=6,
                                     method='trf')
 
-        self.set_distance(out)
+        self.set_tth0(out)
 
         return
 
@@ -644,6 +645,13 @@ class FitCalibration:
 
         return
 
+    def set_tth0(self, out):
+        self._calib[6] = out[0]
+        self._calibstatus = out[2]
+        self._caliberr[6] = out[1]
+
+        return
+
     def set_rotation(self, out):
         self._calib[3:6] = out[0]
         self._calibstatus = out[2]
@@ -652,9 +660,9 @@ class FitCalibration:
         return
 
     def set_geo(self, out):
-        self._calib[0:6] = out[0]
+        self._calib[0:7] = out[0]
         self._calibstatus = out[2]
-        self._caliberr[0:6] = out[1]
+        self._caliberr[0:7] = out[1]
 
         return
 

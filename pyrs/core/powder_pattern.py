@@ -140,7 +140,7 @@ class ReductionApp:
 
         """
         # Check inputs
-        if (sub_runs is None) or (len(sub_runs == 0)):  # None or empty list
+        if (sub_runs is None) or (len(sub_runs) == 0):  # None or empty list
             self._sub_runs = self._hydra_ws.get_sub_runs()
         else:
             # sort array to make sure the sub-run data are written into project files in increasing order

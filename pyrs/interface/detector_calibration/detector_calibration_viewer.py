@@ -487,8 +487,8 @@ class PeakLinesSetupView(QGroupBox):
         except KeyError:
             pass
 
-        methods = ['', 'wavelength', 'wavelength+shift x', 'rotations', 'geometry',
-                   'shifts', 'shift x', 'shift y', 'distance', 'full']
+        methods = ['', 'wavelength', 'wavelength_tth0', 'rotations', 'geometry',
+                   'shifts', 'shift x', 'shift y', 'distance', 'full', 'tth0']
 
         for i_item, item in enumerate(input_dict['Method'].split(',')):
             self.recipe_combos[i_item].setCurrentIndex(methods.index(item))
@@ -496,7 +496,7 @@ class PeakLinesSetupView(QGroupBox):
         try:
             for i_exclude, exclude in enumerate(input_dict['keep']):
                 if exclude is True:
-                    self.calibrant_table.item(i_exclude, 1).setCheckState(1)
+                    self.calibrant_table.item(i_exclude, 1).setCheckState(2)
         except KeyError:
             pass
 
