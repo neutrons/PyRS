@@ -2,8 +2,8 @@
 Convert HB2B NeXus file to Hidra project file for further reduction
 """
 from mantid.kernel import Logger, BoolTimeSeriesProperty, FloatFilteredTimeSeriesProperty, FloatTimeSeriesProperty
-from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty,\
-    Int64FilteredTimeSeriesProperty
+from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty
+from mantid.kernel import Int64FilteredTimeSeriesProperty, StringTimeSeriesProperty, StringFilteredTimeSeriesProperty
 from mantid.simpleapi import mtd, DeleteWorkspace, LoadMask, RemoveLogs, CopyLogs, CreateSampleWorkspace
 import numpy as np
 import os
@@ -62,6 +62,8 @@ def calculate_sub_run_time_average(log_property, time_filter) -> float:
             filtered_tsp = Int32FilteredTimeSeriesProperty(log_property, time_filter)
         elif isinstance(log_property, Int64TimeSeriesProperty):
             filtered_tsp = Int64FilteredTimeSeriesProperty(log_property, time_filter)
+        elif isinstance(log_property, StringTimeSeriesProperty):
+            filtered_tsp = StringFilteredTimeSeriesProperty(log_property, time_filter)
         else:
             raise NotImplementedError('TSP log property {} of type {} is not supported'
                                       ''.format(log_property.name, type(log_property)))
