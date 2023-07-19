@@ -249,6 +249,7 @@ class DENEXDetectorShift:
         geometry_shift_dict['Rot_x'] = self._rotation_x
         geometry_shift_dict['Rot_y'] = self._rotation_y
         geometry_shift_dict['Rot_z'] = self._rotation_z
+        geometry_shift_dict['TTH_0'] = self._two_theta_0
 
         return geometry_shift_dict
 
@@ -265,6 +266,7 @@ class DENEXDetectorShift:
         geometry_shift_dict['error_Rot_x'] = self._rotation_x
         geometry_shift_dict['error_Rot_y'] = self._rotation_y
         geometry_shift_dict['error_Rot_z'] = self._rotation_z
+        geometry_shift_dict['error_TTH_0'] = self._two_theta_0
 
         return geometry_shift_dict
 
