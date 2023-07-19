@@ -89,7 +89,7 @@ class FileLoad(QWidget):
             if type(self._parent._calibration_input) is list:
                 self._parent._calibration_input = self._parent._calibration_input[0]
 
-            self._parent.calib_summary._cal_summary_table._initalize_calibration(self._parent._calibration_input)
+            self._parent.calib_summary._cal_summary_table._initalize_calibration()
 
     def openFileDialog(self):
         self._parent._nexus_file, _ = QFileDialog.getOpenFileNames(self,
@@ -407,6 +407,8 @@ class PeakLinesSetupView(QGroupBox):
     def calibrate_detector(self):
         self.set_reduction_param()
         self.set_calibration_params()
+        self.set_refinement_params()
+
         exclude_list = self.get_keep_list()
         fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
         calibration, calibration_error, r_sum, rmse = self._parent.controller.calibrate_detector(fit_recipe,
@@ -433,6 +435,10 @@ class PeakLinesSetupView(QGroupBox):
 
     def set_calibration_params(self):
         self._parent.controller.set_calibration_params(self._parent.calib_summary._cal_summary_table.get_calibration())
+
+    def set_refinement_params(self):
+        self._parent.controller.set_refinement_params(self._parent.calib_summary.method_combo_box.currentText(),
+                                                      self._parent.calib_summary.neval_lineEdit.text())
 
     def save_json(self):
         filename, _ = QFileDialog.getSaveFileName(self,
@@ -462,15 +468,18 @@ class PeakLinesSetupView(QGroupBox):
         Method = ''
         for i_item in range(8):
             if self.recipe_combos[i_item].currentText() != '':
-                Method = '{},{}'.format(Method, self.recipe_combos[i_item].currentText())
+                recipe = '{},{}'.format(Method, self.recipe_combos[i_item].currentText())
 
-        output_dict['Method'] = Method[1:]
+        output_dict['recipe'] = recipe[1:]
 
         # write tth bins
         output_dict['tth_bin'] = self.tthbin_lineEdit.text()
 
         # write eta bins
         output_dict['eta_bin'] = self.etabin_lineEdit.text()
+
+        output_dict['method'] = self._parent.calib_summary.method_combo_box.currentText()
+        output_dict['neval'] = self._parent.calib_summary.neval_lineEdit.text()
 
         print(output_dict)
         with open(filename, "w") as outfile:
@@ -493,36 +502,30 @@ class PeakLinesSetupView(QGroupBox):
             self._parent._nexus_file = input_dict['nexus_file']
             self._parent.fileLoading.file_load_dilg.load_nexus()
 
-        # load input calibration if specified
-        try:
-            self._parent._calibration_input = input_dict['input_calibration']
-            if self._parent._calibration_input is not None:
-                pass
-        except KeyError:
-            pass
-
         methods = ['', 'wavelength', 'wavelength_tth0', 'rotations', 'geometry',
                    'shifts', 'shift x', 'shift y', 'distance', 'full', 'tth0']
 
-        for i_item, item in enumerate(input_dict['Method'].split(',')):
+        for i_item, item in enumerate(input_dict['recipe'].split(',')):
             self.recipe_combos[i_item].setCurrentIndex(methods.index(item))
 
-        try:
-            for i_keep, keep in enumerate(input_dict['keep']):
-                if keep is False:
-                    self.calibrant_table.item(i_keep, 1).setCheckState(2)
-        except KeyError:
-            pass
+        # load input calibration if specified
 
-        try:
-            self.tthbin_lineEdit.setText(input_dict['tth_bin'])
-        except KeyError:
-            pass
-
-        try:
-            self.etabin_lineEdit.setText(input_dict['eta_bin'])
-        except KeyError:
-            pass
+        for key in list(input_dict.keys()):
+            if key == 'input_calibration':
+                self._parent._calibration_input = input_dict['input_calibration']
+                self._parent.calib_summary._cal_summary_table._initalize_calibration(self._parent._calibration_input)
+            elif key == 'keep':
+                for i_keep, keep in enumerate(input_dict['keep']):
+                    if keep is False:
+                        self.calibrant_table.item(i_keep, 1).setCheckState(2)
+            elif key == 'tth_bin':
+                self.tthbin_lineEdit.setText(input_dict['tth_bin'])
+            elif key == 'eta_bin':
+                self.etabin_lineEdit.setText(input_dict['eta_bin'])
+            elif key == 'method':
+                self._parent.calib_summary.set_method(input_dict[key])
+            elif key == 'neval':
+                self._parent.calib_summary.neval_lineEdit.setText(str(input_dict[key]))
 
 
 class CalibrationSummaryView(QGroupBox):
@@ -530,13 +533,9 @@ class CalibrationSummaryView(QGroupBox):
         self._parent = parent
         super().__init__(parent=parent)
 
-        # self.recipe_setup = QGroupBox()
-        # self.recipe_setup.setTitle("Define Calibration Recipe")
-        # _layout = QGridLayout()
         _layout = QHBoxLayout()
 
         self._cal_summary_table = CalibrationSummaryTable()
-        # _layout.addWidget(self._cal_summary_table, 0, 0, 5, 1)
         _layout.addWidget(self._cal_summary_table)
 
         calib_summary = QGroupBox()
@@ -557,25 +556,44 @@ class CalibrationSummaryView(QGroupBox):
         self.delta_tth_lineEdit.setReadOnly(True)
         self.delta_tth_lineEdit.setFixedWidth(200)
 
-        for i_row in range(5):
+        neval_label = QLabel('max nfev')
+        neval_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.neval_lineEdit = QLineEdit()
+        self.neval_lineEdit.setText('300')
+        self.neval_lineEdit.setFixedWidth(200)
+
+        method_label = QLabel('refinement method')
+        method_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.method_combo_box = QComboBox(self)
+        self.method_combo_box.addItems(['trf', 'dogbox', 'lm'])
+
+        for i_row in range(3):
             calib_layout.addWidget(empty_label, i_row, 0)
 
-        calib_layout.addWidget(rmse_label, i_row + 1, 0)
-        calib_layout.addWidget(self.rmse_lineEdit, i_row + 1, 1)
-        calib_layout.addWidget(delta_tth_label, i_row + 2, 0)
-        calib_layout.addWidget(self.delta_tth_lineEdit, i_row + 2, 1)
+        calib_layout.addWidget(method_label, i_row + 1, 0)
+        calib_layout.addWidget(self.method_combo_box, i_row + 1, 1)
+        calib_layout.addWidget(neval_label, i_row + 2, 0)
+        calib_layout.addWidget(self.neval_lineEdit, i_row + 2, 1)
+        calib_layout.addWidget(rmse_label, i_row + 3, 0)
+        calib_layout.addWidget(self.rmse_lineEdit, i_row + 3, 1)
+        calib_layout.addWidget(delta_tth_label, i_row + 4, 0)
+        calib_layout.addWidget(self.delta_tth_lineEdit, i_row + 4, 1)
 
         self.export_calib_bttn = QPushButton("Export Calibration")
         self.export_calib_bttn.clicked.connect(self.export_calib)
         self.export_local_calib_bttn = QPushButton("Save Local Calibration")
         self.export_local_calib_bttn.clicked.connect(self.export_local_calib)
 
-        calib_layout.addWidget(self.export_calib_bttn, i_row + 3, 0, 1, 2)
-        calib_layout.addWidget(self.export_local_calib_bttn, i_row + 4, 0, 1, 2)
+        calib_layout.addWidget(self.export_calib_bttn, i_row + 5, 0, 1, 2)
+        calib_layout.addWidget(self.export_local_calib_bttn, i_row + 6, 0, 1, 2)
         calib_summary.setLayout(calib_layout)
         _layout.addWidget(calib_summary)
 
         self.setLayout(_layout)
+
+    def set_method(self, method):
+        methods = ['trf', 'dogbox', 'lm']
+        self.method_combo_box.setCurrentIndex(methods.index(method))
 
     def export_calib(self, filename=None):
         self._parent.controller.export_calibration(filename=filename)
@@ -612,13 +630,17 @@ class CalibrationSummaryTable(QTableWidget):
         for i_row in range(8):
             self.setItem(i_row, 0, QTableWidgetItem("0"))
 
-    def _initalize_calibration(self, json_input):
-        with open(json_input, 'r') as openfile:
-            # Reading from json file
-            input_dict = json.load(openfile)
+    def _initalize_calibration(self, json_input=None):
+        if json_input is None:
+            json_input = self._parent._calibration_input
 
-        for i_lable, label in enumerate(self.labels):
-            self.setItem(i_lable, 0, QTableWidgetItem(str(input_dict[label])))
+        if json_input is not None:
+            with open(json_input, 'r') as openfile:
+                # Reading from json file
+                input_dict = json.load(openfile)
+
+            for i_lable, label in enumerate(self.labels):
+                self.setItem(i_lable, 0, QTableWidgetItem(str(input_dict[label])))
 
     def set_calibration(self, calibration_list, calibration_error_list):
 

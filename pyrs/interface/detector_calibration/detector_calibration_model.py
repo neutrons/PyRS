@@ -101,6 +101,10 @@ class DetectorCalibrationModel(QObject):
         if self._calibration_obj is not None:
             self._calibration_obj.write_calibration(file_name=filename)
 
+    def set_refinement_params(self, method, max_nfev):
+        self._calibration_obj.set_refinement_method(method)
+        self._calibration_obj.set_max_nfev(int(max_nfev))
+
     def set_calibration_params(self, params_list):
         self._calibration_obj.set_calibration_array(params_list)
         self._calibration_obj.set_inst_shifts_wl(params_list)
@@ -115,7 +119,7 @@ class DetectorCalibrationModel(QObject):
 
     def fit_diffraction_peaks(self):
         if self._calibration_obj is not None:
-            residual =  self._calibration_obj.fit_peaks()
+            residual = self._calibration_obj.fit_peaks()
             return np.sqrt((residual**2).sum() / residual.shape[0]), residual.sum()
 
     def get_calibration_values(self, x_item, y_item):

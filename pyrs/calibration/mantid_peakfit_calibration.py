@@ -23,7 +23,8 @@ class FitCalibration:
     """
 
     def __init__(self, _inst=None, nexus_file=None, mask_file=None, vanadium=None,
-                 eta_slice=3, bins=512, reduction_engine=None, pow_lines=None):
+                 eta_slice=3, bins=512, reduction_engine=None, pow_lines=None,
+                 max_nfev=None, method='trf'):
 
         """
         Initialization
@@ -67,7 +68,8 @@ class FitCalibration:
         self.refinement_summary = ''
 
         self.fitted_ws = None
-        self.max_nfev = None
+        self._max_nfev = max_nfev
+        self._ref_method = method
 
         self._ref_powders = np.array(['Ni', 'Fe', 'Mo'])
         self._ref_powders_sy = np.array([62, 12, -13])
@@ -108,6 +110,12 @@ class FitCalibration:
 
     def set_calibration_array(self, params):
         self._calib = np.array(params)
+
+    def set_refinement_method(self, method):
+        self._ref_method = method
+
+    def set_max_nfev(self, nfev):
+        self._max_nfev = nfev
 
     def set_inst_shifts_wl(self, params):
         self._hidra_ws.set_detector_shift(DENEXDetectorShift(params[0], params[1], params[2],
@@ -268,7 +276,7 @@ class FitCalibration:
 
         return residual
 
-    def FitDetector(self, fun, x0, jac='3-point', bounds=[], method='trf',
+    def FitDetector(self, fun, x0, jac='3-point', bounds=[],
                     i_index=2, Brute=False):
 
         if Brute:
@@ -287,12 +295,12 @@ class FitCalibration:
             if len(x0) != len(bounds[1]):
                 raise RuntimeError('User must specify bounds of equal length')
 
-            if method == 'lm':
-                out = least_squares(fun, x0, jac='3-point', method=method,
-                                    max_nfev=self.max_nfev, args=(Brute, i_index))
+            if self._ref_method == 'lm':
+                out = least_squares(fun, x0, jac='3-point', method=self._ref_method,
+                                    max_nfev=self._max_nfev, args=(Brute, i_index))
             else:
-                out = least_squares(fun, x0, jac='3-point', bounds=bounds, method=method,
-                                    max_nfev=self.max_nfev, args=(Brute, i_index))
+                out = least_squares(fun, x0, jac='3-point', bounds=bounds, method=self._ref_method,
+                                    max_nfev=self._max_nfev, args=(Brute, i_index))
 
             J = out.jac
 
@@ -411,7 +419,7 @@ class FitCalibration:
         return residual
 
     def calibrate_single(self, initial_guess=None, ConstrainPosition=True, LL=[], UL=[],
-                         i_index=0, method='trf'):
+                         i_index=0):
         """Calibrate wave length
 
         Parameters
@@ -424,7 +432,7 @@ class FitCalibration:
         """
 
         out = self.FitDetector(self.peak_alignment_single, initial_guess, jac='3-point', bounds=(LL, UL),
-                               method=method, i_index=i_index)
+                               i_index=i_index)
 
         return out
 
@@ -466,8 +474,7 @@ class FitCalibration:
             initial_guess = np.concatenate((self.get_tth0(), self.get_wavelength()))
 
         out = self.FitDetector(self.peak_alignment_wave_shift, initial_guess,
-                               bounds=([-5.0, self._calib[7]-.025], [5.0, self._calib[7]+.025]),
-                               method='trf')
+                               bounds=([-5.0, self._calib[7]-.025], [5.0, self._calib[7]+.025]))
 
         self.set_wave_shift(out)
 
@@ -489,8 +496,7 @@ class FitCalibration:
             initial_guess = np.array([self.get_calib()[0]])
 
         out = self.calibrate_single(initial_guess=initial_guess,
-                                    LL=[-0.05], UL=[0.05], i_index=0,
-                                    method='trf')
+                                    LL=[-0.05], UL=[0.05], i_index=0)
 
         self.set_shiftx(out)
 
@@ -510,8 +516,7 @@ class FitCalibration:
             initial_guess = np.array([self.get_calib()[1]])
 
         out = self.calibrate_single(initial_guess=initial_guess,
-                                    LL=[-0.05], UL=[0.05], i_index=1,
-                                    method='trf')
+                                    LL=[-0.05], UL=[0.05], i_index=1)
 
         self.set_shifty(out)
 
@@ -533,8 +538,7 @@ class FitCalibration:
             initial_guess = np.array([self.get_calib()[2]])
 
         out = self.calibrate_single(initial_guess=initial_guess,
-                                    LL=[-0.1], UL=[0.1], i_index=2,
-                                    method='trf')
+                                    LL=[-0.1], UL=[0.1], i_index=2)
 
         self.set_distance(out)
 
@@ -556,8 +560,7 @@ class FitCalibration:
             initial_guess = np.array([self.get_calib()[6]])
 
         out = self.calibrate_single(initial_guess=initial_guess,
-                                    LL=[-5.0], UL=[5.0], i_index=6,
-                                    method='trf')
+                                    LL=[-5.0], UL=[5.0], i_index=6)
 
         self.set_tth0(out)
 
@@ -571,8 +574,7 @@ class FitCalibration:
             bounds = [[-.05, -.05, -.15], [.05, .05, .15]]
 
         out = self.FitDetector(self.peak_alignment_shift, initalGuess,
-                               bounds=(bounds[0], bounds[1]),
-                               method='trf')
+                               bounds=(bounds[0], bounds[1]))
 
         self.set_shift(out)
 
@@ -584,8 +586,7 @@ class FitCalibration:
             initalGuess = self.get_rotation()
 
         out = self.FitDetector(self.peak_alignment_rotation, initalGuess,
-                               bounds=([-5.0, -5.0, -5.0], [5.0, 5.0, 5.0]),
-                               method='trf')
+                               bounds=([-5.0, -5.0, -5.0], [5.0, 5.0, 5.0]))
 
         self.set_rotation(out)
 
@@ -598,8 +599,7 @@ class FitCalibration:
 
         out = self.FitDetector(self.peak_alignment_geometry, initalGuess,
                                bounds=([-.05, -.05, -.05, -5.0, -5.0, -5.0, -5.0],
-                                       [.05, .05, .05, 5.0, 5.0, 5.0, 5.0]),
-                               method='trf')
+                                       [.05, .05, .05, 5.0, 5.0, 5.0, 5.0]))
 
         self.set_geo(out)
 
@@ -612,8 +612,7 @@ class FitCalibration:
 
         out = self.FitDetector(self.peaks_alignment_all, initalGuess,
                                bounds=([-.05, -.05, -.15, -5.0, -5.0, -5.0, -5.0, self._calib[7]-.05],
-                                       [.05, .05, .15, 5.0, 5.0, 5.0, 5.0, self._calib[7]+.05]),
-                               method='trf')
+                                       [.05, .05, .15, 5.0, 5.0, 5.0, 5.0, self._calib[7]+.05]))
 
         self.set_calibration(out)
 

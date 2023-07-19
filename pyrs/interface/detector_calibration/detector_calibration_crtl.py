@@ -41,6 +41,9 @@ class DetectorCalibrationCrtl:
         tth_bins, eta_bins = self.validate_eta_tth(tth_bins, eta_bins)
         self._model.set_reduction_param(tth_bins, eta_bins)
 
+    def set_refinement_params(self, method, max_nfev):
+        self._model.set_refinement_params(method, max_nfev)
+
     def get_wavelength(self):
         return self._model.get_wavelength()
 
