@@ -34,6 +34,9 @@ class DetectorCalibrationCrtl:
 
         self._model._init_calibration(nexus_file, tth_bins, eta_bins)
 
+    def set_calibration_params(self, params):
+        self._model.set_calibration_params(params)
+
     def set_reduction_param(self, tth_bins, eta_bins):
         tth_bins, eta_bins = self.validate_eta_tth(tth_bins, eta_bins)
         self._model.set_reduction_param(tth_bins, eta_bins)
@@ -44,12 +47,12 @@ class DetectorCalibrationCrtl:
     def fit_diffraction_peaks(self, keep_list):
         # self.check_eta_tth_bins(tth_bins, eta_bins)
         self._model.set_keep_subrun_list(keep_list)
-        self._model.fit_diffraction_peaks()
+        return self._model.fit_diffraction_peaks()
 
     def calibrate_detector(self, fit_recipe, keep_list):
         self._model.set_keep_subrun_list(keep_list)
-        calibration, calibration_error = self._model.calibrate_detector(fit_recipe)
-        return calibration, calibration_error
+        calibration, calibration_error, r_sum, rmse = self._model.calibrate_detector(fit_recipe)
+        return calibration, calibration_error, r_sum, rmse
 
     def get_powders(self):
         return self._model.powders

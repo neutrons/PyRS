@@ -101,6 +101,10 @@ class DetectorCalibrationModel(QObject):
         if self._calibration_obj is not None:
             self._calibration_obj.write_calibration(file_name=filename)
 
+    def set_calibration_params(self, params_list):
+        self._calibration_obj.set_calibration_array(params_list)
+        self._calibration_obj.set_inst_shifts_wl(params_list)
+
     def set_reduction_param(self, tth_bins, eta_bins):
         if self._calibration_obj is not None:
             self._calibration_obj = FitCalibration(nexus_file=self._nexus_file, eta_slice=eta_bins, bins=tth_bins)
@@ -111,7 +115,8 @@ class DetectorCalibrationModel(QObject):
 
     def fit_diffraction_peaks(self):
         if self._calibration_obj is not None:
-            self._calibration_obj.fit_peaks()
+            residual =  self._calibration_obj.fit_peaks()
+            return np.sqrt((residual**2).sum() / residual.shape[0]), residual.sum()
 
     def get_calibration_values(self, x_item, y_item):
         if x_item == 0:
@@ -153,7 +158,8 @@ class DetectorCalibrationModel(QObject):
                     calibration.append(self._calibration_obj.calibration_array)
                     calibration_error.append(self._calibration_obj.calibration_error_array)
 
-            return calibration, calibration_error
+            return calibration, calibration_error, self._calibration_obj.residual_sum,\
+                self._calibration_obj.residual_rmse
 
     def set_keep_subrun_list(self, keep_list):
         if self._calibration_obj is not None:

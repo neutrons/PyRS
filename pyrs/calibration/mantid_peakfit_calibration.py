@@ -7,13 +7,10 @@ import os
 from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
-from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
+from pyrs.core.instrument_geometry import DENEXDetectorShift
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
-
-# Import instrument constants
-from pyrs.core.nexus_conversion import NUM_PIXEL_1D, PIXEL_SIZE, ARM_LENGTH
 
 # Import scipy libraries for minimization
 from scipy.optimize import least_squares
@@ -52,15 +49,6 @@ class FitCalibration:
         self.mask_file = mask_file
 
         self._keep_subrun_list = None
-
-
-        # define instrument setup
-        if _inst is None:
-            self._instrument = DENEXDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D,
-                                                     PIXEL_SIZE, PIXEL_SIZE,
-                                                     ARM_LENGTH, False)
-        else:
-            self._instrument = _inst
 
         if nexus_file is not None:
             self._reduce_diffraction_data(nexus_file)
@@ -110,6 +98,25 @@ class FitCalibration:
     def calibration_error_array(self):
         return self._caliberr
 
+    @property
+    def residual_sum(self):
+        return self._residual_sum[-1]
+
+    @property
+    def residual_rmse(self):
+        return self._residual_rmse[-1]
+
+    def set_calibration_array(self, params):
+        self._calib = np.array(params)
+
+    def set_inst_shifts_wl(self, params):
+        self._hidra_ws.set_detector_shift(DENEXDetectorShift(params[0], params[1], params[2],
+                                                             params[3], params[4], params[5], params[6]))
+
+        self._hidra_ws.set_wavelength(params[7], False)
+
+        return
+
     def set_keep_subrun_list(self, keep_list):
         self._keep_subrun_list = keep_list
 
@@ -125,6 +132,8 @@ class FitCalibration:
         if calibration is not None:
             self._hidra_ws.set_instrument_geometry(calibration)
 
+        # self._hidra_ws.set_detector_shift(DENEXDetectorShift(x[0], x[1], x[2], x[3], x[4], x[5], x[6]))
+
         self.reducer = ReductionApp()
         self.reducer.load_hidra_workspace(self._hidra_ws)
         self.reducer.reduce_data(sub_runs=None,
@@ -138,7 +147,7 @@ class FitCalibration:
         self.reducer = ReductionApp()
         self.reducer.load_hidra_workspace(self._hidra_ws)
 
-        self.reducer.reduce_data(sub_runs=self.sub_runs[np.array(self._keep_subrun_list)], 
+        self.reducer.reduce_data(sub_runs=self.sub_runs[np.array(self._keep_subrun_list)],
                                  instrument_file=None, calibration_file=None,
                                  mask=self.mask_file, num_bins=self.bins, eta_step=self.eta_slices,
                                  van_file=self.vanadium)
@@ -243,13 +252,13 @@ class FitCalibration:
 
         self._calibration = np.concatenate((self._calibration, x.reshape(-1, 1)), axis=1)
 
-        self._hidra_ws.set_wavelength(x[7], False)
-        self._hidra_ws.set_detector_shift(DENEXDetectorShift(x[0], x[1], x[2], x[3], x[4], x[5], x[6]))
+        self.set_inst_shifts_wl(x)
+        # self._hidra_ws.set_wavelength(x[7], False)
+        # self._hidra_ws.set_detector_shift(DENEXDetectorShift(x[0], x[1], x[2], x[3], x[4], x[5], x[6]))
 
         residual = self.fit_peaks()
 
         print("")
-        print('{}'.format(self.get_tth0()))
         print('Iteration      {}'.format(self._calibration.shape[1]))
         print('RMSE         = {}'.format(np.sqrt((residual**2).sum() / residual.shape[0])))
         print('Residual Sum = {}'.format(np.sum(residual)))

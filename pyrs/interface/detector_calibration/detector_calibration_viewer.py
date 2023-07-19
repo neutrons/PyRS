@@ -206,13 +206,13 @@ class VisualizeResults(QWidget):
 
         self.plot_paramX = QComboBox()
         self.plot_paramX.addItems(["iteration", 'shift x', 'shift y', 'distance',
-                                   'rot x', 'rot y', 'rot z', 'wavelength'])
+                                   'rot x', 'rot y', 'rot z', 'tth 0', 'wavelength'])
 
         plot_labelX = QLabel("X-axis")
         plot_labelX.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.plot_paramY = QComboBox()
         self.plot_paramY.addItems(['shift x', 'shift y', 'distance',
-                                   'rot x', 'rot y', 'rot z', 'wavelength'])
+                                   'rot x', 'rot y', 'rot z', 'tth 0', 'wavelength'])
 
         self.plot_paramX.currentIndexChanged.connect(self.change_plot)
         self.plot_paramY.currentIndexChanged.connect(self.change_plot)
@@ -396,17 +396,28 @@ class PeakLinesSetupView(QGroupBox):
 
     def fit_peaks(self):
         self.set_reduction_param()
+        self.set_calibration_params()
         keep_list = self.get_keep_list()
-        self._parent.controller.fit_diffraction_peaks(keep_list)
+        rmse, deltatth = self._parent.controller.fit_diffraction_peaks(keep_list)
+        self._parent.compare_diff_data.valueChanged()  # auto plot data after fitting
+
+        self._parent.calib_summary.rmse_lineEdit.setText('{0:3f}'.format(rmse))
+        self._parent.calib_summary.delta_tth_lineEdit.setText('{0:4f}'.format(deltatth))
 
     def calibrate_detector(self):
         self.set_reduction_param()
+        self.set_calibration_params()
         exclude_list = self.get_keep_list()
         fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
-        calibration, calibration_error = self._parent.controller.calibrate_detector(fit_recipe,
-                                                                                    exclude_list)
+        calibration, calibration_error, r_sum, rmse = self._parent.controller.calibrate_detector(fit_recipe,
+                                                                                                 exclude_list)
 
         self._parent.calib_summary._cal_summary_table.set_calibration(calibration, calibration_error)
+        self._parent.compare_diff_data.valueChanged()  # auto plot data after fitting
+        self._parent.param_window.change_plot()
+
+        self._parent.calib_summary.rmse_lineEdit.setText('{0:3f}'.format(rmse))
+        self._parent.calib_summary.delta_tth_lineEdit.setText('{0:4f}'.format(r_sum))
 
     def setup_calibration_table(self, powders):
         self.calibrant_table.setRowCount(len(powders))
@@ -419,6 +430,9 @@ class PeakLinesSetupView(QGroupBox):
             chkBoxItem.setCheckState(0)
             self.calibrant_table.setItem(row, 0, powder_item)
             self.calibrant_table.setItem(row, 1, chkBoxItem)
+
+    def set_calibration_params(self):
+        self._parent.controller.set_calibration_params(self._parent.calib_summary._cal_summary_table.get_calibration())
 
     def save_json(self):
         filename, _ = QFileDialog.getSaveFileName(self,
@@ -494,9 +508,9 @@ class PeakLinesSetupView(QGroupBox):
             self.recipe_combos[i_item].setCurrentIndex(methods.index(item))
 
         try:
-            for i_exclude, exclude in enumerate(input_dict['keep']):
-                if exclude is True:
-                    self.calibrant_table.item(i_exclude, 1).setCheckState(2)
+            for i_keep, keep in enumerate(input_dict['keep']):
+                if keep is False:
+                    self.calibrant_table.item(i_keep, 1).setCheckState(2)
         except KeyError:
             pass
 
@@ -614,6 +628,11 @@ class CalibrationSummaryTable(QTableWidget):
             for i_lable in range(len(self.labels)):
                 self.setItem(i_lable, col_index, QTableWidgetItem(str(calibration[i_lable])))
 
+    def get_calibration(self):
+        col_nbr = self.get_number_of_columns()
+
+        return [float(self.item(i_row, col_nbr - 1).text()) for i_row in range(8)]
+
     def set_wavelength(self, column, item):
         self.setItem(7, column, QTableWidgetItem(str(item)))
 
@@ -633,8 +652,7 @@ class CalibrationSummaryTable(QTableWidget):
         return current_cols
 
     def get_number_of_columns(self):
-        _nbr_column = self.columnCount()
-        return _nbr_column
+        return self.columnCount()
 
     def _clear_table(self):
         self._clear_rows()
