@@ -444,7 +444,7 @@ class FitCalibration:
             initial_guess = self.get_wavelength()
 
         out = self.calibrate_single(initial_guess=initial_guess,
-                                    LL=[self._calib[7] - .025], UL=[self._calib[7] + .025], i_index=6)
+                                    LL=[self._calib[7] - .025], UL=[self._calib[7] + .025], i_index=7)
 
         self.set_wavelength(out)
 
