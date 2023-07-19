@@ -104,108 +104,108 @@ def print_out_json_diff(json_file1_name, json_file2_name):
     return
 
 
-# def test_wavelength():
-#     """Main test for the script
+def test_wavelength():
+    """Main test for the script
 
-#     Returns
-#     -------
+    Returns
+    -------
 
-#     """
-#     # Define Fitting Routine
-#     nexus_file = 'tests/data/calibration_tests/HB2B_3510.nxs.h5'
+    """
+    # Define Fitting Routine
+    nexus_file = 'tests/data/calibration_tests/HB2B_3510.nxs.h5'
 
-#     goldfile = 'tests/data/calibration_tests/HB2B_mantid_calib_lambda.json'
+    goldfile = 'tests/data/calibration_tests/HB2B_mantid_calib_lambda.json'
 
-#     t_start = time.time()
+    t_start = time.time()
 
-#     # Initalize calibration
-#     calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file=nexus_file)
+    # Initalize calibration
+    calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file=nexus_file)
 
-#     # Setup test constraints    
-#     calibrator._keep_subrun_list = [True] * calibrator.sy.size
-#     calibrator._keep_subrun_list[0] = False
-#     calibrator.max_nfev = 3
+    # Setup test constraints    
+    calibrator._keep_subrun_list = [True] * calibrator.sy.size
+    calibrator._keep_subrun_list[0] = False
+    calibrator.max_nfev = 3
 
-#     # Calibrate
-#     calibrator.calibrate_wave_length()
+    # Calibrate
+    calibrator.calibrate_wave_length()
 
-#     calibrator._calibstatus = 3
+    calibrator._calibstatus = 3
 
-#     calibrator.print_calibration()
+    calibrator.print_calibration()
 
-#     # write out
-#     if os.path.exists('HB2B_CAL_Test.json'):
-#         os.remove('HB2B_CAL_Test.json')
-#     file_name = os.path.join(os.getcwd(), 'HB2B_CAL_Test.json')
-#     calibrator.write_calibration(file_name)
+    # write out
+    if os.path.exists('HB2B_CAL_Test.json'):
+        os.remove('HB2B_CAL_Test.json')
+    file_name = os.path.join(os.getcwd(), 'HB2B_CAL_Test.json')
+    calibrator.write_calibration(file_name)
 
-#     t_stop = time.time()
-#     print('Total Time: {}'.format(t_stop - t_start))
+    t_stop = time.time()
+    print('Total Time: {}'.format(t_stop - t_start))
 
-#     # Compare output file with gold file for test
-#     if are_equivalent_jsons(goldfile, file_name, atol=5E-3):
-#         # Same: remove file generated in test
-#         os.remove(file_name)
-#     else:
-#         print_out_json_diff(goldfile, 'HB2B_CAL_Test.json')
-#         assert False, 'Test output {} is different from gold file {}'.format(file_name, goldfile)
+    # Compare output file with gold file for test
+    if are_equivalent_jsons(goldfile, file_name, atol=5E-3):
+        # Same: remove file generated in test
+        os.remove(file_name)
+    else:
+        print_out_json_diff(goldfile, 'HB2B_CAL_Test.json')
+        assert False, 'Test output {} is different from gold file {}'.format(file_name, goldfile)
 
-#     return
+    return
 
-# def test_all_refinements():
-#     """Main test for the script
+def test_all_refinements():
+    """Main test for the script
 
-#     Returns
-#     -------
+    Returns
+    -------
 
-#     """
-#     # Define Fitting Routine
-#     nexus_file = 'tests/data/calibration_tests/HB2B_3510.nxs.h5'
+    """
+    # Define Fitting Routine
+    nexus_file = 'tests/data/calibration_tests/HB2B_3510.nxs.h5'
 
-#     goldfile = 'tests/data/calibration_tests/HB2B_mantid_calib.json'
+    goldfile = 'tests/data/calibration_tests/HB2B_mantid_calib.json'
 
-#     t_start = time.time()
+    t_start = time.time()
 
-#     # Initalize calibration
-#     calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file=nexus_file)
+    # Initalize calibration
+    calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file=nexus_file)
 
-#     # Setup test constraints
-#     calibrator._keep_subrun_list = [False] * calibrator.sy.size
-#     calibrator._keep_subrun_list[0] = True
-#     calibrator.max_nfev = 2
+    # Setup test constraints
+    calibrator._keep_subrun_list = [False] * calibrator.sy.size
+    calibrator._keep_subrun_list[0] = True
+    calibrator.max_nfev = 2
 
-#     # Calibrate
-#     calibrator.CalibrateRotation()
-#     calibrator.CalibrateGeometry()
-#     calibrator.CalibrateShift()
-#     calibrator.calibrate_shiftx()
-#     calibrator.calibrate_shifty()
-#     calibrator.calibrate_distance()
-#     calibrator.FullCalibration()
-#     calibrator.calibrate_wave_shift()
+    # Calibrate
+    calibrator.CalibrateRotation()
+    calibrator.CalibrateGeometry()
+    calibrator.CalibrateShift()
+    calibrator.calibrate_shiftx()
+    calibrator.calibrate_shifty()
+    calibrator.calibrate_distance()
+    calibrator.FullCalibration()
+    calibrator.calibrate_wave_shift()
 
-#     calibrator._calibstatus = 3
+    calibrator._calibstatus = 3
 
-#     calibrator.print_calibration()
+    calibrator.print_calibration()
 
-#     # write out
-#     if os.path.exists('HB2B_CAL_Test.json'):
-#         os.remove('HB2B_CAL_Test.json')
-#     file_name = os.path.join(os.getcwd(), 'HB2B_CAL_Test.json')
-#     calibrator.write_calibration(file_name)
+    # write out
+    if os.path.exists('HB2B_CAL_Test.json'):
+        os.remove('HB2B_CAL_Test.json')
+    file_name = os.path.join(os.getcwd(), 'HB2B_CAL_Test.json')
+    calibrator.write_calibration(file_name)
 
-#     t_stop = time.time()
-#     print('Total Time: {}'.format(t_stop - t_start))
+    t_stop = time.time()
+    print('Total Time: {}'.format(t_stop - t_start))
 
-#     # Compare output file with gold file for test
-#     if are_equivalent_jsons(goldfile, file_name, atol=5E-3):
-#         # Same: remove file generated in test
-#         os.remove(file_name)
-#     else:
-#         print_out_json_diff(goldfile, 'HB2B_CAL_Test.json')
-#         assert False, 'Test output {} is different from gold file {}'.format(file_name, goldfile)
+    # Compare output file with gold file for test
+    if are_equivalent_jsons(goldfile, file_name, atol=5E-3):
+        # Same: remove file generated in test
+        os.remove(file_name)
+    else:
+        print_out_json_diff(goldfile, 'HB2B_CAL_Test.json')
+        assert False, 'Test output {} is different from gold file {}'.format(file_name, goldfile)
 
-#     return
+    return
 
 def test_load_print_calibration():
     """Main test for the script

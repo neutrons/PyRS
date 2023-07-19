@@ -83,7 +83,8 @@ def read_calibration_json_file(calibration_file_name):
                                    shift_z=float(calib_dict['Shift_z']),
                                    rotation_x=float(calib_dict['Rot_x']),
                                    rotation_y=float(calib_dict['Rot_y']),
-                                   rotation_z=float(calib_dict['Rot_z']))
+                                   rotation_z=float(calib_dict['Rot_z']),
+                                   tth_0=float(calib_dict['TTH_0']))
 
     except KeyError as key_error:
         raise RuntimeError('Missing key parameter from JSON file {}: {}'.format(calibration_file_name, key_error))
@@ -95,7 +96,8 @@ def read_calibration_json_file(calibration_file_name):
                                          shift_z=float(calib_dict['error_Shift_z']),
                                          rotation_x=float(calib_dict['error_Rot_x']),
                                          rotation_y=float(calib_dict['error_Rot_y']),
-                                         rotation_z=float(calib_dict['error_Rot_z']))
+                                         rotation_z=float(calib_dict['error_Rot_z']),
+                                         tth_0=float(calib_dict['error_TTH_0']))
 
     except KeyError as key_error:
         raise RuntimeError('Missing key parameter from JSON file {}: {}'.format(calibration_file_name, key_error))
