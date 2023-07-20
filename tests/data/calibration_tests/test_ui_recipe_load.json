@@ -1,0 +1,20 @@
+{
+    "nexus_file": "./tests/data/calibration_tests/HB2B_3510.nxs.h5",
+    "keep": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+    ],
+    "recipe": "wavelength",
+    "tth_bin": "512",
+    "eta_bin": "3",
+    "method": "trf",
+    "neval": "3"
+}

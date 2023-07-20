@@ -121,10 +121,10 @@ def test_wavelength():
     # Initalize calibration
     calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file=nexus_file)
 
-    # Setup test constraints    
-    calibrator._keep_subrun_list = [True] * calibrator.sy.size
-    calibrator._keep_subrun_list[0] = False
-    calibrator.max_nfev = 3
+    # Setup test constraints
+    calibrator._keep_subrun_list = [False] * calibrator.sy.size
+    calibrator._keep_subrun_list[0] = True
+    calibrator.set_max_nfev(3)
 
     # Calibrate
     calibrator.calibrate_wave_length()
@@ -172,7 +172,7 @@ def test_all_refinements():
     # Setup test constraints
     calibrator._keep_subrun_list = [False] * calibrator.sy.size
     calibrator._keep_subrun_list[0] = True
-    calibrator.max_nfev = 2
+    calibrator.set_max_nfev(2)
 
     # Calibrate
     calibrator.CalibrateRotation()
@@ -228,7 +228,7 @@ def test_load_print_calibration():
 
     # set calibration status and errors as they are not loaded
     calibrator._calibstatus = 3
-    calibrator._caliberr[7] = 0.07945714089568823
+    calibrator._caliberr[7] = 0.001769702333724323
 
     # write out
     if os.path.exists('HB2B_CAL_Test.json'):

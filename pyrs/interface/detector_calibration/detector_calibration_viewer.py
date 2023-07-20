@@ -1,10 +1,10 @@
 from qtpy.QtWidgets import QHBoxLayout, QVBoxLayout, QLabel, QWidget  # type:ignore
 from qtpy.QtWidgets import QLineEdit, QPushButton, QComboBox  # type:ignore
 from qtpy.QtWidgets import QGroupBox, QSplitter, QFileDialog  # type:ignore
-from qtpy.QtWidgets import QStyledItemDelegate, QDoubleSpinBox  # type:ignore
+# from qtpy.QtWidgets import QStyledItemDelegate, QDoubleSpinBox  # type:ignore
 from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QSlider, QTabWidget  # type:ignore
 
-from qtpy.QtWidgets import QGridLayout, QMessageBox  # type:ignore
+from qtpy.QtWidgets import QGridLayout  # type:ignore
 from qtpy.QtWidgets import QMainWindow  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 
@@ -128,22 +128,22 @@ class FileLoad(QWidget):
         self._parent.compare_diff_data.valueChanged()
 
         self._parent.peak_lines_setup.setup_calibration_table(self._parent.controller.get_powders())
-        self._parent.calib_summary._cal_summary_table.set_wavelength(0, self._parent.model.get_wavelength)
+        self._parent.calib_summary._cal_summary_table.set_wavelength(0, self._parent.controller.get_wavelength())
 
     def setFilenamesText(self, filenames):
         self.lineEdit.setText(filenames)
 
 
-class SpinBoxDelegate(QStyledItemDelegate):
-    def __init__(self):
-        super().__init__()
+# class SpinBoxDelegate(QStyledItemDelegate):
+#     def __init__(self):
+#         super().__init__()
 
-    def createEditor(self, parent, option, index):
-        editor = QDoubleSpinBox(parent)
-        editor.setMinimum(0)
-        editor.setDecimals(5)
-        editor.setSingleStep(0.0001)
-        return editor
+#     def createEditor(self, parent, option, index):
+#         editor = QDoubleSpinBox(parent)
+#         editor.setMinimum(0)
+#         editor.setDecimals(5)
+#         editor.setSingleStep(0.0001)
+#         return editor
 
 
 class FileLoading(QGroupBox):
@@ -241,8 +241,7 @@ class VisualizeResults(QWidget):
 class FixFigureCanvas(FigureCanvas):
     def resizeEvent(self, event):
         if event.size().width() <= 0 or event.size().height() <= 0:
-            return
-        super(FixFigureCanvas, self).resizeEvent(event)
+            return super(FixFigureCanvas, self).resizeEvent(event)
 
 
 class PlotView(QWidget):
@@ -442,7 +441,7 @@ class PeakLinesSetupView(QGroupBox):
 
     def save_json(self):
         filename, _ = QFileDialog.getSaveFileName(self,
-                                                  "Export Peak Fit Information",
+                                                  "Export Calibration Recipe",
                                                   "JSON (*.json)",
                                                   options=QFileDialog.DontUseNativeDialog)
         if not filename:
@@ -487,7 +486,7 @@ class PeakLinesSetupView(QGroupBox):
 
     def load_json(self):
         filename, _ = QFileDialog.getOpenFileName(self,
-                                                  "Export Peak Fit Information",
+                                                  "Load Calibration Recipe",
                                                   "JSON (*.json);;All Files (*)",
                                                   options=QFileDialog.DontUseNativeDialog)
         if not filename:
@@ -535,7 +534,7 @@ class CalibrationSummaryView(QGroupBox):
 
         _layout = QHBoxLayout()
 
-        self._cal_summary_table = CalibrationSummaryTable()
+        self._cal_summary_table = CalibrationSummaryTable(self)
         _layout.addWidget(self._cal_summary_table)
 
         calib_summary = QGroupBox()
@@ -600,7 +599,7 @@ class CalibrationSummaryView(QGroupBox):
 
     def export_local_calib(self):
         filename, _ = QFileDialog.getSaveFileName(self,
-                                                  "Export Peak Fit Information",
+                                                  "Export Calibration",
                                                   "JSON (*.json)",
                                                   options=QFileDialog.DontUseNativeDialog)
 
@@ -632,7 +631,7 @@ class CalibrationSummaryTable(QTableWidget):
 
     def _initalize_calibration(self, json_input=None):
         if json_input is None:
-            json_input = self._parent._calibration_input
+            json_input = self._parent._parent._calibration_input
 
         if json_input is not None:
             with open(json_input, 'r') as openfile:
@@ -658,16 +657,6 @@ class CalibrationSummaryTable(QTableWidget):
     def set_wavelength(self, column, item):
         self.setItem(7, column, QTableWidgetItem(str(item)))
 
-    def _clear_rows(self):
-        _nbr_row = self._parent.tableView_fitSummary.rowCount()
-        for _ in np.arange(_nbr_row):
-            self._parent.tableView_fitSummary.removeRow(0)
-
-    def _clear_columns(self):
-        _nbr_column = self.get_number_of_columns()
-        for _ in np.arange(_nbr_column):
-            self._parent.tableView_fitSummary.removeColumn(0)
-
     def _add_column(self):
         current_cols = self.get_number_of_columns()
         self.setColumnCount(current_cols + 1)
@@ -675,10 +664,6 @@ class CalibrationSummaryTable(QTableWidget):
 
     def get_number_of_columns(self):
         return self.columnCount()
-
-    def _clear_table(self):
-        self._clear_rows()
-        self._clear_columns()
 
 
 class DetectorCalibrationViewer(QMainWindow):
@@ -740,11 +725,11 @@ class DetectorCalibrationViewer(QMainWindow):
     def model(self):
         return self._model
 
-    def show_failure_msg(self, msg, info, details):
-        self.viz_tab.set_message(msg)
-        msgBox = QMessageBox()
-        msgBox.setIcon(QMessageBox.Critical)
-        msgBox.setText(msg)
-        msgBox.setInformativeText(info)
-        msgBox.setDetailedText(details)
-        msgBox.exec()
+    # def show_failure_msg(self, msg, info, details):
+    #     self.viz_tab.set_message(msg)
+    #     msgBox = QMessageBox()
+    #     msgBox.setIcon(QMessageBox.Critical)
+    #     msgBox.setText(msg)
+    #     msgBox.setInformativeText(info)
+    #     msgBox.setDetailedText(details)
+    #     msgBox.exec()

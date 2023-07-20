@@ -45,7 +45,7 @@ class DetectorCalibrationCrtl:
         self._model.set_refinement_params(method, max_nfev)
 
     def get_wavelength(self):
-        return self._model.get_wavelength()
+        return self._model.get_wavelength
 
     def fit_diffraction_peaks(self, keep_list):
         # self.check_eta_tth_bins(tth_bins, eta_bins)
