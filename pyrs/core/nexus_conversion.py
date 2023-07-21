@@ -538,6 +538,13 @@ class NeXusConvertingApp:
         else:
             try:
                 split_log[:] = runObj.getPropertyAsSingleValue(log_name)
+            except RuntimeError:
+                if isinstance(log_property.value, str):
+                    split_log[:] = log_property.value
+                elif isinstance(log_property.value, list):
+                    split_log[:] = log_property.value[0]
+                else:
+                    raise RuntimeError('Cannot filter log "{}" of type "{}"'.format(log_name, log_dtype))
             except ValueError:
                 if isinstance(log_property.value, str):
                     split_log[:] = log_property.value
