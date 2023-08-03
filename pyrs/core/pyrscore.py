@@ -132,7 +132,7 @@ class PyRsCore:
         :return:
         """
         pole_figure_calculator = self._pole_figure_calculator_dict[data_key]
-        assert isinstance(pole_figure_calculator, polefigurecalculator.PoleFigureCalculator),\
+        assert isinstance(pole_figure_calculator, polefigurecalculator.PoleFigureCalculator), \
             'Pole figure calculator type mismatched. Input is of type {0} but expected as {1}.' \
             ''.format(type(pole_figure_calculator), 'polefigurecalculator.PoleFigureCalculato')
 

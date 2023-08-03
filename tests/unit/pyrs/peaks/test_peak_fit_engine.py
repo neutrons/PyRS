@@ -286,7 +286,7 @@ def setup_1_subrun(request):
 
 @pytest.mark.parametrize("setup_1_subrun",
                          [{'peak_profile_type': 'Gaussian', 'min_x': 75., 'max_x': 85., 'num_x': 500,
-                           'peak_center': [80.], 'peak_range': [10. * 0.25], 'peak_intensities':[10]}],
+                           'peak_center': [80.], 'peak_range': [10. * 0.25], 'peak_intensities': [10]}],
                          indirect=True)
 @pytest.mark.parametrize('fit_domain',
                          [(78.75, 81.25)])
@@ -579,7 +579,7 @@ def test_3_gaussian_3_subruns(target_values):
 
 @pytest.mark.parametrize("setup_1_subrun", [{'peak_profile_type': 'PseudoVoigt', 'min_x': 75., 'max_x': 85.,
                                              'num_x': 500, 'peak_center': [80.], 'peak_range': [10. * 0.25],
-                                             'peak_intensities':[100.]}], indirect=True)
+                                             'peak_intensities': [100.]}], indirect=True)
 @pytest.mark.parametrize('fit_domain',
                          [(77.5, 82.5)])
 def test_1_pv_1_subrun(setup_1_subrun, fit_domain):

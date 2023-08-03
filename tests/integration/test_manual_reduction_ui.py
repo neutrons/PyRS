@@ -156,7 +156,7 @@ def test_load_split():
     # plt.plot(vec_2theta, vec_intensity)
     # plt.show()
 
-    assert vec_intensity[~np.isnan(vec_intensity)].max() > 2,\
+    assert vec_intensity[~np.isnan(vec_intensity)].max() > 2, \
         'Max intensity {} must larger than 2'.format(vec_intensity[~np.isnan(vec_intensity)].max())
 
     # Sample logs
