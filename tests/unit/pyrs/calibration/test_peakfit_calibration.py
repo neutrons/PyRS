@@ -228,7 +228,7 @@ def test_load_print_calibration():
 
     # set calibration status and errors as they are not loaded
     calibrator._calibstatus = 3
-    calibrator._caliberr[7] = 0.001769702333724323
+    calibrator._caliberr[7] = 0.00770477092528105
 
     # write out
     if os.path.exists('HB2B_CAL_Test.json'):
