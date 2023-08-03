@@ -94,6 +94,7 @@ jobs:
         run: |
           conda activate PyRS
           cd conda.recipe
+          conda install boa -c conda-forge
           conda mambabuild --output-folder . . -c conda-forge -c mantid
           conda verify noarch/pyrs-*py*.tar.bz2
 
