@@ -96,7 +96,7 @@ jobs:
           conda activate PyRS
           cd conda.recipe
           conda-mambabuild --output-folder . . -c conda-forge -c mantid
-          conda-build verify noarch/pyrs-*py*.tar.bz2
+          conda-verify noarch/pyrs-*py*.tar.bz2
 
       - name: Publish to Anaconda
         shell: bash -l {0}
