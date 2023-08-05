@@ -84,7 +84,7 @@ def check_numpy_arrays(var_name: str, variables: Any, dimension: Optional[int], 
         variables = [variables]
         check_same_shape = False
     else:
-        assert isinstance(variables, (list, tuple)),\
+        assert isinstance(variables, (list, tuple)), \
             'Variable {} (shall be an numpy arrays) {} must be given in form of numpy array, ' \
             'list or tuple but not {}'.format(var_name, variables, type(variables))
 
@@ -118,7 +118,7 @@ def check_series(var_name: str, variable: Any, allowed_type: Any = None, size: A
     '''
     check_string_variable('Variable name', var_name)
 
-    assert isinstance(variable, (list, tuple, numpy.ndarray)),\
+    assert isinstance(variable, (list, tuple, numpy.ndarray)), \
         '{} {} must be a list or tuple but not a {}'.format(var_name, variable, type(variable))
 
     # check size

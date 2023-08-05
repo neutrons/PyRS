@@ -134,7 +134,7 @@ def _parse_powder_line(json_entry):
 
             dspace.append(lattice / np.sqrt(h_**2 + k_**2 + l_**2))
 
-        elif type(item) == float:
+        elif isinstance(item, float):
             dspace.append(item)
 
         if Input_error:

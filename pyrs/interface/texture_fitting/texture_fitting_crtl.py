@@ -270,13 +270,13 @@ class TextureFittingCrtl:
                                          fit_object=fit_object,
                                          out_of_plane=out_of_plane)
 
-        if type(ydata[0]) == np.ndarray:
+        if isinstance(ydata[0], np.ndarray):
             yerr = ydata[1]
             ydata = ydata[0]
         else:
             yerr = np.zeros_like(ydata)
 
-        if type(xdata[0]) == np.ndarray:
+        if isinstance(xdata[0], np.ndarray):
             xerr = xdata[1]
             xdata = xdata[0]
         else:
@@ -303,16 +303,16 @@ class TextureFittingCrtl:
                                                 fit_object=_parent.fit_summary.fit_table_operator,
                                                 out_of_plane=out_of_plane, include_list=include_list)
 
-        if type(zdata[0]) == np.ndarray:
+        if isinstance(zdata[0], np.ndarray):
             zdata = zdata[0]
 
-        if type(xdata) == list:
+        if isinstance(xdata, list):
             xdata = np.array(xdata)
 
-        if type(ydata) == list:
+        if isinstance(ydata, list):
             ydata = np.array(ydata)
 
-        if type(zdata) == list:
+        if isinstance(zdata, list):
             zdata = np.array(zdata)
 
         plot_scatter = False

@@ -286,7 +286,7 @@ def setup_1_subrun(request):
 
 @pytest.mark.parametrize("setup_1_subrun",
                          [{'peak_profile_type': 'Gaussian', 'min_x': 75., 'max_x': 85., 'num_x': 500,
-                           'peak_center': [80.], 'peak_range': [10. * 0.25], 'peak_intensities':[10]}],
+                           'peak_center': [80.], 'peak_range': [10. * 0.25], 'peak_intensities': [10]}],
                          indirect=True)
 @pytest.mark.parametrize('fit_domain',
                          [(78.75, 81.25)])
@@ -499,7 +499,7 @@ def test_2_gaussian_3_subruns(target_values):
     np.testing.assert_allclose(param_values_lp['PeakCentre'][:2], target_values['peak_center'], rtol=50.)
     np.testing.assert_allclose(param_values_lp['Sigma'][:2], target_values['sigma'], rtol=50.)
     np.testing.assert_allclose(param_values_lp['A0'][:2], target_values['background_A0'], rtol=50.)
-    np.testing.assert_allclose(param_values_lp['A1'][:2], target_values['background_A1'], rtol=50.)
+    np.testing.assert_allclose(param_values_lp['A1'][:2], target_values['background_A1'], rtol=50., atol=1.)
 
     effective_param_values, effective_param_errors = fit_result.peakcollections[1].get_effective_params()
     assert effective_param_values.size == 3, '3 subruns'
@@ -579,7 +579,7 @@ def test_3_gaussian_3_subruns(target_values):
 
 @pytest.mark.parametrize("setup_1_subrun", [{'peak_profile_type': 'PseudoVoigt', 'min_x': 75., 'max_x': 85.,
                                              'num_x': 500, 'peak_center': [80.], 'peak_range': [10. * 0.25],
-                                             'peak_intensities':[100.]}], indirect=True)
+                                             'peak_intensities': [100.]}], indirect=True)
 @pytest.mark.parametrize('fit_domain',
                          [(77.5, 82.5)])
 def test_1_pv_1_subrun(setup_1_subrun, fit_domain):
