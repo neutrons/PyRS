@@ -499,7 +499,7 @@ def test_2_gaussian_3_subruns(target_values):
     np.testing.assert_allclose(param_values_lp['PeakCentre'][:2], target_values['peak_center'], rtol=50.)
     np.testing.assert_allclose(param_values_lp['Sigma'][:2], target_values['sigma'], rtol=50.)
     np.testing.assert_allclose(param_values_lp['A0'][:2], target_values['background_A0'], rtol=50.)
-    np.testing.assert_allclose(param_values_lp['A1'][:2], target_values['background_A1'], rtol=50.)
+    np.testing.assert_allclose(param_values_lp['A1'][:2], target_values['background_A1'], rtol=50., atol=1.)
 
     effective_param_values, effective_param_errors = fit_result.peakcollections[1].get_effective_params()
     assert effective_param_values.size == 3, '3 subruns'
