@@ -95,8 +95,10 @@ jobs:
         run: |
           conda activate PyRS
           cd conda.recipe
+          python set_environment.py
           # conda mambabuild --output-folder . . -c conda-forge -c mantid
-          conda-build --output-folder . . -c conda-forge -c mantid
+          # conda-build --output-folder . . -c conda-forge -c mantid
+          # boa build ..
           conda verify noarch/pyrs-*py*.tar.bz2
 
       - name: Publish to Anaconda
