@@ -1,7 +1,7 @@
 import os
 
-version_tag = os.environ.get('GIT_DESCRIBE_TAG', '0.0.0') 
-version_number = os.environ.get('GIT_DESCRIBE_NUMBER', '0') 
+version_tag = os.environ.get('GIT_DESCRIBE_TAG', '0.0.0')
+version_number = os.environ.get('GIT_DESCRIBE_NUMBER', '0')
 version_number = '_' + version_number if version_number != '0' else ''
 
 with open('recipe.yaml', 'w') as fout:
