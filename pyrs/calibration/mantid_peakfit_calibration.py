@@ -75,7 +75,7 @@ class FitCalibration:
         self._ref_powders_sy = np.array([62, 12, -13])
         self._ref_structure = np.array(['FCC', 'BCC', 'BCC'])
         # self._ref_lattice = [3.523799438, 2.8663982, 3.14719963]
-        self._ref_lattice = [3.523421, 2.866355, 3.147664]
+        self._ref_lattice = [3.526314, 2.865579, 3.147664]
 
         if pow_lines is None:
             self.get_powder_lines()
