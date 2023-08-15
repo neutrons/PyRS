@@ -235,6 +235,9 @@ class FitCalibration:
 
                 peaks = peaks[(peaks > (tth.min() + 1)) * (peaks < (tth.max() - 1))]
 
+                if peaks.size > 1:
+                    peaks = peaks[:1]
+
                 _ws = []
                 for peak in peaks:
                     # print(sub_run, peak, peaks)
