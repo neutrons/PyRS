@@ -318,7 +318,7 @@ class GuiUtilities:
             _label = QTableWidgetItem(list_fit_peak_labels[_index])
             self.parent.ui.peak_range_table.setItem(_index, 2, _label)
 
-            _value = QTableWidgetItem("{:.3f}".format(list_fit_peak_d0[_index]))
+            _value = QTableWidgetItem("{:.6f}".format(list_fit_peak_d0[_index]))
             self.parent.ui.peak_range_table.setItem(_index, 3, _value)
 
     @staticmethod
