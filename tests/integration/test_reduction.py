@@ -1,6 +1,6 @@
 import os
+from mantid.simpleapi import LoadEventNexus
 from pyrs.core.nexus_conversion import NeXusConvertingApp, DEFAULT_KEEP_LOGS
-from pyrs.core.live_data_conversion import LiveConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 from pyrs.dataobjects import HidraConstants  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
@@ -84,7 +84,10 @@ def convertMantidToProject(nexusfile, projectfile, skippable, mask_file_name=Non
     if projectfile and os.path.exists(projectfile):
         os.remove(projectfile)
 
-    converter = LiveConvertingApp(nexusfile, mask_file_name=mask_file_name)
+    live_wsp = LoadEventNexus(Filename=nexusfile,
+                              OutputWorkspace='live_wsp', MetaDataOnly=False, LoadMonitors=False)
+    
+    converter = NeXusConvertingApp(live_wsp=live_wsp, mask_file_name=mask_file_name)
     hidra_ws = converter.convert()
     if projectfile is not None:
         converter.save(projectfile)
