@@ -86,7 +86,7 @@ def convertMantidToProject(nexusfile, projectfile, skippable, mask_file_name=Non
 
     live_wsp = LoadEventNexus(Filename=nexusfile,
                               OutputWorkspace='live_wsp', MetaDataOnly=False, LoadMonitors=False)
-    
+
     converter = NeXusConvertingApp(live_wsp=live_wsp, mask_file_name=mask_file_name)
     hidra_ws = converter.convert()
     if projectfile is not None:

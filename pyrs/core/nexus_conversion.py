@@ -279,7 +279,7 @@ class NeXusConvertingApp:
     :param extra_logs: list of string with no default logs to keep in project file
     :type extra_logs: list, optional
     """
-    def __init__(self, nexus_file_name=None, live_wsp=None, mask_file_name=None, extra_logs=list()):
+    def __init__(self, nexus_file_name=None, mask_file_name=None, extra_logs=list(), live_wsp=None):
         """Initialization
 
         Parameters
