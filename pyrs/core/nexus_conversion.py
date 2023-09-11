@@ -386,7 +386,7 @@ class NeXusConvertingApp:
         mask_ws_name = os.path.basename(mask_file_name.split('.')[0])
 
         try:
-            mask_ws = LoadMask(Instrument='hidra', InputFile=mask_file_name, RefWorkspace=self._event_wksp,
+            mask_ws = LoadMask(Instrument='hb2b', InputFile=mask_file_name,
                                OutputWorkspace=mask_ws_name)
         except RuntimeError:  # second mask load added for old data measured prior to instrument rename
             mask_ws = LoadMask(Instrument='nrsf2', InputFile=mask_file_name, RefWorkspace=self._event_wksp,
@@ -642,7 +642,6 @@ class NeXusConvertingApp:
         # set counts to each sub run
         sub_runs = self.split_events_sub_runs()
 
-        print(sub_runs)
         # set mask
         if self.mask_array is not None:
             self._hidra_workspace.set_detector_mask(self.mask_array, is_default=True)
