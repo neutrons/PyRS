@@ -424,7 +424,8 @@ class NeXusConvertingApp:
 
     def get_events_time_wsp(self):
         # Load: this h5 will be opened all the time
-        start_time = self._live_wsp.getRun().getProperty('start_time').value
+
+        start_time = self._live_wsp.getRun().getProperty('run_start').value
         start_time = np.array(start_time, dtype='datetime64[ns]')
 
         # Load: this h5 will be opened all the time
@@ -641,6 +642,7 @@ class NeXusConvertingApp:
         # set counts to each sub run
         sub_runs = self.split_events_sub_runs()
 
+        print(sub_runs)
         # set mask
         if self.mask_array is not None:
             self._hidra_workspace.set_detector_mask(self.mask_array, is_default=True)
