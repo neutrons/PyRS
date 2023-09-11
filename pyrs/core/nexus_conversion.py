@@ -355,7 +355,7 @@ class NeXusConvertingApp:
         if self._live_wsp is not None:
             # setup workspace for event logs
             self._event_wksp = CreateSampleWorkspace(OutputWorkspace='logs', WorkspaceType='Event', NumEvents=0,
-                                                     InstrumentName='hb2b')
+                                                     InstrumentName='hidra')
 
             # add sample logs to a seperate workspace
             CopyLogs(InputWorkspace=self._live_wsp, OutputWorkspace=self._event_wksp)
@@ -386,7 +386,7 @@ class NeXusConvertingApp:
         mask_ws_name = os.path.basename(mask_file_name.split('.')[0])
 
         try:
-            mask_ws = LoadMask(Instrument='hidra', InputFile=mask_file_name, RefWorkspace=self._event_wksp,
+            mask_ws = LoadMask(Instrument='hb2b', InputFile=mask_file_name,
                                OutputWorkspace=mask_ws_name)
         except RuntimeError:  # second mask load added for old data measured prior to instrument rename
             mask_ws = LoadMask(Instrument='nrsf2', InputFile=mask_file_name, RefWorkspace=self._event_wksp,
@@ -424,7 +424,8 @@ class NeXusConvertingApp:
 
     def get_events_time_wsp(self):
         # Load: this h5 will be opened all the time
-        start_time = self._live_wsp.getRun().getProperty('start_time').value
+
+        start_time = self._live_wsp.getRun().getProperty('run_start').value
         start_time = np.array(start_time, dtype='datetime64[ns]')
 
         # Load: this h5 will be opened all the time
