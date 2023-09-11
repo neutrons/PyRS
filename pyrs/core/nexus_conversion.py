@@ -355,7 +355,7 @@ class NeXusConvertingApp:
         if self._live_wsp is not None:
             # setup workspace for event logs
             self._event_wksp = CreateSampleWorkspace(OutputWorkspace='logs', WorkspaceType='Event', NumEvents=0,
-                                                     InstrumentName='hb2b')
+                                                     InstrumentName='hidra')
 
             # add sample logs to a seperate workspace
             CopyLogs(InputWorkspace=self._live_wsp, OutputWorkspace=self._event_wksp)
