@@ -52,7 +52,8 @@ class DetectorCalibrationCrtl:
         self._model.set_keep_subrun_list(keep_list)
         return self._model.fit_diffraction_peaks()
 
-    def calibrate_detector(self, fit_recipe, keep_list):
+    def calibrate_detector(self, args):
+        fit_recipe, keep_list = args[:]
         self._model.set_keep_subrun_list(keep_list)
         calibration, calibration_error, r_sum, rmse = self._model.calibrate_detector(fit_recipe)
         return calibration, calibration_error, r_sum, rmse

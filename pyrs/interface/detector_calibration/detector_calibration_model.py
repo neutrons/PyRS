@@ -116,8 +116,11 @@ class DetectorCalibrationModel(QObject):
                     calibration.append(self._calibration_obj.calibration_array)
                     calibration_error.append(self._calibration_obj.calibration_error_array)
 
-            return calibration, calibration_error, self._calibration_obj.residual_sum,\
-                self._calibration_obj.residual_rmse
+            try:
+                return calibration, calibration_error, self._calibration_obj.residual_sum,\
+                    self._calibration_obj.residual_rmse
+            except IndexError:
+                return calibration, -1, -1, -1
 
     def set_keep_subrun_list(self, keep_list):
         if self._calibration_obj is not None:

@@ -10,6 +10,7 @@ from qtpy.QtCore import Qt  # type: ignore
 
 from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities import get_input_project_file  # type: ignore
+from pyrs.interface.threading.worker_pool import WorkerPool
 
 from matplotlib import rcParams
 
@@ -292,6 +293,8 @@ class PlotView(QWidget):
 
 
 class PeakLinesSetupView(QGroupBox):
+    worker_pool = WorkerPool()
+
     def __init__(self, parent=None):
         self._parent = parent
         super().__init__(parent=parent)
@@ -410,8 +413,28 @@ class PeakLinesSetupView(QGroupBox):
 
         exclude_list = self.get_keep_list()
         fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
-        calibration, calibration_error, r_sum, rmse = self._parent.controller.calibrate_detector(fit_recipe,
-                                                                                                 exclude_list)
+
+        self.load_info.setEnabled(False)
+        self.export_recipe.setEnabled(False)
+        self.fit.setEnabled(False)
+        self.calibrate.setEnabled(False)
+
+        # do action
+        args = [fit_recipe, exclude_list]
+        self.worker = self.worker_pool.createWorker(target=self._parent.controller.calibrate_detector, args=(args))
+        self.worker.finished.connect(lambda: self.load_info.setEnabled(True))
+        self.worker.finished.connect(lambda: self.export_recipe.setEnabled(True))
+        self.worker.finished.connect(lambda: self.fit.setEnabled(True))
+        self.worker.finished.connect(lambda: self.calibrate.setEnabled(True))
+        self.worker.result.connect(self._handleFailure)
+        self.worker.success.connect(lambda success: self.calibration_success if success else None)
+
+        self.worker_pool.submitWorker(self.worker)
+
+    def calibration_success(self):
+        print('Calibration was a success')
+
+    def update_calibration(self, calibration, calibration_error, r_sum, rmse):
 
         self._parent.calib_summary._cal_summary_table.set_calibration(calibration, calibration_error)
         self._parent.compare_diff_data.valueChanged()  # auto plot data after fitting
@@ -419,6 +442,16 @@ class PeakLinesSetupView(QGroupBox):
 
         self._parent.calib_summary.rmse_lineEdit.setText('{0:3f}'.format(rmse))
         self._parent.calib_summary.delta_tth_lineEdit.setText('{0:4f}'.format(r_sum))
+
+    def _handleFailure(self, result):
+
+        if len(result[0]) == 1:
+            calibration = result[0]
+            calibration_error = result[1]
+            r_sum = result[2]
+            rmse = result[3]
+
+            self.update_calibration(calibration, calibration_error, r_sum, rmse)
 
     def setup_calibration_table(self, powders):
         self.calibrant_table.setRowCount(len(powders))
@@ -504,8 +537,9 @@ class PeakLinesSetupView(QGroupBox):
         methods = ['', 'wavelength', 'wavelength_tth0', 'rotations', 'geometry',
                    'shifts', 'shift x', 'shift y', 'distance', 'full', 'tth0']
 
-        for i_item, item in enumerate(input_dict['recipe'].split(',')):
-            self.recipe_combos[i_item].setCurrentIndex(methods.index(item))
+        if 'recipe' in input_dict.keys():
+            for i_item, item in enumerate(input_dict['recipe'].split(',')):
+                self.recipe_combos[i_item].setCurrentIndex(methods.index(item))
 
         # load input calibration if specified
 
@@ -639,7 +673,12 @@ class CalibrationSummaryTable(QTableWidget):
                 input_dict = json.load(openfile)
 
             for i_lable, label in enumerate(self.labels):
-                self.setItem(i_lable, 0, QTableWidgetItem(str(input_dict[label])))
+                print(i_lable, label)
+                print(input_dict.keys())
+                try:
+                    self.setItem(i_lable, 0, QTableWidgetItem(str(input_dict[label])))
+                except KeyError:
+                    pass
 
     def set_calibration(self, calibration_list, calibration_error_list):
 
@@ -647,7 +686,7 @@ class CalibrationSummaryTable(QTableWidget):
             calibration = calibration_list[i_calibration]
             col_index = self._add_column()
             for i_lable in range(len(self.labels)):
-                self.setItem(i_lable, col_index, QTableWidgetItem(str(calibration[i_lable])))
+                self.setItem(i_lable, col_index, QTableWidgetItem('{0:3f}'.format(calibration[i_lable])))
 
     def get_calibration(self):
         col_nbr = self.get_number_of_columns()
