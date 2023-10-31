@@ -3,9 +3,11 @@ Convert HB2B NeXus file to Hidra project file for further reduction
 """
 import h5py
 from mantid.kernel import Logger, BoolTimeSeriesProperty, FloatFilteredTimeSeriesProperty, FloatTimeSeriesProperty
-from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty, \
-    Int64FilteredTimeSeriesProperty
+from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty
+from mantid.kernel import Int64FilteredTimeSeriesProperty, StringTimeSeriesProperty, StringFilteredTimeSeriesProperty
 from mantid.simpleapi import mtd, DeleteWorkspace, LoadEventNexus, LoadMask, RemoveLogs
+from mantid.simpleapi import CopyLogs, CreateSampleWorkspace
+
 import numpy as np
 import os
 from pyrs.core import workspaces
@@ -63,6 +65,8 @@ def calculate_sub_run_time_average(log_property, time_filter) -> float:
             filtered_tsp = Int32FilteredTimeSeriesProperty(log_property, time_filter)
         elif isinstance(log_property, Int64TimeSeriesProperty):
             filtered_tsp = Int64FilteredTimeSeriesProperty(log_property, time_filter)
+        elif isinstance(log_property, StringTimeSeriesProperty):
+            filtered_tsp = StringFilteredTimeSeriesProperty(log_property, time_filter)
         else:
             raise NotImplementedError('TSP log property {} of type {} is not supported'
                                       ''.format(log_property.name, type(log_property)))
@@ -275,13 +279,15 @@ class NeXusConvertingApp:
     :param extra_logs: list of string with no default logs to keep in project file
     :type extra_logs: list, optional
     """
-    def __init__(self, nexus_file_name, mask_file_name=None, extra_logs=list()):
+    def __init__(self, nexus_file_name=None, mask_file_name=None, extra_logs=list(), live_wsp=None):
         """Initialization
 
         Parameters
         ----------
         nexus_file_name : str
             Name of NeXus file
+        live_wsp : EventNexusWorksapce
+            mantid event nexus workspace with live data
         mask_file_name : str
             Name of masking file
         extra_logs : list, tuple
@@ -290,9 +296,16 @@ class NeXusConvertingApp:
         # configure logging for this class
         self._log = Logger(__name__)
 
-        # validate NeXus file exists
-        checkdatatypes.check_file_name(nexus_file_name, True, False, False, 'NeXus file')
-        self._nexus_name = nexus_file_name
+        if nexus_file_name is not None:
+            # validate NeXus file exists
+            checkdatatypes.check_file_name(nexus_file_name, True, False, False, 'NeXus file')
+
+            self._nexus_name = nexus_file_name
+            self._live_wsp = None
+
+        if live_wsp is not None:
+            self._nexus_name = 'HB2B_{}.nxs.h5'.format(live_wsp.getRunNumber())
+            self._live_wsp = live_wsp
 
         # validate mask file exists
         if mask_file_name is None:
@@ -306,7 +319,7 @@ class NeXusConvertingApp:
                                           ''.format(mask_file_name, mask_file_name.split('.')[-1]))
 
         # workspaces
-        self._event_ws_name = os.path.basename(nexus_file_name).split('.')[0]
+        self._event_ws_name = os.path.basename(self._nexus_name).split('.')[0]
 
         logs_to_keep = list(extra_logs)
         logs_to_keep.extend(DEFAULT_KEEP_LOGS)
@@ -339,8 +352,17 @@ class NeXusConvertingApp:
 
     def __load_logs(self, logs_to_keep):
         '''Use mantid to load the logs then set up the Splitters object'''
-        self._event_wksp = LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name,
-                                          MetaDataOnly=True, LoadMonitors=False)
+        if self._live_wsp is not None:
+            # setup workspace for event logs
+            self._event_wksp = CreateSampleWorkspace(OutputWorkspace='logs', WorkspaceType='Event', NumEvents=0,
+                                                     InstrumentName='hidra')
+
+            # add sample logs to a seperate workspace
+            CopyLogs(InputWorkspace=self._live_wsp, OutputWorkspace=self._event_wksp)
+
+        else:
+            self._event_wksp = LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name,
+                                              MetaDataOnly=True, LoadMonitors=False)
 
         # remove unwanted sample logs
         RemoveLogs(self._event_wksp, KeepLogs=logs_to_keep)
@@ -364,7 +386,7 @@ class NeXusConvertingApp:
         mask_ws_name = os.path.basename(mask_file_name.split('.')[0])
 
         try:
-            mask_ws = LoadMask(Instrument='hidra', InputFile=mask_file_name, RefWorkspace=self._event_wksp,
+            mask_ws = LoadMask(Instrument='hb2b', InputFile=mask_file_name,
                                OutputWorkspace=mask_ws_name)
         except RuntimeError:  # second mask load added for old data measured prior to instrument rename
             mask_ws = LoadMask(Instrument='nrsf2', InputFile=mask_file_name, RefWorkspace=self._event_wksp,
@@ -400,8 +422,45 @@ class NeXusConvertingApp:
 
         return subrun_event_index
 
-    def split_events_sub_runs(self):
-        '''Filter the data by ``scan_index`` and set counts array in the hidra_workspace'''
+    def get_events_time_wsp(self):
+        # Load: this h5 will be opened all the time
+
+        start_time = self._live_wsp.getRun().getProperty('run_start').value
+        start_time = np.array(start_time, dtype='datetime64[ns]')
+
+        # Load: this h5 will be opened all the time
+        event_id_array = np.zeros(self._live_wsp.getNumberEvents(), dtype=np.int32)
+        pulse_time_array = np.zeros(self._live_wsp.getNumberEvents(), dtype='datetime64[ns]')
+        event_0 = 0
+
+        for i_hist in range(self._live_wsp.getNumberHistograms()):
+            event_times = self._live_wsp.getSpectrum(i_hist).getPulseTimesAsNumpy()
+            num_events = event_times.size
+            event_id_array[event_0:(event_0 + num_events)] = np.array([i_hist] * num_events, dtype=np.int32)
+            pulse_time_array[event_0:(event_0 + num_events)] = event_times
+
+            event_0 += num_events
+
+        if self._splitter:
+            sort_index = np.argsort((pulse_time_array - start_time) / np.timedelta64(1, 's'))
+            event_id_array = event_id_array[sort_index]
+
+            pulse_time_array = pulse_time_array[sort_index]
+            event_index_array = np.arange(event_id_array.size)
+            subrun_eventindex_array = self._generate_subrun_event_indices(pulse_time_array, event_index_array,
+                                                                          event_id_array.size)
+
+            # reduce memory foot print
+            del event_index_array
+
+        else:
+            subrun_eventindex_array = None
+
+        del pulse_time_array
+
+        return event_id_array, subrun_eventindex_array
+
+    def get_events_time_nxs(self):
         # Load: this h5 will be opened all the time
         with h5py.File(self._nexus_name, 'r') as nexus_h5:
             bank1_events = nexus_h5['entry']['bank1_events']
@@ -425,6 +484,19 @@ class NeXusConvertingApp:
                 # reduce memory foot print
                 del pulse_time_array, event_index_array
 
+            else:
+                subrun_eventindex_array = None
+
+        return event_id_array, subrun_eventindex_array
+
+    def split_events_sub_runs(self):
+        '''Filter the data by ``scan_index`` and set counts array in the hidra_workspace'''
+
+        if self._live_wsp is not None:
+            event_id_array, subrun_eventindex_array = self.get_events_time_wsp()
+        else:
+            event_id_array, subrun_eventindex_array = self.get_events_time_nxs()
+
         # split data
         subruns = list()
         if self._splitter:
@@ -443,6 +515,7 @@ class NeXusConvertingApp:
 
                 # set it in the workspace
                 self._hidra_workspace.set_raw_counts(int(subrun), hist)
+
         else:  # or histogram everything
             subruns.append(1)
             hist = np.bincount(event_id_array, minlength=HIDRA_PIXEL_NUMBER)
@@ -536,6 +609,13 @@ class NeXusConvertingApp:
         else:
             try:
                 split_log[:] = runObj.getPropertyAsSingleValue(log_name)
+            except RuntimeError:
+                if isinstance(log_property.value, str):
+                    split_log[:] = log_property.value
+                elif isinstance(log_property.value, list):
+                    split_log[:] = log_property.value[0]
+                else:
+                    raise RuntimeError('Cannot filter log "{}" of type "{}"'.format(log_name, log_dtype))
             except ValueError:
                 if isinstance(log_property.value, str):
                     split_log[:] = log_property.value

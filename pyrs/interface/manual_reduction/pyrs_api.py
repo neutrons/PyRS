@@ -285,8 +285,8 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
         progressbar.setValue(0.)
 
     # process the data
-    converter = NeXusConvertingApp(nexus, mask)
-    hidra_ws = converter.convert(use_mantid=False)
+    converter = NeXusConvertingApp(nexus_file_name=nexus, mask_file_name=mask)
+    hidra_ws = converter.convert()
 
     # Update
     if progressbar:

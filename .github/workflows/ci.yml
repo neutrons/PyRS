@@ -39,6 +39,7 @@ jobs:
         run: |
           conda install -n base conda-libmamba-solver
           conda config --set solver libmamba
+          conda install boa -c conda-forge
 
       - name: Install requirements
         run: |
@@ -94,8 +95,8 @@ jobs:
         run: |
           conda activate PyRS
           cd conda.recipe
-          conda mambabuild --output-folder . . -c conda-forge -c mantid
-          conda verify noarch/pyrs-*py*.tar.bz2
+          conda-mambabuild --output-folder . . -c conda-forge -c mantid
+          conda-verify noarch/pyrs-*py*.tar.bz2
 
       - name: Publish to Anaconda
         shell: bash -l {0}
