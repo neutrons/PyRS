@@ -1,6 +1,6 @@
 from typing import Dict, List
 
-from qtpy.QtCore import QObject, QThread, Signal
+from qtpy.QtCore import QObject, QThread, Signal  # type:ignore
 
 from pyrs.meta.decorators.Singleton import Singleton
 
