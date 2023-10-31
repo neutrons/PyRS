@@ -1265,8 +1265,8 @@ class PointList:
         list
             three-item list, where each item is an object of type ~pyrs.dataobjects.sample_logs.DirectionExtents.
         """
-        return DirectionExtents(self.vx, resolution=resolution),\
-            DirectionExtents(self.vy, resolution=resolution),\
+        return DirectionExtents(self.vx, resolution=resolution), \
+            DirectionExtents(self.vy, resolution=resolution), \
             DirectionExtents(self.vz, resolution=resolution)
 
     def linspace(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> List[np.ndarray]:

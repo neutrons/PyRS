@@ -283,7 +283,8 @@ class PeakFitSetupView(MplFitPlottingWidget):
                                                                              'must be a 2-tuple but not a {}' \
                                                                              ''.format(diff_data_set,
                                                                                        type(diff_data_set))
-        assert isinstance(model_data_set, tuple) and len(model_data_set) >= 2,\
+
+        assert isinstance(model_data_set, tuple) and len(model_data_set) >= 2, \
             'Model data set {} must be a 2-tuple but not a {}'.format(model_data_set, type(model_data_set))
 
         # remove previous difference curve

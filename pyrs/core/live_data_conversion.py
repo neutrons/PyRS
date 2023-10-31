@@ -2,7 +2,7 @@
 Convert HB2B NeXus file to Hidra project file for further reduction
 """
 from mantid.kernel import Logger, BoolTimeSeriesProperty, FloatFilteredTimeSeriesProperty, FloatTimeSeriesProperty
-from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty,\
+from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty, \
     Int64FilteredTimeSeriesProperty
 from mantid.simpleapi import mtd, DeleteWorkspace, LoadMask, RemoveLogs, CopyLogs, CreateSampleWorkspace
 import numpy as np

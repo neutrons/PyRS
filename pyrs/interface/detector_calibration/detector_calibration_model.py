@@ -117,7 +117,7 @@ class DetectorCalibrationModel(QObject):
                     calibration_error.append(self._calibration_obj.calibration_error_array)
 
             try:
-                return calibration, calibration_error, self._calibration_obj.residual_sum,\
+                return calibration, calibration_error, self._calibration_obj.residual_sum, \
                     self._calibration_obj.residual_rmse
             except IndexError:
                 return calibration, -1, -1, -1
