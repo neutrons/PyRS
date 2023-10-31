@@ -152,6 +152,7 @@ def test_wavelength():
 
     return
 
+
 def test_all_refinements():
     """Main test for the script
 
@@ -206,6 +207,7 @@ def test_all_refinements():
         assert False, 'Test output {} is different from gold file {}'.format(file_name, goldfile)
 
     return
+
 
 def test_load_print_calibration():
     """Main test for the script

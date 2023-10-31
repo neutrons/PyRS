@@ -1,4 +1,3 @@
-import numpy as np
 import time
 import os
 from pyrs.calibration import mantid_peakfit_calibration
@@ -66,6 +65,8 @@ keep_input = ['keep', 'keep list']
 # Defualt check for method input
 method_options = ["full", "geometry", "shifts", "shift x", "shift_x", "shift y", "shift_y",
                   "distance", "rotations", "wavelength"]
+
+calib_folder_base = '/HFIR/HB2B/shared/CALIBRATION'
 
 
 def _get_nexus_data(nexus_run):
@@ -185,7 +186,7 @@ if __name__ == '__main__':
         nexus_file = _get_nexus_data(POWDER_RUN)
 
     calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file=nexus_file, eta_slice=ETA_Slice, bins=TTH_Bins,
-                                                            mask_file=DATA_MASK, vanadium=VAN_RUN)
+                                                           mask_file=DATA_MASK, vanadium=VAN_RUN)
 
     if KEEP_SUB_RUNS is not None:
         calibrator.set_keep_subrun_list(KEEP_SUB_RUNS)
@@ -201,18 +202,18 @@ if __name__ == '__main__':
     elif SAVE_CALIB:
         datatime = time.strftime('%Y-%m-%dT%H-%M', time.localtime())
         if HFIR_CYCLE is not None:
-            FolderName = '/HFIR/HB2B/shared/CALIBRATION/cycle{}'.format(HFIR_CYCLE)
+            FolderName = '{}/cycle{}'.format(calib_folder_base, HFIR_CYCLE)
             if not os.path.exists(FolderName):
                 os.makedirs(FolderName)
-            CalibName = '/HFIR/HB2B/shared/CALIBRATION/cycle{}/HB2B_{}_{}.json'.format(HFIR_CYCLE,
-                                                                                        calibrator.monosetting, datatime)
+            CalibName = '{}/cycle{}/HB2B_{}_{}.json'.format(calib_folder_base, HFIR_CYCLE,
+                                                            calibrator.monosetting, datatime)
             calibrator.write_calibration(CalibName)
 
-        CalibName = '/HFIR/HB2B/shared/CALIBRATION/HB2B_{}_{}.json'.format(calibrator.monosetting, datatime)
+        CalibName = '{}/HB2B_{}_{}.json'.format(calib_folder_base, calibrator.monosetting, datatime)
         calibrator.write_calibration(CalibName)
 
         if WRITE_LATEST:
-            CalibName = '/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json'
+            CalibName = '{}/HB2B_Latest.json'.format(calib_folder_base)
             calibrator.write_calibration(CalibName)
 
         print(calibrator.refinement_summary)
