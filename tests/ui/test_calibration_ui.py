@@ -64,6 +64,11 @@ def test_texture_fitting_viewer(qtbot):
     qtbot.mouseClick(window.peak_lines_setup.calibrate, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
 
+    qtbot.wait(wait)
+    while not window.peak_lines_setup.calibrate.isEnabled():
+        print(window.peak_lines_setup.calibrate.isEnabled())
+        qtbot.wait(wait)
+
     QtCore.QTimer.singleShot(300, functools.partial(handle_dialog, "HB2B_test_export.json"))
     qtbot.mouseClick(window.peak_lines_setup.export_recipe, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
