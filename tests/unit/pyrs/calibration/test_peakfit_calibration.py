@@ -173,7 +173,7 @@ def test_all_refinements():
     # Setup test constraints
     calibrator._keep_subrun_list = [False] * calibrator.sy.size
     calibrator._keep_subrun_list[0] = True
-    calibrator.set_max_nfev(2)
+    calibrator.set_max_nfev(1)
 
     # Calibrate
     calibrator.CalibrateRotation()
