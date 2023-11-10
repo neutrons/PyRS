@@ -1,7 +1,4 @@
 import numpy as np
-# from scipy.interpolate import griddata
-# import matplotlib.pyplot as plt
-# from matplotlib.cm import coolwarm
 
 
 class DetectorCalibrationCrtl:
@@ -61,29 +58,36 @@ class DetectorCalibrationCrtl:
     def get_powders(self):
         return self._model.powders
 
-    def update_diffraction_view(self, ax, _parent, sub_run, two_d_data):
+    def update_diffraction_view(self, ax, _parent, sub_run, two_d_data, exclude_list):
 
         if two_d_data:
-            ax.imshow(self._model.get_2D_diffraction_counts(sub_run).T)
+            ax.imshow(self._model.get_2D_diffraction_counts(sub_run).T, cmap='Spectral_r')
             ax.axis('off')
         else:
             ax.cla()
-            for mask in self._model.reduction_masks:
-                tth, int_vec, error_vec = self._model.get_reduced_diffraction_data(sub_run, mask)
-                ax.plot(tth[1:], int_vec[1:], label=mask)
+            try:
+                if exclude_list[sub_run - 1]:
+                    for mask in self._model.reduction_masks:
+                        tth, int_vec, error_vec = self._model.get_reduced_diffraction_data(sub_run, mask)
+                        ax.plot(tth[1:], int_vec[1:], label=mask)
 
-            fitted_ws = self._model.get_fitted_diffraction_data(sub_run)
+                    fitted_ws = self._model.get_fitted_diffraction_data(sub_run)
 
-            if fitted_ws is not None:
-                for fit_ws in fitted_ws:
-                    for i_sub in range(len(self._model.reduction_masks)):
-                        ax.plot(fit_ws.readX(int(i_sub))[1:],
-                                fit_ws.readY(int(i_sub))[1:], '--')
+                    if fitted_ws is not None:
+                        for fit_ws in fitted_ws:
+                            for i_sub in range(len(self._model.reduction_masks)):
+                                ax.plot(fit_ws.readX(int(i_sub))[1:],
+                                        fit_ws.readY(int(i_sub))[1:], '--')
 
-            ax.legend(frameon=False)
-            ax.set_xlabel(r"2$\theta$ ($deg.$)")
-            ax.set_ylabel("Intensity (ct.)")
-            ax.set_ylabel("Diff (ct.)")
+                    ax.legend(frameon=False)
+                    ax.set_xlabel(r"2$\theta$ ($deg.$)")
+                    ax.set_ylabel("Intensity (ct.)")
+                    ax.set_ylabel("Diff (ct.)")
+                else:
+                    ax.axis('off')
+
+            except TypeError:
+                pass
 
         return
 

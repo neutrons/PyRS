@@ -135,18 +135,6 @@ class FileLoad(QWidget):
         self.lineEdit.setText(filenames)
 
 
-# class SpinBoxDelegate(QStyledItemDelegate):
-#     def __init__(self):
-#         super().__init__()
-
-#     def createEditor(self, parent, option, index):
-#         editor = QDoubleSpinBox(parent)
-#         editor.setMinimum(0)
-#         editor.setDecimals(5)
-#         editor.setSingleStep(0.0001)
-#         return editor
-
-
 class FileLoading(QGroupBox):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -272,7 +260,8 @@ class PlotView(QWidget):
 
     def update_diff_view(self, sub_run):
 
-        self._parent.controller.update_diffraction_view(self.ax, self._parent, sub_run, self.two_dim)
+        self._parent.controller.update_diffraction_view(self.ax, self._parent, sub_run, self.two_dim,
+                                                        self._parent.peak_lines_setup.get_keep_list())
 
         plt.tight_layout()
         self.canvas.draw()

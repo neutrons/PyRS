@@ -1,8 +1,5 @@
 import numpy as np
-
-# from qtpy.QtWidgets import QTableWidgetItem  # type:ignore
 from qtpy.QtCore import Signal, QObject  # type:ignore
-
 from pyrs.calibration.mantid_peakfit_calibration import FitCalibration
 
 # Import instrument constants
