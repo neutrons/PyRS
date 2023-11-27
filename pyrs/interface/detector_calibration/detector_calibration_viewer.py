@@ -415,13 +415,18 @@ class PeakLinesSetupView(QGroupBox):
         self.worker.finished.connect(lambda: self.export_recipe.setEnabled(True))
         self.worker.finished.connect(lambda: self.fit.setEnabled(True))
         self.worker.finished.connect(lambda: self.calibrate.setEnabled(True))
+        self.worker.finished.connect(lambda: self.time_worker.stop())
         self.worker.result.connect(self._handleFailure)
-        self.worker.success.connect(lambda success: self.calibration_success if success else None)
+
+        self.time_worker = self.worker_pool.createTimmerWorker()
+        self.time_worker.progress.connect(self.progress_update)
 
         self.worker_pool.submitWorker(self.worker)
+        self.worker_pool.submitWorker(self.time_worker)
 
-    def calibration_success(self):
-        print('Calibration was a success')
+    def progress_update(self):
+        self._parent.param_window.change_plot()
+        self._parent.compare_diff_data.valueChanged()  # auto plot data after fitting
 
     def update_calibration(self, calibration, calibration_error, r_sum, rmse):
 

@@ -1,15 +1,13 @@
 from typing import Dict, List
-
 from qtpy.QtCore import QObject, QThread, Signal  # type:ignore
-
 from pyrs.meta.decorators.Singleton import Singleton
+import time
 
 
 class Worker(QObject):
     finished = Signal()
     success = Signal(bool)
     result = Signal(object)
-    progress = Signal(int)
 
     target = None
     args = None
@@ -30,34 +28,31 @@ class Worker(QObject):
             # print stacktrace
             import traceback
 
-            print(e)
-            traceback.print_exc()
+            traceback.print_exc(e)
             self.result.emit(None)
             self.success.emit(False)
         self.finished.emit()
 
 
-class InfiniteWorker(QObject):
-    result = Signal(object)
+class TimmerWorker(QObject):
     finished = Signal()
+    progress = Signal(int)
 
-    target = None
-    args = None
     _kill = False
 
-    def __init__(self, target, args=None):
+    def __init__(self):
         super().__init__()
-        self.target = target
-        self.args = args
 
     def stop(self):
         self._kill = True
 
     def run(self):
         """inf running task."""
+        segment = -1
         while not self._kill:
-            self.result.emit(self.target(self.args))
-        self.finished.emit()
+            time.sleep(10)
+            segment = segment + 1
+            self.progress.emit(segment)
 
 
 @Singleton
@@ -69,8 +64,8 @@ class WorkerPool:
     def createWorker(self, target, args):
         return Worker(target=target, args=args)
 
-    def createInfiniteWorker(self, target, args):
-        return InfiniteWorker(target=target, args=args)
+    def createTimmerWorker(self):
+        return TimmerWorker()
 
     def _dequeueWorker(self, worker):
         self.threads.pop(worker)
