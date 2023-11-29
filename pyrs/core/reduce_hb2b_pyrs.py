@@ -137,6 +137,7 @@ class ResidualStressInstrument:
 
             # shift two_theta by offset
             two_theta += instrument_calibration.two_theta_0
+
         # END-IF-ELSE
 
         # push to +Z at length of detector arm

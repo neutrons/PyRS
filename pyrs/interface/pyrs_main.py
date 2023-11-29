@@ -19,6 +19,10 @@ from pyrs.interface.texture_fitting.texture_fitting_viewer import TextureFitting
 from pyrs.interface.texture_fitting.texture_fitting_model import TextureFittingModel  # noqa: E402
 from pyrs.interface.texture_fitting.texture_fitting_crtl import TextureFittingCrtl  # noqa: E402
 
+from pyrs.interface.detector_calibration.detector_calibration_viewer import DetectorCalibrationViewer  # noqa: E402
+from pyrs.interface.detector_calibration.detector_calibration_model import DetectorCalibrationModel  # noqa: E402
+from pyrs.interface.detector_calibration.detector_calibration_crtl import DetectorCalibrationCrtl  # noqa: E402
+
 
 class PyRSLauncher(QMainWindow):
     """
@@ -41,6 +45,7 @@ class PyRSLauncher(QMainWindow):
         self.ui.pushButton_launchStrainStressCalculation.clicked.connect(self.do_launch_strain_stress_window)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
+        self.ui.actionCalibration.triggered.connect(self.do_launch_calibration_window)
 
         # child windows
         self.peak_fit_window = None
@@ -62,6 +67,21 @@ class PyRSLauncher(QMainWindow):
 
         # launch
         self.texture_fit_window.show()
+
+    def do_launch_calibration_window(self):
+        """
+        launch peak fit window
+        :return:
+        """
+        if self.texture_fit_window is not None:
+            self.texture_fit_window.close()
+
+        self.calibration_model = DetectorCalibrationModel(pyrscore.PyRsCore())
+        self.calibration_ctrl = DetectorCalibrationCrtl(self.calibration_model)
+        self.calibration_window = DetectorCalibrationViewer(self.calibration_model, self.calibration_ctrl)
+
+        # launch
+        self.calibration_window.show()
 
     def do_launch_fit_peak_window(self):
         """

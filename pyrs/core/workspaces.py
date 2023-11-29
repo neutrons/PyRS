@@ -266,6 +266,7 @@ class HidraWorkspace:
         """ Get the handler to instrument setup
         :return:
         """
+
         return self._instrument_setup
 
     def get_detector_counts(self, sub_run: int):
@@ -652,6 +653,13 @@ class HidraWorkspace:
         has_log = sample_log_name in self._sample_logs
 
         return has_log
+
+    def set_detector_shift(self, detector_shift):
+        """
+        set detector geometry shift
+        :detector_shift: DENEXDetectorShift instance
+        """
+        self._instrument_geometry_shift = detector_shift
 
     def set_instrument_geometry(self, instrument):
         self._instrument_setup = instrument

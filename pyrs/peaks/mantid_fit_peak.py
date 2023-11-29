@@ -70,9 +70,10 @@ class MantidPeakFitEngine(PeakFitEngine):
                               OutputPeakParametersWorkspace=r_param_table_name,  # peak parameters
                               OutputParameterFitErrorsWorkspace=r_error_table_name,  # peak parameter uncertainties
                               FittedPeaksWorkspace=r_model_ws_name,  # peaks calculated from model
-                              MaxFitIterations=50,  # TODO increase to 500
+                              MaxFitIterations=500,  # TODO increase to 500
                               **kwargs
                               )
+
         # r is a class containing multiple outputs (workspaces)
         if fit_return is None:
             raise RuntimeError('return from FitPeaks cannot be None')

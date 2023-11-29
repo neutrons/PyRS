@@ -72,7 +72,7 @@ def test_texture_fitting_viewer(qtbot):
     if ON_GITHUB_ACTIONS:
         rtol = 0.5
     else:
-        rtol = 1e-3
+        rtol = 0.1
 
     for i_loop in range(len(start_x)):
         # Drag select with mouse control

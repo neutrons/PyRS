@@ -1,5 +1,4 @@
 from pyrs.core import reduction_manager
-# from pyrs.utilities import checkdatatypes
 from pyrs.core import mask_util
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities import calibration_file_io
@@ -141,7 +140,7 @@ class ReductionApp:
 
         """
         # Check inputs
-        if sub_runs is None or not bool(sub_runs):  # None or empty list
+        if (sub_runs is None) or (len(sub_runs) == 0):  # None or empty list
             self._sub_runs = self._hydra_ws.get_sub_runs()
         else:
             # sort array to make sure the sub-run data are written into project files in increasing order
@@ -154,7 +153,11 @@ class ReductionApp:
 
         # calibration file - WARNING the access to the calibration is radically different
         # depending on the value of this thing that is named like it is a bool
-        geometry_calibration = False
+        if self._hydra_ws.get_detector_shift() is not None:
+            geometry_calibration = True
+        else:
+            geometry_calibration = False
+
         if calibration_file is not None:
             if calibration_file.lower().endswith('.json'):
                 calib_values = calibration_file_io.read_calibration_json_file(calibration_file_name=calibration_file)
