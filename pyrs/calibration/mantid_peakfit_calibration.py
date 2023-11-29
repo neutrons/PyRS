@@ -787,14 +787,15 @@ class FitCalibration:
 
         return
 
-    def write_calibration(self, file_name=None):
+    def write_calibration(self, file_name=None, write_latest=False):
         """Write the calibration to a Json file
 
         Parameters
         ----------
         file_name: str or None
             output Json file name.  If None, write to /HFIR/HB2B/shared/CAL/
-
+        write_latest: bool
+            bool saying that the calibration should write HB2B_Cal_Latest
         Returns
         -------
         None
@@ -815,14 +816,23 @@ class FitCalibration:
         if file_name is None:
             # default case: write to archive
             if os.access('/HFIR/HB2B/shared', os.W_OK):
-                file_name = '/HFIR/HB2B/shared/CAL/%s/HB2B_CAL_%s.json' % (float(self.monosetting),
-                                                                           time.strftime('%Y-%m-%dT%H:%M',
-                                                                                         time.localtime()))
-            else:
-                raise IOError('User does not privilege to write to {}'.format('/HFIR/HB2B/shared'))
-        # END-IF
+                file_name = '/HFIR/HB2B/shared/CAL/{}/HB2B_CAL_{}.json'.format(self.monosetting.name,
+                                                                               time.strftime('%Y-%m-%dT%H:%M',
+                                                                                             time.localtime()))
+                write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name)
 
-        write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name)
+            else:
+                print('User does not privilege to write to {}'.format('/HFIR/HB2B/shared'))
+
+        else:
+            write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name)
+
+        if write_latest:
+            if os.access('/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json', os.W_OK):
+                write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus,
+                                          '/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json')
+            else:
+                print('User does not privilege to write /HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json')
 
         return
 

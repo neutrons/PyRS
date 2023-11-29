@@ -3,6 +3,7 @@ from qtpy.QtWidgets import QLineEdit, QPushButton, QComboBox  # type:ignore
 from qtpy.QtWidgets import QGroupBox, QSplitter, QFileDialog  # type:ignore
 # from qtpy.QtWidgets import QStyledItemDelegate, QDoubleSpinBox  # type:ignore
 from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QSlider, QTabWidget  # type:ignore
+from qtpy.QtWidgets import QDialog, QDialogButtonBox
 
 from qtpy.QtWidgets import QGridLayout  # type:ignore
 from qtpy.QtWidgets import QMainWindow  # type:ignore
@@ -40,6 +41,22 @@ rcParams['ytick.minor.size'] = 2 * scale_factor
 rcParams['ytick.major.width'] = 0.8 * scale_factor / 2.
 rcParams['ytick.minor.width'] = 0.8 * scale_factor / 2.
 rcParams["savefig.dpi"] = 200
+
+
+def save_json_file(self):
+    filename, _ = QFileDialog.getSaveFileName(self,
+                                              "Export Calibration",
+                                              "JSON (*.json)",
+                                              options=QFileDialog.DontUseNativeDialog)
+
+    if not filename:
+        return None
+
+    head, tail = os.path.splitext(filename)
+    if not tail:
+        filename = os.path.join('', head + '.json')
+
+    return filename
 
 
 class FileLoad(QWidget):
@@ -121,15 +138,22 @@ class FileLoad(QWidget):
         self.load_nexus()
 
     def load_nexus(self):
-        self._parent.controller.load_nexus(self._parent._nexus_file,
-                                           self._parent.peak_lines_setup.tthbin_lineEdit.text(),
-                                           self._parent.peak_lines_setup.etabin_lineEdit.text())
+        try:
+            self._parent.controller.load_nexus(self._parent._nexus_file,
+                                               self._parent.peak_lines_setup.tthbin_lineEdit.text(),
+                                               self._parent.peak_lines_setup.etabin_lineEdit.text())
 
-        self._parent.compare_diff_data.sl.setMaximum(self._parent.model.sub_runs.size)
-        self._parent.compare_diff_data.valueChanged()
+            self._parent.compare_diff_data.sl.setMaximum(self._parent.model.sub_runs.size)
+            self._parent.compare_diff_data.valueChanged()
 
-        self._parent.peak_lines_setup.setup_calibration_table(self._parent.controller.get_powders())
-        self._parent.calib_summary._cal_summary_table.set_wavelength(0, self._parent.controller.get_wavelength())
+            self._parent.peak_lines_setup.setup_calibration_table(self._parent.controller.get_powders())
+            self._parent.calib_summary._cal_summary_table.set_wavelength(0, self._parent.controller.get_wavelength())
+
+        except (FileNotFoundError, RuntimeError, ValueError) as run_err:
+            pop_message(self, f'Failed to find run {self._parent._nexus_file}',
+                        str(run_err), 'error')
+
+            self._parent._nexus_file = None
 
     def setFilenamesText(self, filenames):
         self.lineEdit.setText(filenames)
@@ -416,7 +440,7 @@ class PeakLinesSetupView(QGroupBox):
         self.worker.finished.connect(lambda: self.fit.setEnabled(True))
         self.worker.finished.connect(lambda: self.calibrate.setEnabled(True))
         self.worker.finished.connect(lambda: self.time_worker.stop())
-        self.worker.result.connect(self._handleFailure)
+        self.worker.result.connect(self.parse_calibration_results)
 
         self.time_worker = self.worker_pool.createTimmerWorker()
         self.time_worker.progress.connect(self.progress_update)
@@ -428,24 +452,30 @@ class PeakLinesSetupView(QGroupBox):
         self._parent.param_window.change_plot()
         self._parent.compare_diff_data.valueChanged()  # auto plot data after fitting
 
-    def update_calibration(self, calibration, calibration_error, r_sum, rmse):
+        rmse = self._parent.controller.rmse
+        r_sum = self._parent.controller.r_sum
 
-        self._parent.calib_summary._cal_summary_table.set_calibration(calibration, calibration_error)
+        if (rmse is not None) and (r_sum is not None):
+            self._parent.calib_summary.rmse_lineEdit.setText('{0:3f}'.format(rmse))
+            self._parent.calib_summary.delta_tth_lineEdit.setText('{0:4f}'.format(r_sum))
+
+    def parse_calibration_results(self, result):
+
+        fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
+
+        for i_steps in range(len(result[0])):
+            self._parent.calib_summary._cal_summary_table.set_calibration([result[0][i_steps]],
+                                                                          [result[1][i_steps]],
+                                                                          col_name=fit_recipe[i_steps])
+
+        r_sum = result[2]
+        rmse = result[3]
+
         self._parent.compare_diff_data.valueChanged()  # auto plot data after fitting
         self._parent.param_window.change_plot()
 
         self._parent.calib_summary.rmse_lineEdit.setText('{0:3f}'.format(rmse))
         self._parent.calib_summary.delta_tth_lineEdit.setText('{0:4f}'.format(r_sum))
-
-    def _handleFailure(self, result):
-
-        if len(result[0]) == 1:
-            calibration = result[0]
-            calibration_error = result[1]
-            r_sum = result[2]
-            rmse = result[3]
-
-            self.update_calibration(calibration, calibration_error, r_sum, rmse)
 
     def setup_calibration_table(self, powders):
         self.calibrant_table.setRowCount(len(powders))
@@ -467,10 +497,8 @@ class PeakLinesSetupView(QGroupBox):
                                                       self._parent.calib_summary.neval_lineEdit.text())
 
     def save_json(self):
-        filename, _ = QFileDialog.getSaveFileName(self,
-                                                  "Export Calibration Recipe",
-                                                  "JSON (*.json)",
-                                                  options=QFileDialog.DontUseNativeDialog)
+        filename = save_json_file(self)
+
         if not filename:
             return
 
@@ -507,7 +535,6 @@ class PeakLinesSetupView(QGroupBox):
         output_dict['method'] = self._parent.calib_summary.method_combo_box.currentText()
         output_dict['neval'] = self._parent.calib_summary.neval_lineEdit.text()
 
-        print(output_dict)
         with open(filename, "w") as outfile:
             outfile.write(json.dumps(output_dict, indent=4))
 
@@ -536,23 +563,42 @@ class PeakLinesSetupView(QGroupBox):
                 self.recipe_combos[i_item].setCurrentIndex(methods.index(item))
 
         # load input calibration if specified
+        if self._parent._nexus_file is not None:  # Error check to make sure nexus file is loaded
+            for key in list(input_dict.keys()):
+                if key == 'input_calibration':
+                    self._parent._calibration_input = input_dict['input_calibration']
+                    self._parent.calib_summary._cal_summary_table.\
+                        _initalize_calibration(self._parent._calibration_input)
+                elif key == 'keep':
+                    for i_keep, keep in enumerate(input_dict['keep']):
+                        if keep is False:
+                            self.calibrant_table.item(i_keep, 1).setCheckState(2)
+                elif key == 'tth_bin':
+                    self.tthbin_lineEdit.setText(input_dict['tth_bin'])
+                elif key == 'eta_bin':
+                    self.etabin_lineEdit.setText(input_dict['eta_bin'])
+                elif key == 'method':
+                    self._parent.calib_summary.set_method(input_dict[key])
+                elif key == 'neval':
+                    self._parent.calib_summary.neval_lineEdit.setText(str(input_dict[key]))
 
-        for key in list(input_dict.keys()):
-            if key == 'input_calibration':
-                self._parent._calibration_input = input_dict['input_calibration']
-                self._parent.calib_summary._cal_summary_table._initalize_calibration(self._parent._calibration_input)
-            elif key == 'keep':
-                for i_keep, keep in enumerate(input_dict['keep']):
-                    if keep is False:
-                        self.calibrant_table.item(i_keep, 1).setCheckState(2)
-            elif key == 'tth_bin':
-                self.tthbin_lineEdit.setText(input_dict['tth_bin'])
-            elif key == 'eta_bin':
-                self.etabin_lineEdit.setText(input_dict['eta_bin'])
-            elif key == 'method':
-                self._parent.calib_summary.set_method(input_dict[key])
-            elif key == 'neval':
-                self._parent.calib_summary.neval_lineEdit.setText(str(input_dict[key]))
+
+class ExportCalibDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("Overwrite Calibration")
+
+        QBtn = QDialogButtonBox.Ok | QDialogButtonBox.No
+
+        self.buttonBox = QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(QLabel("Write latest calibration?"))
+        self.layout.addWidget(self.buttonBox)
+        self.setLayout(self.layout)
 
 
 class CalibrationSummaryView(QGroupBox):
@@ -622,19 +668,22 @@ class CalibrationSummaryView(QGroupBox):
         methods = ['trf', 'dogbox', 'lm']
         self.method_combo_box.setCurrentIndex(methods.index(method))
 
-    def export_calib(self, filename=None):
-        self._parent.controller.export_calibration(filename=filename)
+    def export_calib(self):
+
+        dlg = ExportCalibDialog()
+        if dlg.exec():
+            write_latest = True
+        else:
+            write_latest = False
+
+        self._parent.controller.export_calibration(filename=None, write_latest=write_latest)
 
     def export_local_calib(self):
-        filename, _ = QFileDialog.getSaveFileName(self,
-                                                  "Export Calibration",
-                                                  "JSON (*.json)",
-                                                  options=QFileDialog.DontUseNativeDialog)
-
+        filename = save_json_file(self)
         if not filename:
             return
 
-        self.export_calib(filename=filename)
+        self._parent.controller.export_calibration(filename=filename)
 
 
 class CalibrationSummaryTable(QTableWidget):
@@ -667,20 +716,21 @@ class CalibrationSummaryTable(QTableWidget):
                 input_dict = json.load(openfile)
 
             for i_lable, label in enumerate(self.labels):
-                print(i_lable, label)
-                print(input_dict.keys())
                 try:
                     self.setItem(i_lable, 0, QTableWidgetItem(str(input_dict[label])))
                 except KeyError:
                     pass
 
-    def set_calibration(self, calibration_list, calibration_error_list):
+    def set_calibration(self, calibration_list, calibration_error_list, col_name=None):
 
         for i_calibration in range(len(calibration_list)):
             calibration = calibration_list[i_calibration]
             col_index = self._add_column()
             for i_lable in range(len(self.labels)):
                 self.setItem(i_lable, col_index, QTableWidgetItem('{0:3f}'.format(calibration[i_lable])))
+
+        if col_name is not None:
+            self.setHorizontalHeaderItem(col_index, QTableWidgetItem(col_name))
 
     def get_calibration(self):
         col_nbr = self.get_number_of_columns()

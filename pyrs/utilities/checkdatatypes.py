@@ -40,7 +40,7 @@ def check_file_name(file_name: str, check_exist: bool = True, check_writable: bo
         raise RuntimeError('{} {} does not exist. FYI\n{}.'.format(description, file_name, message))
 
     if check_writable:
-        if os.path.exists(file_name) and not os.access(file_name, os.W_OK):
+        if (os.path.exists(file_name)) and (not os.access(file_name, os.W_OK)):
             # file exists but cannot be  overwritten
             raise RuntimeError('{} {} exists but is not writable.'.format(description, file_name))
         elif not os.path.exists(file_name):

@@ -9,6 +9,14 @@ class DetectorCalibrationCrtl:
         self._powders = np.array(['Ni', 'Fe', 'Mo'])
         self._sy = np.array([62, 12, -13])
 
+    @property
+    def rmse(self):
+        return self._model.rmse
+
+    @property
+    def r_sum(self):
+        return self._model.r_sum
+
     @staticmethod
     def validate_eta_tth(tth_bins, eta_bins):
         if tth_bins == '':
@@ -23,8 +31,8 @@ class DetectorCalibrationCrtl:
 
         return tth_bins, eta_bins
 
-    def export_calibration(self, filename=None):
-        self._model.export_calibration(filename=filename)
+    def export_calibration(self, filename=None, write_latest=False):
+        self._model.export_calibration(filename=filename, write_latest=write_latest)
 
     def load_nexus(self, nexus_file, tth_bins, eta_bins):
         tth_bins, eta_bins = self.validate_eta_tth(tth_bins, eta_bins)
@@ -61,8 +69,12 @@ class DetectorCalibrationCrtl:
     def update_diffraction_view(self, ax, _parent, sub_run, two_d_data, exclude_list):
 
         if two_d_data:
-            ax.imshow(self._model.get_2D_diffraction_counts(sub_run).T, cmap='Spectral_r')
-            ax.axis('off')
+            try:
+                ax.imshow(self._model.get_2D_diffraction_counts(sub_run).T, cmap='Spectral_r')
+                ax.axis('off')
+            except (AttributeError, TypeError):
+                pass
+
         else:
             ax.cla()
             try:
@@ -86,8 +98,8 @@ class DetectorCalibrationCrtl:
                 else:
                     ax.axis('off')
 
-            except TypeError:
-                pass
+            except (AttributeError, TypeError, IndexError):
+                ax.axis('off')
 
         return
 

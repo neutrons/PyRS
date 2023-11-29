@@ -36,10 +36,6 @@ class DetectorCalibrationModel(QObject):
     def powders(self):
         return self._calibration_obj.powders
 
-    # @property
-    # def sy(self):
-    #     return self._calibration_obj.sy
-
     @property
     def get_wavelength(self):
         return self._calibration_obj._hidra_ws.get_wavelength(False, False)
@@ -48,9 +44,23 @@ class DetectorCalibrationModel(QObject):
     def reduction_masks(self):
         return self._calibration_obj._hidra_ws.reduction_masks
 
-    def export_calibration(self, filename=None):
+    @property
+    def rmse(self):
         if self._calibration_obj is not None:
-            self._calibration_obj.write_calibration(file_name=filename)
+            return self._calibration_obj.residual_rmse
+        else:
+            return None
+
+    @property
+    def r_sum(self):
+        if self._calibration_obj is not None:
+            return self._calibration_obj.residual_sum
+        else:
+            return None
+
+    def export_calibration(self, filename=None, write_latest=False):
+        if self._calibration_obj is not None:
+            self._calibration_obj.write_calibration(file_name=filename, write_latest=write_latest)
 
     def set_refinement_params(self, method, max_nfev):
         self._calibration_obj.set_refinement_method(method)
@@ -65,8 +75,8 @@ class DetectorCalibrationModel(QObject):
             self._calibration_obj = FitCalibration(nexus_file=self._nexus_file, eta_slice=eta_bins, bins=tth_bins)
 
     def _init_calibration(self, nexus_file, tth=512, eta=3.):
-        self._nexus_file = nexus_file
         self._calibration_obj = FitCalibration(nexus_file=nexus_file, eta_slice=eta, bins=tth)
+        self._nexus_file = nexus_file
 
     def fit_diffraction_peaks(self):
         if self._calibration_obj is not None:
@@ -110,8 +120,8 @@ class DetectorCalibrationModel(QObject):
                     self._calibration_obj.calibrate_tth0()
 
                 if recipe != '':
-                    calibration.append(self._calibration_obj.calibration_array)
-                    calibration_error.append(self._calibration_obj.calibration_error_array)
+                    calibration.append(np.copy(self._calibration_obj.calibration_array))
+                    calibration_error.append(np.copy(self._calibration_obj.calibration_error_array))
 
             try:
                 return calibration, calibration_error, self._calibration_obj.residual_sum, \
@@ -131,4 +141,5 @@ class DetectorCalibrationModel(QObject):
             return self._calibration_obj.fitted_ws[sub_run - 1]
 
     def get_2D_diffraction_counts(self, sub_run):
-        return self._calibration_obj._hidra_ws.get_detector_counts(sub_run).reshape(NUM_PIXEL_1D, NUM_PIXEL_1D)
+        if self._nexus_file is not None:
+            return self._calibration_obj._hidra_ws.get_detector_counts(sub_run).reshape(NUM_PIXEL_1D, NUM_PIXEL_1D)
