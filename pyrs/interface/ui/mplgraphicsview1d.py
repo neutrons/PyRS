@@ -509,7 +509,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
                 else:
                     # with single line
                     try:
-                        self.axes_main[row_index, col_index].lines.remove(mpl_line)
+                        self.axes_main[row_index, col_index].cla()
                     except ValueError as e:
                         print("[Error] Plot %s is not in axes_main.lines which has %d lines. Error message: %s" % (
                               str(line_key), len(self.axes_main[row_index, col_index].lines), str(e)))

@@ -168,6 +168,8 @@ class MplFitPlottingWidget(QWidget):
         :return:
         """
         self._myCanvas.reset_plot()
+        # self._data_subplot.cla()
+        # self._data_subplot.cla()
 
         # reset the class variables managing the plots
         self._data_line_list = list()
@@ -469,51 +471,13 @@ class QtMplFitCanvas(FigureCanvas):
 
         return x_lim
 
-    def remove_data_lines(self, line_index_list=None):
-        """
-        remove data line by line index
-        :param line_index_list:
-        :return:
-        """
-        # default for all lines
-        if line_index_list is None:
-            line_index_list = self._data_plot_dict.keys()
-
-        for line_index in line_index_list:
-            line_handler = self._data_plot_dict[line_index]
-            if line_handler:
-                self._data_subplot.lines.remove(line_handler)
-            self._data_plot_dict[line_index] = None
-
-    def remove_residual_line(self):
-        """
-        remove the residual line
-        :return:
-        """
-        # skip if there is no residual line on subplot currently
-        if len(self._residual_dict) == 0 or not self._residual_dict:
-            return
-
-        if 0 not in self._residual_dict:
-            return
-
-        line_handler = self._residual_dict[0]  # this is the broken line
-        self._residual_subplot.lines.remove(line_handler)
-        self._residual_dict = dict()
-        # TODO something is wrong with this code
-        '''
-        line_handler = self._residual_dict.values()[0]  # this is the broken line
-        self._residual_subplot.lines.remove(line_handler)
-        self._residual_dict = dict()
-        '''
-
     def reset_plot(self):
         """
         remove all the lines plot on subplots currently
         :return:
         """
-        self.remove_data_lines()
-        self.remove_residual_line()
+        self._data_subplot.cla()
+        self._residual_subplot.cla()
 
     def set_x_range(self, x_min, x_max, is_residual):
         """
