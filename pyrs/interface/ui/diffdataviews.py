@@ -109,7 +109,6 @@ class GeneralDiffDataView(MplGraphicsView1D):
         ref_id = self.add_plot(vec_x, vec_y, line_style='-', marker=None,
                                color='red', x_label=x_label, y_label=y_label,
                                label=line_label)
-        # TODO - 20181101 - Enable after auto_scale is fixed: self.auto_rescale()
 
         self._line_reference_list.append(ref_id)
         self._last_line_reference = ref_id
