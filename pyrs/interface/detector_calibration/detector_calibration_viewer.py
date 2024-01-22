@@ -3,7 +3,7 @@ from qtpy.QtWidgets import QLineEdit, QPushButton, QComboBox  # type:ignore
 from qtpy.QtWidgets import QGroupBox, QSplitter, QFileDialog  # type:ignore
 # from qtpy.QtWidgets import QStyledItemDelegate, QDoubleSpinBox  # type:ignore
 from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QSlider, QTabWidget  # type:ignore
-from qtpy.QtWidgets import QDialog, QDialogButtonBox
+from qtpy.QtWidgets import QDialog, QDialogButtonBox, QApplication
 
 from qtpy.QtWidgets import QGridLayout  # type:ignore
 from qtpy.QtWidgets import QMainWindow  # type:ignore
@@ -252,9 +252,21 @@ class VisualizeResults(QWidget):
 
 
 class FixFigureCanvas(FigureCanvas):
+
+    def __init__(self, figure):
+        self.figure = figure
+        FigureCanvas.__init__(self, figure)
+        FigureCanvas.updateGeometry(self)
+
     def resizeEvent(self, event):
         if event.size().width() <= 0 or event.size().height() <= 0:
             return super(FixFigureCanvas, self).resizeEvent(event)
+        else:
+            self.figure.set_figwidth(event.size().width() / self.figure.dpi * 2)
+            self.figure.set_figheight(event.size().height() / self.figure.dpi * 2)
+            self.draw()
+
+        return
 
 
 class PlotView(QWidget):
@@ -759,6 +771,9 @@ class DetectorCalibrationViewer(QMainWindow):
         self._calibration_input = None
 
         super().__init__(parent)
+
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True) #enable highdpi scaling
+        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True) #use highdpi icons
 
         self.setWindowTitle("PyRS Detector Calibration Window")
 

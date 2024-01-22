@@ -533,11 +533,6 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         """ Clear data including lines and image from canvas
         """
         # # clear the image for next operation
-        # for subplot in self.axes_main.values():
-        #     subplot.hold(False)
-        # for subplot in self.axes_right.values():
-        #     if subplot is not None:
-        #         subplot.hold(False)
 
         # clear all lines
         for row_index, col_index in self.axes_main.keys():

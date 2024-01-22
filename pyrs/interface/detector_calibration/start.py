@@ -9,6 +9,7 @@ from pyrs.interface.detector_calibration.detector_calibration_crtl import Detect
 class App(QApplication):
     def __init__(self, sys_argv):
         super().__init__(sys_argv)
+        print(self.desktop().logicalDpiX())
         self.model = DetectorCalibrationModel(pyrscore.PyRsCore())
         self.ctrl = DetectorCalibrationCrtl(self.model)
         self.view = DetectorCalibrationViewer(self.model, self.ctrl)
