@@ -96,23 +96,28 @@ class GeneralDiffDataView(MplGraphicsView1D):
         :param y_label:
         :return:
         """
+
         # TODO Future: Need to write use cases.  Now it is for demo
         # It is not allowed to plot 2 plot with different x-axis
-        if self._last_line_reference is not None:
-            if x_label != self.get_label_x():
-                self.reset_viewer()
+        # if self._last_line_reference is not None:
+            # if x_label != self.get_label_x():
+            #     self.reset_viewer()
 
-        if not keep_prev and self._last_line_reference is not None:
-            self.remove_line(0, 0, self._last_line_reference)
+        # if not keep_prev and self._last_line_reference is not None:
+        #     self.remove_line(0, 0, self._last_line_reference)
+
+        if not keep_prev:
+            print(keep_prev)
+            self.clear_all_lines()
 
         # plot data in a scattering plot with auto re-scale
         ref_id = self.add_plot(vec_x, vec_y, line_style='-', marker=None,
                                color='red', x_label=x_label, y_label=y_label,
                                label=line_label)
 
-        self._line_reference_list.append(ref_id)
-        self._last_line_reference = ref_id
-        self._current_x_axis_name = x_label
+        # self._line_reference_list.append(ref_id)
+        # self._last_line_reference = ref_id
+        # self._current_x_axis_name = x_label
 
     def plot_scatter_with_errors(self, vec_x=None, vec_y=None,
                                  vec_x_error=None, vec_y_error=None,

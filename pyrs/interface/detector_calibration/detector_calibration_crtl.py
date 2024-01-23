@@ -66,6 +66,22 @@ class DetectorCalibrationCrtl:
     def get_powders(self):
         return self._model.powders
 
+
+    def update_diff_view(self, _parent, diff_plot_type, sub_run,exclude_list):
+        if diff_plot_type == 0:
+            counts_matrix = self._model.get_2D_diffraction_counts(sub_run)
+            if counts_matrix is not None:
+                _parent.compare_diff_data.tabs.currentWidget().plot_detector_view(counts_matrix,
+                                                                                  (sub_run, None))
+        else:
+            for i_mask, mask in enumerate(self._model.reduction_masks):
+                print(i_mask!=0)
+                tth, int_vec, error_vec = self._model.get_reduced_diffraction_data(sub_run, mask)
+                _parent.compare_diff_data.tabs.currentWidget().plot_diffraction(tth, int_vec,
+                                                                                '2theta', 'intensity',
+                                                                                line_label=mask,
+                                                                                keep_prev=i_mask!=0)
+
     def update_diffraction_view(self, ax, _parent, sub_run, two_d_data, exclude_list):
 
         if two_d_data:
@@ -74,6 +90,7 @@ class DetectorCalibrationCrtl:
                 ax.axis('off')
             except (AttributeError, TypeError):
                 pass
+
 
         else:
             ax.cla()

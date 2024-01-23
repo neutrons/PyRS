@@ -12,6 +12,7 @@ from qtpy.QtCore import Qt  # type: ignore
 from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities import get_input_project_file  # type: ignore
 from pyrs.interface.threading.worker_pool import WorkerPool
+from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
 
 from matplotlib import rcParams
 
@@ -187,7 +188,8 @@ class DiffractionWindow(QWidget):
         panel_layout = QVBoxLayout()
         self.setLayout(panel_layout)
 
-        self.tab_widgets = [PlotView(parent, True), PlotView(parent)]
+        self.tab_widgets = [DetectorView(self), GeneralDiffDataView(self)]
+        # self.tab_widgets = [PlotView(parent, True), PlotView(parent)]
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self.tab_widgets[0], "2D")
@@ -206,7 +208,10 @@ class DiffractionWindow(QWidget):
         self.sl.valueChanged.connect(self.valueChanged)
 
     def valueChanged(self):
-        self.tabs.currentWidget().update_diff_view(self.sl.value())
+        print(self.tabs.currentIndex())
+        self._parent.controller.update_diff_view(self._parent, self.tabs.currentIndex(), self.sl.value(),
+                                                 self._parent.peak_lines_setup.get_keep_list())
+        # self.tabs.currentWidget().update_diff_view(self.sl.value())
 
 
 class VisualizeResults(QWidget):

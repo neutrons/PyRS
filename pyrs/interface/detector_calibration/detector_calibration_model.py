@@ -142,4 +142,4 @@ class DetectorCalibrationModel(QObject):
 
     def get_2D_diffraction_counts(self, sub_run):
         if self._nexus_file is not None:
-            return self._calibration_obj._hidra_ws.get_detector_counts(sub_run).reshape(NUM_PIXEL_1D, NUM_PIXEL_1D)
+            return self._calibration_obj._hidra_ws.get_detector_counts(sub_run)
