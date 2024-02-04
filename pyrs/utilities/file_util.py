@@ -1,6 +1,4 @@
 from . import checkdatatypes
-from contextlib import contextmanager
-from mantid import ConfigService
 from mantid.api import FileFinder
 from mantid.simpleapi import mtd, GetIPTS, SaveNexusProcessed
 from mantid.kernel import amend_config
