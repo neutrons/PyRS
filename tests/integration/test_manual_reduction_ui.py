@@ -150,7 +150,7 @@ def test_load_split():
     # Get diffraction pattern
     vec_2theta, vec_intensity = controller.get_powder_pattern(2)
     assert 98 < vec_2theta.mean() < 102, '2theta range ({}, {}) shall be centered around 100 for sub run 2.' \
-                                        ''.format(vec_2theta[0], vec_2theta[-1])
+        ''.format(vec_2theta[0], vec_2theta[-1])
 
     # from matplotlib import pyplot as plt
     # plt.plot(vec_2theta, vec_intensity)
