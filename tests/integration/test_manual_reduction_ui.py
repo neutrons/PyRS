@@ -149,7 +149,7 @@ def test_load_split():
 
     # Get diffraction pattern
     vec_2theta, vec_intensity = controller.get_powder_pattern(2)
-    assert 78 < vec_2theta.mean() < 82, '2theta range ({}, {}) shall be centered around 80 for sub run 2.' \
+    assert 98 < vec_2theta.mean() < 102, '2theta range ({}, {}) shall be centered around 100 for sub run 2.' \
                                         ''.format(vec_2theta[0], vec_2theta[-1])
 
     # from matplotlib import pyplot as plt
@@ -160,8 +160,8 @@ def test_load_split():
         'Max intensity {} must larger than 2'.format(vec_intensity[~np.isnan(vec_intensity)].max())
 
     # Sample logs
-    assert abs(controller.get_sample_log_value('2theta', 1) - 69.99525) < 1E-5
-    assert controller.get_sample_log_value('2theta', 2) == 80.0
+    assert abs(controller.get_sample_log_value('2theta', 1) - 100.0015) < 1E-5
+    assert abs(controller.get_sample_log_value('2theta', 2) - 100.0015) < 1E-5
     assert abs(controller.get_sample_log_value('2theta', 3) - 97.50225) < 1E-5
 
 

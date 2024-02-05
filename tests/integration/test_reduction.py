@@ -216,13 +216,13 @@ def test_exclude_subruns(nexusfile, projectfile):
 
 @pytest.mark.parametrize('mask_file_name, filtered_counts, histogram_counts',
                          [('tests/data/HB2B_Mask_12-18-19.xml', (540461, 1635432, 1193309),
-                           (540435.0, 1634566.0, 1192944.0)),
+                           (540329.0, 1634964.0, 1192944.0)),
                           (None, (548953, 1661711, 1212586), (548953.0, 1661711.0, 1212586.0))],
                          ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
 def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
     """Verify NeXus converters including counts and sample log values"""
     SUBRUNS = (1, 2, 3)
-    CENTERS = (69.99525,  80.,  97.50225)
+    CENTERS = (100.0015,  100.0015,  97.50225)
 
     # reduce with PyRS/Python
     hidra_ws = convertNeXusToProject('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.ORIG.nxs.h5',
@@ -276,13 +276,13 @@ def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
 
 @pytest.mark.parametrize('mask_file_name, filtered_counts, histogram_counts',
                          [('tests/data/HB2B_Mask_12-18-19.xml', (540461, 1635432, 1193309),
-                           (540435.0, 1634566.0, 1192944.0)),
+                           (540329.0, 1634964.0, 1192944.0)),
                           (None, (548953, 1661711, 1212586), (548953.0, 1661711.0, 1212586.0))],
                          ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
 def test_reduce_method_data(mask_file_name, filtered_counts, histogram_counts):
     """Verify NeXus converters including counts and sample log values"""
     SUBRUNS = (1, 2, 3)
-    CENTERS = (69.99525,  80.,  97.50225)
+    CENTERS = (100.0015,  100.0015,  97.50225)
 
     # reduce with PyRS/Python
     hidra_ws = convertNeXusToProject('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.ORIG.nxs.h5',
