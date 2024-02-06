@@ -208,10 +208,9 @@ class DiffractionWindow(QWidget):
         self.sl.valueChanged.connect(self.valueChanged)
 
     def valueChanged(self):
-        print(self.tabs.currentIndex())
-        self._parent.controller.update_diff_view(self._parent, self.tabs.currentIndex(), self.sl.value(),
+        self._parent.controller.update_diff_view(self._parent.compare_diff_data.tabs.currentWidget(),
+                                                 self.tabs.currentIndex(), self.sl.value(),
                                                  self._parent.peak_lines_setup.get_keep_list())
-        # self.tabs.currentWidget().update_diff_view(self.sl.value())
 
 
 class VisualizeResults(QWidget):
@@ -238,7 +237,7 @@ class VisualizeResults(QWidget):
         plot_labelY = QLabel("Y-axis")
         plot_labelY.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-        self.param_vew = PlotView(parent=parent, param_view=True)
+        self.param_vew = GeneralDiffDataView(self)
 
         param_layout.addWidget(plot_labelX, 0, 0)
         param_layout.addWidget(self.plot_paramX, 0, 1)
@@ -250,10 +249,11 @@ class VisualizeResults(QWidget):
         self.setLayout(param_layout)
 
     def change_plot(self):
-        self.param_vew.update_param_view(self.plot_paramX.currentIndex(),
-                                         self.plot_paramY.currentIndex(),
-                                         self.plot_paramX.currentText(),
-                                         self.plot_paramY.currentText())
+        self._parent.controller.plot_2D_params(self.param_vew,
+                                               self.plot_paramX.currentIndex(),
+                                               self.plot_paramY.currentIndex(),
+                                               self.plot_paramX.currentText(),
+                                               self.plot_paramY.currentText())
 
 
 class FixFigureCanvas(FigureCanvas):

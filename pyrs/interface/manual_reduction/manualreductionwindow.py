@@ -73,9 +73,6 @@ class ManualReductionWindow(QMainWindow):
         # actionEdit_Calibrations
         # actionFix_Calibrations
 
-        # TODO - ASAP - Load Instrument
-        # actionLoad_Instrument
-
         # Child windows
         self._slice_setup_window = None
 

@@ -9,7 +9,6 @@ from pyrs.interface.ui.diffdataviews import GeneralDiffDataView
 from pyrs.interface.ui.mplgraphicsviewcontourplot import MplGraphicsViewContourPlot
 from pyrs.interface.ui.rstables import FitResultTable
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView
-import pyrs.interface.advpeakfitdialog
 import pyrs.interface.gui_helper
 from pyrs.interface.peak_fitting.event_handler import EventHandler
 from pyrs.interface.peak_fitting.plot import Plot

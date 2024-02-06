@@ -93,22 +93,6 @@ class Plot:
             err_x_array = self.parent.fit_result.difference.readX(sub_run_index)
             err_y_array = self.parent.fit_result.difference.readY(sub_run_index)
             self.parent._ui_graphicsView_fitSetup.plot_fitting_diff_data(x_axis=err_x_array, y_axis=err_y_array)
-            # self.parent._ui_graphicsView_fitSetup.plot_model_data(diff_data_set=model_data_set,
-            #                                                       model_label='fit',
-            #                                                       residual_set=residual_data_set)
-
-        # # Plot fitted model data
-        # model_data_set = None
-        # if plot_model:
-        #     model_data_set = self.parent._core.get_modeled_data(session_name=self.parent._project_name,
-        #                                                         sub_run=sub_run_number)
-        #
-        # if model_data_set is not None:
-        #     residual_y_vec = diff_data_set[1] - model_data_set[1]
-        #     residual_data_set = [diff_data_set[0], residual_y_vec]
-        #     self.parent._ui_graphicsView_fitSetup.plot_model_data(diff_data_set=model_data_set,
-        #                                                           model_label='fit',
-        #                                                           residual_set=residual_data_set)
 
     def plot_scan(self, value=None):
         """ plot the scan defined by the scroll bar or the text line according to radio button selected

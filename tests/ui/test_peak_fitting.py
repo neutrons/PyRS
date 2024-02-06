@@ -86,7 +86,7 @@ def test_peak_fitting(qtbot, tmpdir):
     assert len(np.fromstring(file_contents[-1], dtype=np.float64, sep=',')) == 33
 
     # look at 1D results plot
-    line = window.ui.graphicsView_fitResult.canvas().get_axis(0, 0, True).lines[0]
+    line = window.ui.graphicsView_fitResult.canvas().get_axis().lines[0]
     assert line.get_xdata().min() == 1
     assert line.get_xdata().max() == 87
     assert line.get_ydata().min() == pytest.approx(-42.000572)
@@ -101,7 +101,7 @@ def test_peak_fitting(qtbot, tmpdir):
     qtbot.keyClick(window.ui.comboBox_xaxisNames, QtCore.Qt.Key_Down)
     qtbot.wait(wait)
 
-    line = window.ui.graphicsView_fitResult.canvas().get_axis(0, 0, True).lines[0]
+    line = window.ui.graphicsView_fitResult.canvas().get_axis().lines[0]
     assert line.get_xdata().min() == pytest.approx(-42.000572)
     assert line.get_xdata().max() == pytest.approx(37.999313)
     assert line.get_ydata().min() == pytest.approx(1.169515, rel=1e-5)
@@ -130,7 +130,7 @@ def test_peak_fitting(qtbot, tmpdir):
     assert len(np.fromstring(file_contents[-1], dtype=np.float64, sep=',')) == 33
 
     # look at 1D results plot
-    line = window.ui.graphicsView_fitResult.canvas().get_axis(0, 0, True).lines[0]
+    line = window.ui.graphicsView_fitResult.canvas().get_axis().lines[0]
     assert line.get_xdata().min() == 1
     assert line.get_xdata().max() == 87
     assert line.get_ydata().min() == pytest.approx(-42.000572)
@@ -145,7 +145,7 @@ def test_peak_fitting(qtbot, tmpdir):
     qtbot.keyClick(window.ui.comboBox_xaxisNames, QtCore.Qt.Key_Down)
     qtbot.wait(wait)
 
-    line = window.ui.graphicsView_fitResult.canvas().get_axis(0, 0, True).lines[0]
+    line = window.ui.graphicsView_fitResult.canvas().get_axis().lines[0]
     assert line.get_xdata().min() == pytest.approx(-42.000572)
     assert line.get_xdata().max() == pytest.approx(37.999313)
     assert line.get_ydata().min() == pytest.approx(1.169389, rel=2e-2)

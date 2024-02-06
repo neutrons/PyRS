@@ -2,9 +2,6 @@ import numpy as np
 from qtpy.QtCore import Signal, QObject  # type:ignore
 from pyrs.calibration.mantid_peakfit_calibration import FitCalibration
 
-# Import instrument constants
-from pyrs.core.nexus_conversion import NUM_PIXEL_1D
-
 
 class DetectorCalibrationModel(QObject):
     propertyUpdated = Signal(str)
