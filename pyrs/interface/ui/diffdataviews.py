@@ -186,11 +186,13 @@ class PeakFitSetupView(MplFitPlottingWidget):
         :return:
         """
 
+        self.reset_viewer()
+
         # parse the data
         vec_x = diff_data_set[0][1:]
         vec_y = diff_data_set[1][1:]
 
-        ref_id = self.plot_data(data_set=(vec_x, vec_y), line_label=data_reference)
+        ref_id = self.plot_data(data_set=(vec_x, vec_y), line_label=data_reference, color='black')
         self.plot_data_fitting_ranges()
         # self._diff_reference_list.append(ref_id)
         self._last_diff_reference = ref_id
@@ -231,6 +233,7 @@ class PeakFitSetupView(MplFitPlottingWidget):
         :param data_reference: reference name for the data to plot
         :return:
         """
+
         # parse the data
         vec_x = diff_data_set[0]
         vec_y = diff_data_set[1]

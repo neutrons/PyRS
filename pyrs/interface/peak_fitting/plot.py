@@ -46,7 +46,7 @@ class Plot:
         plot_model = len(scan_log_index_list) == 1 and plot_model
         for scan_log_index in scan_log_index_list:
             try:
-                self.plot_diff_and_fitted_data(scan_log_index, plot_model)
+                self.plot_diff_and_fitted_data(scan_log_index)
             except RuntimeError as run_err:
                 err_msg += '{0}\n'.format(run_err)
 
@@ -57,7 +57,7 @@ class Plot:
         """reset the fitting plots"""
         self.parent.ui.graphicsView_fitResult.reset_viewer()
 
-    def plot_diff_and_fitted_data(self, sub_run_number, plot_model):
+    def plot_diff_and_fitted_data(self, sub_run_number):
         """Plot a set of diffraction data (one scan log index) and plot its fitted data
 
         Parameters
@@ -107,7 +107,7 @@ class Plot:
 
         try:
             self.parent._ui_graphicsView_fitSetup.reset_viewer()
-            self.plot_diff_and_fitted_data(sub_run, True)
+            self.plot_diff_and_fitted_data(sub_run)
         except RuntimeError:
             pass
 

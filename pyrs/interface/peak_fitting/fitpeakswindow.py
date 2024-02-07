@@ -318,16 +318,6 @@ class FitPeaksWindow(QMainWindow):
         peak_range_table_labels = ['x_left', 'x_right', 'Label', D0 + " (" + ANGSTROMS + ")"]
         self.ui.peak_range_table.setHorizontalHeaderLabels(peak_range_table_labels)
 
-    # def do_launch_adv_fit(self):
-    #     """
-    #     launch the dialog window for advanced peak fitting setup and control
-    #     :return:
-    #     """
-    #     if self._advanced_fit_dialog is None:
-    #         self._advanced_fit_dialog = pyrs.interface.advpeakfitdialog.SmartPeakFitControlDialog(self)
-
-    #     self._advanced_fit_dialog.show()
-
     def do_save_fit(self):
         """
         save fit result

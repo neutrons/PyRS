@@ -384,46 +384,22 @@ class TextureFittingCrtl:
 
         return
 
-    def update_diffraction_view(self, ax, _parent, sub_run):
+    def update_diffraction_view(self, ax_object, fit_summary, sub_run):
 
-        def draw_fit_range(tthmin, tthmax):
+        tth, int_vec = self.get_reduced_diffraction_data(sub_run, fit_summary.out_of_plan_angle)
 
-            colormap = plt.cm.jet
-            colors = [colormap(i) for i in np.linspace(0, 1, _parent.fit_setup.fit_range_table.rowCount())]
+        ax_object.plot_experiment_data(diff_data_set=[tth, int_vec],
+                                       data_reference='Scan {0}'.format(sub_run))
 
-            for i_entry in range(_parent.fit_setup.fit_range_table.rowCount()):
-                try:
-                    x0 = float(_parent.fit_setup.fit_range_table.item(i_entry, 0).text())
-                    x1 = float(_parent.fit_setup.fit_range_table.item(i_entry, 1).text())
-
-                    if (x0 > tthmin) and (x1 < tthmax):
-                        ax[0].axvline(x=x0, color=colors[i_entry])
-                        ax[0].axvline(x=x1, color=colors[i_entry])
-                except AttributeError:
-                    pass
-
-        ax[0].clear()
-        ax[1].clear()
-
-        tth, int_vec = self.get_reduced_diffraction_data(sub_run,
-                                                         _parent.fit_summary.out_of_plan_angle)
-
-        ax[0].plot(tth[1:], int_vec[1:], 'k')
-
-        draw_fit_range(tth.min(), tth.max())
-
-        if _parent.fit_summary.fit_table_operator.fit_result is not None:
-            sub_run_index = int(np.where(_parent.model.sub_runs == sub_run)[0])
+        # plot fitted data
+        if fit_summary.fit_table_operator.fit_result is not None:
+            sub_run_index = int(np.where(self._model.sub_runs == sub_run)[0])
 
             fit_data = self.get_fitted_data(sub_run_index,
-                                            _parent.fit_summary.out_of_plan_angle)
+                                            fit_summary.out_of_plan_angle)
 
             fit_index = fit_data[1] > 0
-            ax[0].plot(fit_data[0][fit_index], fit_data[1][fit_index], 'r')
-            ax[1].plot(fit_data[2][fit_index], fit_data[3][fit_index], 'r')
-
-        ax[1].set_xlabel(r"2$\theta$ ($deg.$)")
-        ax[0].set_ylabel("Intensity (ct.)")
-        ax[1].set_ylabel("Diff (ct.)")
+            ax_object.plot_fitted_data(fit_data[0][fit_index], fit_data[1][fit_index])
+            ax_object.plot_fitting_diff_data(x_axis=fit_data[2][fit_index], y_axis=fit_data[3][fit_index])
 
         return

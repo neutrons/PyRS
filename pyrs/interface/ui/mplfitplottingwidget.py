@@ -267,7 +267,6 @@ class MplFitPlottingWidget(QWidget):
         self._data_line_list.append(data_line_id)
 
     def plot_data_with_fitting_ranges(self):
-        # self.clear_canvas()
 
         for _peak_label in self.list_peak_labels_matplotlib_id:
             _peak_label.remove()
@@ -276,12 +275,14 @@ class MplFitPlottingWidget(QWidget):
             _left_line.remove()
             _right_line.remove()
 
-        color = self._color
-
         data_set = self._data_set
         line_label = self._line_label
 
-        self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label)
+        x_min = data_set[0].min()
+        x_max = data_set[0].max()
+        yvec_min = data_set[1].min()
+
+        self._myCanvas.add_plot_upper_axis(data_set, line_color='black', label=line_label)
         self.list_peak_ranges_matplotlib_id = []
         self.list_peak_labels_matplotlib_id = []
         list_peak_labels = self.list_fit_peak_labels
@@ -289,14 +290,15 @@ class MplFitPlottingWidget(QWidget):
         for _index, _range in enumerate(self.list_peak_ranges):
             x_right = np.nanmax(_range)
             x_left = np.nanmin(_range)
-            self._left_line = self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
-            self._right_line = self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
-            self.list_peak_ranges_matplotlib_id.append([self._left_line, self._right_line])
-            txt_id = self._myCanvas._data_subplot.text(x_left, 0, list_peak_labels[_index],
-                                                       fontsize=16,
-                                                       rotation=90,
-                                                       rotation_mode='anchor')
-            self.list_peak_labels_matplotlib_id.append(txt_id)
+            if (x_right > x_min) and (x_left < x_max):
+                self._left_line = self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
+                self._right_line = self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
+                self.list_peak_ranges_matplotlib_id.append([self._left_line, self._right_line])
+                txt_id = self._myCanvas._data_subplot.text(x_left, yvec_min, list_peak_labels[_index],
+                                                           fontsize=16,
+                                                           rotation=90,
+                                                           rotation_mode='anchor')
+                self.list_peak_labels_matplotlib_id.append(txt_id)
 
         self._myCanvas.draw()
 
@@ -310,7 +312,9 @@ class MplFitPlottingWidget(QWidget):
             _left_line.remove()
             _right_line.remove()
 
-        yvec = self._data_set[1]
+        x_min = self._data_set[0].min()
+        x_max = self._data_set[0].max()
+        yvec_min = self._data_set[1].min()
 
         self.list_peak_ranges_matplotlib_id = []
         self.list_peak_labels_matplotlib_id = []
@@ -319,14 +323,15 @@ class MplFitPlottingWidget(QWidget):
         for _index, _range in enumerate(self.list_peak_ranges):
             x_right = np.nanmax(_range)
             x_left = np.nanmin(_range)
-            self._left_line = self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
-            self._right_line = self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
-            self.list_peak_ranges_matplotlib_id.append([self._left_line, self._right_line])
-            txt_id = self._myCanvas._data_subplot.text(x_left, yvec.min(), list_peak_labels[_index],
-                                                       fontsize=16,
-                                                       rotation=90,
-                                                       rotation_mode='anchor')
-            self.list_peak_labels_matplotlib_id.append(txt_id)
+            if (x_right > x_min) and (x_left < x_max):
+                self._left_line = self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
+                self._right_line = self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
+                self.list_peak_ranges_matplotlib_id.append([self._left_line, self._right_line])
+                txt_id = self._myCanvas._data_subplot.text(x_left, yvec_min, list_peak_labels[_index],
+                                                           fontsize=16,
+                                                           rotation=90,
+                                                           rotation_mode='anchor')
+                self.list_peak_labels_matplotlib_id.append(txt_id)
 
         self._myCanvas.draw()
 

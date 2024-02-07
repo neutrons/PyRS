@@ -297,16 +297,17 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             raise NotImplementedError('Input vec_x or vec_y for addPlot() must be numpy.array,'
                                       'but not {} and {}.'.format(type(vec_x), type(vec_y)))
 
-        plot_error = (y_err is not None) or (x_err is not None)
-        if plot_error is True:
-            if isinstance(y_err, np.ndarray) is False:
-                raise NotImplementedError('Input y_err must be either None or numpy.array.')
+        plot_errors = (y_err is not None) or (x_err is not None)
 
         if len(vec_x) != len(vec_y):
             raise NotImplementedError('Input vec_x (shape: {}) and vec_y (shape: {}) must have same size.'
                                       ''.format(vec_x.shape, vec_y.shape))
-        if plot_error is True and len(y_err) != len(vec_x):
-            raise NotImplementedError('Input vec_x, vec_y and y_error must have same size.')
+
+        if (y_err is not None) and (len(y_err) != len(vec_y)):
+            raise NotImplementedError('Input vec_y and y_error must have same size.')
+
+        if (x_err is not None) and (len(x_err) != len(vec_x)):
+            raise NotImplementedError('Input vec_x and x_error must have same size.')
 
         # set x-axis and y-axis label
         if x_label is not None:
@@ -326,7 +327,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         # self.axes_main.clear()
 
         # color must be RGBA (4-tuple)
-        if plot_error is False:
+        if plot_errors is False:
             # return: list of matplotlib.lines.Line2D object
             r = self.axes_main.plot(vec_x, vec_y, color=color,
                                     marker=marker, markersize=markersize,
