@@ -611,7 +611,7 @@ class NeXusConvertingApp:
             for i_sb in range(log_array_size):
                 split_log[i_sb] = calculate_sub_run_time_average(log_property,
                                                                  self._splitter.propertyFilters[i_sb])
-                                      
+
         else:
             try:
                 split_log[:] = runObj.getPropertyAsSingleValue(log_name)
