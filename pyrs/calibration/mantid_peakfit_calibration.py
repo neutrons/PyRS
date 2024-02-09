@@ -816,9 +816,9 @@ class FitCalibration:
         if file_name is None:
             # default case: write to archive
             if os.access('/HFIR/HB2B/shared', os.W_OK):
-                file_name = '/HFIR/HB2B/shared/CAL/{}/HB2B_CAL_{}.json'.format(self.monosetting.name,
-                                                                               time.strftime('%Y-%m-%dT%H:%M',
-                                                                                             time.localtime()))
+                file_name = '/HFIR/HB2B/shared/CALIBRATION/{}/HB2B_CAL_{}.json'.format(self.monosetting.name,
+                                                                                       time.strftime('%Y-%m-%dT%H:%M',
+                                                                                                     time.localtime()))
                 write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name)
 
             else:

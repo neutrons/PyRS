@@ -10,7 +10,7 @@ from qtpy.QtWidgets import QMainWindow  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 
 from pyrs.interface.gui_helper import pop_message
-from pyrs.utilities import get_input_project_file  # type: ignore
+from pyrs.utilities import get_nexus_file  # type: ignore
 from pyrs.interface.threading.worker_pool import WorkerPool
 
 from matplotlib import rcParams
@@ -125,17 +125,17 @@ class FileLoad(QWidget):
     def loadRunNumber(self):
 
         try:
-            project_dir = get_input_project_file(int(self.lineEdit.text()),
-                                                 preferredType=self._parent.fileLoading.run_location.currentText())
+            self._parent._nexus_file = get_nexus_file(int(self.lineEdit.text()))
         except (FileNotFoundError, RuntimeError, ValueError) as run_err:
             pop_message(self, f'Failed to find run {self.lineEdit.text()}',
                         str(run_err), 'error')
             return
 
-        self._parent._nexus_file = os.path.join(project_dir, f'HB2B_{self.lineEdit.text()}.h5')
-        self._parent._run_number = int(self.lineEdit.text())
+        if self._parent._nexus_file:
+            if type(self._parent._nexus_file) is list:
+                self._parent._nexus_file = self._parent._nexus_file[0]
 
-        self.load_nexus()
+            self.load_nexus()
 
     def load_nexus(self):
         try:
