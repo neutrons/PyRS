@@ -1,7 +1,7 @@
 """
 Graphics class with matplotlib backend specific for advanced 1D plot
 """
-from matplotlib.pyplot import subplots, subplots_adjust
+from matplotlib.pyplot import subplots, subplots_adjust, figure
 import numpy as np
 
 from qtpy.QtWidgets import QWidget, QSizePolicy, QVBoxLayout  # type:ignore
@@ -15,7 +15,8 @@ class MplGraphicsView1D(QWidget):
     1. specific for 1-D data
     """
 
-    def __init__(self, parent, row_size=None, col_size=None, tool_bar=True):
+    def __init__(self, parent, row_size=None, col_size=None, tool_bar=True,
+                 three_d_fig=False):
         """Initialization
         :param parent:
         :param row_size: number of figures per column, i.e., number of rows
@@ -44,7 +45,7 @@ class MplGraphicsView1D(QWidget):
         self.setAutoLineMarkerColorCombo()
 
         # set up canvas
-        self._myCanvas = Qt4MplCanvasMultiFigure(self)
+        self._myCanvas = Qt4MplCanvasMultiFigure(self, three_d_fig=three_d_fig)
 
         if tool_bar:
             self._myToolBar = NavigationToolbar2(self._myCanvas, self)
@@ -62,6 +63,9 @@ class MplGraphicsView1D(QWidget):
         self._vBox = QVBoxLayout(self)
         self._vBox.addWidget(self._myCanvas)
         self._vBox.addWidget(self._myToolBar)
+
+    def reset_view_3d(self):
+        self._myCanvas.reset_view_3d()
 
     def button_clicked_in_canvas(self, event):
         print("-> {} click: button={:d}, x={:d}, y={:d}, xdata={:f}, ydata={:f}".format(event.dblclick, event.button,
@@ -123,6 +127,26 @@ class MplGraphicsView1D(QWidget):
 
         # update line information
         self._update_plot_line_information(line_key, is_main=not is_right,
+                                           remove_line=False, label=label, vec_x=vec_x, vec_y=vec_y)
+
+        return line_key
+
+    def add_3d_scatter(self, vec_x, vec_y, vec_z, plot_scatter, colors=None,
+                       x_label='', y_label='', z_label='', label=''):
+
+        # check whether the input is empty
+        if (len(vec_x) == 0) or (len(vec_y) == 0) or (len(vec_z) == 0):
+            print('[WARNING] Input is an empty vector set')
+            return False
+
+        line_key = self._myCanvas.add_3d_scatter(vec_x, vec_y, vec_z, plot_scatter, colors=colors,
+                                                 x_label=x_label, y_label=y_label, z_label=z_label)
+
+        # add line to dictionary
+        self._lineSubplotMap[line_key] = line_key
+
+        # update line information
+        self._update_plot_line_information(line_key, is_main=True,
                                            remove_line=False, label=label, vec_x=vec_x, vec_y=vec_y)
 
         return line_key
@@ -228,14 +252,19 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
     It can be used to replace GraphicsView of QtGui
     """
 
-    def __init__(self, parent):
+    def __init__(self, parent, three_d_fig=False):
         """Initialization
         :param parent:
         :param row_size:
         :param col_size:
         """
         # Instantiating matplotlib Figure. It is a requirement to initialize a figure canvas
-        self.fig, self.axes_main = subplots(1, 1, sharex=True)
+        if three_d_fig:
+            self.fig = figure()
+            self.axes_main = self.fig.add_subplot(1, 1, 1, projection='3d')
+        else:
+            self.fig, self.axes_main = subplots(1, 1, sharex=True)
+
         self.fig.patch.set_facecolor('white')
         subplots_adjust(left=.15, bottom=.15, top=.9, right=.95)
 
@@ -271,6 +300,10 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         :return:  a list of 2 - tuples as (row - index, column - index)
         """
         return sorted(self.axes_main.keys())
+
+    def reset_view_3d(self):
+        self.axes_main.remove()
+        self.axes_main = self.fig.add_subplot(1, 1, 1, projection='3d')
 
     def add_main_plot(self, vec_x, vec_y,
                       x_err=None, y_err=None,
@@ -360,17 +393,6 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         # set aspect ratio
         self.axes_main.set_aspect('auto')
 
-        # just checking bounds, need to add tests for other situations (empty vec_x)
-        if len(vec_x) == 1:
-            delta_x = vec_x[0]
-        else:
-            delta_x = vec_x[1] - vec_x[0]
-
-        x_left = vec_x[0] - delta_x
-
-        x_right = vec_x[-1] + delta_x
-        self.axes_main.set_xlim(x_left, x_right)
-
         # set/update legend
         if show_legend:
             self._setup_legend(is_main=True)
@@ -387,8 +409,46 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             self._line_count += 1
         # END-IF
 
-        # Flush/commit
-        # self.draw()
+        self.draw()
+
+        return line_key
+
+    def add_3d_scatter(self, vec_x, vec_y, vec_z, plot_scatter, colors=None,
+                       x_label='', y_label='', z_label=''):
+
+        try:
+            if plot_scatter:
+                r = self.axes_main.scatter(vec_x, vec_y, vec_z, marker='D', color=colors)
+
+            elif (plot_scatter is False) and (colors is None):
+                r = self.axes_main.plot_surface(vec_x, vec_y, vec_z, rstride=1, cstride=1,
+                                                cmap='coolwarm', linewidth=0, antialiased=False)
+
+            else:
+                rcount, ccount, _ = colors.shape
+                r = self.axes_main.plot_surface(vec_x, vec_y, vec_z, rcount=rcount, ccount=ccount,
+                                                facecolors=colors, shade=False)
+
+                r.set_facecolor((0, 0, 0, 0))
+
+            self.axes_main.set_xlabel(x_label)
+            self.axes_main.set_ylabel(y_label)
+            self.axes_main.set_zlabel(z_label)
+
+            # set aspect ratio
+            self.axes_main.set_aspect('auto')
+
+            # END-IF
+
+            self.draw()
+
+        except ValueError:
+            r = None
+
+        # # Register
+        line_key = self._line_count
+        self._mainLineDict[line_key] = r
+        self._line_count += 1
 
         return line_key
 

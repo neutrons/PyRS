@@ -946,7 +946,7 @@ class TextureFittingViewer(QMainWindow):
         # self.compare_param_window = PlotView(self, three_dim=True)
 
         self.param_window = GeneralDiffDataView(self)
-        self.compare_param_window = GeneralDiffDataView(self)
+        self.compare_param_window = GeneralDiffDataView(self, three_d_fig=True)
 
         self.viz_splitter.addWidget(self.param_window)
         self.viz_splitter.addWidget(self.compare_param_window)
@@ -985,29 +985,19 @@ class TextureFittingViewer(QMainWindow):
     def update_2D_param_summary(self):
         if self.model.ws is not None:
             if (self.plot_select.get_X != "") and (self.plot_select.get_Y != ""):
-                pass
-                # self.param_window.update_param_view(self.plot_select.get_X,
-                #                                     self.plot_select.get_Y,
-                #                                     self.plot_select.get_PeakNum,
-                #                                     self.plot_select.get_out_of_plan_angle)
+                self._ctrl.plot_2D_params(self.param_window, self.plot_select.get_X, self.plot_select.get_Y,
+                                          self.plot_select.get_PeakNum, fit_object=self.fit_summary.fit_table_operator,
+                                          out_of_plane=self.plot_select.get_out_of_plan_angle)
 
     def update_3D_param_summary(self):
         if self.model.ws is not None:
             if (self.VizSetup.get_X() != "") and (self.VizSetup.get_Y() != "") and (self.VizSetup.get_Z() != ""):
-                pass
-                # self._ctrl.plot_3D_params(self._parent, self.compare_param_window,
-                #                           self.VizSetup.get_X(), self.VizSetup.get_Y(), self.VizSetup.get_Z(),
-                #                           self.plot_select.get_PeakNum,
-                #                           fit_object=self.fit_summary.fit_table_operator,
-                #                           out_of_plane=self.plot_select.get_out_of_plan_angle,
-                #                           include_list=self.VizSetup.get_sub_run_list())
-
-                # self.compare_param_window.update_3D_view(self.VizSetup.get_X(),
-                #                                          self.VizSetup.get_Y(),
-                #                                          self.VizSetup.get_Z(),
-                #                                          self.plot_select.get_PeakNum,
-                #                                          self.plot_select.get_out_of_plan_angle,
-                #                                          self.VizSetup.get_sub_run_list())
+                self._ctrl.plot_3D_params(self.compare_param_window, self.VizSetup,
+                                          self.VizSetup.get_X(), self.VizSetup.get_Y(), self.VizSetup.get_Z(),
+                                          self.plot_select.get_PeakNum,
+                                          fit_object=self.fit_summary.fit_table_operator,
+                                          out_of_plane=self.plot_select.get_out_of_plan_angle,
+                                          include_list=self.VizSetup.get_sub_run_list())
 
     def update_diffraction_data_plot(self):
         self._ctrl.update_diffraction_view(self.fit_window, self.fit_summary,

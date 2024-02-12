@@ -68,11 +68,12 @@ class GeneralDiffDataView(MplGraphicsView1D):
     generalized diffraction view
     """
 
-    def __init__(self, parent):
+    def __init__(self, parent, three_d_fig=False):
         """ Initialization
         :param parent:
         """
-        super(GeneralDiffDataView, self).__init__(parent, 1, 1)
+        super(GeneralDiffDataView, self).__init__(parent, 1, 1,
+                                                  three_d_fig=three_d_fig)
 
         # management
         self._line_reference_list = list()
@@ -85,6 +86,9 @@ class GeneralDiffDataView(MplGraphicsView1D):
         :return:
         """
         return self._current_x_axis_name
+
+    def set_3Dview(self):
+        self.reset_view_3d()
 
     def plot_diffraction(self, vec_x, vec_y, x_label, y_label, color='red', line_style='-',
                          line_label=None, keep_prev=True):
@@ -147,6 +151,21 @@ class GeneralDiffDataView(MplGraphicsView1D):
                                color='black',
                                x_label=x_label,
                                y_label=y_label)
+
+        self._line_reference_list.append(ref_id)
+        self._last_line_reference = ref_id
+        self._current_x_axis_name = x_label
+
+    def plot_3D_scatter(self, vec_x, vec_y, vec_z, plot_scatter, colors=None,
+                        x_label='', y_label='', z_label=''):
+
+        # It is not allowed to plot 2 plot with different x-axis
+        if self._last_line_reference is not None:
+            self.reset_viewer()
+
+        # plot data in a scattering plot with auto re-scale
+        ref_id = self.add_3d_scatter(vec_x, vec_y, vec_z, plot_scatter, colors=colors,
+                                     x_label=x_label, y_label=y_label, z_label=z_label)
 
         self._line_reference_list.append(ref_id)
         self._last_line_reference = ref_id

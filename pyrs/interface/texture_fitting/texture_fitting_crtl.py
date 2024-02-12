@@ -259,12 +259,10 @@ class TextureFittingCrtl:
 
         return not ((phi.size == 1) and (chi.size == 1))
 
-    def plot_2D_params(self, ax, xlabel, ylabel, peak_number, fit_object, out_of_plane):
+    def plot_2D_params(self, ax_object, xlabel, ylabel, peak_number, fit_object, out_of_plane):
 
         if peak_number == "":
             peak_number = 1
-
-        ax.clear()
 
         xdata, ydata = self.get_log_plot(xlabel, ylabel, peak=int(peak_number),
                                          fit_object=fit_object,
@@ -282,26 +280,28 @@ class TextureFittingCrtl:
         else:
             xerr = np.zeros_like(xdata)
 
-        ax.errorbar(xdata, ydata, xerr=xerr, yerr=yerr, color='k', ls='None')
-
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
+        ax_object.reset_viewer()
+        ax_object.plot_scatter_with_errors(vec_x=xdata,
+                                           vec_y=ydata,
+                                           vec_x_error=xerr,
+                                           vec_y_error=yerr,
+                                           x_label=xlabel,
+                                           y_label=ylabel)
 
         return
 
-    def plot_3D_params(self, _parent, ax, xlabel, ylabel, zlabel, peak_number, fit_object, out_of_plane, include_list):
+    def plot_3D_params(self, ax_object, VizSetup, x_label, y_label, z_label, peak_number, fit_object,
+                       out_of_plane, include_list):
 
         def round_polar(vector, target):
             return np.round(vector / target, 0) * target
 
-        ax.clear()
-
         if peak_number == "":
             peak_number = 1
 
-        xdata, ydata, zdata = self.get_log_plot(xlabel, ylabel, zname=zlabel, peak=int(peak_number),
-                                                fit_object=_parent.fit_summary.fit_table_operator,
-                                                out_of_plane=out_of_plane, include_list=include_list)
+        xdata, ydata, zdata = self.get_log_plot(x_label, y_label, zname=z_label, peak=int(peak_number),
+                                                fit_object=fit_object, out_of_plane=out_of_plane,
+                                                include_list=include_list)
 
         if isinstance(zdata[0], np.ndarray):
             zdata = zdata[0]
@@ -316,13 +316,15 @@ class TextureFittingCrtl:
             zdata = np.array(zdata)
 
         plot_scatter = False
+        colors = None
+
         if ((ydata.size == np.unique(ydata).size) or
                 (xdata.size == np.unique(xdata).size)):
 
             plot_scatter = True
 
-        if (_parent.VizSetup.polar_bt.isChecked()):
-            polar_data = _parent._ctrl.extract_polar_projection(peak_number=int(peak_number))
+        if (VizSetup.polar_bt.isChecked()):
+            polar_data = self.extract_polar_projection(peak_number=int(peak_number))
 
             if polar_data is not None:
 
@@ -330,57 +332,46 @@ class TextureFittingCrtl:
                 beta = round_polar(polar_data[:, 1], 5)
 
                 R, P = np.meshgrid(np.unique(alpha), np.unique(beta))
-                Z = griddata(((alpha, beta)), polar_data[:, 2], (R, P), method='nearest')
+                vec_z = griddata(((alpha, beta)), polar_data[:, 2], (R, P), method='nearest')
 
-                if _parent.VizSetup.shift_bt.isChecked():
-                    X = (90 - R) * np.cos(np.deg2rad(P))
-                    Y = (90 - R) * np.sin(np.deg2rad(P))
+                if VizSetup.shift_bt.isChecked():
+                    vec_x = (90 - R) * np.cos(np.deg2rad(P))
+                    vec_y = (90 - R) * np.sin(np.deg2rad(P))
                 else:
-                    X = R * np.cos(np.deg2rad(P))
-                    Y = R * np.sin(np.deg2rad(P))
+                    vec_x = R * np.cos(np.deg2rad(P))
+                    vec_y = R * np.sin(np.deg2rad(P))
 
-                ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm',
-                                linewidth=0, antialiased=False)
-
-                xlabel = r'$\alpha$'
-                ylabel = r'$\beta$'
-                zlabel = r'Intensity'
+                x_label = r'$\alpha$'
+                y_label = r'$\beta$'
+                z_label = r'Intensity'
 
                 plot_scatter = False
             else:
                 plot_scatter = True
 
-        if (_parent.VizSetup.contour_bt.isChecked()) and (not plot_scatter):
-            X, Y = np.meshgrid(np.unique(xdata), np.unique(ydata))
-            Z = griddata(((xdata, ydata)), zdata, (X, Y), method='nearest')
+        if (VizSetup.contour_bt.isChecked()) and (not plot_scatter):
+            vec_x, vec_y = np.meshgrid(np.unique(xdata), np.unique(ydata))
+            vec_z = griddata(((xdata, ydata)), zdata, (vec_x, vec_y), method='nearest')
 
-            ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm',
-                            linewidth=0, antialiased=False)
+        elif (VizSetup.lines_bt.isChecked()) and (not plot_scatter):
+            vec_x, vec_y = np.meshgrid(np.unique(xdata), np.unique(ydata))
+            vec_z = griddata(((xdata, ydata)), zdata, (vec_x, vec_y), method='nearest')
 
-        elif (_parent.VizSetup.lines_bt.isChecked()) and (not plot_scatter):
+            norm = plt.Normalize(vec_z.min(), vec_z.max())
+            colors = coolwarm(norm(vec_z))
 
-            X, Y = np.meshgrid(np.unique(xdata), np.unique(ydata))
-            Z = griddata(((xdata, ydata)), zdata, (X, Y), method='nearest')
-
-            norm = plt.Normalize(Z.min(), Z.max())
-            colors = coolwarm(norm(Z))
-            rcount, ccount, _ = colors.shape
-
-            surf = ax.plot_surface(X, Y, Z, rcount=rcount, ccount=ccount,
-                                   facecolors=colors, shade=False)
-
-            surf.set_facecolor((0, 0, 0, 0))
-
-        elif (_parent.VizSetup.scatter_bt.isChecked()) or (plot_scatter):
+        elif (VizSetup.scatter_bt.isChecked()) or (plot_scatter):
+            plot_scatter = True
 
             norm = plt.Normalize(zdata.min(), zdata.max())
             colors = coolwarm(norm(zdata))
 
-            ax.scatter(xdata, ydata, zdata, marker='D', color=colors)
+            vec_x = np.copy(xdata)
+            vec_y = np.copy(ydata)
+            vec_z = np.copy(zdata)
 
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
-        ax.set_zlabel(zlabel)
+        ax_object.plot_3D_scatter(vec_x, vec_y, vec_z, plot_scatter, colors=colors,
+                                  x_label=x_label, y_label=y_label, z_label=z_label)
 
         return
 

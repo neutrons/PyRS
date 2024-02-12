@@ -6,7 +6,6 @@ from pyrs.utilities import load_ui  # type: ignore
 from pyrs.icons import icons_rc5 as icons_rc  # noqa: F401
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView
-from pyrs.interface.ui.mplgraphicsviewcontourplot import MplGraphicsViewContourPlot
 from pyrs.interface.ui.rstables import FitResultTable
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView
 import pyrs.interface.gui_helper
@@ -69,11 +68,12 @@ class FitPeaksWindow(QMainWindow):
         self.ui.graphicsView_fitResult = qt_util.promote_widget(self, self.ui.graphicsView_fitResult_frame,
                                                                 GeneralDiffDataView)
         self.ui.graphicsView_plot2D = qt_util.promote_widget(self, self.ui.graphicsView_2dPlot_frame,
-                                                             MplGraphicsViewContourPlot)
+                                                             GeneralDiffDataView)
         self.ui.tableView_fitSummary = qt_util.promote_widget(self, self.ui.tableView_fitSummary_frame,
                                                               FitResultTable)
         self._promote_peak_fit_setup()
         self._init_widgets()
+        self.ui.graphicsView_plot2D.set_3Dview()
 
         # set up handling
         self.ui.lineEdit_expNumber.setValidator(QtGui.QIntValidator(1, 999999))
