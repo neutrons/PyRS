@@ -1,6 +1,8 @@
 import numpy as np
-from matplotlib import cm
+from matplotlib.cm import coolwarm
+from matplotlib.pyplot import Normalize
 from mpl_toolkits.mplot3d import Axes3D   # noqa: F401
+from scipy.interpolate import griddata
 
 from pyrs.interface.gui_helper import parse_integers
 from pyrs.interface.gui_helper import pop_message
@@ -46,7 +48,7 @@ class Plot:
         plot_model = len(scan_log_index_list) == 1 and plot_model
         for scan_log_index in scan_log_index_list:
             try:
-                self.plot_diff_and_fitted_data(scan_log_index, plot_model)
+                self.plot_diff_and_fitted_data(scan_log_index)
             except RuntimeError as run_err:
                 err_msg += '{0}\n'.format(run_err)
 
@@ -57,7 +59,7 @@ class Plot:
         """reset the fitting plots"""
         self.parent.ui.graphicsView_fitResult.reset_viewer()
 
-    def plot_diff_and_fitted_data(self, sub_run_number, plot_model):
+    def plot_diff_and_fitted_data(self, sub_run_number):
         """Plot a set of diffraction data (one scan log index) and plot its fitted data
 
         Parameters
@@ -93,22 +95,6 @@ class Plot:
             err_x_array = self.parent.fit_result.difference.readX(sub_run_index)
             err_y_array = self.parent.fit_result.difference.readY(sub_run_index)
             self.parent._ui_graphicsView_fitSetup.plot_fitting_diff_data(x_axis=err_x_array, y_axis=err_y_array)
-            # self.parent._ui_graphicsView_fitSetup.plot_model_data(diff_data_set=model_data_set,
-            #                                                       model_label='fit',
-            #                                                       residual_set=residual_data_set)
-
-        # # Plot fitted model data
-        # model_data_set = None
-        # if plot_model:
-        #     model_data_set = self.parent._core.get_modeled_data(session_name=self.parent._project_name,
-        #                                                         sub_run=sub_run_number)
-        #
-        # if model_data_set is not None:
-        #     residual_y_vec = diff_data_set[1] - model_data_set[1]
-        #     residual_data_set = [diff_data_set[0], residual_y_vec]
-        #     self.parent._ui_graphicsView_fitSetup.plot_model_data(diff_data_set=model_data_set,
-        #                                                           model_label='fit',
-        #                                                           residual_set=residual_data_set)
 
     def plot_scan(self, value=None):
         """ plot the scan defined by the scroll bar or the text line according to radio button selected
@@ -123,7 +109,7 @@ class Plot:
 
         try:
             self.parent._ui_graphicsView_fitSetup.reset_viewer()
-            self.plot_diff_and_fitted_data(sub_run, True)
+            self.plot_diff_and_fitted_data(sub_run)
         except RuntimeError:
             pass
 
@@ -153,6 +139,9 @@ class Plot:
 
     def plot_2d(self, sub_run_list=None):
 
+        colors = None
+        plot_scatter = False
+
         o_gui = GuiUtilities(parent=self.parent)
         x_axis_name = str(self.parent.ui.comboBox_xaxisNames_2dplot.currentText())
         y_axis_name = str(self.parent.ui.comboBox_yaxisNames_2dplot.currentText())
@@ -174,74 +163,39 @@ class Plot:
             axis_y_data = axis_y_data[sub_run_list]
             axis_z_data = axis_z_data[sub_run_list]
 
-        if not self.parent.ui.radioButton_3dscatter.isChecked():
+        if ((axis_x_data.size == np.unique(axis_x_data).size) or
+                (axis_x_data.size == np.unique(axis_x_data).size)):
 
-            array_dict = self.format_3D_axis_data(axis_x=axis_x_data, axis_y=axis_y_data, axis_z=axis_z_data)
-            x_axis = array_dict['x_axis']
-            y_axis = array_dict['y_axis']
-            z_axis = array_dict['z_axis']
-
-            if len(x_axis) < 2:
-                return
-
-        self.parent.ui.graphicsView_plot2D.ax.clear()
-        if self.parent.ui.graphicsView_plot2D.colorbar:
-            self.parent.ui.graphicsView_plot2D.colorbar.remove()
-            self.parent.ui.graphicsView_plot2D.colorbar = None
+            plot_scatter = True
 
         if self.parent.ui.radioButton_contour.isChecked():
-            self.parent.ui.graphicsView_plot2D.figure.clear()
-            self.parent.ui.graphicsView_plot2D.ax = \
-                self.parent.ui.graphicsView_plot2D.figure.add_subplot(1, 1, 1)
-            my_plot = self.parent.ui.graphicsView_plot2D.ax.contourf(x_axis, y_axis, z_axis)
-
-            self.parent.ui.graphicsView_plot2D.colorbar = \
-                self.parent.ui.graphicsView_plot2D.figure.colorbar(my_plot)
-            self.parent.ui.graphicsView_plot2D._myCanvas.draw()
-
-            self.parent.ui.graphicsView_plot2D.ax.set_xlabel(x_axis_name)
-            self.parent.ui.graphicsView_plot2D.ax.set_ylabel(y_axis_name)
+            vec_x, vec_y = np.meshgrid(np.unique(axis_x_data), np.unique(axis_y_data))
+            vec_z = griddata(((axis_x_data, axis_y_data)), axis_z_data, (vec_x, vec_y), method='nearest')
 
         elif self.parent.ui.radioButton_3dline.isChecked():
 
-            x, y = np.meshgrid(x_axis, y_axis)
+            vec_x, vec_y = np.meshgrid(np.unique(axis_x_data), np.unique(axis_y_data))
+            vec_z = griddata(((axis_x_data, axis_y_data)), axis_z_data, (vec_x, vec_y), method='nearest')
 
-            self.parent.ui.graphicsView_plot2D.figure.clear()
-            self.parent.ui.graphicsView_plot2D.ax = \
-                self.parent.ui.graphicsView_plot2D.figure.add_subplot(1, 1, 1, projection='3d')
-            my_plot = self.parent.ui.graphicsView_plot2D.ax.plot_surface(x, y, z_axis,
-                                                                         cmap=cm.coolwarm,
-                                                                         linewidth=0,
-                                                                         antialiased=False)
-            self.parent.ui.graphicsView_plot2D.colorbar = self.parent.ui.graphicsView_plot2D.figure.colorbar(my_plot)
-            self.parent.ui.graphicsView_plot2D.ax.set_xlabel(x_axis_name)
-            self.parent.ui.graphicsView_plot2D.ax.set_ylabel(y_axis_name)
-            self.parent.ui.graphicsView_plot2D.ax.set_zlabel(z_axis_name)
-
-            # maybe look at projections on the wall (matplotlib.org/gallery/mplot3d/contour3d_3.html)
-            self.parent.ui.graphicsView_plot2D.ax.contour(x, y, z_axis, zdir='z', offset=np.nanmin(z_axis),
-                                                          cmap=cm.coolwarm)
-            self.parent.ui.graphicsView_plot2D.ax.contour(x, y, z_axis, zdir='y', offset=np.nanmax(y),
-                                                          cmap=cm.coolwarm)
-            self.parent.ui.graphicsView_plot2D.ax.contour(x, y, z_axis, zdir='x', offset=np.nanmax(x),
-                                                          cmap=cm.coolwarm)
-
-            self.parent.ui.graphicsView_plot2D._myCanvas.draw()
+            norm = Normalize(vec_z.min(), vec_z.max())
+            colors = coolwarm(norm(vec_z))
 
         else:
-            self.parent.ui.graphicsView_plot2D.figure.clear()
-            self.parent.ui.graphicsView_plot2D.ax = \
-                self.parent.ui.graphicsView_plot2D.figure.add_subplot(1, 1, 1, projection='3d')
+            plot_scatter = True
+            try:
+                norm = Normalize(axis_z_data.min(), axis_z_data.max())
+                colors = coolwarm(norm(axis_z_data))
+            except ValueError:
+                colors = None
 
-            # only try plotting if the figure height is larger than 0
-            fig_size = self.parent.ui.graphicsView_plot2D.figure.get_size_inches()
-            if fig_size[1] > 0:
-                self.parent.ui.graphicsView_plot2D.ax.scatter(axis_x_data, axis_y_data, axis_z_data)
-                self.parent.ui.graphicsView_plot2D._myCanvas.draw()
+            vec_x = np.copy(axis_x_data)
+            vec_y = np.copy(axis_y_data)
+            vec_z = np.copy(axis_z_data)
 
-                self.parent.ui.graphicsView_plot2D.ax.set_xlabel(x_axis_name)
-                self.parent.ui.graphicsView_plot2D.ax.set_ylabel(y_axis_name)
-                self.parent.ui.graphicsView_plot2D.ax.set_zlabel(z_axis_name)
+        self.parent.ui.graphicsView_plot2D.plot_3D_scatter(vec_x, vec_y, vec_z, plot_scatter, colors=colors,
+                                                           x_label=x_axis_name,
+                                                           y_label=y_axis_name,
+                                                           z_label=z_axis_name)
 
     def format_3D_axis_data(self, axis_x=[], axis_y=[], axis_z=[]):
 

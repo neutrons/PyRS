@@ -34,8 +34,6 @@ class MplGraphicsView2D(QWidget):
         self._vBox.addWidget(self._myCanvas)
         self._vBox.addWidget(self._myToolBar)
 
-        self._arrowList = list()
-
         #
         self._hasImage = False
 
@@ -137,8 +135,6 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         # show image
         self._imagePlot = self.axes.imshow(array2d, extent=[xmin, xmax, ymin, ymax], interpolation='none')
 
-        print(self._imagePlot, type(self._imagePlot))
-
         # set y ticks as an option:
         if yticklabels is not None:
             # it will always label the first N ticks even image is zoomed in
@@ -146,18 +142,9 @@ class Qt4Mpl2DCanvas(FigureCanvas):
             self.axes.set_yticklabels(yticklabels)
 
         # explicitly set aspect ratio of the image
-        self.axes.set_aspect('auto')
+        self.axes.set_aspect('equal')
+        self.axes.axis('off')
 
-        # set up color bar
-        # # Set color bar.  plt.colorbar() does not work!
-        # if self._colorBar is None:
-        #     # set color map type
-        #     imgplot.set_cmap('spectral')
-        #     self._colorBar = self.fig.colorbar(imgplot)
-        # else:
-        #     self._colorBar.update_bruteforce(imgplot)
-
-        # Flush...
         self._flush()
 
         return

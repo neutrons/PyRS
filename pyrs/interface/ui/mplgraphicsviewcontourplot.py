@@ -21,10 +21,8 @@ class MplGraphicsViewContourPlot(QWidget):
         # set up canvas
         self.figure = Figure()
         self.colorbar = None
-        # self._myCanvas = Qt4Mpl2DCanvas(self.figure)
         self._myCanvas = FigureCanvas(self.figure)
         self._myToolBar = NavigationToolbar2(self._myCanvas, self)
-        # self._myToolBar = MyNavigationToolbar(self._myCanvas, self)
 
         # state of operation
         self._isZoomed = False

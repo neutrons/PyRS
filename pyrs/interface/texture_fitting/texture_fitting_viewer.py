@@ -9,17 +9,11 @@ from qtpy.QtWidgets import QMainWindow, QAction, QTableWidgetSelectionRange  # t
 from qtpy.QtGui import QColor  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 
+from pyrs.interface.ui.diffdataviews import PeakFitSetupView, GeneralDiffDataView
 from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities import get_input_project_file  # type: ignore
 
-from matplotlib import rcParams
-
 import numpy as np
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-import matplotlib.pyplot as plt
-# import subplots, tight_layout, figure
-from matplotlib.backend_bases import MouseButton
 
 # import traceback
 import os
@@ -28,25 +22,6 @@ import copy
 COLOR_FAILED_FITTING = QColor(247, 173, 13)  # orange
 SUCCESS = "success"
 MICROSTRAIN = u"\u00b5strain"
-
-
-scale_factor = 1
-marker_size = 5 * scale_factor
-
-rcParams['axes.labelsize'] = 10 * scale_factor
-rcParams['xtick.labelsize'] = 9 * scale_factor
-rcParams['ytick.labelsize'] = 9 * scale_factor
-rcParams['lines.linewidth'] = 2 * scale_factor
-rcParams['axes.linewidth'] = 1.0 * scale_factor / 2.
-rcParams['xtick.major.size'] = 3.5 * scale_factor
-rcParams['xtick.minor.size'] = 2 * scale_factor
-rcParams['xtick.major.width'] = 0.8 * scale_factor / 2.
-rcParams['xtick.minor.width'] = 0.8 * scale_factor / 2.
-rcParams['ytick.major.size'] = 3.5 * scale_factor
-rcParams['ytick.minor.size'] = 2 * scale_factor
-rcParams['ytick.major.width'] = 0.8 * scale_factor / 2.
-rcParams['ytick.minor.width'] = 0.8 * scale_factor / 2.
-rcParams["savefig.dpi"] = 200
 
 
 class FileLoad(QWidget):
@@ -114,7 +89,7 @@ class FileLoad(QWidget):
     def load_project_plot(self):
         self._reset_fit_data()
         self._parent.controller.load_projectfile(self._parent._project_file)
-        self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[0])
+        self._parent.update_diffraction_data_plot()
         self._parent.fit_setup.sl.setMaximum(self._parent.model.sub_runs.size - 1)
         self._parent.fit_summary.setup_out_of_plane_angle(self._parent.model.ws.reduction_masks)
         self._parent.plot_select.setup_out_of_plane_angle(self._parent.model.ws.reduction_masks)
@@ -320,85 +295,85 @@ class PlotSelect(QGroupBox):
             self.out_of_plane.setVisible(False)
 
 
-class FixFigureCanvas(FigureCanvas):
-    def resizeEvent(self, event):
-        if event.size().width() <= 0 or event.size().height() <= 0:
-            return
-        super(FixFigureCanvas, self).resizeEvent(event)
+# class FixFigureCanvas(FigureCanvas):
+#     def resizeEvent(self, event):
+#         if event.size().width() <= 0 or event.size().height() <= 0:
+#             return
+#         super(FixFigureCanvas, self).resizeEvent(event)
 
 
-class PlotView(QWidget):
-    def __init__(self, parent=None, fit_view=False, three_dim=False):
-        super().__init__(parent)
-        self._parent = parent
+# class PlotView(QWidget):
+#     def __init__(self, parent=None, fit_view=False, three_dim=False):
+#         super().__init__(parent)
+#         self._parent = parent
 
-        if fit_view:
-            self.peak_entry_x0 = None
+#         if fit_view:
+#             self.peak_entry_x0 = None
 
-            self.figure, self.ax = plt.subplots(2, 1, sharex=True,
-                                                gridspec_kw={'height_ratios': [3, 1]})
-            plt.connect('button_press_event', self.define_peak_tabel)
-            plt.connect('motion_notify_event', self.define_peak_tabel)
-            plt.connect('button_release_event', self.define_peak_tabel)
+#             self.figure, self.ax = plt.subplots(2, 1, sharex=True,
+#                                                 gridspec_kw={'height_ratios': [3, 1]})
+#             plt.connect('button_press_event', self.define_peak_tabel)
+#             plt.connect('motion_notify_event', self.define_peak_tabel)
+#             plt.connect('button_release_event', self.define_peak_tabel)
 
-        elif three_dim:
-            self.figure = plt.figure()
-            self.ax = self.figure.add_subplot(1, 1, 1, projection='3d')
+#         elif three_dim:
+#             self.figure = plt.figure()
+#             self.ax = self.figure.add_subplot(1, 1, 1, projection='3d')
 
-        else:
-            self.figure, self.ax = plt.subplots(1, 1)
+#         else:
+#             self.figure, self.ax = plt.subplots(1, 1)
 
-        plt.tight_layout()
-        self.setLayout(QVBoxLayout())
-        self.canvas = self.getWidget()
-        self.toolbar = NavigationToolbar(self.canvas, self)
-        self.layout().addWidget(self.canvas)
-        self.layout().addWidget(self.toolbar)
+#         plt.tight_layout()
+#         self.setLayout(QVBoxLayout())
+#         self.canvas = self.getWidget()
+#         self.toolbar = NavigationToolbar(self.canvas, self)
+#         self.layout().addWidget(self.canvas)
+#         self.layout().addWidget(self.toolbar)
 
-    def update_diff_view(self, sub_run):
+#     def update_diff_view(self, sub_run):
 
-        self._parent._ctrl.update_diffraction_view(self.ax, self._parent, sub_run)
+#         self._parent._ctrl.update_diffraction_view(self.ax, self._parent, sub_run)
 
-        plt.tight_layout()
+#         plt.tight_layout()
 
-        self.canvas.draw()
+#         self.canvas.draw()
 
-    def getWidget(self):
-        return FixFigureCanvas(self.figure)
+#     def getWidget(self):
+#         return FixFigureCanvas(self.figure)
 
-    def update_param_view(self, xlabel, ylabel, peak_number=1, out_of_plane=None):
+#     def update_param_view(self, xlabel, ylabel, peak_number=1, out_of_plane=None):
 
-        self._parent._ctrl.plot_2D_params(self.ax, xlabel, ylabel, peak_number,
-                                          fit_object=self._parent.fit_summary.fit_table_operator,
-                                          out_of_plane=out_of_plane)
+#         self._parent._ctrl.plot_2D_params(self.ax, xlabel, ylabel, peak_number,
+#                                           fit_object=self._parent.fit_summary.fit_table_operator,
+#                                           out_of_plane=out_of_plane)
 
-        plt.tight_layout()
+#         plt.tight_layout()
 
-        self.canvas.draw()
+#         self.canvas.draw()
 
-    def update_3D_view(self, xlabel, ylabel, zlabel, peak_number=1, out_of_plane=None, sub_run_list=[]):
+#     def update_3D_view(self, xlabel, ylabel, zlabel, peak_number=1, out_of_plane=None, sub_run_list=[]):
 
-        self._parent._ctrl.plot_3D_params(self._parent, self.ax, xlabel, ylabel, zlabel, peak_number,
-                                          fit_object=self._parent.fit_summary.fit_table_operator,
-                                          out_of_plane=out_of_plane, include_list=sub_run_list)
+#         self._parent._ctrl.plot_3D_params(self._parent, self.ax, xlabel, ylabel, zlabel, peak_number,
+#                                           fit_object=self._parent.fit_summary.fit_table_operator,
+#                                           out_of_plane=out_of_plane, include_list=sub_run_list)
 
-        plt.tight_layout()
+#         plt.tight_layout()
 
-        self.canvas.draw()
+#         self.canvas.draw()
 
-    def define_peak_tabel(self, event):
-        if event.button is MouseButton.LEFT:
-            if self.peak_entry_x0 is None:
-                self.peak_entry_x0 = 1
-                self._parent.fit_setup.add_peak_tabel_entry(event.xdata,
-                                                            event.xdata)
-            elif event.name == 'motion_notify_event':
-                self._parent.fit_setup.update_peak_tabel_entry(event.xdata)
-            elif event.name == 'button_release_event':
-                self._parent.fit_setup.update_peak_tabel_entry(event.xdata)
-                self.peak_entry_x0 = None
+#     def define_peak_tabel(self, event):
+#         if event.button is MouseButton.LEFT:
+#             if self.peak_entry_x0 is None:
+#                 self.peak_entry_x0 = 1
+#                 self._parent.fit_setup.add_peak_tabel_entry(event.xdata,
+#                                                             event.xdata)
+#             elif event.name == 'motion_notify_event':
+#                 self._parent.fit_setup.update_peak_tabel_entry(event.xdata)
+#             elif event.name == 'button_release_event':
+#                 self._parent.fit_setup.update_peak_tabel_entry(event.xdata)
+#                 self.peak_entry_x0 = None
 
-        return
+#         return
 
 
 class FitSetupView(QGroupBox):
@@ -492,6 +467,8 @@ class FitSetupView(QGroupBox):
         self.export_setup_layout = QHBoxLayout()
         self.export_peak_info = QPushButton("Export Peak Information")
         self.export_peak_info.clicked.connect(self.save_peak_CSV)
+        self.export_peak_info.setEnabled(False)
+
         self.export_pole_figs = QPushButton("Export Polefigures")
         self.export_pole_figs.clicked.connect(self.save_pole_fig)
 
@@ -513,30 +490,22 @@ class FitSetupView(QGroupBox):
 
         self.setLayout(layout)
 
-    def add_peak_tabel_entry(self, x0, x1):
+    def fill_peak_table(self, list_fit_peak_ranges, list_fit_peak_labels, list_fit_peak_d0):
 
-        self.fit_range_table.insertRow(self.fit_range_table.rowCount())
-        self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 0,
-                                     QTableWidgetItem(str(x0)))
-        self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 1,
-                                     QTableWidgetItem(str(x1)))
-        self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 2,
-                                     QTableWidgetItem(str('Peak_{}'.format(self.fit_range_table.rowCount()))))
-        self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 3,
-                                     QTableWidgetItem(str(1.0)))
+        nbr_row = self.fit_range_table.rowCount()
+        for _ in np.arange(nbr_row):
+            self.fit_range_table.removeRow(0)
 
-        return
-
-    def update_peak_tabel_entry(self, x1):
-
-        if x1 is not None:
-            row = self.fit_range_table.rowCount() - 1
-
-            if float(self.fit_range_table.item(row, 0).text()) > x1:
-                self.fit_range_table.setItem(row, 1, QTableWidgetItem(self.fit_range_table.item(row, 0).text()))
-                self.fit_range_table.setItem(row, 0, QTableWidgetItem(str(x1)))
-            else:
-                self.fit_range_table.setItem(row, 1, QTableWidgetItem(str(x1)))
+        for i_entry in range(len(list_fit_peak_ranges)):
+            self.fit_range_table.insertRow(self.fit_range_table.rowCount())
+            self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 0,
+                                         QTableWidgetItem(str(list_fit_peak_ranges[i_entry][0])))
+            self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 1,
+                                         QTableWidgetItem(str(list_fit_peak_ranges[i_entry][1])))
+            self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 2,
+                                         QTableWidgetItem(str(list_fit_peak_labels[i_entry])))
+            self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 3,
+                                         QTableWidgetItem(str(list_fit_peak_d0[i_entry])))
 
         return
 
@@ -621,11 +590,14 @@ class FitSetupView(QGroupBox):
         self._parent.fit_summary.fit_table_operator.set_fit_dict(fit_results)
         self._parent.fit_summary.fit_table_operator.initialize_fit_result_widgets()
         self._parent.fit_summary.fit_table_operator.populate_fit_result_table()
-        self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[0])
+        self._parent.update_diffraction_data_plot()
+        # self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[0])
         self.setup_view_param(peaks=self.fit_range_table.rowCount())
 
     def valuechange(self):
-        self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[self.sl.value()])
+        self._parent.update_diffraction_data_plot()
+
+        # self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[self.sl.value()])
 
 
 class FitSummaryView(QGroupBox):
@@ -935,7 +907,8 @@ class TextureFittingViewer(QMainWindow):
         self.fit_splitter = QSplitter(Qt.Vertical)
         self.fit_splitter.setHandleWidth(10)
 
-        self.fit_window = PlotView(self, fit_view=True)
+        # self.fit_window = PlotView(self, fit_view=True)
+        self.fit_window = PeakFitSetupView(self)
         self.fit_setup = FitSetupView(self)
         self.fit_summary = FitSummaryView(self)
 
@@ -969,8 +942,11 @@ class TextureFittingViewer(QMainWindow):
         self.plot_select.out_of_plane.currentTextChanged.connect(self.sync_oop)
 
         self.viz_splitter = QSplitter(Qt.Vertical)
-        self.param_window = PlotView(self)
-        self.compare_param_window = PlotView(self, three_dim=True)
+        # self.param_window = PlotView(self)
+        # self.compare_param_window = PlotView(self, three_dim=True)
+
+        self.param_window = GeneralDiffDataView(self)
+        self.compare_param_window = GeneralDiffDataView(self, three_d_fig=True)
 
         self.viz_splitter.addWidget(self.param_window)
         self.viz_splitter.addWidget(self.compare_param_window)
@@ -1009,23 +985,23 @@ class TextureFittingViewer(QMainWindow):
     def update_2D_param_summary(self):
         if self.model.ws is not None:
             if (self.plot_select.get_X != "") and (self.plot_select.get_Y != ""):
-                self.param_window.update_param_view(self.plot_select.get_X,
-                                                    self.plot_select.get_Y,
-                                                    self.plot_select.get_PeakNum,
-                                                    self.plot_select.get_out_of_plan_angle)
+                self._ctrl.plot_2D_params(self.param_window, self.plot_select.get_X, self.plot_select.get_Y,
+                                          self.plot_select.get_PeakNum, fit_object=self.fit_summary.fit_table_operator,
+                                          out_of_plane=self.plot_select.get_out_of_plan_angle)
 
     def update_3D_param_summary(self):
         if self.model.ws is not None:
             if (self.VizSetup.get_X() != "") and (self.VizSetup.get_Y() != "") and (self.VizSetup.get_Z() != ""):
-                self.compare_param_window.update_3D_view(self.VizSetup.get_X(),
-                                                         self.VizSetup.get_Y(),
-                                                         self.VizSetup.get_Z(),
-                                                         self.plot_select.get_PeakNum,
-                                                         self.plot_select.get_out_of_plan_angle,
-                                                         self.VizSetup.get_sub_run_list())
+                self._ctrl.plot_3D_params(self.compare_param_window, self.VizSetup,
+                                          self.VizSetup.get_X(), self.VizSetup.get_Y(), self.VizSetup.get_Z(),
+                                          self.plot_select.get_PeakNum,
+                                          fit_object=self.fit_summary.fit_table_operator,
+                                          out_of_plane=self.plot_select.get_out_of_plan_angle,
+                                          include_list=self.VizSetup.get_sub_run_list())
 
     def update_diffraction_data_plot(self):
-        self.fit_window.update_diff_view(self.model.sub_runs[self.fit_setup.sl.value()])
+        self._ctrl.update_diffraction_view(self.fit_window, self.fit_summary,
+                                           self.model.sub_runs[self.fit_setup.sl.value()])
 
     def sync_oop(self):
         self.fit_summary.out_of_plane.setCurrentIndex(self.plot_select.out_of_plane.currentIndex())
@@ -1037,7 +1013,7 @@ class TextureFittingViewer(QMainWindow):
     def update_oop_select(self):
         self.plot_select.out_of_plane.setCurrentIndex(self.fit_summary.out_of_plane.currentIndex())
         self.fit_summary.fit_table_operator.change_fit(self.fit_summary.out_of_plan_angle)
-        self.fit_window.update_diff_view(self.model.sub_runs[self.fit_setup.sl.value()])
+        self.update_diffraction_data_plot()
         self.update_param_plots()
 
     def show_failure_msg(self, msg, info, details):
@@ -1048,6 +1024,36 @@ class TextureFittingViewer(QMainWindow):
         msgBox.setInformativeText(info)
         msgBox.setDetailedText(details)
         msgBox.exec()
+
+    def update_peak_ranges_table(self, **kwargs):
+
+        self.fit_setup.fit_range_table.blockSignals(True)
+
+        def __get_kwargs_value(key='', data_type='boolean'):
+            if data_type == 'boolean':
+                _default = False
+            elif data_type == 'array':
+                _default = []
+            return kwargs[key] if key in kwargs.keys() else _default
+
+        release = __get_kwargs_value('release', data_type='boolean')
+
+        list_fit_peak_ranges = __get_kwargs_value('list_fit_peak_ranges',
+                                                  data_type='array')
+        list_fit_peak_labels = __get_kwargs_value('list_fit_peak_labels',
+                                                  data_type='array')
+        list_fit_peak_d0 = __get_kwargs_value('list_fit_peak_d0',
+                                              data_type='array')
+
+        if release:
+            self.fit_setup.fill_peak_table(list_fit_peak_ranges=list_fit_peak_ranges,
+                                           list_fit_peak_labels=list_fit_peak_labels,
+                                           list_fit_peak_d0=list_fit_peak_d0)
+
+        self.fit_setup.fit_range_table.blockSignals(False)
+
+    def update_save_peak_range_widget(self):
+        self.fit_setup.export_peak_info.setEnabled(True)
 
     def save(self):
         if self._project_file is not None:

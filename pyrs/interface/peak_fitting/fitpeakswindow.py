@@ -6,10 +6,8 @@ from pyrs.utilities import load_ui  # type: ignore
 from pyrs.icons import icons_rc5 as icons_rc  # noqa: F401
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView
-from pyrs.interface.ui.mplgraphicsviewcontourplot import MplGraphicsViewContourPlot
 from pyrs.interface.ui.rstables import FitResultTable
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView
-import pyrs.interface.advpeakfitdialog
 import pyrs.interface.gui_helper
 from pyrs.interface.peak_fitting.event_handler import EventHandler
 from pyrs.interface.peak_fitting.plot import Plot
@@ -70,11 +68,12 @@ class FitPeaksWindow(QMainWindow):
         self.ui.graphicsView_fitResult = qt_util.promote_widget(self, self.ui.graphicsView_fitResult_frame,
                                                                 GeneralDiffDataView)
         self.ui.graphicsView_plot2D = qt_util.promote_widget(self, self.ui.graphicsView_2dPlot_frame,
-                                                             MplGraphicsViewContourPlot)
+                                                             GeneralDiffDataView)
         self.ui.tableView_fitSummary = qt_util.promote_widget(self, self.ui.tableView_fitSummary_frame,
                                                               FitResultTable)
         self._promote_peak_fit_setup()
         self._init_widgets()
+        self.ui.graphicsView_plot2D.set_3Dview()
 
         # set up handling
         self.ui.lineEdit_expNumber.setValidator(QtGui.QIntValidator(1, 999999))
@@ -318,16 +317,6 @@ class FitPeaksWindow(QMainWindow):
 
         peak_range_table_labels = ['x_left', 'x_right', 'Label', D0 + " (" + ANGSTROMS + ")"]
         self.ui.peak_range_table.setHorizontalHeaderLabels(peak_range_table_labels)
-
-    # def do_launch_adv_fit(self):
-    #     """
-    #     launch the dialog window for advanced peak fitting setup and control
-    #     :return:
-    #     """
-    #     if self._advanced_fit_dialog is None:
-    #         self._advanced_fit_dialog = pyrs.interface.advpeakfitdialog.SmartPeakFitControlDialog(self)
-
-    #     self._advanced_fit_dialog.show()
 
     def do_save_fit(self):
         """

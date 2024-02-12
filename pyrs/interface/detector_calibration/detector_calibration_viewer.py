@@ -12,6 +12,7 @@ from qtpy.QtCore import Qt  # type: ignore
 from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities import get_nexus_file  # type: ignore
 from pyrs.interface.threading.worker_pool import WorkerPool
+from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
 
 from matplotlib import rcParams
 
@@ -187,7 +188,8 @@ class DiffractionWindow(QWidget):
         panel_layout = QVBoxLayout()
         self.setLayout(panel_layout)
 
-        self.tab_widgets = [PlotView(parent, True), PlotView(parent)]
+        self.tab_widgets = [DetectorView(self), GeneralDiffDataView(self)]
+        # self.tab_widgets = [PlotView(parent, True), PlotView(parent)]
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self.tab_widgets[0], "2D")
@@ -206,7 +208,9 @@ class DiffractionWindow(QWidget):
         self.sl.valueChanged.connect(self.valueChanged)
 
     def valueChanged(self):
-        self.tabs.currentWidget().update_diff_view(self.sl.value())
+        self._parent.controller.update_diff_view(self._parent.compare_diff_data.tabs.currentWidget(),
+                                                 self.tabs.currentIndex(), self.sl.value(),
+                                                 self._parent.peak_lines_setup.get_keep_list())
 
 
 class VisualizeResults(QWidget):
@@ -233,7 +237,7 @@ class VisualizeResults(QWidget):
         plot_labelY = QLabel("Y-axis")
         plot_labelY.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-        self.param_vew = PlotView(parent=parent, param_view=True)
+        self.param_vew = GeneralDiffDataView(self)
 
         param_layout.addWidget(plot_labelX, 0, 0)
         param_layout.addWidget(self.plot_paramX, 0, 1)
@@ -245,10 +249,11 @@ class VisualizeResults(QWidget):
         self.setLayout(param_layout)
 
     def change_plot(self):
-        self.param_vew.update_param_view(self.plot_paramX.currentIndex(),
-                                         self.plot_paramY.currentIndex(),
-                                         self.plot_paramX.currentText(),
-                                         self.plot_paramY.currentText())
+        self._parent.controller.plot_2D_params(self.param_vew,
+                                               self.plot_paramX.currentIndex(),
+                                               self.plot_paramY.currentIndex(),
+                                               self.plot_paramX.currentText(),
+                                               self.plot_paramY.currentText())
 
 
 class FixFigureCanvas(FigureCanvas):

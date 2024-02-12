@@ -68,7 +68,7 @@ def test_manual_reduction(qtbot, tmpdir):
     qtbot.wait(wait)
 
     # get the data from the plot canvas and check the data limits and label
-    line = window.ui.graphicsView_1DPlot.canvas().get_axis(0, 0, True).lines[0]
+    line = window.ui.graphicsView_1DPlot.canvas().get_axis().lines[0]
     assert line.get_label() == 'sub-run: 1, 2theta = 90.00050354003906'
     assert line.get_xdata().min() == pytest.approx(81.88955539289697)
     assert line.get_xdata().max() == pytest.approx(98.07327399000138)

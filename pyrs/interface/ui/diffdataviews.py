@@ -15,7 +15,6 @@ class DetectorView(MplGraphicsView2D):
         :param parent:
         """
         MplGraphicsView2D.__init__(self, parent)
-        # super(, self).__init__(parent)
 
         return
 
@@ -42,7 +41,6 @@ class DetectorView(MplGraphicsView2D):
         -------
 
         """
-        # TODO - #84 - Make it real!
         sub_run_number, mask_id = info_tuple
         title = 'Sub run {}, Mask: {}'.format(sub_run_number, mask_id)
         self.set_title(title)
@@ -70,11 +68,12 @@ class GeneralDiffDataView(MplGraphicsView1D):
     generalized diffraction view
     """
 
-    def __init__(self, parent):
+    def __init__(self, parent, three_d_fig=False):
         """ Initialization
         :param parent:
         """
-        super(GeneralDiffDataView, self).__init__(parent, 1, 1)
+        super(GeneralDiffDataView, self).__init__(parent, 1, 1,
+                                                  three_d_fig=three_d_fig)
 
         # management
         self._line_reference_list = list()
@@ -88,7 +87,11 @@ class GeneralDiffDataView(MplGraphicsView1D):
         """
         return self._current_x_axis_name
 
-    def plot_diffraction(self, vec_x, vec_y, x_label, y_label, line_label=None, keep_prev=True):
+    def set_3Dview(self):
+        self.reset_view_3d()
+
+    def plot_diffraction(self, vec_x, vec_y, x_label, y_label, color='red', line_style='-',
+                         line_label=None, keep_prev=True):
         """ plot figure in scatter-style
         :param vec_x:
         :param vec_y:
@@ -96,34 +99,18 @@ class GeneralDiffDataView(MplGraphicsView1D):
         :param y_label:
         :return:
         """
-        # TODO Future: Need to write use cases.  Now it is for demo
-        # It is not allowed to plot 2 plot with different x-axis
-        if self._last_line_reference is not None:
-            if x_label != self.get_label_x():
-                self.reset_viewer()
 
-        if not keep_prev and self._last_line_reference is not None:
-            self.remove_line(0, 0, self._last_line_reference)
+        if not keep_prev:
+            self.clear_all_lines()
 
         # plot data in a scattering plot with auto re-scale
-        ref_id = self.add_plot(vec_x, vec_y, line_style='-', marker=None,
-                               color='red', x_label=x_label, y_label=y_label,
-                               label=line_label)
-        # TODO - 20181101 - Enable after auto_scale is fixed: self.auto_rescale()
-
-        self._line_reference_list.append(ref_id)
-        self._last_line_reference = ref_id
-        self._current_x_axis_name = x_label
+        self.add_plot(vec_x, vec_y, line_style=line_style, marker=None,
+                      color=color, x_label=x_label, y_label=y_label,
+                      label=line_label)
 
     def plot_scatter_with_errors(self, vec_x=None, vec_y=None,
                                  vec_x_error=None, vec_y_error=None,
                                  x_label="", y_label=""):
-
-        # # TODO Future: Need to write use cases.  Now it is for demo
-        # # It is not allowed to plot 2 plot with different x-axis
-        # if self._last_line_reference is not None:
-        #     if x_label != self.get_label_x():
-        #         self.reset_viewer()
 
         # plot data in a scattering plot with auto re-scale
         ref_id = self.add_plot(vec_x,
@@ -133,11 +120,10 @@ class GeneralDiffDataView(MplGraphicsView1D):
                                line_style='',
                                marker='*',
                                markersize=6,
-                               color='red',
+                               color='black',
                                x_label=x_label,
                                y_label=y_label)
 
-        # TODO - 20181101 - Enable after auto_scale is fixed: self.auto_rescale()
         self._line_reference_list.append(ref_id)
         self._last_line_reference = ref_id
         self._current_x_axis_name = x_label
@@ -150,7 +136,7 @@ class GeneralDiffDataView(MplGraphicsView1D):
         :param y_label:
         :return:
         """
-        # TODO Future: Need to write use cases.  Now it is for demo
+
         # It is not allowed to plot 2 plot with different x-axis
         if self._last_line_reference is not None:
             if x_label != self.get_label_x():
@@ -162,11 +148,25 @@ class GeneralDiffDataView(MplGraphicsView1D):
                                line_style='',
                                marker='*',
                                markersize=6,
-                               color='red',
+                               color='black',
                                x_label=x_label,
                                y_label=y_label)
 
-        # TODO - 20181101 - Enable after auto_scale is fixed: self.auto_rescale()
+        self._line_reference_list.append(ref_id)
+        self._last_line_reference = ref_id
+        self._current_x_axis_name = x_label
+
+    def plot_3D_scatter(self, vec_x, vec_y, vec_z, plot_scatter, colors=None,
+                        x_label='', y_label='', z_label=''):
+
+        # It is not allowed to plot 2 plot with different x-axis
+        if self._last_line_reference is not None:
+            self.reset_viewer()
+
+        # plot data in a scattering plot with auto re-scale
+        ref_id = self.add_3d_scatter(vec_x, vec_y, vec_z, plot_scatter, colors=colors,
+                                     x_label=x_label, y_label=y_label, z_label=z_label)
+
         self._line_reference_list.append(ref_id)
         self._last_line_reference = ref_id
         self._current_x_axis_name = x_label
@@ -175,9 +175,6 @@ class GeneralDiffDataView(MplGraphicsView1D):
         """
         reset current graphics view
         """
-        # reset all the management data structures
-        self._last_line_reference = None
-        self._line_reference_list = list()
 
         # call to clean lines
         self.clear_all_lines()
@@ -198,9 +195,6 @@ class PeakFitSetupView(MplFitPlottingWidget):
         # management
         self.parent = parent
         self._diff_reference_list = list()
-        self._last_diff_reference = None  # last diffraction (raw) line ID
-        self._last_model_reference = None  # last model diffraction (raw) line ID
-        self._last_fit_diff_reference = None  # Last plot's reference for fitting residual
         self._auto_color = True
 
     def plot_experiment_data(self, diff_data_set, data_reference):
@@ -210,19 +204,22 @@ class PeakFitSetupView(MplFitPlottingWidget):
         :param data_reference: reference name for the data to plot for presentation purpose
         :return:
         """
+
+        self.reset_viewer()
+
         # parse the data
-        vec_x = diff_data_set[0]
-        vec_y = diff_data_set[1]
+        vec_x = diff_data_set[0][1:]
+        vec_y = diff_data_set[1][1:]
 
-        ref_id = self.plot_data(data_set=(vec_x, vec_y), line_label=data_reference)
-
-        self._diff_reference_list.append(ref_id)
+        ref_id = self.plot_data(data_set=(vec_x, vec_y), line_label=data_reference, color='black')
+        self.plot_data_fitting_ranges()
+        # self._diff_reference_list.append(ref_id)
         self._last_diff_reference = ref_id
 
     def plot_fitted_data(self, x_array, y_array):
         self.plot_data(data_set=(x_array, y_array),
                        line_label='-',
-                       color='black')
+                       color='black', peak_ranges=self.list_peak_ranges)
 
     def plot_model_data(self, diff_data_set, model_label, residual_set):
         """Plot model data from fitting
@@ -255,21 +252,15 @@ class PeakFitSetupView(MplFitPlottingWidget):
         :param data_reference: reference name for the data to plot
         :return:
         """
+
         # parse the data
         vec_x = diff_data_set[0]
         vec_y = diff_data_set[1]
 
-        # plot data
-        # ref_id = self.add_plot(vec_x, vec_y, color=self._next_color(), x_label='$2\\theta (degree)$', marker=None,
-        #                        show_legend=True, y_label=data_reference)
-
-        ref_id = self.plot_data(data_set=(vec_x, vec_y), color=self._get_next_color(), line_label=data_reference)
-
-        self._diff_reference_list.append(ref_id)
-        self._last_diff_reference = ref_id
+        self.plot_data(data_set=(vec_x, vec_y), color=self._get_next_color(), line_label=data_reference)
 
     def plot_fitting_diff_data(self, x_axis, y_axis):
-        self._last_fit_diff_reference = self._myCanvas.add_plot_lower_axis((x_axis, y_axis))
+        self._myCanvas.add_plot_lower_axis((x_axis, y_axis), self.list_peak_ranges)
 
     def plot_fit_diff(self, diff_data_set, model_data_set):
         """
@@ -289,48 +280,20 @@ class PeakFitSetupView(MplFitPlottingWidget):
 
         # remove previous difference curve
         if self._last_fit_diff_reference is not None:
-            self.remove_line(row_index=0, col_index=0, line_id=self._last_fit_diff_reference)
+            self.remove_line(line_id=self._last_fit_diff_reference)
             self._last_fit_diff_reference = None
 
         # calculate
         fit_diff_vec = diff_data_set[1] - model_data_set[1]
 
         # plot
-        self._last_fit_diff_reference = self._myCanvas.add_plot_lower_axis(fit_diff_vec)
-
-    def plot_model(self, model_data_set):
-        """
-        plot a model diffraction data
-        :param model_data_set:
-        :return:
-        """
-        # check condition
-        if len(self._diff_reference_list) > 1:
-            # very confusion to plot model
-            print('There are more than 1 raw data plot.  It is very confusing to plot model.'
-                  '\n FYI current diffraction data references: {0}'.format(self._diff_reference_list))
-            raise RuntimeError('There are more than 1 raw data plot.  It is very confusing to plot model.')
-
-        # remove previous model
-        if self._last_model_reference is not None:
-            print('[DB...BAT] About to remove last reference: {0}'.format(self._last_model_reference))
-            self.remove_line(row_index=0, col_index=0, line_id=self._last_model_reference)
-            self._last_model_reference = None
-
-        # plot
-        # TODO - TONIGHT - Merge this with FitPeak UI's Figure Canvas
-        # self._last_model_reference = self.add_plot(model_data_set[0], model_data_set[1], color='red')
+        self._myCanvas.add_plot_lower_axis(fit_diff_vec)
 
     def reset_viewer(self):
         """
         reset current graphics view
         :return:
         """
-        # reset all the management data structures
-        self._last_model_reference = None
-        self._last_diff_reference = None
-        self._last_fit_diff_reference = None
-        self._diff_reference_list = list()
 
         # call to clean lines
         self.clear_canvas()

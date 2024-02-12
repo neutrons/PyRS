@@ -3,7 +3,7 @@
 # plus a tool bar
 
 import matplotlib
-from matplotlib.figure import Figure
+from matplotlib.pyplot import subplots, subplots_adjust
 import numpy as np
 from qtpy.QtWidgets import QWidget, QVBoxLayout  # type:ignore
 from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
@@ -235,7 +235,7 @@ class MplFitPlottingWidget(QWidget):
         """
         return self._myCanvas.get_curr_x_range()
 
-    def plot_data(self, data_set, color=None, line_label=''):
+    def plot_data(self, data_set, color=None, line_label='', peak_ranges=None):
         """ plot experimental data
         :param data_set:
         :param color:
@@ -250,7 +250,9 @@ class MplFitPlottingWidget(QWidget):
         self._line_label = line_label
         self._diff_data_set = data_set
 
-        data_line_id = self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label)
+        data_line_id = self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label,
+                                                          peak_ranges=peak_ranges)
+
         self._data_line_list.append(data_line_id)
 
     def plot_diff_data(self, data_set, color=None, line_label=''):
@@ -265,6 +267,42 @@ class MplFitPlottingWidget(QWidget):
         self._data_line_list.append(data_line_id)
 
     def plot_data_with_fitting_ranges(self):
+
+        for _peak_label in self.list_peak_labels_matplotlib_id:
+            _peak_label.remove()
+
+        for [_left_line, _right_line] in self.list_peak_ranges_matplotlib_id:
+            _left_line.remove()
+            _right_line.remove()
+
+        data_set = self._data_set
+        line_label = self._line_label
+
+        x_min = data_set[0].min()
+        x_max = data_set[0].max()
+        yvec_min = data_set[1].min()
+
+        self._myCanvas.add_plot_upper_axis(data_set, line_color='black', label=line_label)
+        self.list_peak_ranges_matplotlib_id = []
+        self.list_peak_labels_matplotlib_id = []
+        list_peak_labels = self.list_fit_peak_labels
+
+        for _index, _range in enumerate(self.list_peak_ranges):
+            x_right = np.nanmax(_range)
+            x_left = np.nanmin(_range)
+            if (x_right > x_min) and (x_left < x_max):
+                self._left_line = self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
+                self._right_line = self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
+                self.list_peak_ranges_matplotlib_id.append([self._left_line, self._right_line])
+                txt_id = self._myCanvas._data_subplot.text(x_left, yvec_min, list_peak_labels[_index],
+                                                           fontsize=16,
+                                                           rotation=90,
+                                                           rotation_mode='anchor')
+                self.list_peak_labels_matplotlib_id.append(txt_id)
+
+        self._myCanvas.draw()
+
+    def plot_data_fitting_ranges(self):
         # self.clear_canvas()
 
         for _peak_label in self.list_peak_labels_matplotlib_id:
@@ -274,12 +312,10 @@ class MplFitPlottingWidget(QWidget):
             _left_line.remove()
             _right_line.remove()
 
-        color = self._color
+        x_min = self._data_set[0].min()
+        x_max = self._data_set[0].max()
+        yvec_min = self._data_set[1].min()
 
-        data_set = self._data_set
-        line_label = self._line_label
-
-        self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label)
         self.list_peak_ranges_matplotlib_id = []
         self.list_peak_labels_matplotlib_id = []
         list_peak_labels = self.list_fit_peak_labels
@@ -287,14 +323,15 @@ class MplFitPlottingWidget(QWidget):
         for _index, _range in enumerate(self.list_peak_ranges):
             x_right = np.nanmax(_range)
             x_left = np.nanmin(_range)
-            self._left_line = self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
-            self._right_line = self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
-            self.list_peak_ranges_matplotlib_id.append([self._left_line, self._right_line])
-            txt_id = self._myCanvas._data_subplot.text(x_left, 0, list_peak_labels[_index],
-                                                       fontsize=16,
-                                                       rotation=90,
-                                                       rotation_mode='anchor')
-            self.list_peak_labels_matplotlib_id.append(txt_id)
+            if (x_right > x_min) and (x_left < x_max):
+                self._left_line = self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
+                self._right_line = self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
+                self.list_peak_ranges_matplotlib_id.append([self._left_line, self._right_line])
+                txt_id = self._myCanvas._data_subplot.text(x_left, yvec_min, list_peak_labels[_index],
+                                                           fontsize=16,
+                                                           rotation=90,
+                                                           rotation_mode='anchor')
+                self.list_peak_labels_matplotlib_id.append(txt_id)
 
         self._myCanvas.draw()
 
@@ -330,24 +367,28 @@ class QtMplFitCanvas(FigureCanvas):
         :param parent:
         """
         # Instantiating matplotlib Figure. It is a requirement to initialize a figure canvas
-        self.fig = Figure()
+        # self.fig = Figure()
+        self.fig, [self._data_subplot, self._residual_subplot] = subplots(2, 1, sharex=True,
+                                                                          gridspec_kw={'height_ratios': [3, 1]})
+
+        self._set_labels()
         self.fig.patch.set_facecolor('white')
+        subplots_adjust(left=.1, bottom=.15, top=.9, right=.95)
 
         # Initialize parent class and set parent
         super(QtMplFitCanvas, self).__init__(self.fig)
         self.setParent(parent)
-
-        # set 2 axes with fixed ratio
-        self._data_subplot = self.fig.add_axes([0.15, 0.35, 0.8, 0.55])  # top
-        self._residual_subplot = self.fig.add_axes([0.15, 0.1, 0.8, 0.20])  # bottom
-
-        self._data_subplot.get_shared_x_axes().join(self._data_subplot, self._residual_subplot)
 
         self._line_index = 0
         self._data_plot_dict = dict()
         self._residual_dict = dict()
 
         return
+
+    def _set_labels(self):
+        self._data_subplot.set_ylabel('Intensity (ct.)')
+        self._residual_subplot.set_ylabel('diff (ct.)')
+        self._residual_subplot.set_xlabel(r'2$\theta$ (degree)')
 
     def _setup_legend(self, location='best', font_size=10):
         """Set up legend
@@ -377,7 +418,7 @@ class QtMplFitCanvas(FigureCanvas):
         handles, labels = self._data_subplot.get_legend_handles_labels()
         self._data_subplot.legend(handles, labels, loc=location, fontsize=font_size)
 
-    def add_plot_lower_axis(self, data_set):
+    def add_plot_lower_axis(self, data_set, peak_ranges=None):
         """
         add a plot to the lower axis as residual
         :param data_set:
@@ -388,10 +429,14 @@ class QtMplFitCanvas(FigureCanvas):
 
         # print ('[DB...BAT] Plot residual:\n{}\n{}'.format(vec_x, vec_y))
         self._residual_subplot.cla()
-        plot_info = self._residual_subplot.plot(vec_x, vec_y, label=None, color='green',
-                                                linestyle='-', linewidth=2)
-        self._residual_subplot.axhline(2, linestyle='--', color='blue')
-        self._residual_subplot.axhline(-2, linestyle='--', color='blue')
+
+        if (peak_ranges is None) or (len(peak_ranges) == 0):
+            peak_ranges = [list((vec_x.min() - .1, vec_x.max() + .1))]
+
+        for entry in peak_ranges:
+            keep_vec = (vec_x > entry[0]) * (vec_x < entry[1])
+            plot_info = self._residual_subplot.plot(vec_x[keep_vec], vec_y[keep_vec], label=None,
+                                                    color='green', linestyle='-', linewidth=2)
 
         self._data_subplot.set_aspect('auto')
 
@@ -408,12 +453,13 @@ class QtMplFitCanvas(FigureCanvas):
             raise NotImplementedError(msg)
 
         # Flush/commit
+        self._set_labels()
         self.draw()
 
         return line_id
 
     def add_plot_upper_axis(self, data_set, label, line_color, line_marker='.', marker_size=4,
-                            line_style='-', line_width=1):
+                            line_style='-', line_width=1, peak_ranges=None):
         """ add a plot to the upper axis
         :param data_set:
         :param label:
@@ -427,19 +473,16 @@ class QtMplFitCanvas(FigureCanvas):
         vec_x = data_set[0]
         vec_y = data_set[1]
 
-        plot_info = self._data_subplot.plot(vec_x, vec_y, label=label, color=line_color,
-                                            marker=line_marker, markersize=marker_size,
-                                            linestyle=line_style, linewidth=line_width)
+        if (peak_ranges is None) or (len(peak_ranges) == 0):
+            peak_ranges = [list((vec_x.min() - .1, vec_x.max() + .1))]
+
+        for entry in peak_ranges:
+            keep_vec = (vec_x > entry[0]) * (vec_x < entry[1])
+            plot_info = self._data_subplot.plot(vec_x[keep_vec], vec_y[keep_vec], label=label, color=line_color,
+                                                marker=line_marker, markersize=marker_size,
+                                                linestyle=line_style, linewidth=line_width)
 
         self._data_subplot.set_aspect('auto')
-        self._data_subplot.set_xticklabels([])
-
-        real_max = np.nanmax(vec_y)
-        max_value_with_offset = real_max + 0.1*real_max
-        self._data_subplot.set_ylim([0, max_value_with_offset])
-
-        # set/update legend
-        # self._setup_legend()
 
         # Register
         line_id = self._line_index  # share the line ID counter with main axis
@@ -454,6 +497,7 @@ class QtMplFitCanvas(FigureCanvas):
             raise NotImplementedError(msg)
 
         # Flush/commit
+        self._set_labels()
         self.draw()
 
         return line_id

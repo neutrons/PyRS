@@ -62,11 +62,9 @@ def test_texture_fitting_viewer(qtbot):
     qtbot.wait(wait)
 
     # First get canvas
-    canvas = window.fit_window
-    # The get start and end mouse points to drag select
-    start_x = [125, 425]
-    stop_x = [275, 575]
+    canvas = window.fit_window._myCanvas
 
+    # The get start and end mouse points to drag select
     fit_ranges = [[62.346, 66.568], [71.2917, 76.0151]]
 
     if ON_GITHUB_ACTIONS:
@@ -74,16 +72,17 @@ def test_texture_fitting_viewer(qtbot):
     else:
         rtol = 0.1
 
-    for i_loop in range(len(start_x)):
+    for i_loop in range(len(fit_ranges)):
         # Drag select with mouse control
-        qtbot.mousePress(canvas.canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier,
-                         pos=QtCore.QPoint(start_x[i_loop], 20))
+        start_x, start_y = canvas.figure.axes[0].transData.transform((fit_ranges[i_loop][0], 40))
+        end_x, end_y = canvas.figure.axes[0].transData.transform((fit_ranges[i_loop][1], 40))
+
+        # Drag select with mouse control
+        qtbot.mousePress(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(start_x / 2, 40))
         qtbot.wait(wait)
-        qtbot.mouseMove(canvas.canvas, pos=QtCore.QPoint(stop_x[i_loop], 20))
+        qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(end_x / 2, 40))
         qtbot.wait(wait)
-        qtbot.mouseRelease(canvas.canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier,
-                           pos=QtCore.QPoint(stop_x[i_loop], 20))
-        qtbot.wait(wait)
+
         np.testing.assert_allclose(float(window.fit_setup.fit_range_table.item(i_loop, 0).text()),
                                    fit_ranges[i_loop][0], rtol=rtol)
 
@@ -163,4 +162,4 @@ def test_texture_fitting_viewer(qtbot):
     os.remove("HB2B_1599_Peak_1.jul")
 
     qtbot.keyClick(window.plot_select.out_of_plane, QtCore.Qt.Key_Down)
-    qtbot.wait(plot_wait)
+    # qtbot.wait(plot_wait)

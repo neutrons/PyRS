@@ -1,4 +1,5 @@
 import numpy as np
+from pyrs.interface.ui.mplconstants import MplBasicColors
 
 
 class DetectorCalibrationCrtl:
@@ -66,6 +67,42 @@ class DetectorCalibrationCrtl:
     def get_powders(self):
         return self._model.powders
 
+    def update_diff_view(self, _ax, diff_plot_type, sub_run, exclude_list):
+        if diff_plot_type == 0:
+            counts_matrix = self._model.get_2D_diffraction_counts(sub_run)
+            if counts_matrix is not None:
+                _ax.plot_detector_view(counts_matrix, (sub_run, None))
+        else:
+            try:
+                if exclude_list[sub_run - 1]:
+                    for i_mask, mask in enumerate(self._model.reduction_masks):
+                        tth, int_vec, error_vec = self._model.get_reduced_diffraction_data(sub_run, mask)
+                        _ax.plot_diffraction(tth[1:], int_vec[1:],
+                                             r'2$\theta$ (degrees)',
+                                             'Intensity (ct.)',
+                                             line_label=mask,
+                                             color=MplBasicColors[i_mask],
+                                             keep_prev=i_mask != 0)
+
+                    fitted_ws = self._model.get_fitted_diffraction_data(sub_run)
+
+                    if fitted_ws is not None:
+                        for fit_ws in fitted_ws:
+                            for i_sub in range(len(self._model.reduction_masks)):
+                                xvec = fit_ws.readX(int(i_sub))[1:]
+                                yvec = fit_ws.readY(int(i_sub))[1:]
+                                _ax.plot_diffraction(xvec, yvec,
+                                                     r'2$\theta$ (degrees)',
+                                                     'Intensity (ct.)',
+                                                     color=MplBasicColors[i_sub],
+                                                     line_style='--',
+                                                     keep_prev=True)
+                else:
+                    _ax.axis('off')
+
+            except (AttributeError, TypeError, IndexError):
+                _ax.axis('off')
+
     def update_diffraction_view(self, ax, _parent, sub_run, two_d_data, exclude_list):
 
         if two_d_data:
@@ -103,15 +140,13 @@ class DetectorCalibrationCrtl:
 
         return
 
-    def plot_2D_params(self, ax, x_item, y_item):
-
-        ax.cla()
+    def plot_2D_params(self, ax, x_item, y_item, x_text, y_text):
 
         x, y = self._model.get_calibration_values(x_item, y_item)
 
         if x.size != y.size:
             x = np.arange(y.size)
 
-        ax.plot(x, y, 'ko--')
+        ax.plot_scatter(x, y, x_text, y_text)
 
         return
