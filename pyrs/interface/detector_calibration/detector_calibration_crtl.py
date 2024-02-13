@@ -98,55 +98,8 @@ class DetectorCalibrationCrtl:
                                                      line_style='--',
                                                      keep_prev=True)
                 else:
-                    _ax.axis('off')
+                    _ax.set_no_null_plot()
 
             except (AttributeError, TypeError, IndexError):
-                _ax.axis('off')
-
-    def update_diffraction_view(self, ax, _parent, sub_run, two_d_data, exclude_list):
-
-        if two_d_data:
-            try:
-                ax.imshow(self._model.get_2D_diffraction_counts(sub_run).T, cmap='Spectral_r')
-                ax.axis('off')
-            except (AttributeError, TypeError):
+                # _ax.set_no_null_plot()
                 pass
-
-        else:
-            ax.cla()
-            try:
-                if exclude_list[sub_run - 1]:
-                    for mask in self._model.reduction_masks:
-                        tth, int_vec, error_vec = self._model.get_reduced_diffraction_data(sub_run, mask)
-                        ax.plot(tth[1:], int_vec[1:], label=mask)
-
-                    fitted_ws = self._model.get_fitted_diffraction_data(sub_run)
-
-                    if fitted_ws is not None:
-                        for fit_ws in fitted_ws:
-                            for i_sub in range(len(self._model.reduction_masks)):
-                                ax.plot(fit_ws.readX(int(i_sub))[1:],
-                                        fit_ws.readY(int(i_sub))[1:], '--')
-
-                    ax.legend(frameon=False)
-                    ax.set_xlabel(r"2$\theta$ ($deg.$)")
-                    ax.set_ylabel("Intensity (ct.)")
-                    ax.set_ylabel("Diff (ct.)")
-                else:
-                    ax.axis('off')
-
-            except (AttributeError, TypeError, IndexError):
-                ax.axis('off')
-
-        return
-
-    def plot_2D_params(self, ax, x_item, y_item, x_text, y_text):
-
-        x, y = self._model.get_calibration_values(x_item, y_item)
-
-        if x.size != y.size:
-            x = np.arange(y.size)
-
-        ax.plot_scatter(x, y, x_text, y_text)
-
-        return
