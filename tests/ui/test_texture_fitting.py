@@ -8,6 +8,7 @@ import numpy as np
 import functools
 import os
 import json
+import pytest
 
 from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 
@@ -15,6 +16,7 @@ wait = 200
 plot_wait = 100
 
 
+@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
 def test_texture_fitting_viewer(qtbot):
 
     model = TextureFittingModel(pyrscore.PyRsCore())
@@ -150,6 +152,7 @@ def test_texture_fitting_viewer(qtbot):
     qtbot.wait(wait)
     QtCore.QTimer.singleShot(500, functools.partial(handle_dialog, ""))
     qtbot.mouseClick(window.fit_setup.export_pole_figs, QtCore.Qt.LeftButton)
+    print(np.loadtxt('HB2B_1599_Peak_1.jul', skiprows=3))
 
     # test that pole figure outputs are equivalent
     np.testing.assert_allclose(np.loadtxt('tests/data/HB2B_1599_Peak_1.jul', skiprows=3),

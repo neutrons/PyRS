@@ -1,8 +1,7 @@
 from . import checkdatatypes
-from contextlib import contextmanager
-from mantid import ConfigService
 from mantid.api import FileFinder
 from mantid.simpleapi import mtd, GetIPTS, SaveNexusProcessed
+from mantid.kernel import amend_config
 import os
 from pathlib import Path
 from subprocess import check_output
@@ -74,48 +73,6 @@ def get_temp_directory():
     return temp_dir
 
 
-# testing
-# print (check_creation_date('__init__.py'))
-@contextmanager
-def archive_search():
-    DEFAULT_FACILITY = 'default.facility'
-    DEFAULT_INSTRUMENT = 'default.instrument'
-    SEARCH_ARCHIVE = 'datasearch.searcharchive'
-    HFIR = 'HFIR'
-    HB2B = 'HB2B'
-
-    # get the old values
-    config = ConfigService.Instance()
-    old_config = {}
-    for property_name in [DEFAULT_FACILITY, DEFAULT_INSTRUMENT, SEARCH_ARCHIVE]:
-        old_config[property_name] = config[property_name]
-
-    # don't update things that are already set correctly
-    if config[DEFAULT_FACILITY] == HFIR:
-        del old_config[DEFAULT_FACILITY]
-    else:
-        config[DEFAULT_FACILITY] = HFIR
-
-    if config[DEFAULT_INSTRUMENT] == HB2B:
-        del old_config[DEFAULT_INSTRUMENT]
-    else:
-        config[DEFAULT_INSTRUMENT] = HB2B
-
-    if HFIR in config[SEARCH_ARCHIVE]:
-        del old_config[SEARCH_ARCHIVE]
-    else:
-        config[SEARCH_ARCHIVE] = HFIR
-
-    try:
-        # give back context
-        yield
-
-    finally:
-        # set properties back to original values
-        for property_name in old_config.keys():
-            config[property_name] = old_config[property_name]
-
-
 def __run_finddata(runnumber):
     '''This is a backup solution while the ...ORIG.nxs.h5 files are floating around'''
     result = check_output(['finddata', 'hb2b', str(runnumber)]).decode('utf-8').strip()
@@ -143,7 +100,7 @@ def get_ipts_dir(hint: Union[int, str, Path]) -> Path:
     else:
         # try with GetIPTS
         try:
-            with archive_search():
+            with amend_config(instrument='HB2B', facility='HFIR'):
                 ipts = Path(GetIPTS(RunNumber=hint, Instrument='HB2B'))
         except RuntimeError as e:
             print('GetIPTS failed:', e)
@@ -206,7 +163,7 @@ def get_input_project_file(run_number, preferredType='manual'):
 
 def get_nexus_file(run_number):
     try:
-        with archive_search():
+        with amend_config(instrument='HB2B', facility='HFIR'):
             nexus_file = FileFinder.findRuns('HB2B{}'.format(run_number))[0]
     except RuntimeError as e:
         print('ArchiveSearch failed:', e)

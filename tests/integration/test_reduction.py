@@ -5,7 +5,7 @@ from pyrs.core.powder_pattern import ReductionApp
 from pyrs.dataobjects import HidraConstants  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
-from matplotlib import pyplot as plt
+
 import numpy as np
 import pytest
 
@@ -215,17 +215,17 @@ def test_exclude_subruns(nexusfile, projectfile):
 
 
 @pytest.mark.parametrize('mask_file_name, filtered_counts, histogram_counts',
-                         [('tests/data/HB2B_Mask_12-18-19.xml', (540461, 1635432, 1193309),
-                           (540435.0, 1634566.0, 1192944.0)),
-                          (None, (548953, 1661711, 1212586), (548953.0, 1661711.0, 1212586.0))],
+                         [('tests/data/HB2B_Mask_12-18-19.xml', (543504, 1638540, 1193309),
+                           (543477.0, 1637672.0, 1192944.0)),
+                          (None, (552047, 1664865, 1212586), (552047.0, 1664865.0, 1212586.0))],
                          ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
 def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
     """Verify NeXus converters including counts and sample log values"""
     SUBRUNS = (1, 2, 3)
-    CENTERS = (69.99525,  80.,  97.50225)
+    CENTERS = (69.99525,  80.0,  97.50225)
 
     # reduce with PyRS/Python
-    hidra_ws = convertNeXusToProject('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.ORIG.nxs.h5',
+    hidra_ws = convertNeXusToProject('tests/data/HB2B_1017.nxs.h5',
                                      projectfile=None, skippable=True, mask_file_name=mask_file_name)
 
     # verify that sample logs exist
@@ -257,14 +257,6 @@ def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
     reducer.load_hidra_workspace(hidra_ws)
     reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None)
 
-    # plot the patterns
-    if DIAGNOSTIC_PLOTS:
-        for sub_run, angle in zip(SUBRUNS, CENTERS):
-            x, y = reducer.get_diffraction_data(sub_run)
-            plt.plot(x, y, label='SUBRUN {} at {:.1f} deg'.format(sub_run, angle))
-        plt.legend()
-        plt.show()
-
     # check ranges and total counts
     for sub_run, angle, total_counts in zip(SUBRUNS, CENTERS, histogram_counts):
         assert_label = 'mismatch in subrun={} for histogrammed data'.format(sub_run)
@@ -275,9 +267,9 @@ def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
 
 
 @pytest.mark.parametrize('mask_file_name, filtered_counts, histogram_counts',
-                         [('tests/data/HB2B_Mask_12-18-19.xml', (540461, 1635432, 1193309),
-                           (540435.0, 1634566.0, 1192944.0)),
-                          (None, (548953, 1661711, 1212586), (548953.0, 1661711.0, 1212586.0))],
+                         [('tests/data/HB2B_Mask_12-18-19.xml', (543504, 1638540, 1193309),
+                           (543477.0, 1637672.0, 1192944.0)),
+                          (None, (552047, 1664865, 1212586), (552047.0, 1664865.0, 1212586.0))],
                          ids=('HB2B_1017_Masked', 'HB2B_1017_NoMask'))
 def test_reduce_method_data(mask_file_name, filtered_counts, histogram_counts):
     """Verify NeXus converters including counts and sample log values"""
@@ -285,10 +277,10 @@ def test_reduce_method_data(mask_file_name, filtered_counts, histogram_counts):
     CENTERS = (69.99525,  80.,  97.50225)
 
     # reduce with PyRS/Python
-    hidra_ws = convertNeXusToProject('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.ORIG.nxs.h5',
+    hidra_ws = convertNeXusToProject('tests/data/HB2B_1017.nxs.h5',
                                      projectfile=None, skippable=True, mask_file_name=mask_file_name)
 
-    hidra_live_ws = convertMantidToProject('/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.ORIG.nxs.h5',
+    hidra_live_ws = convertMantidToProject('tests/data/HB2B_1017.nxs.h5',
                                            projectfile=None, skippable=True, mask_file_name=mask_file_name)
 
     # verify that sample logs exist
@@ -335,14 +327,6 @@ def test_reduce_method_data(mask_file_name, filtered_counts, histogram_counts):
     live_reducer.load_hidra_workspace(hidra_live_ws)
     live_reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None)
 
-    # plot the patterns
-    if DIAGNOSTIC_PLOTS:
-        for sub_run, angle in zip(SUBRUNS, CENTERS):
-            x, y = reducer.get_diffraction_data(sub_run)
-            plt.plot(x, y, label='SUBRUN {} at {:.1f} deg'.format(sub_run, angle))
-        plt.legend()
-        plt.show()
-
     # check ranges and total counts
     for sub_run, angle, total_counts in zip(SUBRUNS, CENTERS, histogram_counts):
         assert_label = 'mismatch in subrun={} for histogrammed data'.format(sub_run)
@@ -358,6 +342,8 @@ def test_reduce_method_data(mask_file_name, filtered_counts, histogram_counts):
         assert x[0] < angle < x[-1], assert_label
         # assert np.isnan(np.sum(y[1:])), assert_label
         np.testing.assert_almost_equal(np.nansum(y), total_counts, decimal=1, err_msg=assert_label)
+    reducer.save_diffraction_data('testing.h5')
+    live_reducer.save_diffraction_data('testing2.h5')
 
 
 def test_split_log_time_average():
@@ -470,26 +456,6 @@ def test_apply_mantid_mask():
     assert no_mask_data_set[0].min() <= masked_data_set[0].min()
     assert no_mask_data_set[0].max() >= masked_data_set[0].max()
 
-    # from matplotlib import pyplot as plt
-    # plt.plot(no_mask_data_set[0], no_mask_data_set[1], color='red')
-    # plt.plot(masked_data_set[0], masked_data_set[1], color='blue')
-    # plt.plot()
-    # plt.show()
-
-
-def test_hidra_workflow(tmpdir):
-    nexus = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1060.ORIG.nxs.h5'
-    mask = '/HFIR/HB2B/shared/CALIBRATION/HB2B_MASK_Latest.xml'
-    calibration = '/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json'
-    project = os.path.basename(nexus).split('.')[0] + '.h5'
-    project = os.path.join(str(tmpdir), project)
-    try:
-        _ = convertNeXusToProject(nexus, project, True, mask_file_name=mask)
-        addPowderToProject(project, calibration_file=calibration)
-    finally:
-        if os.path.exists(project):
-            os.remove(project)
-
 
 def test_reduce_with_calibration():
     """Test reduction with calibration file
@@ -498,9 +464,9 @@ def test_reduce_with_calibration():
     -------
 
     """
-    nexus = '/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5'
-    mask = '/HFIR/HB2B/shared/CALIBRATION/HB2B_MASK_Latest.xml'
-    calibration = '/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json'
+    nexus = 'tests/data/HB2B_1017.nxs.h5'
+    mask = 'tests/data/HB2B_Mask_12-18-19.xml'
+    calibration = 'tests/data/HB2B_calib_latest.json'
     project = os.path.basename(nexus).split('.')[0] + '_WL.h5'
     project = os.path.join(os.getcwd(), project)
     try:

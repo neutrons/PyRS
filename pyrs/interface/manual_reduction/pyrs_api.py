@@ -282,7 +282,7 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
     # Set progress bar
     if progressbar:
         progressbar.setVisible(True)
-        progressbar.setValue(0.)
+        progressbar.setValue(0)
 
     # process the data
     converter = NeXusConvertingApp(nexus_file_name=nexus, mask_file_name=mask)
@@ -290,7 +290,7 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
 
     # Update
     if progressbar:
-        progressbar.setValue(50.)
+        progressbar.setValue(50)
     # add powder patterns
 
     # Calculate powder pattern
@@ -309,13 +309,13 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
 
     if progressbar:
         progressbar.setVisible(True)
-        progressbar.setValue(95.)
+        progressbar.setValue(95)
 
     # Save
     reducer.save_diffraction_data(project_file_name)
 
     if progressbar:
         progressbar.setVisible(True)
-        progressbar.setValue(100.)
+        progressbar.setValue(100)
 
     return hidra_ws

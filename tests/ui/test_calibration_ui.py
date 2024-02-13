@@ -7,13 +7,15 @@ from qtpy import QtCore, QtWidgets
 import functools
 import os
 # import json
+import pytest
 
-# from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
+from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 
 wait = 200
 plot_wait = 100
 
 
+@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
 def test_texture_fitting_viewer(qtbot):
 
     model = DetectorCalibrationModel(pyrscore.PyRsCore())

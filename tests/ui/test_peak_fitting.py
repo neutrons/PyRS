@@ -5,12 +5,12 @@ import numpy as np
 import functools
 import pytest
 import os
-# from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
+from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 
 wait = 300
 
 
-# @pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Test hangs on github CI')
+@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
 def test_peak_fitting(qtbot, tmpdir):
     fit_peak_core = pyrscore.PyRsCore()
     window = fitpeakswindow.FitPeaksWindow(None, fit_peak_core=fit_peak_core)
@@ -45,9 +45,9 @@ def test_peak_fitting(qtbot, tmpdir):
     end_x, end_y = canvas.figure.axes[0].transData.transform((85, 500))
 
     # Drag select with mouse control
-    qtbot.mousePress(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(start_x, start_y))
+    qtbot.mousePress(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(int(start_x), int(start_y)))
     qtbot.wait(wait)
-    qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(end_x, end_y))
+    qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(int(end_x), int(end_y)))
     qtbot.wait(wait)
 
     # Peak Ranges Load ...
@@ -170,6 +170,7 @@ def test_peak_fitting(qtbot, tmpdir):
     qtbot.wait(wait)
 
 
+@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
 def test_peak_selection(qtbot, tmpdir):
     fit_peak_core = pyrscore.PyRsCore()
     window = fitpeakswindow.FitPeaksWindow(None, fit_peak_core=fit_peak_core)
@@ -206,13 +207,13 @@ def test_peak_selection(qtbot, tmpdir):
     end_x2, end_y2 = canvas.figure.axes[0].transData.transform((85, 500))
 
     # Drag select with mouse control
-    qtbot.mousePress(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(start_x1, start_y1))
+    qtbot.mousePress(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(int(start_x1), int(start_y1)))
     qtbot.wait(wait)
-    qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(end_x1, end_y1))
+    qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(int(end_x1), int(end_y1)))
     qtbot.wait(wait)
 
     # Drag select with mouse control
-    qtbot.mousePress(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(start_x2, start_y2))
+    qtbot.mousePress(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(int(start_x2), int(start_y2)))
     qtbot.wait(wait)
-    qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(end_x2, end_y2))
+    qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(int(end_x2), int(end_y2)))
     qtbot.wait(wait)
