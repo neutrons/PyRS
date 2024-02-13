@@ -87,6 +87,9 @@ class GeneralDiffDataView(MplGraphicsView1D):
         """
         return self._current_x_axis_name
 
+    def set_no_null_plot(self):
+        self.set_ax_null()
+
     def set_3Dview(self):
         self.reset_view_3d()
 

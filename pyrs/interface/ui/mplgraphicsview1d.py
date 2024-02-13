@@ -64,6 +64,9 @@ class MplGraphicsView1D(QWidget):
         self._vBox.addWidget(self._myCanvas)
         self._vBox.addWidget(self._myToolBar)
 
+    def set_ax_null(self):
+        self._myCanvas.set_ax_null()
+
     def reset_view_3d(self):
         self._myCanvas.reset_view_3d()
 
@@ -300,6 +303,10 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         :return:  a list of 2 - tuples as (row - index, column - index)
         """
         return sorted(self.axes_main.keys())
+
+    def set_ax_null(self):
+        self.clear_canvas()
+        self.axes_main.set_axis_off()
 
     def reset_view_3d(self):
         self.axes_main.remove()
