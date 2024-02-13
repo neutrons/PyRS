@@ -71,7 +71,11 @@ def calculate_sub_run_time_average(log_property, time_filter) -> float:
             raise NotImplementedError('TSP log property {} of type {} is not supported'
                                       ''.format(log_property.name, type(log_property)))
 
-        time_average_value = filtered_tsp.timeAverageValue()
+        if filtered_tsp.filtered_value.shape[0] == 1:
+            time_average_value = filtered_tsp.filtered_value
+        else:
+            time_average_value = filtered_tsp.timeAverageValue()
+
         del filtered_tsp
 
     return time_average_value
