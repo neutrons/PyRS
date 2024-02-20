@@ -103,3 +103,14 @@ class DetectorCalibrationCrtl:
             except (AttributeError, TypeError, IndexError):
                 # _ax.set_no_null_plot()
                 pass
+
+    def plot_2D_params(self, ax_obj, x_item, y_item, x_text, y_text):
+
+        x_data, y_data = self._model.get_calibration_values(x_item, y_item)
+
+        if x_data.size != y_data.size:
+            x_data = np.arange(y_data.size)
+
+        ax_obj.plot_scatter(x_data, y_data, x_text, y_text)
+
+        return
