@@ -44,6 +44,8 @@ class Load:
         o_gui.set_1D_2D_axis_comboboxes(with_clear=True, fill_raw=True)
         o_gui.enabled_1dplot_widgets(enabled=True)
         o_gui.initialize_combobox()
+        self.parent.fit_result = None
+        self.parent.ui.graphicsView_plot2D.reset_viewer()
         # o_gui.enabled_save_files_widget(enabled=True)
 
     def __set_up_project_name(self, project_file=""):
