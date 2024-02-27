@@ -28,10 +28,13 @@ class EventHandler:
                                     file_filter='H5 (*.h5);;HDF (*.hdf5)',
                                     save_file=True)
 
-        if not (out_file_name.endswith('.hdf5') or out_file_name.endswith('.h5')):
-            out_file_name += '.h5'
+        try:
+            if not (out_file_name.endswith('.hdf5') or out_file_name.endswith('.h5')):
+                out_file_name += '.h5'
 
-        self.save_fit_result(out_file_name)
+            self.save_fit_result(out_file_name)
+        except AttributeError:
+            pass
 
     def save(self):
         self.save_fit_result(self.parent.current_hidra_file_name)
