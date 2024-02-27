@@ -157,30 +157,30 @@ class Plot:
             axis_x_data, axis_x_error = o_data_retriever.get_data(name=x_axis_name, peak_index=x_axis_peak_index)
             axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
             axis_z_data, axis_z_error = o_data_retriever.get_data(name=z_axis_name, peak_index=z_axis_peak_index)
-    
+
             if sub_run_list is not None:
                 sub_run_list = self.parse_sub_run_list(sub_run_list, len(axis_x_data))
                 axis_x_data = axis_x_data[sub_run_list]
                 axis_y_data = axis_y_data[sub_run_list]
                 axis_z_data = axis_z_data[sub_run_list]
-    
+
             if ((axis_x_data.size == np.unique(axis_x_data).size) or
                     (axis_x_data.size == np.unique(axis_x_data).size)):
-    
+
                 plot_scatter = True
-    
+
             if self.parent.ui.radioButton_contour.isChecked():
                 vec_x, vec_y = np.meshgrid(np.unique(axis_x_data), np.unique(axis_y_data))
                 vec_z = griddata(((axis_x_data, axis_y_data)), axis_z_data, (vec_x, vec_y), method='nearest')
-    
+
             elif self.parent.ui.radioButton_3dline.isChecked():
-    
+
                 vec_x, vec_y = np.meshgrid(np.unique(axis_x_data), np.unique(axis_y_data))
                 vec_z = griddata(((axis_x_data, axis_y_data)), axis_z_data, (vec_x, vec_y), method='nearest')
-    
+
                 norm = Normalize(vec_z.min(), vec_z.max())
                 colors = coolwarm(norm(vec_z))
-    
+
             else:
                 plot_scatter = True
                 try:
@@ -188,11 +188,11 @@ class Plot:
                     colors = coolwarm(norm(axis_z_data))
                 except ValueError:
                     colors = None
-    
+
                 vec_x = np.copy(axis_x_data)
                 vec_y = np.copy(axis_y_data)
                 vec_z = np.copy(axis_z_data)
-    
+
             self.parent.ui.graphicsView_plot2D.plot_3D_scatter(vec_x, vec_y, vec_z, plot_scatter, colors=colors,
                                                                x_label=x_axis_name,
                                                                y_label=y_axis_name,

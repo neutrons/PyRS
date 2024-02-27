@@ -70,7 +70,7 @@ class TextureFittingCrtl:
             if fit_class.fit_result is not None:
                 if name in fit_class.clean_param_names:
                     param_entry = True
-                
+
             if str(name) == str("sub-runs"):
                 data = self._model.sub_runs
             elif fit_class.fit_result is None:
@@ -306,74 +306,74 @@ class TextureFittingCrtl:
             xdata, ydata, zdata = self.get_log_plot(x_label, y_label, zname=z_label, peak=int(peak_number),
                                                     fit_object=fit_object, out_of_plane=out_of_plane,
                                                     include_list=include_list)
-    
+
             if isinstance(zdata[0], np.ndarray):
                 zdata = zdata[0]
-    
+
             if isinstance(xdata, list):
                 xdata = np.array(xdata)
-    
+
             if isinstance(ydata, list):
                 ydata = np.array(ydata)
-    
+
             if isinstance(zdata, list):
                 zdata = np.array(zdata)
-    
+
             plot_scatter = False
             colors = None
-    
+
             if ((ydata.size == np.unique(ydata).size) or
                     (xdata.size == np.unique(xdata).size)):
-    
+
                 plot_scatter = True
-    
+
             if (VizSetup.polar_bt.isChecked()):
                 polar_data = self.extract_polar_projection(peak_number=int(peak_number))
-    
+
                 if polar_data is not None:
-    
+
                     alpha = round_polar(polar_data[:, 0], 5)
                     beta = round_polar(polar_data[:, 1], 5)
-    
+
                     R, P = np.meshgrid(np.unique(alpha), np.unique(beta))
                     vec_z = griddata(((alpha, beta)), polar_data[:, 2], (R, P), method='nearest')
-    
+
                     if VizSetup.shift_bt.isChecked():
                         vec_x = (90 - R) * np.cos(np.deg2rad(P))
                         vec_y = (90 - R) * np.sin(np.deg2rad(P))
                     else:
                         vec_x = R * np.cos(np.deg2rad(P))
                         vec_y = R * np.sin(np.deg2rad(P))
-    
+
                     x_label = r'$\alpha$'
                     y_label = r'$\beta$'
                     z_label = r'Intensity'
-    
+
                     plot_scatter = False
                 else:
                     plot_scatter = True
-    
+
             if (VizSetup.contour_bt.isChecked()) and (not plot_scatter):
                 vec_x, vec_y = np.meshgrid(np.unique(xdata), np.unique(ydata))
                 vec_z = griddata(((xdata, ydata)), zdata, (vec_x, vec_y), method='nearest')
-    
+
             elif (VizSetup.lines_bt.isChecked()) and (not plot_scatter):
                 vec_x, vec_y = np.meshgrid(np.unique(xdata), np.unique(ydata))
                 vec_z = griddata(((xdata, ydata)), zdata, (vec_x, vec_y), method='nearest')
-    
+
                 norm = plt.Normalize(vec_z.min(), vec_z.max())
                 colors = coolwarm(norm(vec_z))
-    
+
             elif (VizSetup.scatter_bt.isChecked()) or (plot_scatter):
                 plot_scatter = True
-    
+
                 norm = plt.Normalize(zdata.min(), zdata.max())
                 colors = coolwarm(norm(zdata))
-    
+
                 vec_x = np.copy(xdata)
                 vec_y = np.copy(ydata)
                 vec_z = np.copy(zdata)
-    
+
             ax_object.plot_3D_scatter(vec_x, vec_y, vec_z, plot_scatter, colors=colors,
                                       x_label=x_label, y_label=y_label, z_label=z_label)
         except ValueError:
