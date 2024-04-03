@@ -568,7 +568,10 @@ class NeXusConvertingApp:
                 sample_log_dict[HidraConstants.SUB_RUN_DURATION] = self._splitter.durations
             else:
                 duration = np.ndarray(shape=(log_array_size,), dtype=float)
-                duration[0] = run_obj.getPropertyAsSingleValue('duration')
+                try:
+                    duration[0] = run_obj.getPropertyAsSingleValue('duration')
+                except RuntimeError:
+                    duration[0] = 1
                 sample_log_dict[HidraConstants.SUB_RUN_DURATION] = duration
 
         # set the logs on the hidra workspace
