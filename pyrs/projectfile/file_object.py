@@ -698,6 +698,11 @@ class HidraProjectFile:
         param_values = peak_entry[HidraConstants.PEAK_PARAMS][()]
         error_values = peak_entry[HidraConstants.PEAK_PARAMS_ERROR][()]
 
+        try:
+            exclude_list = peak_entry[HidraConstants.EXCLUDE_PEAKS][()]
+        except KeyError:
+            exclude_list = [False] * sub_run_array.size
+
         # validate the information makes sense
         if param_values.shape != error_values.shape:
             raise RuntimeError('Parameters[{}] and Errors[{}] have different shape'.format(param_values.shape,
@@ -707,7 +712,8 @@ class HidraProjectFile:
                                          runnumber=self.read_run_number())
 
         peak_collection.set_peak_fitting_values(subruns=sub_run_array, parameter_values=param_values,
-                                                parameter_errors=error_values, fit_costs=chi2_array)
+                                                parameter_errors=error_values, fit_costs=chi2_array,
+                                                exclude_list=exclude_list)
 
         # Optionally for strain: reference peak center in dSpacing: (strain)
         if HidraConstants.D_REFERENCE in list(peak_entry.keys()):
@@ -776,6 +782,11 @@ class HidraProjectFile:
             single_peak_entry.create_dataset(HidraConstants.PEAK_FIT_CHI2, data=fitted_peaks.fitting_costs)
         else:
             single_peak_entry[HidraConstants.PEAK_FIT_CHI2][...] = fitted_peaks.fitting_costs
+
+        if HidraConstants.EXCLUDE_PEAKS not in single_peak_entry:
+            single_peak_entry.create_dataset(HidraConstants.EXCLUDE_PEAKS, data=fitted_peaks.exclude)
+        else:
+            single_peak_entry[HidraConstants.EXCLUDE_PEAKS][...] = fitted_peaks.exclude
 
         peak_values, peak_errors = fitted_peaks.get_native_params()
         if HidraConstants.PEAK_PARAMS not in single_peak_entry:

@@ -293,6 +293,18 @@ class PeakCollection:
             # only the name of the file rather than full path
             self._filename = Path(filename).name
 
+    @property
+    def exclude(self) -> list:
+        """Exclude Points List
+
+        Returns
+        -------
+        list
+            _exclude_list
+
+        """
+        return self._exclude_list
+
     def __convertParameters(self, parameters):
         '''Convert the supplied parameters into an appropriate ndarray'''
         expected_names = self._peak_profile.native_parameters  # background defaults to zero if not provided
@@ -313,6 +325,7 @@ class PeakCollection:
         '''This requires self._fit_cost_array and self._params_error_array to be set first'''
         # default value is that everything worked
         self._fit_status = ['success'] * self._sub_run_array.size
+        self._exclude_list = [False] * self._sub_run_array.size
 
         # check individual parameter errors
         bad_params = np.zeros(self._sub_run_array.size, dtype=bool)  # nothing is bad
@@ -328,8 +341,9 @@ class PeakCollection:
         if np.sum(bad_chisq) > 0:
             for i in np.where(bad_chisq)[0]:
                 self._fit_status[i] = 'failed'
+                self._exclude_list[i] = True
 
-    def set_peak_fitting_values(self, subruns, parameter_values, parameter_errors, fit_costs):
+    def set_peak_fitting_values(self, subruns, parameter_values, parameter_errors, fit_costs, exclude_list=None):
         """Set peak fitting values
 
         Parameters
@@ -342,6 +356,7 @@ class PeakCollection:
             numpy structured array for peak/background parameter fitted error
         fit_costs : numpy.ndarray
             numpy 1D array for
+        exclude_list : bool
 
         Returns
         -------
@@ -352,6 +367,8 @@ class PeakCollection:
         self._params_error_array = self.__convertParameters(parameter_errors)
         self._fit_cost_array = np.copy(fit_costs)
         self.__set_fit_status()
+        if exclude_list is not None:
+            self._exclude_list = np.copy(exclude_list)
 
     def get_d_reference(self) -> Tuple[np.ndarray, np.ndarray]:
         """Get d reference for all the sub runs
@@ -383,6 +400,7 @@ class PeakCollection:
             tuple
                 A two-item tuple containing the strain and its uncertainty.
           """
+
         # prepare to return the requested units
         conversion_factor = get_strain_conversion_factor(units)
 
@@ -448,3 +466,19 @@ class PeakCollection:
     def get_fit_status(self):
         '''list of messages with "success" being it's good'''
         return self._fit_status
+
+    def get_exclude_list(self):
+        '''list of subrun to exclude from calculations and plotting'''
+        return self._exclude_list
+
+    def set_exclude_list(self, new_exclude_list):
+        '''set subrun to exclude from calculations and plotting'''
+        self._exclude_list = new_exclude_list
+
+    def get_exclude_subrun(self, subrun_index):
+        '''get subrun to exclude from calculations and plotting'''
+        return self._exclude_list[subrun_index]
+
+    def set_exclude_subrun(self, subrun_index, exclude):
+        '''set subrun to exclude from calculations and plotting'''
+        self._exclude_list[subrun_index] = exclude
