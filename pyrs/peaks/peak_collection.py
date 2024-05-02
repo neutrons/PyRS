@@ -110,6 +110,18 @@ class PeakCollectionLite:
         self._d_reference = unumpy.uarray(np.nan, np.nan)  # set this correctly in next call
         self.set_d_reference(d_reference, d_reference_error)
 
+    @property
+    def exclude(self) -> list:
+        """Exclude Points List
+
+        Returns
+        -------
+        list
+            _exclude_list
+
+        """
+        return np.array([False] * self._strain.size)
+
     def __len__(self):
         return self._strain.size
 
