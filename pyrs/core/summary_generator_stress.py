@@ -240,7 +240,7 @@ class SummaryGeneratorStress:
 
         return
 
-    def write_full_csv(self):
+    def write_full_csv(self) -> None:
         """
             Public function to generate a full csv file for stress and input fields.
             Provides info for each run.
@@ -273,7 +273,7 @@ class SummaryGeneratorStress:
 
             return
 
-        def _write_full_csv_body(handle):
+        def _write_full_csv_body(handle) -> None:
 
             body = ''
 

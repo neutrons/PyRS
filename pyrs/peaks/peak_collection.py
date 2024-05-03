@@ -111,7 +111,7 @@ class PeakCollectionLite:
         self.set_d_reference(d_reference, d_reference_error)
 
     @property
-    def exclude(self) -> list:
+    def exclude(self) -> np.ndarray:
         """Exclude Points List
 
         Returns
