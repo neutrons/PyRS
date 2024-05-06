@@ -1591,7 +1591,8 @@ class StrainField(_StrainField):
         num_values = len(self)  # number of sample points in the point list
         values = np.full(num_values, NOT_MEASURED_NUMPY, dtype=float)
         errors = np.full(num_values, NOT_MEASURED_NUMPY, dtype=float)
-
+        keep = np.full(num_values, NOT_MEASURED_NUMPY, dtype=bool)
+        
         # loop over the winning strain indices
         # `strain_index` identifies one of the StrainFieldSingle instances in the list self._strains
         # If the strain has been stacked against one strain with additional sample points, some of the
@@ -1611,8 +1612,10 @@ class StrainField(_StrainField):
                 peak_param_values, peak_param_errors = peak_collection.get_effective_params(*args, **kwargs)
                 values_i = peak_param_values[method]
                 errors_i = peak_param_errors[method]
+                keep_i = np.array(peak_collection.exclude) == True
             else:
                 values_i, errors_i = getattr(peak_collection, f'{method}')(*args, **kwargs)
+                keep_i = np.array(peak_collection.exclude) == True
 
             # find points of the current single-scan strain's list contributing to the overall list of points
             # `self._winners.point_indexes` is a list as long as `self._point_list`. Each entry provides
@@ -1622,8 +1625,12 @@ class StrainField(_StrainField):
             idx = self._winners.point_indexes[indices]  # type: ignore
             assert np.all(idx < len(peak_collection))
             values[indices], errors[indices] = values_i[idx], errors_i[idx]
+            keep[indices] = keep_i[idx]
+
+        values[keep] = np.NAN
 
         return ScalarFieldSample(name, values, errors, self.x, self.y, self.z)
+
 
     @property
     def field(self):

@@ -54,7 +54,7 @@ class FitResultTable(NTableWidget.NTableWidget):
 
         # append new rows
         for index in sub_run_number_list:
-            self.append_row([index, None, None, None, None, None, None, ''])
+            self.append_row([index, None, None, None, None, None, None, '', 'checkbox'])
 
         return
 
@@ -93,6 +93,7 @@ class FitResultTable(NTableWidget.NTableWidget):
         # reset table
         self.init_setup(self.TableSetupList)
         print('[DB...BAT] Init setup table columns: {}'.format(self.TableSetupList))
+        print('[DB...BAT] Init setup table columns: {}'.format(self._column_names))
 
         # # Set up column width
         self.setColumnWidth(0, 60)

@@ -2,6 +2,7 @@
 This module generates reduction summary for user in plain text CSV file
 """
 from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS  # TODO get from the first peak collection
+# import numpy as np
 
 # Default summary titles shown in the CSV file. This is a list of tuples ot enforce order
 # things to be found in the output file with
@@ -235,18 +236,30 @@ class SummaryGenerator:
                 line.append(str(sample_logs[name][subrun_index]))  # get by index rather than subrun
 
             for peak_collection in peak_collections:
-                fit_cost = peak_collection.fitting_costs
-                dspacing_center, dspacing_center_error = peak_collection.get_dspacing_center()
-                strain, strain_error = peak_collection.get_strain(units='microstrain')
-                values, errors = peak_collection.get_effective_params()
-                line.append(str(dspacing_center[subrun_index]))
-                line.append(str(strain[subrun_index]))
-                for value in values[subrun_index]:
-                    line.append(str(value))
-                line.append(str(dspacing_center_error[subrun_index]))
-                line.append(str(strain_error[subrun_index]))
-                for value in errors[subrun_index]:
-                    line.append(str(value))
-                line.append(str(fit_cost[subrun_index]))
+                if peak_collection.get_exclude_subrun(subrun_index) is False:
+                    fit_cost = peak_collection.fitting_costs
+                    dspacing_center, dspacing_center_error = peak_collection.get_dspacing_center()
+                    strain, strain_error = peak_collection.get_strain(units='microstrain')
+                    values, errors = peak_collection.get_effective_params()
+                    line.append(str(dspacing_center[subrun_index]))
+                    line.append(str(strain[subrun_index]))
+                    for value in values[subrun_index]:
+                        line.append(str(value))
+                    line.append(str(dspacing_center_error[subrun_index]))
+                    line.append(str(strain_error[subrun_index]))
+                    for value in errors[subrun_index]:
+                        line.append(str(value))
+                    line.append(str(fit_cost[subrun_index]))
+                else:
+                    values, errors = peak_collection.get_effective_params()
+                    line.append('-')
+                    line.append('-')
+                    for value in values[subrun_index]:
+                        line.append('-')
+                    line.append('-')
+                    line.append('-')
+                    for value in errors[subrun_index]:
+                        line.append('-')
+                    line.append('-')
 
             handle.write(self.separator.join(line) + '\n')

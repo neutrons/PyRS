@@ -45,6 +45,7 @@ class HidraConstants:
     PEAK_PARAM_NAMES = 'parameter names'  # peak parameter names
     PEAK_COM = 'C.O.M'  # peak's center of mass
     BACKGROUND_TYPE = 'background type'
+    EXCLUDE_PEAKS = 'exclude'
 
     # constants for strain
     D_REFERENCE = 'd reference'   # reference peak position in d-spacing for strain calculation

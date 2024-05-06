@@ -122,6 +122,7 @@ class Model(QObject):
         return self._stress_facade
 
     def create_strain(self, direction):
+        print(getattr(self, f'e{direction}'))
         strain_list = [StrainField(hidraworkspace=ws, peak_collection=peak[self.selectedPeak])
                        for ws, peak in zip(getattr(self, f'e{direction}'), getattr(self, f'e{direction}_peaks'))]
         if len(strain_list) == 1:

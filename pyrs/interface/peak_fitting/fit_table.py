@@ -28,16 +28,34 @@ class FitTable:
         _value = self._get_value_to_display(peak_collection=_peak_collection)
         _chisq = _peak_collection.fitting_costs
         _status = _peak_collection.get_fit_status()
+        _exclude_list = _peak_collection.get_exclude_list()
 
         _d_spacing = self._get_d_spacing_to_display(peak_selected=_peak_selected,
                                                     peak_collection=_peak_collection)
 
         _microstrain_mapping = self._get_microstrain_mapping_to_display(peak_collection=_peak_collection)
 
-        def set_item(value='', fitting_worked=True):
-            _item = QTableWidgetItem(value)
-            if not fitting_worked:
-                _item.setBackground(COLOR_FAILED_FITTING)
+        def _update_exclude_list(_row, _col):
+            if self.parent.ui.tableView_fitSummary.item(_row, _col).checkState() == 0:
+                self.fit_result.peakcollections[_peak_selected-1].set_exclude_subrun(_row, False)
+            else:
+                self.fit_result.peakcollections[_peak_selected-1].set_exclude_subrun(_row, True)
+
+            # Update Plot Windows
+            self.parent.axis_1d_changed()
+            self.parent.axis_2d_changed()
+
+        def set_item(value='', fitting_worked=True, checked=False):
+            if value == 'checkbox':
+                # case to add checkbox
+                _item = QTableWidgetItem('')
+                _item.setCheckState(checked)
+
+            else:
+                _item = QTableWidgetItem(value)
+                if not fitting_worked:
+                    _item.setBackground(COLOR_FAILED_FITTING)
+
             return _item
 
         for _row, _row_value in enumerate(_value):
@@ -76,6 +94,14 @@ class FitTable:
             _item = set_item(value=_status[_row], fitting_worked=_fitting_worked)
             self.parent.ui.tableView_fitSummary.setItem(_row, _global_col_index, _item)
             _global_col_index += 1
+
+            # add exclude checkbox
+            _item = set_item(value='checkbox', checked=_exclude_list[_row])
+            # self.parent.ui.tableView_fitSummary.setCellWidget(_row, _global_col_index, _item)
+            self.parent.ui.tableView_fitSummary.setItem(_row, _global_col_index, _item)
+            _global_col_index += 1
+
+        self.parent.ui.tableView_fitSummary.cellClicked.connect(_update_exclude_list)
 
     def _get_d_spacing_to_display(self, peak_selected=1, peak_collection=None):
         _d_reference = np.float64(str(self.parent.ui.peak_range_table.item(peak_selected-1, 3).text()))
@@ -118,10 +144,12 @@ class FitTable:
     def initialize_table_column_size(self):
         nbr_column = self.parent.ui.tableView_fitSummary.columnCount()
         for _col in np.arange(nbr_column):
-            if _col < (nbr_column - 1):
-                _col_size = self.COL_SIZE
-            else:
+            if _col == (nbr_column - 2):
                 _col_size = self.STATUS_COL_SIZE
+
+            else:
+                _col_size = self.COL_SIZE
+
         self.parent.ui.tableView_fitSummary.setColumnWidth(_col, _col_size)
 
     def _clear_rows(self):
@@ -165,6 +193,8 @@ class FitTable:
 
         # add a status column
         clean_column_names.append("Status message")
+        clean_column_names.append("Exclude")
+
         return clean_column_names
 
     def select_first_row(self):
