@@ -432,26 +432,29 @@ class PeakLinesSetupView(QGroupBox):
         exclude_list = self.get_keep_list()
         fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
 
-        self.load_info.setEnabled(False)
-        self.export_recipe.setEnabled(False)
-        self.fit.setEnabled(False)
-        self.calibrate.setEnabled(False)
+        fit_recipe = [_recipe for _recipe in fit_recipe if _recipe != '']
 
-        # do action
-        args = [fit_recipe, exclude_list]
-        self.worker = self.worker_pool.createWorker(target=self._parent.controller.calibrate_detector, args=(args))
-        self.worker.finished.connect(lambda: self.load_info.setEnabled(True))
-        self.worker.finished.connect(lambda: self.export_recipe.setEnabled(True))
-        self.worker.finished.connect(lambda: self.fit.setEnabled(True))
-        self.worker.finished.connect(lambda: self.calibrate.setEnabled(True))
-        self.worker.finished.connect(lambda: self.time_worker.stop())
-        self.worker.result.connect(self.parse_calibration_results)
+        if len(fit_recipe) > 0:
+            self.load_info.setEnabled(False)
+            self.export_recipe.setEnabled(False)
+            self.fit.setEnabled(False)
+            self.calibrate.setEnabled(False)
 
-        self.time_worker = self.worker_pool.createTimmerWorker()
-        self.time_worker.progress.connect(self.progress_update)
+            # do action
+            args = [fit_recipe, exclude_list]
+            self.worker = self.worker_pool.createWorker(target=self._parent.controller.calibrate_detector, args=(args))
+            self.worker.finished.connect(lambda: self.load_info.setEnabled(True))
+            self.worker.finished.connect(lambda: self.export_recipe.setEnabled(True))
+            self.worker.finished.connect(lambda: self.fit.setEnabled(True))
+            self.worker.finished.connect(lambda: self.calibrate.setEnabled(True))
+            self.worker.finished.connect(lambda: self.time_worker.stop())
+            self.worker.result.connect(self.parse_calibration_results)
 
-        self.worker_pool.submitWorker(self.worker)
-        self.worker_pool.submitWorker(self.time_worker)
+            self.time_worker = self.worker_pool.createTimmerWorker()
+            self.time_worker.progress.connect(self.progress_update)
+
+            self.worker_pool.submitWorker(self.worker)
+            self.worker_pool.submitWorker(self.time_worker)
 
     def progress_update(self):
         self._parent.param_window.change_plot()
