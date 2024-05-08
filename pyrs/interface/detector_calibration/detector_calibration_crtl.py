@@ -106,6 +106,9 @@ class DetectorCalibrationCrtl:
 
     def plot_2D_params(self, ax_obj, x_item, y_item, x_text, y_text):
 
+        # reset object viewer
+        ax_obj.reset_viewer()
+
         x_data, y_data = self._model.get_calibration_values(x_item, y_item)
 
         if x_data.size != y_data.size:
