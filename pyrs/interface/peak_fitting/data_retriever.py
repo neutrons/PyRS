@@ -13,7 +13,7 @@ class DataRetriever:
     def get_data(self, name: str = 'Sub-runs', peak_index: int = 0) -> Tuple[np.ndarray, Optional[np.ndarray]]:
 
         try:
-            keep_list = np.array(self.parent.fit_result.peakcollections[peak_index].get_exclude_list()) is False
+            keep_list = np.array(self.parent.fit_result.peakcollections[peak_index].get_exclude_list()) == False
         except AttributeError:
             keep_list = np.ones_like(self.hidra_workspace.get_sub_runs()) == 1
 
@@ -51,7 +51,7 @@ class DataRetriever:
         :return:
         """
 
-        keep_list = np.array(peak.get_exclude_list()) is False
+        keep_list = np.array(peak.get_exclude_list()) == False
 
         value, error = peak.get_effective_params()
 
