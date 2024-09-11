@@ -2,6 +2,7 @@
 Convert HB2B NeXus file to Hidra project file for further reduction
 """
 import h5py
+from mantid.api import Run
 from mantid.kernel import Logger, BoolTimeSeriesProperty, FloatFilteredTimeSeriesProperty, FloatTimeSeriesProperty
 from mantid.kernel import Int32TimeSeriesProperty, Int64TimeSeriesProperty, Int32FilteredTimeSeriesProperty
 from mantid.kernel import Int64FilteredTimeSeriesProperty, StringTimeSeriesProperty, StringFilteredTimeSeriesProperty
@@ -57,7 +58,11 @@ def calculate_sub_run_time_average(log_property, time_filter) -> float:
     if log_property.size() == 1:  # single value property just copy
         time_average_value = log_property.value
     elif time_filter is None:  # no filtering means use all values
-        time_average_value = log_property.timeAverageValue()
+        time_averaged_Run = Run()
+        time_averaged_Run.addProperty('filtered_log', log_property, False)
+        time_average_value = time_averaged_Run.getTimeAveragedValue(log_property.name)
+        del time_averaged_Run
+
     else:
         # filter and get time average value
         if isinstance(log_property, FloatTimeSeriesProperty):
@@ -72,9 +77,11 @@ def calculate_sub_run_time_average(log_property, time_filter) -> float:
             raise NotImplementedError('TSP log property {} of type {} is not supported'
                                       ''.format(log_property.name, type(log_property)))
 
-        time_average_value = filtered_tsp.timeAverageValue()
+        time_averaged_Run = Run()
+        time_averaged_Run.addProperty('filtered_log', filtered_tsp, False)
+        time_average_value = time_averaged_Run.getTimeAveragedValue(log_property.name)
 
-        del filtered_tsp
+        del filtered_tsp, time_averaged_Run
 
     return time_average_value
 
