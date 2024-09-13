@@ -24,6 +24,7 @@ class Load:
             # Record data key and next
             self.parent._curr_file_name = project_file
             self.parent.hidra_workspace = ws
+            self.parent.fit_result = None
             self.parent.create_plot_color_range()
         except (RuntimeError, TypeError) as run_err:
             pop_message(self, 'Unable to load {}'.format(project_file),
@@ -44,7 +45,7 @@ class Load:
         o_gui.set_1D_2D_axis_comboboxes(with_clear=True, fill_raw=True)
         o_gui.enabled_1dplot_widgets(enabled=True)
         o_gui.initialize_combobox()
-        self.parent.fit_result = None
+
         self.parent.ui.graphicsView_plot2D.reset_viewer()
         # o_gui.enabled_save_files_widget(enabled=True)
 
