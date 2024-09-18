@@ -10,11 +10,15 @@ from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on buil
 wait = 300
 
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
-def test_peak_fitting(qtbot, tmpdir):
+@pytest.fixture(scope="module")
+def fit_peaks_window():
     fit_peak_core = pyrscore.PyRsCore()
     window = fitpeakswindow.FitPeaksWindow(None, fit_peak_core=fit_peak_core)
-    qtbot.addWidget(window)
+    return window
+
+@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
+def test_peak_fitting(qtbot, tmpdir, fit_peaks_window):
+    window = fit_peaks_window
     window.show()
     qtbot.wait(wait)
 
@@ -171,10 +175,8 @@ def test_peak_fitting(qtbot, tmpdir):
 
 
 @pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
-def test_peak_selection(qtbot, tmpdir):
-    fit_peak_core = pyrscore.PyRsCore()
-    window = fitpeakswindow.FitPeaksWindow(None, fit_peak_core=fit_peak_core)
-    qtbot.addWidget(window)
+def test_peak_selection(qtbot, tmpdir, fit_peaks_window):
+    window = fit_peaks_window
     window.show()
     qtbot.wait(wait)
 
@@ -217,3 +219,5 @@ def test_peak_selection(qtbot, tmpdir):
     qtbot.wait(wait)
     qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(int(end_x2), int(end_y2)))
     qtbot.wait(wait)
+
+    window.hide()

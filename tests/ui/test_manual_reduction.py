@@ -6,13 +6,18 @@ import matplotlib
 matplotlib.use("Agg")
 from pyrs.interface.manual_reduction import manualreductionwindow  # noqa E402
 
+
 wait = 100
 
+@pytest.fixture(scope="session")
+def manual_reduction_window(my_qtbot):
+    window = manualreductionwindow.ManualReductionWindow(None)
+    return window, my_qtbot
+    
 
 @pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
-def test_manual_reduction(qtbot, tmpdir):
-    window = manualreductionwindow.ManualReductionWindow(None)
-    qtbot.addWidget(window)
+def test_manual_reduction(tmpdir, manual_reduction_window):
+    window, qtbot = manual_reduction_window
     window.show()
     qtbot.wait(wait)
 
@@ -80,9 +85,8 @@ def test_manual_reduction(qtbot, tmpdir):
 
 
 @pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
-def test_manual_reduction_subruns(qtbot, tmpdir):
-    window = manualreductionwindow.ManualReductionWindow(None)
-    qtbot.addWidget(window)
+def test_manual_reduction_subruns(tmpdir, manual_reduction_window):
+    window, qtbot = manual_reduction_window
     window.show()
     qtbot.wait(wait)
 
@@ -142,3 +146,5 @@ def test_manual_reduction_subruns(qtbot, tmpdir):
     for _ in range(10):
         qtbot.keyClick(window.ui.comboBox_sub_runs, QtCore.Qt.Key_Up)
         qtbot.wait(wait)
+
+    window.hide()

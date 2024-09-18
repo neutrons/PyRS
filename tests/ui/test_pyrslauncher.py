@@ -5,11 +5,14 @@ import pytest
 
 wait = 100
 
+@pytest.fixture(scope="session")
+def main_window(my_qtbot):
+    window = PyRSLauncher()
+    return window, my_qtbot
 
 @pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
-def test_launcher(qtbot):
-    main_window = PyRSLauncher()
-    qtbot.addWidget(main_window)
+def test_launcher(main_window):
+    main_window, qtbot = main_window
     main_window.show()
     qtbot.wait(wait)
 
@@ -28,3 +31,6 @@ def test_launcher(qtbot):
     qtbot.wait(wait)
     assert main_window.peak_fit_window is not None
     assert main_window.peak_fit_window.isVisible()
+    main_window.peak_fit_window.close()
+    main_window.manual_reduction_window.close()
+    main_window.close()

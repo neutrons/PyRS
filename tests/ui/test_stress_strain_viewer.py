@@ -604,15 +604,18 @@ def test_model_from_json(tmpdir, test_data_dir):
     assert d0.errors[0] == 0.000123
 
 
-# changes to SliceViewer from Mantid in the version 5.1 is needed for the stress/strain viewer to run
-@pytest.mark.skipif(ON_GITHUB_ACTIONS or old_mantid, reason='Need mantid version >= 5.1')
-def test_stress_strain_viewer(qtbot):
-
+@pytest.fixture(scope="session")
+def strain_stress_window(my_qtbot):
     model = Model()
     ctrl = Controller(model)
     window = StrainStressViewer(model, ctrl)
+    return window, my_qtbot
 
-    qtbot.addWidget(window)
+# changes to SliceViewer from Mantid in the version 5.1 is needed for the stress/strain viewer to run
+@pytest.mark.skipif(ON_GITHUB_ACTIONS or old_mantid, reason='Need mantid version >= 5.1')
+def test_stress_strain_viewer(strain_stress_window):
+    window, qtbot = strain_stress_window
+
     window.show()
     qtbot.wait(wait)
 
@@ -704,3 +707,5 @@ def test_stress_strain_viewer(qtbot):
         qtbot.wait(wait)
         # check that the sliceviewer widget is created
         assert window.viz_tab.strainSliceViewer is not None
+
+    window.hide()
