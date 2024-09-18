@@ -33,7 +33,6 @@ requirements:
     - qtpy
     - pytest
     - uncertainties
-    - vtk
     - setuptools
     - versioningit
     - pandas
@@ -43,7 +42,6 @@ requirements:
     - mantidworkbench
     - qtpy
     - uncertainties
-    - vtk
     - pandas
 
 test:
