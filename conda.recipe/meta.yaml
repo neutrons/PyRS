@@ -42,7 +42,6 @@ requirements:
     - mantidworkbench
     - qtpy
     - uncertainties
-    - vtk
     - pandas
 
 test:
