@@ -1,6 +1,5 @@
 from pyrs.interface.pyrs_main import PyRSLauncher
 from qtpy import QtCore
-from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 import pytest
 
 wait = 100
@@ -10,7 +9,7 @@ def main_window(my_qtbot):
     window = PyRSLauncher()
     return window, my_qtbot
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
+
 def test_launcher(main_window):
     main_window, qtbot = main_window
     main_window.show()

@@ -9,8 +9,6 @@ import os
 # import json
 import pytest
 
-from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
-
 wait = 200
 plot_wait = 100
 
@@ -21,10 +19,9 @@ def calibration_window(my_qtbot):
     window = DetectorCalibrationViewer(model, ctrl)
     return window, my_qtbot
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
 def test_detector_calibration(calibration_window):
     window, qtbot = calibration_window
-    # qtbot.addWidget(window)
+
     window.show()
     qtbot.wait(wait)
 

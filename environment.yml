@@ -1,12 +1,12 @@
 name: PyRS
 channels:
 - conda-forge
-- mantid/label/nightly
+- mantid
 dependencies:
 - python=3.10
 - anaconda-client
 - boa
-- mantidworkbench>=6.8.20231213
+- mantidworkbench>=6.10
 - qtpy
 - pip
 - pyqt=5.15,<6

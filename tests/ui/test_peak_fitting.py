@@ -5,18 +5,17 @@ import numpy as np
 import functools
 import pytest
 import os
-from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 
 wait = 300
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def fit_peaks_window():
     fit_peak_core = pyrscore.PyRsCore()
     window = fitpeakswindow.FitPeaksWindow(None, fit_peak_core=fit_peak_core)
     return window
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
+
 def test_peak_fitting(qtbot, tmpdir, fit_peaks_window):
     window = fit_peaks_window
     window.show()
@@ -174,7 +173,6 @@ def test_peak_fitting(qtbot, tmpdir, fit_peaks_window):
     qtbot.wait(wait)
 
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
 def test_peak_selection(qtbot, tmpdir, fit_peaks_window):
     window = fit_peaks_window
     window.show()
