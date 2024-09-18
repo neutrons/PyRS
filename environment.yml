@@ -15,7 +15,6 @@ dependencies:
 - pytest-qt
 - uncertainties
 - libarchive=3.5.2
-- vtk
 - flake8
 - mypy
 - numpy
