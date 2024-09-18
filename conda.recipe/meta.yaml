@@ -33,7 +33,6 @@ requirements:
     - qtpy
     - pytest
     - uncertainties
-    - vtk
     - setuptools
     - versioningit
     - pandas
