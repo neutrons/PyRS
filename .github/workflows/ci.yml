@@ -30,8 +30,6 @@ jobs:
         run: |
           sudo apt update
           sudo apt-get install xvfb freeglut3-dev libglu1-mesa
-          sudo apt install libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 x11-utils
-          /sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -screen 0 1920x1200x24 -ac +extension GLX
 
       - uses: conda-incubator/setup-miniconda@v3
         with:
@@ -81,7 +79,8 @@ jobs:
       - name: Run PyRS tests
         run: |
           conda activate PyRS
-          xvfb-run --server-args="-screen 0 640x480x24" -a pytest --cov=pyrs --cov-report=xml --cov-report=term tests
+          conda install conda-forge::pytest-xvfb
+          pytest --cov=pyrs --cov-report=xml --cov-report=term tests
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
