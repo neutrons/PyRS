@@ -80,7 +80,7 @@ jobs:
         run: |
           conda activate PyRS
           conda install conda-forge::pytest-xvfb
-          pytest --cov=pyrs --cov-report=xml --cov-report=term tests
+          pytest tests
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
