@@ -10,14 +10,18 @@ wait = 300
 
 
 @pytest.fixture(scope="session")
-def fit_peaks_window():
+def fit_peaks_window(my_qtbot):
+    r"""
+    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
+    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
+    """
     fit_peak_core = pyrscore.PyRsCore()
     window = fitpeakswindow.FitPeaksWindow(None, fit_peak_core=fit_peak_core)
-    return window
+    return window, my_qtbot
 
 
-def test_peak_fitting(qtbot, tmpdir, fit_peaks_window):
-    window = fit_peaks_window
+def test_peak_fitting(tmpdir, fit_peaks_window):
+    window, qtbot = fit_peaks_window
     window.show()
     qtbot.wait(wait)
 
@@ -173,8 +177,8 @@ def test_peak_fitting(qtbot, tmpdir, fit_peaks_window):
     qtbot.wait(wait)
 
 
-def test_peak_selection(qtbot, tmpdir, fit_peaks_window):
-    window = fit_peaks_window
+def test_peak_selection(tmpdir, fit_peaks_window):
+    window, qtbot = fit_peaks_window
     window.show()
     qtbot.wait(wait)
 

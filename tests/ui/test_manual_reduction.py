@@ -10,6 +10,10 @@ wait = 100
 
 @pytest.fixture(scope="session")
 def manual_reduction_window(my_qtbot):
+    r"""
+    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
+    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
+    """
     window = manualreductionwindow.ManualReductionWindow(None)
     return window, my_qtbot
     

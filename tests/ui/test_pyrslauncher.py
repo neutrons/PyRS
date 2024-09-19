@@ -6,6 +6,10 @@ wait = 100
 
 @pytest.fixture(scope="session")
 def main_window(my_qtbot):
+    r"""
+    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
+    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
+    """
     window = PyRSLauncher()
     return window, my_qtbot
 
@@ -33,3 +37,4 @@ def test_launcher(main_window):
     main_window.peak_fit_window.close()
     main_window.manual_reduction_window.close()
     main_window.close()
+    
