@@ -8,6 +8,7 @@ from pyrs.interface.manual_reduction import manualreductionwindow  # noqa E402
 
 wait = 100
 
+
 @pytest.fixture(scope="session")
 def manual_reduction_window(my_qtbot):
     r"""
@@ -16,7 +17,7 @@ def manual_reduction_window(my_qtbot):
     """
     window = manualreductionwindow.ManualReductionWindow(None)
     return window, my_qtbot
-    
+
 
 def test_manual_reduction(tmpdir, manual_reduction_window):
     window, qtbot = manual_reduction_window

@@ -15,6 +15,7 @@ from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on buil
 wait = 200
 plot_wait = 100
 
+
 @pytest.fixture(scope="session")
 def texture_fitting_window(my_qtbot):
     r"""
@@ -28,7 +29,7 @@ def texture_fitting_window(my_qtbot):
 
 
 def test_texture_fitting_viewer(texture_fitting_window):
-    window, qtbot =  texture_fitting_window
+    window, qtbot = texture_fitting_window
 
     window.show()
     qtbot.wait(wait)

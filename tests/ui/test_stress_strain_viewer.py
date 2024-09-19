@@ -611,6 +611,7 @@ def strain_stress_window(my_qtbot):
     window = StrainStressViewer(model, ctrl)
     return window, my_qtbot
 
+
 # changes to SliceViewer from Mantid in the version 5.1 is needed for the stress/strain viewer to run
 @pytest.mark.skipif(old_mantid, reason='Need mantid version >= 5.1')
 def test_stress_strain_viewer(strain_stress_window):

@@ -12,6 +12,7 @@ import pytest
 wait = 200
 plot_wait = 100
 
+
 @pytest.fixture(scope="session")
 def calibration_window(my_qtbot):
     r"""
@@ -22,6 +23,7 @@ def calibration_window(my_qtbot):
     ctrl = DetectorCalibrationCrtl(model)
     window = DetectorCalibrationViewer(model, ctrl)
     return window, my_qtbot
+
 
 def test_detector_calibration(calibration_window):
     window, qtbot = calibration_window
