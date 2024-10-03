@@ -74,7 +74,7 @@ def test_texture_fitting_viewer(texture_fitting_window):
     canvas = window.fit_window._myCanvas
 
     # The get start and end mouse points to drag select
-    fit_ranges = [[62.346, 66.568], [71.2917, 76.0151]]
+    fit_ranges = [[62.864, 66.9115], [71.87344, 76.5544]]
 
     if ON_GITHUB_ACTIONS:
         rtol = 0.5
@@ -83,14 +83,13 @@ def test_texture_fitting_viewer(texture_fitting_window):
 
     for i_loop in range(len(fit_ranges)):
         # Drag select with mouse control
+        canvas.figure.canvas.draw()
         start_x, start_y = canvas.figure.axes[0].transData.transform((fit_ranges[i_loop][0], 40))
         end_x, end_y = canvas.figure.axes[0].transData.transform((fit_ranges[i_loop][1], 40))
-        print(start_x, end_x)
 
-        # Drag select with mouse control
-        qtbot.mousePress(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(int(start_x), 40))
+        qtbot.mousePress(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(int(start_x), int(start_y)))
         qtbot.wait(wait)
-        qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(int(end_x), 40))
+        qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(int(end_x), int(end_y)))
         qtbot.wait(wait)
 
         np.testing.assert_allclose(float(window.fit_setup.fit_range_table.item(i_loop, 0).text()),
