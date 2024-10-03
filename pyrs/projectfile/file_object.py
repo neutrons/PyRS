@@ -799,6 +799,17 @@ class HidraProjectFile:
         else:
             single_peak_entry[HidraConstants.PEAK_PARAMS_ERROR][...] = peak_errors
 
+        effective_peak_values, effective_peak_errors = fitted_peaks.get_effective_params()
+        if HidraConstants.EFFECTIVE_PEAK_PARAMS not in single_peak_entry:
+            single_peak_entry.create_dataset(HidraConstants.EFFECTIVE_PEAK_PARAMS, data=effective_peak_values)
+        else:
+            single_peak_entry[HidraConstants.EFFECTIVE_PEAK_PARAMS][...] = effective_peak_values
+
+        if HidraConstants.EFFECTIVE_PEAK_PARAMS_ERROR not in single_peak_entry:
+            single_peak_entry.create_dataset(HidraConstants.EFFECTIVE_PEAK_PARAMS_ERROR, data=effective_peak_errors)
+        else:
+            single_peak_entry[HidraConstants.EFFECTIVE_PEAK_PARAMS_ERROR][...] = effective_peak_errors
+
         # Reference peak center in dSpacing: (strain)
         ref_d_array, ref_d_errors = fitted_peaks.get_d_reference()
         if isinstance(ref_d_array, numpy.ndarray):

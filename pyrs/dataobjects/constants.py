@@ -43,6 +43,8 @@ class HidraConstants:
     PEAK_PARAMS = 'parameters'  # peak parameter values
     PEAK_PARAMS_ERROR = 'fitting error'  # peak parameters' fitting error
     PEAK_PARAM_NAMES = 'parameter names'  # peak parameter names
+    EFFECTIVE_PEAK_PARAMS = 'effective parameters'  # effective peak parameter values
+    EFFECTIVE_PEAK_PARAMS_ERROR = 'effective fitting error'  # effective peak parameters' fitting error
     PEAK_COM = 'C.O.M'  # peak's center of mass
     BACKGROUND_TYPE = 'background type'
     EXCLUDE_PEAKS = 'exclude'
