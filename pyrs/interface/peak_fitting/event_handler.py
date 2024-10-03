@@ -139,6 +139,7 @@ class EventHandler:
             o_gui.enabled_sub_runs_interation_widgets(True)
             # o_gui.enabled_fitting_widgets(True)
             o_gui.enabled_data_fit_plot(True)
+            o_gui.enabled_export_csv_widgets(False)
             o_gui.enabled_peak_ranges_widgets(True)
             o_gui.enabled_1dplot_widgets(True)
 
