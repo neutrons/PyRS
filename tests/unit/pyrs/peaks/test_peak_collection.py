@@ -118,6 +118,7 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors,
     obs_raw_peaks, obs_raw_errors = peaks.get_native_params()
     np.testing.assert_equal(obs_raw_peaks, raw_peaks_array)
     np.testing.assert_equal(obs_raw_errors, raw_peaks_errors)
+
     # check effective parameters
     obs_eff_peaks, obs_eff_errors = peaks.get_effective_params()
     assert obs_eff_peaks.size == NUM_SUBRUN
@@ -156,9 +157,15 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors,
 def test_peak_collection_Gaussian():
     NUM_SUBRUN = 2
     # without wavelength
-    check_peak_collection('Gaussian', NUM_SUBRUN, np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(effective=True)))
+    check_peak_collection('Gaussian', NUM_SUBRUN,
+                          np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01),
+                                    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01)],
+                                   dtype=get_parameter_dtype(effective=True)))  # Error array
     # with wavelength
-    check_peak_collection('Gaussian', NUM_SUBRUN, np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(effective=True)),
+    check_peak_collection('Gaussian', NUM_SUBRUN,
+                          np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01),
+                                    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01)],
+                                   dtype=get_parameter_dtype(effective=True)),
                           wavelength=1.53229, d_reference=1.08, target_d_spacing_center=[1.08, 1.07],
                           target_d_spacing_center_error=[0.0, 0.0], target_strain=[3234., -5408.],
                           target_strain_error=[0.0, 0.0])
@@ -168,13 +175,13 @@ def test_peak_collection_PseudoVoigt():
     NUM_SUBRUN = 2
     # without wavelength
     check_peak_collection('PseudoVoigt', NUM_SUBRUN,
-                          np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
-                                    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)],
+                          np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01),
+                                    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01)],
                                    dtype=get_parameter_dtype(effective=True)))
     # with wavelength
     check_peak_collection('PseudoVoigt', NUM_SUBRUN,
-                          np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
-                                    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)],
+                          np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01),
+                                    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01)],
                                    dtype=get_parameter_dtype(effective=True)),
                           wavelength=1.53229, d_reference=1.08, target_d_spacing_center=[1.08, 1.07],
                           target_d_spacing_center_error=[0.0, 0.0], target_strain=[3234., -5408.],
