@@ -187,6 +187,7 @@ def test_peak_collection_PseudoVoigt():
                           target_d_spacing_center_error=[0.0, 0.0], target_strain=[3234., -5408.],
                           target_strain_error=[0.0, 0.0])
 
+
 def test_peak_collection_Gaussian_Quadratic():
     NUM_SUBRUN = 2
     # without wavelength
