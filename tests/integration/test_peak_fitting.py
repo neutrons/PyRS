@@ -213,8 +213,7 @@ def test_retrieve_fit_metadata(source_project_file, output_project_file, peak_ty
                          [('data/Hidra_16-1_cor_log.h5', 'Hidra_16-1_cor_log_peak.h5', 'Gaussian',
                            PeakInfo(94.5, 91, 97, 'Fe111')),  # NSFR2 peak
                           ('data/HB2B_938.h5', 'HB2B_938_peak.h5', 'PseudoVoigt',
-                           PeakInfo(95.5, 91, 97, 'Si111'))],
-                         ids=('FakeHB2B', 'HB2B_938'))
+                           PeakInfo(95.5, 91, 97, 'Si111'))], ids=('FakeHB2B', 'HB2B_938'))
 def xtest_main(project_file_name, peak_file_name, peak_type, peak_info):
     """Test peak fitting
 
@@ -245,17 +244,6 @@ def xtest_main(project_file_name, peak_file_name, peak_type, peak_info):
 
     # Clean
     os.remove(peak_file_name)
-
-
-# TODO - MAKE IT WORK!
-def test_calculating_com():
-    # calculate_center_of_mass(self, peak_tag, peak_range):
-    pass
-
-
-def test_convert_peaks_centers_to_dspacing():
-    #
-    pass
 
 
 def test_improve_quality():
@@ -372,7 +360,7 @@ def test_write_csv():
     # verify that the number of columns is correct
     # columns are (subruns, one log, parameter values, uncertainties, chisq)
     for line in contents[len(EXPECTED_HEADER) + 1:]:  # skip past header and constant log
-        assert len(line.split(',')) == 1 + 1 + 9 * 2 + 1
+        assert len(line.split(',')) == 1 + 1 + 10 * 2 + 1
 
     # cleanup
     os.remove(csv_filename)
@@ -465,7 +453,7 @@ def test_write_csv_from_project(project_file_name, csv_filename, expected_header
     # columns are (subruns, seven logs, parameter values, uncertainties, d_spacing values,
     # strain values and uncertainties, chisq)
     for line in contents[len(expected_header) + 1:]:  # skip past header and constant log
-        assert len(line.split(',')) == 1 + num_logs + 7 * 2 + (2*2) + 1
+        assert len(line.split(',')) == 1 + num_logs + 8 * 2 + (2*2) + 1
 
     # cleanup
     os.remove(csv_filename)

@@ -168,13 +168,13 @@ def test_peak_collection_PseudoVoigt():
     NUM_SUBRUN = 2
     # without wavelength
     check_peak_collection('PseudoVoigt', NUM_SUBRUN,
-                          np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
-                                    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)],
+                          np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+                                    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)],
                                    dtype=get_parameter_dtype(effective=True)))
     # with wavelength
     check_peak_collection('PseudoVoigt', NUM_SUBRUN,
-                          np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
-                                    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)],
+                          np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+                                    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)],
                                    dtype=get_parameter_dtype(effective=True)),
                           wavelength=1.53229, d_reference=1.08, target_d_spacing_center=[1.08, 1.07],
                           target_d_spacing_center_error=[0.0, 0.0], target_strain=[3234., -5408.],

@@ -372,7 +372,7 @@ def test_2_gaussian_1_subrun(setup_1_subrun, fit_domain):
     fit_costs = fit_result.peakcollections[0].fitting_costs
     eff_param_values, eff_param_errors = fit_result.peakcollections[0].get_effective_params()
     assert eff_param_values.size == 1, '1 sub run'
-    assert len(eff_param_values.dtype.names) == 7, '7 effective parameters'
+    assert len(eff_param_values.dtype.names) == 8, '8 effective parameters'
     '''
     if abs(eff_param_values[2][0] - expected_intensity) < 1E-03:
         plt.plot(data_x, data_y, label='Test 2 Gaussian')
@@ -492,7 +492,7 @@ def test_2_gaussian_3_subruns(target_values):
     # Get effective peak parameters
     effective_param_values, effective_param_errors = fit_result.peakcollections[0].get_effective_params()
     assert effective_param_values.size == 3, '3 subruns'
-    assert len(effective_param_values.dtype.names) == 7, '7 effective parameters'
+    assert len(effective_param_values.dtype.names) == 8, '8 effective parameters'
 
     # TODO it is odd that there are only two in the the setup function and 3 in the result
     np.testing.assert_allclose(param_values_lp['Height'][:2], target_values['peak_height'], atol=20.)
@@ -503,7 +503,7 @@ def test_2_gaussian_3_subruns(target_values):
 
     effective_param_values, effective_param_errors = fit_result.peakcollections[1].get_effective_params()
     assert effective_param_values.size == 3, '3 subruns'
-    assert len(effective_param_values.dtype.names) == 7, '7 effective parameters'
+    assert len(effective_param_values.dtype.names) == 8, '8 effective parameters'
 
     # Plot
     # model_x, model_y = fit_engine.calculate_fitted_peaks(3, None)
