@@ -79,7 +79,8 @@ jobs:
       - name: Run PyRS tests
         run: |
           conda activate PyRS
-          xvfb-run --server-args="-screen 0 640x480x24" -a pytest --cov=pyrs --cov-report=xml --cov-report=term tests
+          conda install conda-forge::pytest-xvfb
+          pytest tests
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1

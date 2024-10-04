@@ -1,18 +1,26 @@
 from qtpy import QtCore
 import os
 import pytest
-from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 import matplotlib
 matplotlib.use("Agg")
 from pyrs.interface.manual_reduction import manualreductionwindow  # noqa E402
 
+
 wait = 100
 
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
-def test_manual_reduction(qtbot, tmpdir):
+@pytest.fixture(scope="session")
+def manual_reduction_window(my_qtbot):
+    r"""
+    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
+    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
+    """
     window = manualreductionwindow.ManualReductionWindow(None)
-    qtbot.addWidget(window)
+    return window, my_qtbot
+
+
+def test_manual_reduction(tmpdir, manual_reduction_window):
+    window, qtbot = manual_reduction_window
     window.show()
     qtbot.wait(wait)
 
@@ -79,10 +87,8 @@ def test_manual_reduction(qtbot, tmpdir):
     assert line.get_ydata()[1::].max() == pytest.approx(580.4936170212766)
 
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
-def test_manual_reduction_subruns(qtbot, tmpdir):
-    window = manualreductionwindow.ManualReductionWindow(None)
-    qtbot.addWidget(window)
+def test_manual_reduction_subruns(tmpdir, manual_reduction_window):
+    window, qtbot = manual_reduction_window
     window.show()
     qtbot.wait(wait)
 
@@ -142,3 +148,5 @@ def test_manual_reduction_subruns(qtbot, tmpdir):
     for _ in range(10):
         qtbot.keyClick(window.ui.comboBox_sub_runs, QtCore.Qt.Key_Up)
         qtbot.wait(wait)
+
+    window.hide()
