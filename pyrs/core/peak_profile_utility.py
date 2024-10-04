@@ -226,7 +226,7 @@ class Gaussian(PeakParametersConverter):
             eff_error_array['A2'] = param_error_array['A2']  # A2
         except ValueError:
             eff_value_array['A2'] = np.zeros_like(param_value_array['A1'])  # A2
-            eff_error_array['A2'] = np.zeros_like(param_value_array['A1'])  # A2
+            eff_error_array['A2'] = np.zeros_like(param_value_array['A1']) + 0.01  # A2
 
         return eff_value_array, eff_error_array
 
@@ -406,7 +406,7 @@ class PseudoVoigt(PeakParametersConverter):
             eff_error_array['A2'] = param_error_array['A2']  # A2
         except ValueError:
             eff_value_array['A2'] = np.zeros_like(param_value_array['A1'])  # A2
-            eff_error_array['A2'] = np.zeros_like(param_value_array['A1'])  # A2
+            eff_error_array['A2'] = np.zeros_like(param_value_array['A1']) + 0.01  # A2
 
         return eff_value_array, eff_error_array
 
