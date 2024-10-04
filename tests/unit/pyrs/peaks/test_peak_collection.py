@@ -56,7 +56,7 @@ def test_peak_collection_init():
     np.testing.assert_equal(d_ref_err, np.asarray((0.,)))
 
 
-def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors,
+def check_peak_collection(peak_shape, background, NUM_SUBRUN, target_errors,
                           wavelength=None, d_reference=None,
                           target_d_spacing_center=np.nan,
                           target_d_spacing_center_error=np.asarray([0., 0.]),
@@ -85,7 +85,7 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors,
     """
     subruns = np.arange(NUM_SUBRUN) + 1
     chisq = np.array([42., 43.])
-    raw_peaks_array = np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(peak_shape, 'Linear'))
+    raw_peaks_array = np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(peak_shape, background))
     if peak_shape == 'PseudoVoigt':
         raw_peaks_array['Intensity'] = [1, 2]
         raw_peaks_array['FWHM'] = np.array([4, 5], dtype=float)
@@ -96,11 +96,11 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors,
     raw_peaks_array['PeakCentre'] = [90., 91.]
 
     # background terms are both zeros
-    raw_peaks_errors = np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(peak_shape, 'Linear'))
+    raw_peaks_errors = np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype(peak_shape, background))
     if wavelength is None:
-        peaks = PeakCollection('testing', peak_shape, 'Linear')
+        peaks = PeakCollection('testing', peak_shape, background)
     else:
-        peaks = PeakCollection('testing', peak_shape, 'Linear', wavelength=wavelength)
+        peaks = PeakCollection('testing', peak_shape, background, wavelength=wavelength)
 
     # uncertainties are being set to zero
     peaks.set_peak_fitting_values(subruns, raw_peaks_array,
@@ -157,12 +157,12 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors,
 def test_peak_collection_Gaussian():
     NUM_SUBRUN = 2
     # without wavelength
-    check_peak_collection('Gaussian', NUM_SUBRUN,
+    check_peak_collection('Gaussian', 'Linear', NUM_SUBRUN,
                           np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01),
                                     (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01)],
                                    dtype=get_parameter_dtype(effective=True)))  # Error array
     # with wavelength
-    check_peak_collection('Gaussian', NUM_SUBRUN,
+    check_peak_collection('Gaussian', 'Linear', NUM_SUBRUN,
                           np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01),
                                     (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01)],
                                    dtype=get_parameter_dtype(effective=True)),
@@ -174,14 +174,47 @@ def test_peak_collection_Gaussian():
 def test_peak_collection_PseudoVoigt():
     NUM_SUBRUN = 2
     # without wavelength
-    check_peak_collection('PseudoVoigt', NUM_SUBRUN,
+    check_peak_collection('PseudoVoigt', 'Linear', NUM_SUBRUN,
                           np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01),
                                     (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01)],
                                    dtype=get_parameter_dtype(effective=True)))
     # with wavelength
-    check_peak_collection('PseudoVoigt', NUM_SUBRUN,
+    check_peak_collection('PseudoVoigt', 'Linear', NUM_SUBRUN,
                           np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01),
                                     (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01)],
+                                   dtype=get_parameter_dtype(effective=True)),
+                          wavelength=1.53229, d_reference=1.08, target_d_spacing_center=[1.08, 1.07],
+                          target_d_spacing_center_error=[0.0, 0.0], target_strain=[3234., -5408.],
+                          target_strain_error=[0.0, 0.0])
+
+def test_peak_collection_Gaussian_Quadratic():
+    NUM_SUBRUN = 2
+    # without wavelength
+    check_peak_collection('Gaussian', 'Quadratic', NUM_SUBRUN,
+                          np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+                                    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)],
+                                   dtype=get_parameter_dtype(effective=True)))  # Error array
+    # with wavelength
+    check_peak_collection('Gaussian', 'Quadratic', NUM_SUBRUN,
+                          np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+                                    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)],
+                                   dtype=get_parameter_dtype(effective=True)),
+                          wavelength=1.53229, d_reference=1.08, target_d_spacing_center=[1.08, 1.07],
+                          target_d_spacing_center_error=[0.0, 0.0], target_strain=[3234., -5408.],
+                          target_strain_error=[0.0, 0.0])
+
+
+def test_peak_collection_PseudoVoigt_Quadratic():
+    NUM_SUBRUN = 2
+    # without wavelength
+    check_peak_collection('PseudoVoigt', 'Quadratic', NUM_SUBRUN,
+                          np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+                                    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)],
+                                   dtype=get_parameter_dtype(effective=True)))
+    # with wavelength
+    check_peak_collection('PseudoVoigt', 'Quadratic', NUM_SUBRUN,
+                          np.array([(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+                                    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)],
                                    dtype=get_parameter_dtype(effective=True)),
                           wavelength=1.53229, d_reference=1.08, target_d_spacing_center=[1.08, 1.07],
                           target_d_spacing_center_error=[0.0, 0.0], target_strain=[3234., -5408.],
