@@ -1,5 +1,5 @@
 # Peak fitting engine
-SupportedPeakProfiles = ['Gaussian', 'PseudoVoigt', 'Voigt']
+SupportedPeakProfiles = ['Gaussian', 'PseudoVoigt']
 SupportedBackgroundTypes = ['Flat', 'Linear', 'Quadratic']
 
 __all__ = ['FitEngineFactory', 'SupportedPeakProfiles', 'SupportedBackgroundTypes']

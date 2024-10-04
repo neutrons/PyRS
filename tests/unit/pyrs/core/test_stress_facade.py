@@ -412,8 +412,8 @@ class TestStressFacade:
 
     def test_peak_parameters(self, strain_stress_object_1):
         facade = StressFacade(strain_stress_object_1['stresses']['diagonal'])
-        assert set(facade.peak_parameters) == {'d', 'Center', 'Height', 'FWHM', 'Mixing',
-                                               'A0', 'A1', 'Intensity'}
+        assert set(facade.peak_parameters) == {'d', 'Center', 'Height', 'FWHM', 'Mixing', 'Intensity',
+                                               'A0', 'A1', 'A2'}
 
     def test_peak_parameter_field(self, strain_stress_object_1):
         r"""Retrieve the effective peak parameters for a particular run, or for a particular direction"""

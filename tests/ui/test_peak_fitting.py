@@ -90,7 +90,7 @@ def test_peak_fitting(tmpdir, fit_peaks_window):
     # check number of lines
     assert len(file_contents) == 127
     # check number of values in line
-    assert len(np.fromstring(file_contents[-1], dtype=np.float64, sep=',')) == 33
+    assert len(np.fromstring(file_contents[-1], dtype=np.float64, sep=',')) == 35
 
     # look at 1D results plot
     line = window.ui.graphicsView_fitResult.canvas().get_axis().lines[0]
@@ -134,7 +134,7 @@ def test_peak_fitting(tmpdir, fit_peaks_window):
     # check number of lines
     assert len(file_contents) == 127
     # check number of values in line
-    assert len(np.fromstring(file_contents[-1], dtype=np.float64, sep=',')) == 33
+    assert len(np.fromstring(file_contents[-1], dtype=np.float64, sep=',')) == 35
 
     # look at 1D results plot
     line = window.ui.graphicsView_fitResult.canvas().get_axis().lines[0]
