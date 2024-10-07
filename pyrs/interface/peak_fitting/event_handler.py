@@ -69,9 +69,11 @@ class EventHandler:
         project_h5_file.close()
 
     def load_run_number_plot(self):
+        runs = parse_integers(self.parent.ui.lineEdit_expNumber.text())
+
         try:
-            project_dir = get_input_project_file(int(self.parent.ui.lineEdit_expNumber.text()),
-                                                 preferredType=self.parent.ui.comboBox_reduction.currentText().lower())
+            project_dir = [get_input_project_file(run, preferredType=self.parent.ui.comboBox_reduction.currentText())
+                           for run in runs]
         except (FileNotFoundError, RuntimeError, ValueError) as run_err:
             pop_message(self, f'Failed to find run {self.parent.ui.lineEdit_expNumber.text()}',
                         str(run_err), 'error')
