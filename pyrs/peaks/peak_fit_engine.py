@@ -35,9 +35,15 @@ class PeakFitEngine:
                                                                  out_of_plane_angle)
         self._subruns = hidraworkspace.get_sub_runs()
         self._project_file_name = hidraworkspace.hidra_project_file
-        self._runnumber = hidraworkspace.get_sample_log_value('run_number') \
-            if 'run_number' in hidraworkspace.get_sample_log_names() \
-               else -1
+
+        try:  # Check for the run number. Appened runs throw an assertion error
+            if 'run_number' in hidraworkspace.get_sample_log_names():
+                self._runnumber = hidraworkspace.get_sample_log_value('run_number')
+            else:
+                self._runnumber = -1
+
+        except AssertionError:
+            self._runnumber = -1
 
         # create a
         self._peak_function = PeakShape.getShape(peak_function_name)
