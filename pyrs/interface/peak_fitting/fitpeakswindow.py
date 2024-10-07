@@ -164,8 +164,11 @@ class FitPeaksWindow(QMainWindow):
         """
         o_handler = EventHandler(parent=self)
         o_handler.browse_load_plot_hdf()
-        o_plot = Plot(parent=self)
-        o_plot.plot_1d()
+        try:
+            o_plot = Plot(parent=self)
+            o_plot.plot_1d()
+        except AttributeError:
+            pass
 
     def load_hidra_file(self):
         o_handler = EventHandler(parent=self)

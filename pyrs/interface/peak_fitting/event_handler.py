@@ -93,14 +93,15 @@ class EventHandler:
                                           'HIDRA Project File',
                                           os.getcwd(),
                                           file_filter,
-                                          file_list=False,
+                                          file_list=True,
                                           save_file=False)
 
             if hidra_file_name is None:
                 return  # user clicked cancel
 
         self.parent.current_hidra_file_name = hidra_file_name
-        self.load_and_plot(hidra_file_name)
+        if hidra_file_name is not None:
+            self.load_and_plot(hidra_file_name)
 
     def load_and_plot(self, hidra_file_name):
         try:
@@ -110,6 +111,7 @@ class EventHandler:
         except RuntimeError as run_err:
             pop_message(self, 'Failed to load {}'.format(hidra_file_name),
                         str(run_err), 'error')
+
         except KeyError as key_err:
             pop_message(self, 'Failed to load {}'.format(hidra_file_name),
                         str(key_err), 'error')
