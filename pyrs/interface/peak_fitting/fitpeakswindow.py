@@ -76,7 +76,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.graphicsView_plot2D.set_3Dview()
 
         # set up handling
-        self.ui.lineEdit_expNumber.setValidator(QtGui.QIntValidator(1, 9999999999999999999999999999999999))
+        self.ui.lineEdit_expNumber.setValidator(QtGui.QIntValidator(1, 2147483647))
         self.ui.pushButton_expNumberLoad.clicked.connect(self.load_run_number)
         self.ui.pushButton_browseHDF.clicked.connect(self.browse_hdf)
         self.ui.lineEdit_listSubRuns.returnPressed.connect(self.plot_diff_data)
