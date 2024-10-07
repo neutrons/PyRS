@@ -5,16 +5,23 @@ import numpy as np
 import functools
 import pytest
 import os
-from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 
 wait = 300
 
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
-def test_peak_fitting(qtbot, tmpdir):
+@pytest.fixture(scope="session")
+def fit_peaks_window(my_qtbot):
+    r"""
+    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
+    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
+    """
     fit_peak_core = pyrscore.PyRsCore()
     window = fitpeakswindow.FitPeaksWindow(None, fit_peak_core=fit_peak_core)
-    qtbot.addWidget(window)
+    return window, my_qtbot
+
+
+def test_peak_fitting(tmpdir, fit_peaks_window):
+    window, qtbot = fit_peaks_window
     window.show()
     qtbot.wait(wait)
 
@@ -83,7 +90,7 @@ def test_peak_fitting(qtbot, tmpdir):
     # check number of lines
     assert len(file_contents) == 127
     # check number of values in line
-    assert len(np.fromstring(file_contents[-1], dtype=np.float64, sep=',')) == 33
+    assert len(np.fromstring(file_contents[-1], dtype=np.float64, sep=',')) == 35
 
     # look at 1D results plot
     line = window.ui.graphicsView_fitResult.canvas().get_axis().lines[0]
@@ -127,7 +134,7 @@ def test_peak_fitting(qtbot, tmpdir):
     # check number of lines
     assert len(file_contents) == 127
     # check number of values in line
-    assert len(np.fromstring(file_contents[-1], dtype=np.float64, sep=',')) == 33
+    assert len(np.fromstring(file_contents[-1], dtype=np.float64, sep=',')) == 35
 
     # look at 1D results plot
     line = window.ui.graphicsView_fitResult.canvas().get_axis().lines[0]
@@ -170,11 +177,8 @@ def test_peak_fitting(qtbot, tmpdir):
     qtbot.wait(wait)
 
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
-def test_peak_selection(qtbot, tmpdir):
-    fit_peak_core = pyrscore.PyRsCore()
-    window = fitpeakswindow.FitPeaksWindow(None, fit_peak_core=fit_peak_core)
-    qtbot.addWidget(window)
+def test_peak_selection(tmpdir, fit_peaks_window):
+    window, qtbot = fit_peaks_window
     window.show()
     qtbot.wait(wait)
 
@@ -217,3 +221,5 @@ def test_peak_selection(qtbot, tmpdir):
     qtbot.wait(wait)
     qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(int(end_x2), int(end_y2)))
     qtbot.wait(wait)
+
+    window.hide()

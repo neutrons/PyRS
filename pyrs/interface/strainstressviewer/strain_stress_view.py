@@ -19,6 +19,8 @@ from qtpy.QtCore import Qt, Signal  # type: ignore
 from qtpy.QtGui import QDoubleValidator  # type:ignore
 try:
     from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+    # from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+    # from vtkmodules.util.numpy_support import numpy_to_vtk, get_vtk_array_type
     from vtk.util.numpy_support import numpy_to_vtk, get_vtk_array_type
     import vtk
     DISABLE_3D = False
@@ -696,6 +698,11 @@ class VTK3DView(QWidget):
         layout = QVBoxLayout()
         layout.addWidget(self.vtkWidget)
         self.setLayout(layout)
+
+        camera = self.renderer.GetActiveCamera()
+        assert camera is not None
+
+        self.vtkWidget.show()
 
         self.iren.Initialize()
 

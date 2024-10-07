@@ -271,6 +271,7 @@ class TextureFittingCrtl:
                                          fit_object=fit_object,
                                          out_of_plane=out_of_plane)
 
+        print(xdata, ydata)
         if isinstance(ydata[0], np.ndarray):
             yerr = ydata[1]
             ydata = ydata[0]

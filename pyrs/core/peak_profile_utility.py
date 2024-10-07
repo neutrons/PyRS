@@ -6,13 +6,12 @@ import numpy as np
 
 
 # Effective peak and background parameters
-EFFECTIVE_PEAK_PARAMETERS = ['Center', 'Height', 'FWHM', 'Mixing', 'A0', 'A1', 'Intensity']
+EFFECTIVE_PEAK_PARAMETERS = ['Center', 'Height', 'FWHM', 'Mixing', 'Intensity', 'A0', 'A1', 'A2']
 
 
 class PeakShape(Enum):
     GAUSSIAN = 'Gaussian'
     PSEUDOVOIGT = 'PseudoVoigt'
-    VOIGT = 'Voigt'
 
     def __str__(self):
         return self.value
@@ -35,14 +34,14 @@ class PeakShape(Enum):
     def native_parameters(self):
         # Native peak parameters in Mantid naming convention
         NATIVE_PEAK_PARAMETERS = {'Gaussian': ['Height', 'PeakCentre', 'Sigma'],
-                                  'PseudoVoigt': ['Mixing', 'Intensity', 'PeakCentre', 'FWHM'],
-                                  'Voigt': ['LorentzAmp', 'LorentzPos', 'LorentzFWHM', 'GaussianFWHM']}
+                                  'PseudoVoigt': ['Mixing', 'Intensity', 'PeakCentre', 'FWHM']}
 
         return NATIVE_PEAK_PARAMETERS[self.value][:]
 
 
 class BackgroundFunction(Enum):
     LINEAR = 'Linear'  # so far, one and only supported
+    QUADRATIC = 'Quadratic'  # so far, one and only supported
 
     def __str__(self):
         return self.value
@@ -64,7 +63,8 @@ class BackgroundFunction(Enum):
     @property
     def native_parameters(self):
         # Native background parameters in Mantid naming convention
-        NATIVE_BACKGROUND_PARAMETERS = {'Linear': ['A0', 'A1']}
+        NATIVE_BACKGROUND_PARAMETERS = {'Linear': ['A0', 'A1'],
+                                        'Quadratic': ['A0', 'A1', 'A2']}
 
         return NATIVE_BACKGROUND_PARAMETERS[self.value][:]
 
@@ -106,8 +106,6 @@ def get_effective_parameters_converter(peak_profile):
         converter = Gaussian()
     elif peak_profile == PeakShape.PSEUDOVOIGT:
         converter = PseudoVoigt()
-    elif peak_profile == PeakShape.VOIGT:
-        converter = Voigt()
     else:
         raise RuntimeError('if/else tree is incomplete')
 
@@ -222,6 +220,13 @@ class Gaussian(PeakParametersConverter):
         eff_error_array['A0'] = param_error_array['A0']  # A0
         eff_error_array['A1'] = param_error_array['A1']  # A1
         eff_error_array['Intensity'] = intensity_error_array[:]  # intensity
+
+        try:
+            eff_value_array['A2'] = param_value_array['A2']  # A2
+            eff_error_array['A2'] = param_error_array['A2']  # A2
+        except ValueError:
+            eff_value_array['A2'] = np.zeros_like(param_value_array['A1'])  # A2
+            eff_error_array['A2'] = np.zeros_like(param_value_array['A1']) + 0.01  # A2
 
         return eff_value_array, eff_error_array
 
@@ -396,6 +401,13 @@ class PseudoVoigt(PeakParametersConverter):
         eff_error_array['A1'] = param_error_array['A1']  # A1
         eff_error_array['Intensity'] = param_error_array['Intensity']  # intensity
 
+        try:
+            eff_value_array['A2'] = param_value_array['A2']  # A2
+            eff_error_array['A2'] = param_error_array['A2']  # A2
+        except ValueError:
+            eff_value_array['A2'] = np.zeros_like(param_value_array['A1'])  # A2
+            eff_error_array['A2'] = np.zeros_like(param_value_array['A1']) + 0.01  # A2
+
         return eff_value_array, eff_error_array
 
     @staticmethod
@@ -494,37 +506,6 @@ class PseudoVoigt(PeakParametersConverter):
         intensity = 0.5 * height * np.pi * fwhm / (1 + mixing * (np.sqrt(np.pi * np.log(2)) - 1.0))
 
         return intensity
-
-
-class Voigt(PeakParametersConverter):
-    """
-    class for handling peak profile parameters' conversion
-    """
-    def __init__(self):
-        super(Voigt, self).__init__(PeakShape.VOIGT)
-
-    def calculate_effective_parameters(self, param_value_array, param_error_array):
-        """Calculate effective peak parameter values
-
-        If input parameter values include fitting error, then this method will calculate
-        the propagation of error
-
-        Native PseudoVoigt: ['Mixing', 'Intensity', 'PeakCentre', 'FWHM']
-
-        Parameters
-        ----------
-        native_param_names: list or None
-        param_value_array : numpy.ndarray
-            (p, n, 1) or (p, n, 2) vector for parameter values and  optionally fitting error
-            p = number of native parameters , n = number of sub runs
-        param_error_array : numpy.ndarray
-        Returns
-        -------
-        np.ndarray
-            (p', n, 1) or (p', n, 2) array for  parameter values and  optionally fitting error
-            p' = number of effective parameters , n = number of sub runs
-        """
-        raise NotImplementedError('Somebody should write this')
 
 
 """

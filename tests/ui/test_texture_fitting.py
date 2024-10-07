@@ -16,14 +16,21 @@ wait = 200
 plot_wait = 100
 
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
-def test_texture_fitting_viewer(qtbot):
-
+@pytest.fixture(scope="session")
+def texture_fitting_window(my_qtbot):
+    r"""
+    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
+    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
+    """
     model = TextureFittingModel(pyrscore.PyRsCore())
     ctrl = TextureFittingCrtl(model)
     window = TextureFittingViewer(model, ctrl)
+    return window, my_qtbot
 
-    qtbot.addWidget(window)
+
+def test_texture_fitting_viewer(texture_fitting_window):
+    window, qtbot = texture_fitting_window
+
     window.show()
     qtbot.wait(wait)
 
@@ -67,7 +74,7 @@ def test_texture_fitting_viewer(qtbot):
     canvas = window.fit_window._myCanvas
 
     # The get start and end mouse points to drag select
-    fit_ranges = [[62.346, 66.568], [71.2917, 76.0151]]
+    fit_ranges = [[62.864, 66.9115], [71.87344, 76.5544]]
 
     if ON_GITHUB_ACTIONS:
         rtol = 0.5
@@ -76,13 +83,13 @@ def test_texture_fitting_viewer(qtbot):
 
     for i_loop in range(len(fit_ranges)):
         # Drag select with mouse control
+        canvas.figure.canvas.draw()
         start_x, start_y = canvas.figure.axes[0].transData.transform((fit_ranges[i_loop][0], 40))
         end_x, end_y = canvas.figure.axes[0].transData.transform((fit_ranges[i_loop][1], 40))
 
-        # Drag select with mouse control
-        qtbot.mousePress(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(start_x / 2, 40))
+        qtbot.mousePress(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(int(start_x), int(start_y)))
         qtbot.wait(wait)
-        qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(end_x / 2, 40))
+        qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(int(end_x), int(end_y)))
         qtbot.wait(wait)
 
         np.testing.assert_allclose(float(window.fit_setup.fit_range_table.item(i_loop, 0).text()),
@@ -166,3 +173,4 @@ def test_texture_fitting_viewer(qtbot):
 
     qtbot.keyClick(window.plot_select.out_of_plane, QtCore.Qt.Key_Down)
     # qtbot.wait(plot_wait)
+    window.hide()
