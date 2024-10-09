@@ -133,6 +133,9 @@ def get_default_output_dir(run_number):
 
 
 def get_input_project_file(run_number, preferredType='manual'):
+    # lower preferredType
+    preferredType = preferredType.lower()
+
     # this can generate an exception
     shared_dir = os.path.join(get_ipts_dir(run_number), 'shared')
 
