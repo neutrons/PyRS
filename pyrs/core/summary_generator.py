@@ -2,7 +2,7 @@
 This module generates reduction summary for user in plain text CSV file
 """
 from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS  # TODO get from the first peak collection
-# import numpy as np
+import numpy as np
 
 # Default summary titles shown in the CSV file. This is a list of tuples ot enforce order
 # things to be found in the output file with
@@ -103,6 +103,7 @@ class SummaryGenerator:
             relative tolerance of variance to treat a sample log as a constant value
             and bring into extended header
         """
+
         # verify the same number of subruns everywhere
         for peak_collection in peak_collections:
             subruns = peak_collection.sub_runs
@@ -220,10 +221,40 @@ class SummaryGenerator:
 
         handle.write(self.separator.join(column_names) + '\n')
 
+    def _parse_peak_collections(self, peak_collections):
+        '''Parse peakcollection into a single nd.array'''
+
+        peaks = None
+        for peak_collection in peak_collections:
+            fit_cost = peak_collection.fitting_costs
+            dspacing_center, dspacing_center_error = peak_collection.get_dspacing_center()
+            strain, strain_error = peak_collection.get_strain(units='microstrain')
+            values, errors = peak_collection.get_effective_params()
+
+            exclude = peak_collection.exclude
+
+            peak = np.append(dspacing_center.reshape(-1, 1), strain.reshape(-1, 1), axis=1)
+            peak = np.append(peak, values.view(np.float32).reshape(values.shape + (-1,)), axis=1)
+            peak = np.append(peak, dspacing_center_error.reshape(-1, 1), axis=1)
+            peak = np.append(peak, strain_error.reshape(-1, 1), axis=1)
+            peak = np.append(peak, errors.view(np.float32).reshape(errors.shape + (-1,)), axis=1)
+            peak = np.append(peak, fit_cost.reshape(-1, 1), axis=1)
+
+            peak[exclude, :] = -1
+
+            if peaks is None:
+                peaks = np.copy(peak)
+            else:
+                peaks = np.append(peaks, peak, axis=1)
+
+        return peaks
+
     def _write_data(self, handle, sample_logs, peak_collections):
         '''Write out the actual data fields, ignoring what is constant'''
         log_names = [name for name in self._present_logs
                      if name not in self._constant_logs]
+
+        peaks_data = self._parse_peak_collections(peak_collections)
 
         for subrun_index in range(len(sample_logs.subruns)):
             line = []
@@ -235,31 +266,7 @@ class SummaryGenerator:
             for name in log_names:
                 line.append(str(sample_logs[name][subrun_index]))  # get by index rather than subrun
 
-            for peak_collection in peak_collections:
-                if peak_collection.get_exclude_subrun(subrun_index) is False:
-                    fit_cost = peak_collection.fitting_costs
-                    dspacing_center, dspacing_center_error = peak_collection.get_dspacing_center()
-                    strain, strain_error = peak_collection.get_strain(units='microstrain')
-                    values, errors = peak_collection.get_effective_params()
-                    line.append(str(dspacing_center[subrun_index]))
-                    line.append(str(strain[subrun_index]))
-                    for value in values[subrun_index]:
-                        line.append(str(value))
-                    line.append(str(dspacing_center_error[subrun_index]))
-                    line.append(str(strain_error[subrun_index]))
-                    for value in errors[subrun_index]:
-                        line.append(str(value))
-                    line.append(str(fit_cost[subrun_index]))
-                else:
-                    values, errors = peak_collection.get_effective_params()
-                    line.append('-')
-                    line.append('-')
-                    for value in values[subrun_index]:
-                        line.append('-')
-                    line.append('-')
-                    line.append('-')
-                    for value in errors[subrun_index]:
-                        line.append('-')
-                    line.append('-')
+            if peaks_data is not None:
+                line += [str(entry) for entry in peaks_data[subrun_index, :].tolist()]
 
             handle.write(self.separator.join(line) + '\n')

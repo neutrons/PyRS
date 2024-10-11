@@ -69,9 +69,11 @@ class EventHandler:
         project_h5_file.close()
 
     def load_run_number_plot(self):
+        runs = parse_integers(self.parent.ui.lineEdit_expNumber.text())
+
         try:
-            project_dir = get_input_project_file(int(self.parent.ui.lineEdit_expNumber.text()),
-                                                 preferredType=self.parent.ui.comboBox_reduction.currentText().lower())
+            project_dir = [get_input_project_file(run, preferredType=self.parent.ui.comboBox_reduction.currentText())
+                           for run in runs]
         except (FileNotFoundError, RuntimeError, ValueError) as run_err:
             pop_message(self, f'Failed to find run {self.parent.ui.lineEdit_expNumber.text()}',
                         str(run_err), 'error')
@@ -93,14 +95,15 @@ class EventHandler:
                                           'HIDRA Project File',
                                           os.getcwd(),
                                           file_filter,
-                                          file_list=False,
+                                          file_list=True,
                                           save_file=False)
 
             if hidra_file_name is None:
                 return  # user clicked cancel
 
         self.parent.current_hidra_file_name = hidra_file_name
-        self.load_and_plot(hidra_file_name)
+        if hidra_file_name is not None:
+            self.load_and_plot(hidra_file_name)
 
     def load_and_plot(self, hidra_file_name):
         try:
@@ -110,13 +113,14 @@ class EventHandler:
         except RuntimeError as run_err:
             pop_message(self, 'Failed to load {}'.format(hidra_file_name),
                         str(run_err), 'error')
+
         except KeyError as key_err:
             pop_message(self, 'Failed to load {}'.format(hidra_file_name),
                         str(key_err), 'error')
 
         self.parent.current_root_statusbar_message = "Working with: {} " \
                                                      "\t\t\t\t Project Name: {}" \
-                                                     "".format(hidra_file_name,
+                                                     "".format(self.parent._curr_file_name,
                                                                self.parent._project_name)
         self.parent.ui.statusbar.showMessage(self.parent.current_root_statusbar_message)
 
