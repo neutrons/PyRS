@@ -43,3 +43,7 @@ class CombineRunsCrtl:
             return 1
         else:
             return 0
+
+    def export_combined_projectfile(self, export_file):
+        if export_file is not None:
+            self._model.export_project_files(export_file)

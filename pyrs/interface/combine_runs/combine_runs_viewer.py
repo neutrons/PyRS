@@ -7,6 +7,7 @@ from qtpy.QtWidgets import QMainWindow  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 
 from pyrs.interface.gui_helper import pop_message
+# from pyrs.interface.gui_helper import browse_file
 
 
 class FileLoad(QWidget):
@@ -16,6 +17,7 @@ class FileLoad(QWidget):
         self.name = name
         self.fileType = fileType
         layout = QHBoxLayout()
+        self._auto_prompt_export = True  # Defined variable to help with pytest catching multiple file dialogs
         if name == "Run Numbers:":
             label = QLabel(name)
             label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -39,10 +41,6 @@ class FileLoad(QWidget):
         layout.addWidget(self.browse_button)
         self.setLayout(layout)
 
-    def _reset_fit_data(self):
-        self._parent.fit_summary.fit_table_operator.fits = None
-        self._parent.fit_summary.fit_table_operator.fit_result = None
-
     def openFileDialog(self):
         self._parent._project_files, _ = QFileDialog.getOpenFileNames(self,
                                                                       self.name,
@@ -50,18 +48,18 @@ class FileLoad(QWidget):
                                                                       self.fileType,
                                                                       options=QFileDialog.DontUseNativeDialog)
 
-        if self._parent._project_files:
-            self._parent.load_project_files = self._parent._project_files
-
+        if self._parent._project_files is not None:
             self.load_project_files()
 
-    def saveFileDialog(self, combined_files):
-        if combined_files != 0:
-            self._parent._project_files, _ = QFileDialog.getSaveFileName(self,
-                                                                         'Save Combined Proeject File',
-                                                                         "",
-                                                                         self.fileType,
-                                                                         options=QFileDialog.DontUseNativeDialog)
+    def saveFileDialog(self):
+        if self._parent._project_files is not None:
+            _export_project, _ = QFileDialog.getSaveFileName(self,
+                                                             'Save Combined Proeject File',
+                                                             "",
+                                                             self.fileType,
+                                                             options=QFileDialog.DontUseNativeDialog)
+            print(_export_project)
+            self._parent.controller.export_combined_projectfile(_export_project)
 
     def loadRunNumbers(self):
         self._parent._project_files = self._parent.controller.parse_entry_list(self.lineEdit.text())
@@ -70,14 +68,15 @@ class FileLoad(QWidget):
 
     def load_project_files(self):
         try:
-            combined_files = self._parent.controller.load_combine_projects(self._parent._project_files)
-            self.saveFileDialog(combined_files)
+            self._parent.controller.load_combine_projects(self._parent._project_files)
+            if self._auto_prompt_export:
+                self.saveFileDialog()
 
         except (FileNotFoundError, RuntimeError, ValueError) as run_err:
             pop_message(self, f'Failed to find run {self._parent._project_files}',
                         str(run_err), 'error')
 
-            self._parent.load_project_files = None
+            self._parent._project_files = None
 
     def setFilenamesText(self, filenames):
         self.lineEdit.setText(filenames)
@@ -106,9 +105,8 @@ class CombineRunsViewer(QMainWindow):
 
         self._model = combine_runs_model
         self._ctrl = combine_runs_ctrl
-        self._nexus_file = None
         self._run_number = None
-        self._calibration_input = None
+        self._project_files = None
 
         super().__init__(parent)
 
