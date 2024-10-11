@@ -18,7 +18,6 @@ class CombineRunsModel(QObject):
         _project.close()
 
         for project in project_files[1:]:
-            print(project)
             _project = HidraProjectFile(project)
             self._hidra_ws.append_hidra_project(_project)
             _project.close()

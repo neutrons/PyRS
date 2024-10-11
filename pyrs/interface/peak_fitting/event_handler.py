@@ -120,7 +120,7 @@ class EventHandler:
 
         self.parent.current_root_statusbar_message = "Working with: {} " \
                                                      "\t\t\t\t Project Name: {}" \
-                                                     "".format(hidra_file_name,
+                                                     "".format(self.parent._curr_file_name,
                                                                self.parent._project_name)
         self.parent.ui.statusbar.showMessage(self.parent.current_root_statusbar_message)
 

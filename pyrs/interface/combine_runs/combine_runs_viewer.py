@@ -58,7 +58,7 @@ class FileLoad(QWidget):
                                                              "",
                                                              self.fileType,
                                                              options=QFileDialog.DontUseNativeDialog)
-            print(_export_project)
+
             self._parent.controller.export_combined_projectfile(_export_project)
 
     def loadRunNumbers(self):
