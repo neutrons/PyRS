@@ -126,6 +126,22 @@ class SubRuns(Iterable):
         """
         return self._value.size == 0
 
+    def append(self, newruns):
+        '''
+        Append subrun list with additional runs
+
+        Parameters
+        ----------
+        newruns : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        '''
+        self._value = np.append(self._value, newruns.astype(int))
+
     def set(self, value):
         r"""
         Initialize the list of subruns
@@ -449,6 +465,18 @@ class SampleLogs(MutableMapping):
             input subruns are not sorted in increasing order
         """
         self._subruns.set(value)
+
+    def append_subruns(self, value):
+        r"""
+        Initialize the list of selected subruns
+
+        RuntimeError
+            Attempt to initialize a list that was initialized previously
+        RuntimeError
+            input subruns are not sorted in increasing order
+        """
+
+        self._subruns.append(value)
 
     def matching_subruns(self, subruns):
         r"""

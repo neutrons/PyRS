@@ -76,7 +76,7 @@ class FitPeaksWindow(QMainWindow):
         self.ui.graphicsView_plot2D.set_3Dview()
 
         # set up handling
-        self.ui.lineEdit_expNumber.setValidator(QtGui.QIntValidator(1, 999999))
+        self.ui.lineEdit_expNumber.setValidator(QtGui.QIntValidator(1, 2147483647))
         self.ui.pushButton_expNumberLoad.clicked.connect(self.load_run_number)
         self.ui.pushButton_browseHDF.clicked.connect(self.browse_hdf)
         self.ui.lineEdit_listSubRuns.returnPressed.connect(self.plot_diff_data)
@@ -164,8 +164,11 @@ class FitPeaksWindow(QMainWindow):
         """
         o_handler = EventHandler(parent=self)
         o_handler.browse_load_plot_hdf()
-        o_plot = Plot(parent=self)
-        o_plot.plot_1d()
+        try:
+            o_plot = Plot(parent=self)
+            o_plot.plot_1d()
+        except AttributeError:
+            pass
 
     def load_hidra_file(self):
         o_handler = EventHandler(parent=self)
