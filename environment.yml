@@ -1,7 +1,7 @@
 name: PyRS
 channels:
 - conda-forge
-- mantid/label/nightly
+- mantid
 dependencies:
 - python=3.10
 - anaconda-client
@@ -17,6 +17,7 @@ dependencies:
 - libarchive=3.5.2
 - flake8
 - mypy
+- matplotlib
 - numpy
 - pandas
 - types-six

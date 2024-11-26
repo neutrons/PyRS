@@ -1,5 +1,5 @@
 import numpy as np
-from matplotlib.cm import coolwarm
+from matplotlib import colormaps
 from matplotlib.pyplot import Normalize
 from mpl_toolkits.mplot3d import Axes3D   # noqa: F401
 from scipy.interpolate import griddata
@@ -11,6 +11,8 @@ from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 from pyrs.interface.peak_fitting.data_retriever import DataRetriever
 
 from pyrs.interface.peak_fitting.config import LIST_AXIS_TO_PLOT
+
+coolwarm = colormaps['coolwarm']
 
 
 class Plot:
@@ -218,6 +220,8 @@ class Plot:
         axis_x_data, axis_x_error = o_data_retriever.get_data(name=x_axis_name, peak_index=x_axis_peak_index)
         axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
 
+        print(axis_x_data)
+        print(axis_y_data)
         if ((x_axis_name in LIST_AXIS_TO_PLOT['fit'].keys()) or
                 (y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys())):
             is_plot_with_error = True
