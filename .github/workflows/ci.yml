@@ -51,6 +51,11 @@ jobs:
           conda activate PyRS
           flake8 . --count
 
+      - name: Print Conda Packages
+        run: |
+          conda activate PyRS
+          conda list
+
       - name: mypy
         run: |
           conda activate PyRS
@@ -70,11 +75,6 @@ jobs:
           python -c "import mantid"
           python -c "import qtpy"
           python -c "import mantidqt"
-
-      - name: Print Conda Packages
-        run: |
-          conda activate PyRS
-          conda list
 
       - name: Run PyRS tests
         run: |
