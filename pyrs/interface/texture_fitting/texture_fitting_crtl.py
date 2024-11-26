@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.interpolate import griddata
 import matplotlib.pyplot as plt
-from matplotlib.cm import coolwarm
+from matplotlib.cm import coolwarm  # type:ignore
 
 
 class TextureFittingCrtl:
