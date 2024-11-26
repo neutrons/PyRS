@@ -104,10 +104,10 @@ class MplFitPlottingWidget(QWidget):
                                              list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
                                              list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id)
 
-    def _add_initial_point(self, x=np.NaN):
+    def _add_initial_point(self, x=np.nan):
 
         if not self.list_peak_ranges:
-            self.list_peak_ranges = [[x, np.NaN]]
+            self.list_peak_ranges = [[x, np.nan]]
             self.list_fit_peak_labels = ['Peak0']
             self.list_fit_peak_d0 = [1]
             self._peak_label_index += 1
@@ -115,13 +115,13 @@ class MplFitPlottingWidget(QWidget):
             _was_part_of_one_range = False
             for _index, _range in enumerate(self.list_peak_ranges):
                 if (x >= np.min(_range)) and (x <= np.max(_range)):
-                    self.list_peak_ranges[_index] = [x, np.NaN]
+                    self.list_peak_ranges[_index] = [x, np.nan]
                     _was_part_of_one_range = True
                     self._working_with_range_index = _index
                     break
 
             if _was_part_of_one_range is False:
-                self.list_peak_ranges.append([x, np.NaN])
+                self.list_peak_ranges.append([x, np.nan])
                 self.list_fit_peak_labels.append("Peak{}".format(self._peak_label_index))
                 self.list_fit_peak_d0.append(1)
                 self._working_with_range_index = -1
@@ -129,11 +129,11 @@ class MplFitPlottingWidget(QWidget):
 
         self.plot_data_with_fitting_ranges()
 
-    def _validate_second_point(self, x=np.NaN):
+    def _validate_second_point(self, x=np.nan):
 
         _working_range = self.list_peak_ranges[self._working_with_range_index]
         if _working_range[0] == x:  # remove this range
-            self.list_peak_ranges.remove([_working_range[0], np.NaN])
+            self.list_peak_ranges.remove([_working_range[0], np.nan])
             [left_peak, right_peak] = self.list_peak_ranges_matplotlib_id[self._working_with_range_index]
             left_peak.remove()
             right_peak.remove()
@@ -146,7 +146,7 @@ class MplFitPlottingWidget(QWidget):
             self.list_peak_ranges[self._working_with_range_index] = _working_range
         self.plot_data_with_fitting_ranges()
 
-    def _change_second_point(self, x=np.NaN):
+    def _change_second_point(self, x=np.nan):
         _working_range = self.list_peak_ranges[self._working_with_range_index]
         self.list_peak_ranges[self._working_with_range_index] = [_working_range[0], x]
         self.plot_data_with_fitting_ranges()
