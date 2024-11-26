@@ -1,5 +1,5 @@
 import numpy as np
-from matplotlib.cm import coolwarm  # type: ignore
+from matplotlib.colormaps import coolwarm
 from matplotlib.pyplot import Normalize
 from mpl_toolkits.mplot3d import Axes3D   # noqa: F401
 from scipy.interpolate import griddata
