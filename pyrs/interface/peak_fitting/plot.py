@@ -1,5 +1,5 @@
 import numpy as np
-from matplotlib.colormaps import coolwarm
+from matplotlib import colormaps
 from matplotlib.pyplot import Normalize
 from mpl_toolkits.mplot3d import Axes3D   # noqa: F401
 from scipy.interpolate import griddata
@@ -11,6 +11,8 @@ from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 from pyrs.interface.peak_fitting.data_retriever import DataRetriever
 
 from pyrs.interface.peak_fitting.config import LIST_AXIS_TO_PLOT
+
+coolwarm = colormaps['coolwarm']
 
 
 class Plot:

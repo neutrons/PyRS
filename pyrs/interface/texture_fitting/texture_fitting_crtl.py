@@ -1,7 +1,9 @@
 import numpy as np
 from scipy.interpolate import griddata
 import matplotlib.pyplot as plt
-from matplotlib.colormaps import coolwarm
+from matplotlib import colormaps
+
+coolwarm = colormaps['coolwarm']
 
 
 class TextureFittingCrtl:
