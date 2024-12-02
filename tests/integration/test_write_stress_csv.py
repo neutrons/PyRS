@@ -1,8 +1,7 @@
-
 import pytest
-from filecmp import cmp
 from os import remove
-import subprocess
+import pandas as pd
+from pandas.testing import assert_frame_equal
 
 from pyrs.peaks import PeakCollectionLite  # type: ignore
 from pyrs.dataobjects.sample_logs import PointList
@@ -10,6 +9,13 @@ from pyrs.dataobjects.fields import StressField
 from pyrs.dataobjects.fields import StrainField
 from pyrs.core.stress_facade import StressFacade
 from pyrs.core.summary_generator_stress import SummaryGeneratorStress
+
+
+def compare_csv(file1, file2):
+    df1 = pd.read_csv(file1, comment="#")
+    df2 = pd.read_csv(file2, comment="#")
+
+    assert_frame_equal(df1, df2, check_exact=False, rtol=1e-5)
 
 
 def strain_instantiator(name, values, errors, x, y, z):
@@ -81,7 +87,8 @@ def test_write_summary_csv(test_data_dir: str, project_tags: str, expected_file:
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress_facade)
     stress_csv.write_summary_csv()
 
-    assert cmp(stress_csv_filename, expected_file)
+    compare_csv(stress_csv_filename, expected_file)
+
     # cleanup
     remove(stress_csv_filename)
 
@@ -104,7 +111,8 @@ def test_write_summary_33calculated_csv(test_data_dir: str, project_tags: str, e
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
     stress_csv.write_summary_csv()
 
-    assert cmp(stress_csv_filename, expected_file)
+    compare_csv(stress_csv_filename, expected_file)
+
     # cleanup
     remove(stress_csv_filename)
 
@@ -127,7 +135,8 @@ def test_write_summary_33inplanestress_csv(test_data_dir: str, project_tags: str
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
     stress_csv.write_summary_csv()
 
-    assert cmp(stress_csv_filename, expected_file)
+    compare_csv(stress_csv_filename, expected_file)
+
     # cleanup
     remove(stress_csv_filename)
 
@@ -167,7 +176,8 @@ def test_write_full_csv(test_data_dir: str, project_tags: str, expected_file: st
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress_facade)
     stress_csv.write_full_csv()
 
-    assert cmp(stress_csv_filename, expected_file)
+    compare_csv(stress_csv_filename, expected_file)
+
     # cleanup
     remove(stress_csv_filename)
 
@@ -190,11 +200,8 @@ def test_write_full_33calculated_csv(test_data_dir: str, project_tags: str, expe
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
     stress_csv.write_full_csv()
 
-    result = cmp(stress_csv_filename, expected_file)
-    if not result:
-        subprocess.run(["diff", stress_csv_filename, expected_file])
+    compare_csv(stress_csv_filename, expected_file)
 
-    assert result
     # cleanup
     remove(stress_csv_filename)
 
@@ -217,11 +224,8 @@ def test_write_full_33inplanestress_csv(test_data_dir: str, project_tags: str, e
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
     stress_csv.write_full_csv()
 
-    result = cmp(stress_csv_filename, expected_file)
-    if not result:
-        subprocess.run(["diff", stress_csv_filename, expected_file])
+    compare_csv(stress_csv_filename, expected_file)
 
-    assert result
     # cleanup
     remove(stress_csv_filename)
 

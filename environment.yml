@@ -17,6 +17,7 @@ dependencies:
 - libarchive=3.5.2
 - flake8
 - mypy
+- matplotlib
 - numpy
 - pandas
 - types-six
