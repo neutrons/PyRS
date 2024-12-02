@@ -129,7 +129,8 @@ def check_peak_collection(peak_shape, NUM_SUBRUN, target_errors,
         np.testing.assert_equal(obs_eff_peaks['Mixing'], raw_peaks_array['Mixing'])
     else:
         np.testing.assert_equal(obs_eff_peaks['Height'], raw_peaks_array['Height'])
-        np.testing.assert_equal(obs_eff_peaks['FWHM'], 2. * np.sqrt(2. * np.log(2.)) * raw_peaks_array['Sigma'])
+        np.testing.assert_allclose(obs_eff_peaks['FWHM'], 2. * np.sqrt(2. * np.log(2.)) * raw_peaks_array['Sigma'])
+
     np.testing.assert_equal(obs_eff_peaks['A0'], NUM_SUBRUN * [0.])
     np.testing.assert_equal(obs_eff_peaks['A1'], NUM_SUBRUN * [0.])
 

@@ -423,7 +423,7 @@ class SampleLogs(MutableMapping):
             elif key in self._plottable:  # plottable logs contain numbers
                 if self._data[key].std() <= atol:
                     result.append(key)
-            elif np.alltrue(self._data[key] == self._data[key][0]):  # all values are equal
+            elif np.all(self._data[key] == self._data[key][0], where=np.bool_(True)):  # all values are equal
                 result.append(key)
         return result
 
