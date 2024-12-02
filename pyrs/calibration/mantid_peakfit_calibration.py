@@ -342,7 +342,7 @@ class FitCalibration:
         """
 
         paramVec = np.copy(self._calib)
-        paramVec[i_index] = x
+        paramVec[i_index] = x[0]
 
         residual = self.get_alignment_residual(paramVec)
 
@@ -650,16 +650,16 @@ class FitCalibration:
         return
 
     def set_distance(self, out):
-        self._calib[2] = out[0]
+        self._calib[2] = out[0][0]
         self._calibstatus = out[2]
-        self._caliberr[2] = out[1]
+        self._caliberr[2] = out[1][0]
 
         return
 
     def set_tth0(self, out):
-        self._calib[6] = out[0]
+        self._calib[6] = out[0][0]
         self._calibstatus = out[2]
-        self._caliberr[6] = out[1]
+        self._caliberr[6] = out[1][0]
 
         return
 
@@ -709,9 +709,9 @@ class FitCalibration:
 
         """
 
-        self._calib[7] = out[0]
+        self._calib[7] = out[0][0]
         self._calibstatus = out[2]
-        self._caliberr[7] = out[1]
+        self._caliberr[7] = out[1][0]
 
         return
 
@@ -727,9 +727,9 @@ class FitCalibration:
 
         """
 
-        self._calib[0] = out[0]
+        self._calib[0] = out[0][0]
         self._calibstatus = out[2]
-        self._caliberr[0] = out[1]
+        self._caliberr[0] = out[1][0]
 
         return
 
@@ -745,9 +745,9 @@ class FitCalibration:
 
         """
 
-        self._calib[1] = out[0]
+        self._calib[1] = out[0][0]
         self._calibstatus = out[2]
-        self._caliberr[1] = out[1]
+        self._caliberr[1] = out[1][0]
 
         return
 
@@ -762,9 +762,9 @@ class FitCalibration:
         -------
 
         """
-        self._calib[:] = out[0]
+        self._calib[:] = out[0][:]
         self._calibstatus = out[2]
-        self._caliberr[:] = out[1]
+        self._caliberr[:] = out[1][:]
 
         return
 
