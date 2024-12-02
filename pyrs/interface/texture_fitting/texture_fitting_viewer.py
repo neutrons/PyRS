@@ -968,7 +968,7 @@ class TextureFittingViewer(QMainWindow):
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 5)
 
-        self.resize(1024, 1024)
+        self.resize(1200, 1800)
 
     @property
     def controller(self):
