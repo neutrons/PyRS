@@ -34,7 +34,7 @@ class MonoSetting(Enum):
     @staticmethod
     def getFromRotation(mrot):
         '''The ``mrot`` (monochromator rotation) log in the NeXus file can be converted into a specific wavelength'''
-        mrot = float(mrot)
+        mrot = mrot
         if -41.0 < mrot < -38.0:
             return MonoSetting.Si333
         elif -1.0 < mrot < 1.0:

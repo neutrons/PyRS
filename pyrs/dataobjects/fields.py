@@ -1627,7 +1627,7 @@ class StrainField(_StrainField):
             values[indices], errors[indices] = values_i[idx], errors_i[idx]
             keep[indices] = keep_i[idx]
 
-        values[keep] = np.NAN
+        values[keep] = np.nan
 
         return ScalarFieldSample(name, values, errors, self.x, self.y, self.z)
 

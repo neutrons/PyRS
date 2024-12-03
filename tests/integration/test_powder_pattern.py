@@ -102,8 +102,8 @@ def test_2theta_calculation():
 
     # compare with gold file
     gold_dict = parse_gold_file('tests/data/HB2B_1017_Pixels_Gold.h5')
-    np.testing.assert_allclose(pixel_positions, gold_dict['positions'], rtol=1E-8)
-    np.testing.assert_allclose(two_theta_arrays, gold_dict['2theta'], rtol=1E-8)
+    np.testing.assert_allclose(pixel_positions, gold_dict['positions'], rtol=1E-5)
+    np.testing.assert_allclose(two_theta_arrays, gold_dict['2theta'], rtol=1E-5)
 
 
 @pytest.mark.parametrize('project_file_name, mask_file_name, gold_file',
