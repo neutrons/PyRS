@@ -276,10 +276,10 @@ class ResidualStressInstrument:
         :param float angle_rad: roation angle
         :return:
         """
-        rotate_matrix = np.matrix([[1., 0., 0.],
-                                   [0., np.cos(angle_rad), -np.sin(angle_rad)],
-                                   [0., np.sin(angle_rad), np.cos(angle_rad)]],
-                                  'float')
+        rotate_matrix = np.array([[1., 0., 0.],
+                                  [0., np.cos(angle_rad), -np.sin(angle_rad)],
+                                  [0., np.sin(angle_rad), np.cos(angle_rad)]],
+                                 dtype=np.float32)
 
         return rotate_matrix
 
@@ -291,10 +291,10 @@ class ResidualStressInstrument:
         :param float angle_rad: roation angle
         :return:
         """
-        rotate_matrix = np.matrix([[np.cos(angle_rad), 0., np.sin(angle_rad)],
-                                   [0., 1., 0.],
-                                   [-np.sin(angle_rad), 0., np.cos(angle_rad)]],
-                                  'float')
+        rotate_matrix = np.array([[np.cos(angle_rad), 0., np.sin(angle_rad)],
+                                  [0., 1., 0.],
+                                  [-np.sin(angle_rad), 0., np.cos(angle_rad)]],
+                                 dtype=np.float32)
 
         return rotate_matrix
 
@@ -306,10 +306,10 @@ class ResidualStressInstrument:
         :param float angle_rad: roation angle
         :return:
         """
-        rotate_matrix = np.matrix([[np.cos(angle_rad), -np.sin(angle_rad), 0.],
-                                   [np.sin(angle_rad), np.cos(angle_rad), 0.],
-                                   [0., 0., 1.]],
-                                  'float')
+        rotate_matrix = np.array([[np.cos(angle_rad), -np.sin(angle_rad), 0.],
+                                  [np.sin(angle_rad), np.cos(angle_rad), 0.],
+                                  [0., 0., 1.]],
+                                 dtype=np.float32)
 
         return rotate_matrix
 

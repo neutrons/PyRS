@@ -107,6 +107,7 @@ class MantidPeakFitEngine(PeakFitEngine):
             # get fitted parameter value
             for col_index, param_name in enumerate(table_col_names):
                 # get value from column in value table
+
                 struct_array[param_name] = table_ws.column(col_index)
 
             return struct_array

@@ -133,8 +133,11 @@ class PeakFitEngine:
             y_vals = self._mtd_wksp.readY(wksp_index)[i_min:i_max]
             y_offset = np.abs(y_vals.max())
 
-            # add the first moment to the list of centers
-            moment = np.sum(x_vals[i_min:i_max] * (y_vals + y_offset)) / np.sum(y_vals + y_offset)
+            if np.sum(y_vals + y_offset) < 1:
+                moment = -1
+            else:
+                moment = np.sum(x_vals[i_min:i_max] * (y_vals + y_offset)) / np.sum(y_vals + y_offset)
+
             if (x_min < moment < x_max):
                 center.append(moment)
             else:
