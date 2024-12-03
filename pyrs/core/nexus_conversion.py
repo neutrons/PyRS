@@ -47,7 +47,7 @@ def convert_pulses_to_datetime64(h5obj):
     pulse_time = pulse_time * 1.e9 * np.timedelta64(1, 'ns')
 
     # get absolute offset and convert to absolute time
-    start_time = np.datetime64(h5obj.attrs['offset'])
+    start_time = np.datetime64(h5obj.attrs['offset'][:-6]) + np.timedelta64(h5obj.attrs['offset'][-5:-3], 'h')
 
     return pulse_time + start_time
 
@@ -56,7 +56,7 @@ def calculate_sub_run_time_average(log_property, time_filter) -> float:
     '''Determine the time average value of the supplied log'''
 
     if log_property.size() == 1:  # single value property just copy
-        time_average_value = log_property.value
+        time_average_value = log_property.value[0]
     elif time_filter is None:  # no filtering means use all values
         time_averaged_Run = Run()
         time_averaged_Run.addProperty('filtered_log', log_property, False)
