@@ -392,7 +392,7 @@ class TextureFittingCrtl:
 
         # plot fitted data
         if fit_summary.fit_table_operator.fit_result is not None:
-            sub_run_index = int(np.where(self._model.sub_runs == sub_run)[0])
+            sub_run_index = np.where(self._model.sub_runs == sub_run)[0][0]
 
             fit_data = self.get_fitted_data(sub_run_index,
                                             fit_summary.out_of_plan_angle)
