@@ -907,13 +907,13 @@ class HidraWorkspace:
             # First time set up or legacy from input file: create the 2D array
             num_sub_runs = len(self._sample_logs.subruns)
             self._2theta_matrix = np.ndarray(
-                shape=(num_sub_runs, two_theta_array.shape[0]), dtype=intensity_array.dtype
+                shape=(num_sub_runs, two_theta_array.shape[0]), dtype=np.float64
             )
 
             # set the diffraction data (2D) array with new dimension
             num_sub_runs = len(self._sample_logs.subruns)
             self._diff_data_set[mask_id] = np.ndarray(
-                shape=(num_sub_runs, intensity_array.shape[0]), dtype=intensity_array.dtype
+                shape=(num_sub_runs, intensity_array.shape[0]), dtype=np.float64
             )
 
             if variances_array is None:
