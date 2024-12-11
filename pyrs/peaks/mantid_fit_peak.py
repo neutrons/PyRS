@@ -60,8 +60,7 @@ class MantidPeakFitEngine(PeakFitEngine):
         fit_return = FitPeaks(InputWorkspace=self._mtd_wksp,
                               PeakFunction=str(self._peak_function),
                               BackgroundType=str(self._background_function),
-                              FindBackgroundSigma=1,
-                              HighBackground=True,
+                              HighBackground=False,
                               PeakCenters=peak_center,
                               FitWindowBoundaryList=(x_min, x_max),
                               # ConstrainPeakPositions=True,  TODO should this be turned on?

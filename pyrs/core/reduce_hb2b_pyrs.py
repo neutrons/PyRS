@@ -181,9 +181,6 @@ class ResidualStressInstrument:
         if self._pixel_matrix is None:
             raise RuntimeError('Instrument has not been built yet. Pixel matrix is missing')
 
-        # define
-        # k_in_vec = [0, 0, 1]
-
         det_pos_array = self._pixel_matrix.copy()
 
         if len(self._pixel_matrix[:].shape) == 3:
