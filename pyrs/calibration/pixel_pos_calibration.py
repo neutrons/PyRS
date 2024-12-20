@@ -600,16 +600,13 @@ class PixelCalibration:
                 out = least_squares(fun, x0, jac='3-point', bounds=bounds, method=self._ref_method,
                                     max_nfev=self._max_nfev, args=(Brute, i_index))
 
-            J = out.jac
+            residual = fun(out.x)
 
-            if np.sum(J.T.dot(J)) < 1e-8:
-                var = np.diagonal(-2 * np.zeros_like(J.T.dot(J)))
-            else:
-                try:
-                    cov = np.linalg.inv(J.T.dot(J))
-                    var = np.sqrt(np.diagonal(cov))
-                except np.linalg.LinAlgError:
-                    var = np.diagonal(-2 * np.zeros_like(J.T.dot(J)))
+            try:
+                var = np.sqrt(np.diag(np.linalg.inv(2 * np.dot(out.jac.T, out.jac)) * \
+                                      np.abs(residual).sum() / (residual.size - len(x0))))
+            except np.linalg.LinAlgError:
+                var = [-2] * out.x.size
 
             return [out.x, var, out.status]
 
