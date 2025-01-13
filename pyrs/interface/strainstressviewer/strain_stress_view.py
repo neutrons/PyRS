@@ -28,20 +28,20 @@ import os
 # Can't run VTK embedded in PyQT5 using VirtualGL
 # See https://gitlab.kitware.com/vtk/vtk/-/issues/17338
 USING_THINLINC = "TLSESSIONDATA" in os.environ
+DISABLE_3D = True
 
-if USING_THINLINC:
-    DISABLE_3D = True
-else:
-    try:
-        from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-        # from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-        # from vtkmodules.util.numpy_support import numpy_to_vtk, get_vtk_array_type
-        from vtk.util.numpy_support import numpy_to_vtk, get_vtk_array_type
-        import vtk
-        DISABLE_3D = False
-    except ImportError:
-        # if we don't have vtk then disable the 3D Viewer
-        DISABLE_3D = True
+# Disabled until VTK is fixed
+# if not USING_THINLINC:
+#     try:
+#         from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+#         # from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+#         # from vtkmodules.util.numpy_support import numpy_to_vtk, get_vtk_array_type
+#         from vtk.util.numpy_support import numpy_to_vtk, get_vtk_array_type
+#         import vtk
+#         DISABLE_3D = False
+#     except ImportError:
+#         # if we don't have vtk then disable the 3D Viewer
+#         DISABLE_3D = True
 
 
 class FileLoad(QWidget):
@@ -622,13 +622,14 @@ class VizTabs(QTabWidget):
                 self.strainSliceViewer.set_new_field(field,
                                                      bin_widths=[ws.getDimension(n).getBinWidth() for n in range(3)])
 
-                if not USING_THINLINC and not DISABLE_3D:
-                    if self.vtk3dviewer:
-                        self.vtk3dviewer.set_ws(ws)
-                    else:
-                        self.vtk3dviewer = VTK3DView(ws)
-                        self.plot_3d.addWidget(self.vtk3dviewer)
-                        self.plot_3d.setCurrentIndex(1)
+                # disabled until VTK is fixed
+                # if not USING_THINLINC and not DISABLE_3D:
+                #     if self.vtk3dviewer:
+                #         self.vtk3dviewer.set_ws(ws)
+                #     else:
+                #         self.vtk3dviewer = VTK3DView(ws)
+                #         self.plot_3d.addWidget(self.vtk3dviewer)
+                #         self.plot_3d.setCurrentIndex(1)
 
         else:
             self.set_1d_mode(False)
@@ -647,92 +648,93 @@ class VizTabs(QTabWidget):
         self.message2.setText(text)
 
 
-class VTK3DView(QWidget):
-    def __init__(self, ws, parent=None):
-        super().__init__(parent)
-        self.vtkWidget = QVTKRenderWindowInteractor(self)
+# disabled until VTK is fixed
+# class VTK3DView(QWidget):
+#     def __init__(self, ws, parent=None):
+#         super().__init__(parent)
+#         self.vtkWidget = QVTKRenderWindowInteractor(self)
 
-        vti = self.md_to_vti(ws)
-        self.mapper = vtk.vtkDataSetMapper()
-        self.mapper.SetInputData(vti)
+#         vti = self.md_to_vti(ws)
+#         self.mapper = vtk.vtkDataSetMapper()
+#         self.mapper.SetInputData(vti)
 
-        self.mapper.ScalarVisibilityOn()
-        self.mapper.SetScalarModeToUseCellData()
-        self.mapper.SetColorModeToMapScalars()
+#         self.mapper.ScalarVisibilityOn()
+#         self.mapper.SetScalarModeToUseCellData()
+#         self.mapper.SetColorModeToMapScalars()
 
-        self.actor = vtk.vtkActor()
-        self.actor.SetMapper(self.mapper)
+#         self.actor = vtk.vtkActor()
+#         self.actor.SetMapper(self.mapper)
 
-        scalarBar = vtk.vtkScalarBarActor()
-        scalarBar.SetLookupTable(self.mapper.GetLookupTable())
-        scalarBar.SetNumberOfLabels(4)
+#         scalarBar = vtk.vtkScalarBarActor()
+#         scalarBar.SetLookupTable(self.mapper.GetLookupTable())
+#         scalarBar.SetNumberOfLabels(4)
 
-        srange = vti.GetScalarRange()
+#         srange = vti.GetScalarRange()
 
-        self.lut = vtk.vtkLookupTable()
-        self.lut.SetTableRange(srange)
-        self.lut.Build()
+#         self.lut = vtk.vtkLookupTable()
+#         self.lut.SetTableRange(srange)
+#         self.lut.Build()
 
-        self.mapper.UseLookupTableScalarRangeOn()
-        self.mapper.SetLookupTable(self.lut)
-        scalarBar.SetLookupTable(self.lut)
+#         self.mapper.UseLookupTableScalarRangeOn()
+#         self.mapper.SetLookupTable(self.lut)
+#         scalarBar.SetLookupTable(self.lut)
 
-        self.renderer = vtk.vtkRenderer()
-        self.renderer.GradientBackgroundOn()
-        self.renderer.SetBackground(0.8, 0.8, 0.8)
-        self.renderer.SetBackground2(0, 0, 0)
+#         self.renderer = vtk.vtkRenderer()
+#         self.renderer.GradientBackgroundOn()
+#         self.renderer.SetBackground(0.8, 0.8, 0.8)
+#         self.renderer.SetBackground2(0, 0, 0)
 
-        axes = vtk.vtkCubeAxesActor()
-        axes.SetUseTextActor3D(1)
-        axes.SetBounds(vti.GetBounds())
-        axes.SetCamera(self.renderer.GetActiveCamera())
+#         axes = vtk.vtkCubeAxesActor()
+#         axes.SetUseTextActor3D(1)
+#         axes.SetBounds(vti.GetBounds())
+#         axes.SetCamera(self.renderer.GetActiveCamera())
 
-        axes.DrawXGridlinesOn()
-        axes.DrawYGridlinesOn()
-        axes.DrawZGridlinesOn()
-        axes.SetFlyModeToOuterEdges()
+#         axes.DrawXGridlinesOn()
+#         axes.DrawYGridlinesOn()
+#         axes.DrawZGridlinesOn()
+#         axes.SetFlyModeToOuterEdges()
 
-        self.renderer.AddActor(self.actor)
-        self.renderer.AddActor(axes)
-        self.renderer.AddActor2D(scalarBar)
-        self.renderer.ResetCamera()
+#         self.renderer.AddActor(self.actor)
+#         self.renderer.AddActor(axes)
+#         self.renderer.AddActor2D(scalarBar)
+#         self.renderer.ResetCamera()
 
-        self.vtkWidget.GetRenderWindow().AddRenderer(self.renderer)
-        self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
+#         self.vtkWidget.GetRenderWindow().AddRenderer(self.renderer)
+#         self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.vtkWidget)
-        self.setLayout(layout)
+#         layout = QVBoxLayout()
+#         layout.addWidget(self.vtkWidget)
+#         self.setLayout(layout)
 
-        camera = self.renderer.GetActiveCamera()
-        assert camera is not None
+#         camera = self.renderer.GetActiveCamera()
+#         assert camera is not None
 
-        self.vtkWidget.show()
+#         self.vtkWidget.show()
 
-        self.iren.Initialize()
+#         self.iren.Initialize()
 
-    def set_ws(self, ws):
-        vti = self.md_to_vti(ws)
-        self.mapper.SetInputData(vti)
-        self.lut.SetTableRange(vti.GetScalarRange())
-        self.vtkWidget.Render()
+#     def set_ws(self, ws):
+#         vti = self.md_to_vti(ws)
+#         self.mapper.SetInputData(vti)
+#         self.lut.SetTableRange(vti.GetScalarRange())
+#         self.vtkWidget.Render()
 
-    def md_to_vti(self, md):
-        array = md.getSignalArray()
-        origin = [md.getDimension(n).getMinimum() for n in range(3)]
-        spacing = [md.getDimension(n).getBinWidth() for n in range(3)]
-        dimensions = [n+1 for n in array.shape]
+#     def md_to_vti(self, md):
+#         array = md.getSignalArray()
+#         origin = [md.getDimension(n).getMinimum() for n in range(3)]
+#         spacing = [md.getDimension(n).getBinWidth() for n in range(3)]
+#         dimensions = [n+1 for n in array.shape]
 
-        vtkArray = numpy_to_vtk(num_array=array.flatten('F'), deep=True,
-                                array_type=get_vtk_array_type(array.dtype))
+#         vtkArray = numpy_to_vtk(num_array=array.flatten('F'), deep=True,
+#                                 array_type=get_vtk_array_type(array.dtype))
 
-        imageData = vtk.vtkImageData()
-        imageData.SetOrigin(origin)
-        imageData.SetSpacing(spacing)
-        imageData.SetDimensions(dimensions)
-        imageData.GetCellData().SetScalars(vtkArray)
+#         imageData = vtk.vtkImageData()
+#         imageData.SetOrigin(origin)
+#         imageData.SetSpacing(spacing)
+#         imageData.SetDimensions(dimensions)
+#         imageData.GetCellData().SetScalars(vtkArray)
 
-        return imageData
+#         return imageData
 
 
 class StrainStressViewer(QMainWindow):
