@@ -17,16 +17,7 @@ from qtpy.QtWidgets import QMainWindow, QAction  # type:ignore
 
 from qtpy.QtCore import Qt, Signal  # type: ignore
 from qtpy.QtGui import QDoubleValidator  # type:ignore
-try:
-    from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-    # from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-    # from vtkmodules.util.numpy_support import numpy_to_vtk, get_vtk_array_type
-    from vtk.util.numpy_support import numpy_to_vtk, get_vtk_array_type
-    import vtk
-    DISABLE_3D = False
-except ImportError:
-    # if we don't have vtk then disable the 3D Viewer
-    DISABLE_3D = True
+
 import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -37,6 +28,20 @@ import os
 # Can't run VTK embedded in PyQT5 using VirtualGL
 # See https://gitlab.kitware.com/vtk/vtk/-/issues/17338
 USING_THINLINC = "TLSESSIONDATA" in os.environ
+
+if USING_THINLINC:
+    DISABLE_3D = True
+else:
+    try:
+        from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+        # from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+        # from vtkmodules.util.numpy_support import numpy_to_vtk, get_vtk_array_type
+        from vtk.util.numpy_support import numpy_to_vtk, get_vtk_array_type
+        import vtk
+        DISABLE_3D = False
+    except ImportError:
+        # if we don't have vtk then disable the 3D Viewer
+        DISABLE_3D = True
 
 
 class FileLoad(QWidget):
