@@ -14,7 +14,7 @@ HEADER_MAPPING = [('experiment_identifier', 'IPTS number'),
                   ('item_number', 'Item number'),  # BL11A:CS:ITEMS on powgen
                   ('hkl', 'HKL phase'),
                   ('StrainDirection', 'Strain direction'),  # was suggested to be "strain_dir"
-                  ('mono_set', 'Monochromator setting'),
+                  ('mono_set', 'Monochromator wavelength'),
                   ('cal_file', 'Calibration file'),
                   ('project', 'Hidra project file'),
                   ('reduction', 'Manual vs auto reduction')]

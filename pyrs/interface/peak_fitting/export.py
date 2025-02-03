@@ -35,7 +35,7 @@ class ExportCSV(Export):
 
             generator = SummaryGenerator(self._csv_file_name,
                                          log_list=sample_logs.keys())
-            generator.setHeaderInformation(dict())
+            generator.setHeaderInformation({'wavelength': self.parent.hidra_workspace.get_wavelength(False, False)})
             generator.write_csv(sample_logs, peaks)
 
             new_message = self.parent.current_root_statusbar_message + "\t\t\t\t Last Exported CSV: {}" \
