@@ -347,7 +347,7 @@ def test_write_csv():
 # Item number
 # HKL phase
 # Strain direction
-# Monochromator setting
+# Monochromator wavelength
 # Calibration file
 # Hidra project file
 # Manual vs auto reduction
@@ -385,7 +385,7 @@ EXPECTED_HEADER_1065 = '''# IPTS number = 22731
 # Item number
 # HKL phase
 # Strain direction = Powder
-# Monochromator setting
+# Monochromator wavelength
 # Calibration file
 # Hidra project file = /some/place/random.h5
 # Manual vs auto reduction
@@ -403,7 +403,7 @@ EXPECTED_HEADER_938 = '''# IPTS number = 22731
 # Item number
 # HKL phase
 # Strain direction = ND
-# Monochromator setting
+# Monochromator wavelength
 # Calibration file
 # Hidra project file = /some/place/random.h5
 # Manual vs auto reduction
