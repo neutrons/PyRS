@@ -81,7 +81,7 @@ def test_peak_fitting(qtbot, tmpdir):
     assert os.path.isfile("HB2B_1423.csv")
     file_contents = open("HB2B_1423.csv").readlines()
     # check number of lines
-    assert len(file_contents) == 127
+    assert len(file_contents) == 129
     # check number of values in line
     assert len(np.fromstring(file_contents[-1], dtype=np.float64, sep=',')) == 33
 
@@ -125,7 +125,7 @@ def test_peak_fitting(qtbot, tmpdir):
     assert os.path.isfile("HB2B_1423.csv")
     file_contents = open("HB2B_1423.csv").readlines()
     # check number of lines
-    assert len(file_contents) == 127
+    assert len(file_contents) == 129
     # check number of values in line
     assert len(np.fromstring(file_contents[-1], dtype=np.float64, sep=',')) == 33
 
