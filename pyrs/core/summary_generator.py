@@ -14,7 +14,9 @@ HEADER_MAPPING = [('experiment_identifier', 'IPTS number'),
                   ('item_number', 'Item number'),  # HB2B:CS:ITEMS
                   ('hkl', 'HKL phase'),
                   ('StrainDirection', 'Strain direction'),  # was suggested to be "strain_dir"
-                  ('wavelength', 'Monochromator wavelength'),
+                  ('mono_setting', 'Monochromator Setting'),
+                  ('mono_wavelength', 'Monochromator wavelength'),
+                  ('cal_wavelength', 'Calibrated wavelength'),
                   ('cal_file', 'Calibration file'),
                   ('project', 'Hidra project file'),
                   ('reduction', 'Manual vs auto reduction')]
