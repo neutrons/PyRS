@@ -2,6 +2,7 @@ import os
 
 from pyrs.interface.gui_helper import browse_dir
 from pyrs.core.summary_generator import SummaryGenerator
+from pyrs.core import MonoSetting  # type: ignore
 
 
 class Export:
@@ -30,12 +31,18 @@ class ExportCSV(Export):
         try:
             peaks = self.parent.fit_result.peakcollections
             sample_logs = self.parent.hidra_workspace._sample_logs
+            monosetting = MonoSetting.getFromRotation(self.parent.hidra_workspace.get_sample_log_value('mrot', 1))
 
             print("sample_log: {}".format(sample_logs))
 
             generator = SummaryGenerator(self._csv_file_name,
                                          log_list=sample_logs.keys())
-            generator.setHeaderInformation({'wavelength': self.parent.hidra_workspace.get_wavelength(False, False)})
+
+            generator.setHeaderInformation({'cal_wavelength': self.parent.hidra_workspace.get_wavelength(False, False),
+                                            'mono_wavelength': monosetting.value,
+                                            'mono_setting': monosetting.name,
+                                            'cal_file': self.parent.hidra_workspace.calibration_file})
+
             generator.write_csv(sample_logs, peaks)
 
             new_message = self.parent.current_root_statusbar_message + "\t\t\t\t Last Exported CSV: {}" \

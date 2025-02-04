@@ -82,6 +82,18 @@ class HidraWorkspace:
         """
         return list(self._diff_data_set.keys())
 
+    @property
+    def calibration_file(self):
+        """Name of the associated calibration file
+        Returns
+        -------
+        """
+
+        try:
+            return self._instrument_geometry_shift._calibration_file
+        except AttributeError:
+            return ''
+
     def _load_raw_counts(self, hidra_file):
         """ Load raw detector counts from HIDRA file
         :param hidra_file:
