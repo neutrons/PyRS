@@ -79,7 +79,8 @@ class EventHandler:
                         str(run_err), 'error')
             return
 
-        hidra_file_name = os.path.join(project_dir, f'HB2B_{self.parent.ui.lineEdit_expNumber.text()}.h5')
+        hidra_file_name = [os.path.join(project_dir[i_run], f'HB2B_{runs[i_run]}.h5') for i_run in range(len(runs))]
+
         self.parent.current_hidra_file_name = hidra_file_name
         self.load_and_plot(hidra_file_name)
 

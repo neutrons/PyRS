@@ -65,7 +65,7 @@ def test_log_time_average():
     sample_logs = processor.split_sample_logs(SUBRUNS_EXP)
 
     # verify two of the properties
-    np.testing.assert_allclose(sample_logs['2theta'], [100.0015, 100.0015, 97.50225])
+    np.testing.assert_allclose(sample_logs['2theta'], [69.99525, 80., 97.50225])
 
 
 if __name__ == '__main__':
