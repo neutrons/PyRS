@@ -59,7 +59,7 @@ def calculate_sub_run_time_average(log_property, time_filter) -> float:
         time_average_value = log_property.value[0]
     elif time_filter is None:  # no filtering means use all values
         time_averaged_Run = Run()
-        time_averaged_Run.addProperty('filtered_log', log_property, False)
+        time_averaged_Run.addProperty(log_property.name, log_property, False)
         time_average_value = time_averaged_Run.getTimeAveragedValue(log_property.name)
         del time_averaged_Run
 
@@ -78,7 +78,7 @@ def calculate_sub_run_time_average(log_property, time_filter) -> float:
                                       ''.format(log_property.name, type(log_property)))
 
         time_averaged_Run = Run()
-        time_averaged_Run.addProperty('filtered_log', filtered_tsp, False)
+        time_averaged_Run.addProperty(log_property.name, filtered_tsp, False)
         time_average_value = time_averaged_Run.getTimeAveragedValue(log_property.name)
 
         del filtered_tsp, time_averaged_Run
