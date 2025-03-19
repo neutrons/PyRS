@@ -470,11 +470,24 @@ class PlotSelect(QGroupBox):
         layout.addRow(QLabel("Measurement Direction "), self.measure_dir)
         self.setLayout(layout)
 
+        self.plot_param_limits = {"dspacing-center": None,
+                                  "d-reference": None,
+                                  "Center": None,
+                                  "Height": None,
+                                  "FWHM": None,
+                                  "Mixing": None,
+                                  "Intensity": None,
+                                  "strain": None,
+                                  "stress": None}
+
     def get_direction(self):
         return self.measure_dir.currentText()
 
     def get_plot_param(self):
         return self.plot_param.currentText()
+
+    def get_plot_param_limits(self):
+        return self.plot_param_limits[self.plot_param.currentText()]
 
 
 class PeakSelection(QGroupBox):
@@ -606,16 +619,33 @@ class VizTabs(QTabWidget):
                         self.strainSliceViewer.set_new_workspace(ws)
                     else:
                         print('View needs redefined')
-                        self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
-                        self.plot_2d.addWidget(self.strainSliceViewer.view)
-                        self.plot_2d.setCurrentIndex(1)
+                        self.setup_view(ws)
+                # self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
+                # self.strainSliceViewer.view.data_view.colorbar.cmax.returnPressed.connect(self.update_data_clim)
+                # self.strainSliceViewer.view.data_view.colorbar.cmin.returnPressed.connect(self.update_data_clim)
+                # self.plot_2d.addWidget(self.strainSliceViewer.view)
+                # self.plot_2d.setCurrentIndex(1)
                 else:
                     self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
+                    self.strainSliceViewer.view.data_view.colorbar.cmax.returnPressed.connect(self.update_data_clim)
+                    self.strainSliceViewer.view.data_view.colorbar.cmin.returnPressed.connect(self.update_data_clim)
                     self.plot_2d.addWidget(self.strainSliceViewer.view)
                     self.plot_2d.setCurrentIndex(1)
+                    # self.setup_view(ws)
 
                 self.strainSliceViewer.set_new_field(field,
                                                      bin_widths=[ws.getDimension(n).getBinWidth() for n in range(3)])
+
+                print(field.values.min())
+                print(self.strainSliceViewer.view.min())
+
+                # print(type(self.strainSliceViewer.view.data_view.colorbar))
+                # print(type(self.strainSliceViewer.view))
+                # print(self.strainSliceViewer.view.data_view.colorbar)
+                # print(self.strainSliceViewer.view.data_view.colorbar.cmax)
+                # print(self.strainSliceViewer.view.data_view.colorbar.cmin)
+
+# 2.225e+05
 
                 if not USING_THINLINC and not DISABLE_3D:
                     if self.vtk3dviewer:
@@ -637,9 +667,30 @@ class VizTabs(QTabWidget):
                 self.plot_3d.removeWidget(self.vtk3dviewer)
                 self.vtk3dviewer = None
 
+        self.update_color_limits()
+
+    def setup_view(self, ws):
+        print('define strainSliceViewer')
+        self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
+        self.strainSliceViewer.view.data_view.colorbar.cmax.returnPressed.connect(self.update_data_clim)
+        self.strainSliceViewer.view.data_view.colorbar.cmin.returnPressed.connect(self.update_data_clim)
+
+        self.plot_2d.addWidget(self.strainSliceViewer.view)
+        self.plot_2d.setCurrentIndex(1)
+
     def set_message(self, text):
         self.message.setText(text)
         self.message2.setText(text)
+
+    def update_data_clim(self):
+        print('It Worked')
+        # print(self.strainSliceViewer.view.data_view.colorbar.colorbar.mappable.set_clim(vmin=4))
+        # self.strainSliceViewer.view.data_view.update_data_clim()
+
+    def update_color_limits(self):
+        print(self.strainSliceViewer.view.data_view.colorbar.cmax.text())
+        print(self.strainSliceViewer.view.data_view.colorbar.cmin.text())
+        print(self.strainSliceViewer.view.data_view.colorbar.colorbar.mappable.get_clim())
 
 
 class VTK3DView(QWidget):
