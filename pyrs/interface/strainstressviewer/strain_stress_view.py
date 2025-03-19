@@ -470,24 +470,17 @@ class PlotSelect(QGroupBox):
         layout.addRow(QLabel("Measurement Direction "), self.measure_dir)
         self.setLayout(layout)
 
-        self.plot_param_limits = {"dspacing-center": None,
-                                  "d-reference": None,
-                                  "Center": None,
-                                  "Height": None,
-                                  "FWHM": None,
-                                  "Mixing": None,
-                                  "Intensity": None,
-                                  "strain": None,
-                                  "stress": None}
-
     def get_direction(self):
         return self.measure_dir.currentText()
 
     def get_plot_param(self):
         return self.plot_param.currentText()
 
-    def get_plot_param_limits(self):
+    def get_plot_limits(self):
         return self.plot_param_limits[self.plot_param.currentText()]
+
+    def set_plot_limits(self, cmin, cmax):
+        self.plot_param_limits[self.plot_param.currentText()] = [cmin, cmax]
 
 
 class PeakSelection(QGroupBox):
@@ -574,12 +567,24 @@ class VizTabs(QTabWidget):
 
         self.setCornerWidget(QLabel("Visualization Pane    "), corner=Qt.TopLeftCorner)
 
+        self.plot_limits = {"dspacing-center": None,
+                            "d-reference": None,
+                            "Center": None,
+                            "Height": None,
+                            "FWHM": None,
+                            "Mixing": None,
+                            "Intensity": None,
+                            "strain": None,
+                            "stress": None}
+
+        self._param_name = None
+
     def set_1d_mode(self, oned):
         self.setTabEnabled(0, oned)
         self.setTabEnabled(1, not oned)
         self.setTabEnabled(2, not USING_THINLINC and not DISABLE_3D and not oned)
 
-    def set_ws(self, field):
+    def set_ws(self, field, name):
         if field is not None:
             try:
                 ws = field.to_md_histo_workspace()
@@ -588,10 +593,13 @@ class VizTabs(QTabWidget):
                                               str(e),
                                               traceback.format_exc())
                 ws = None
+                self._param_name = None
         else:
             ws = None
+            self._param_name = None
 
         if ws:
+            self._param_name = name
             if len(ws.getNonIntegratedDimensions()) == 1:
                 self.set_1d_mode(True)
                 if self.oneDViewer:
@@ -626,26 +634,18 @@ class VizTabs(QTabWidget):
                 # self.plot_2d.addWidget(self.strainSliceViewer.view)
                 # self.plot_2d.setCurrentIndex(1)
                 else:
-                    self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
-                    self.strainSliceViewer.view.data_view.colorbar.cmax.returnPressed.connect(self.update_data_clim)
-                    self.strainSliceViewer.view.data_view.colorbar.cmin.returnPressed.connect(self.update_data_clim)
-                    self.plot_2d.addWidget(self.strainSliceViewer.view)
-                    self.plot_2d.setCurrentIndex(1)
+                    # self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
+                    # self.strainSliceViewer.view.data_view.colorbar.cmax.returnPressed.connect(self.update_clim)
+                    # self.strainSliceViewer.view.data_view.colorbar.cmin.returnPressed.connect(self.update_clim)
+                    # self.plot_2d.addWidget(self.strainSliceViewer.view)
+                    # self.plot_2d.setCurrentIndex(1)
                     # self.setup_view(ws)
+                    self.setup_view(ws)
 
                 self.strainSliceViewer.set_new_field(field,
                                                      bin_widths=[ws.getDimension(n).getBinWidth() for n in range(3)])
 
-                print(field.values.min())
-                print(self.strainSliceViewer.view.min())
-
-                # print(type(self.strainSliceViewer.view.data_view.colorbar))
-                # print(type(self.strainSliceViewer.view))
-                # print(self.strainSliceViewer.view.data_view.colorbar)
-                # print(self.strainSliceViewer.view.data_view.colorbar.cmax)
-                # print(self.strainSliceViewer.view.data_view.colorbar.cmin)
-
-# 2.225e+05
+                self.update_color_limits(field)
 
                 if not USING_THINLINC and not DISABLE_3D:
                     if self.vtk3dviewer:
@@ -667,13 +667,11 @@ class VizTabs(QTabWidget):
                 self.plot_3d.removeWidget(self.vtk3dviewer)
                 self.vtk3dviewer = None
 
-        self.update_color_limits()
-
     def setup_view(self, ws):
         print('define strainSliceViewer')
         self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
-        self.strainSliceViewer.view.data_view.colorbar.cmax.returnPressed.connect(self.update_data_clim)
-        self.strainSliceViewer.view.data_view.colorbar.cmin.returnPressed.connect(self.update_data_clim)
+        self.strainSliceViewer.view.data_view.colorbar.cmax.returnPressed.connect(self.update_clim)
+        self.strainSliceViewer.view.data_view.colorbar.cmin.returnPressed.connect(self.update_clim)
 
         self.plot_2d.addWidget(self.strainSliceViewer.view)
         self.plot_2d.setCurrentIndex(1)
@@ -682,15 +680,25 @@ class VizTabs(QTabWidget):
         self.message.setText(text)
         self.message2.setText(text)
 
-    def update_data_clim(self):
-        print('It Worked')
-        # print(self.strainSliceViewer.view.data_view.colorbar.colorbar.mappable.set_clim(vmin=4))
-        # self.strainSliceViewer.view.data_view.update_data_clim()
+    def update_clim(self):
+        self.plot_limits[self._param_name] = [float(self.strainSliceViewer.view.data_view.colorbar.cmin.text()),
+                                              float(self.strainSliceViewer.view.data_view.colorbar.cmax.text())]
 
-    def update_color_limits(self):
-        print(self.strainSliceViewer.view.data_view.colorbar.cmax.text())
-        print(self.strainSliceViewer.view.data_view.colorbar.cmin.text())
-        print(self.strainSliceViewer.view.data_view.colorbar.colorbar.mappable.get_clim())
+        self.update_color_limits(None)
+
+    def update_color_limits(self, field):
+        if self._param_name is not None:
+            if self.plot_limits[self._param_name] is None:
+                self.plot_limits[self._param_name] = field.values.min(), field.values.max()
+
+            cmin, cmax = self.plot_limits[self._param_name]
+
+            self.strainSliceViewer.view.data_view.colorbar.cmin.setText(f"{cmin:.4f}")
+            self.strainSliceViewer.view.data_view.colorbar.cmax.setText(f"{cmax:.4f}")
+            self.strainSliceViewer.view.data_view.colorbar.colorbar.mappable.set_clim(vmin=cmin,
+                                                                                      vmax=cmax)
+
+            self.strainSliceViewer.view.data_view.update_data_clim()
 
 
 class VTK3DView(QWidget):
@@ -854,7 +862,7 @@ class StrainStressViewer(QMainWindow):
         self.plot_select.plot_param.currentTextChanged.connect(self.update_plot)
         right_layout.addWidget(self.plot_select)
 
-        self.viz_tab = VizTabs(self)
+        self.viz_tab = VizTabs(parent=self)
         right_layout.addWidget(self.viz_tab)
 
         right.setLayout(right_layout)
@@ -898,9 +906,10 @@ class StrainStressViewer(QMainWindow):
 
             self.viz_tab.set_ws(self.model.get_field(direction=self.plot_select.get_direction(),
                                                      plot_param=self.plot_select.get_plot_param(),
-                                                     stress_case=self.stressCase.get_stress_case()))
+                                                     stress_case=self.stressCase.get_stress_case()),
+                                self.plot_select.get_plot_param())
         else:
-            self.viz_tab.set_ws(None)
+            self.viz_tab.set_ws(None, None)
             self.viz_tab.set_message(validated)
 
         if self.controller.validate_stress_selection(self.stressCase.get_stress_case(),
