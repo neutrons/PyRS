@@ -476,12 +476,6 @@ class PlotSelect(QGroupBox):
     def get_plot_param(self):
         return self.plot_param.currentText()
 
-    def get_plot_limits(self):
-        return self.plot_param_limits[self.plot_param.currentText()]
-
-    def set_plot_limits(self, cmin, cmax):
-        self.plot_param_limits[self.plot_param.currentText()] = [cmin, cmax]
-
 
 class PeakSelection(QGroupBox):
     def __init__(self, parent=None):
@@ -628,18 +622,9 @@ class VizTabs(QTabWidget):
                     else:
                         print('View needs redefined')
                         self.setup_view(ws)
-                # self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
-                # self.strainSliceViewer.view.data_view.colorbar.cmax.returnPressed.connect(self.update_data_clim)
-                # self.strainSliceViewer.view.data_view.colorbar.cmin.returnPressed.connect(self.update_data_clim)
-                # self.plot_2d.addWidget(self.strainSliceViewer.view)
-                # self.plot_2d.setCurrentIndex(1)
+
                 else:
-                    # self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
-                    # self.strainSliceViewer.view.data_view.colorbar.cmax.returnPressed.connect(self.update_clim)
-                    # self.strainSliceViewer.view.data_view.colorbar.cmin.returnPressed.connect(self.update_clim)
-                    # self.plot_2d.addWidget(self.strainSliceViewer.view)
-                    # self.plot_2d.setCurrentIndex(1)
-                    # self.setup_view(ws)
+
                     self.setup_view(ws)
 
                 self.strainSliceViewer.set_new_field(field,
