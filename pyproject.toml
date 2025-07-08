@@ -68,6 +68,10 @@ numpy = "*"
 pandas = "*"
 types-six = "*"
 
+[tool.pixi.pypi-dependencies]
+# PyPI dependencies, including this package to allow local editable installs
+pyrs = { path = ".", editable = true }
+
 [tool.pixi.package.host-dependencies]
 hatchling = "*"
 versioningit = "*"
