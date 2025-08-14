@@ -13,7 +13,7 @@ readme = "README.rst"
 
 [build-system]
 build-backend = "hatchling.build"
-requires = ["hatchling", "versioningit", "wheel"]
+requires = ["hatchling", "versioningit"]
 
 [tool.hatch.version]
 source = "versioningit"
@@ -103,7 +103,6 @@ boa = "*"
 anaconda-client = "*"
 conda-build = "<24"
 conda-verify = "*"
-check-wheel-contents = ">=0.6.0"
 twine = "*"
 versioningit = "*"
 hatch = "*"
@@ -156,8 +155,6 @@ publish-pypi = { cmd = "twine upload dist/*", description = "Publish the package
 publish-pypi-test = { cmd = "twine upload --repository testpypi dist/*", description = "Publish the package to TestPyPI", depends-on = ["build-pypi"] }
 clean-pypi = { cmd = "rm -rf dist", description = "Clean the PyPI build artifacts" }
 
-build-wheel = { cmd = "python setup.py bdist_wheel; check-wheel-contents dist/pyrs-*.whl", description = "Build the Python wheel package" }
-
 # Conda packaging tasks
 build-conda-command = { cmd = "pixi build", description = "Build the conda package command" }
 build-conda = { description = "Build the conda package", depends-on = ["backup-toml", "sync-version", "build-conda-command", "reset-toml"] }
@@ -183,8 +180,7 @@ backup-toml = { cmd = "cp pyproject.toml pyproject.toml.bak", description = "Bac
 reset-toml = { cmd = "cp pyproject.toml.bak pyproject.toml; rm pyproject.toml.bak", description = "Reset the pyproject.toml file to the original state" }
 
 # Application tasks
-pyrs-build = { cmd = "python setup.py build", description = "Build the pyrs application" }
-pyrs = { cmd = "python scripts/pyrsplot", description = "Start the pyrs application", depends-on = ["pyrs-build"] }
+pyrs = { cmd = "python scripts/pyrsplot", description = "Start the pyrs application"}
 
 [tool.mypy]
 ignore_missing_imports = true

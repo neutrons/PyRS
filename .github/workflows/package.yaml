@@ -20,12 +20,6 @@ jobs:
         with:
           pixi-version: v0.41.4
           manifest-path: pyproject.toml
-      - name: Build python wheel # cannot be used without mantid
-        run: pixi run build-wheel
-      # We dont need pypi for now
-      # - name: build pypi package
-      #   run: |
-      #     pixi run build-pypi
       - name: build conda package
         run: pixi run build-conda
       - name: upload conda package to anaconda
