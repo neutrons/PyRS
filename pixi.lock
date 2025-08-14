@@ -227,7 +227,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libopus-1.5.2-hd0c01bc_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libpciaccess-0.18-hb9d3cd8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libpng-1.6.50-h421ea60_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libpq-16.9-h87c4ccc_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libpq-16.10-h1cdf469_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libraw-0.21.4-h9969a89_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/librdkafka-2.11.0-h2e2c4f7_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/librsvg-2.58.4-he92a37e_3.conda
@@ -3452,18 +3452,18 @@ packages:
   purls: []
   size: 317390
   timestamp: 1753879899951
-- conda: https://conda.anaconda.org/conda-forge/linux-64/libpq-16.9-h87c4ccc_0.conda
-  sha256: 6249e9099543623bc99d7ac5e041289e20b907f374d22876a25ea13c7a0973e1
-  md5: b92385526a776a6e40ace8ceac0bd465
+- conda: https://conda.anaconda.org/conda-forge/linux-64/libpq-16.10-h1cdf469_0.conda
+  sha256: ec8169a49c40895ee7c2ccefcba63709656c4a8bdfa1b86d4d673da6c336e6a4
+  md5: 15a278d18c84197d40b0f9dab42a98d0
   depends:
   - __glibc >=2.17,<3.0.a0
   - krb5 >=1.21.3,<1.22.0a0
-  - libgcc >=13
-  - openssl >=3.5.0,<4.0a0
+  - libgcc >=14
+  - openssl >=3.5.2,<4.0a0
   license: PostgreSQL
   purls: []
-  size: 2582788
-  timestamp: 1746732891588
+  size: 2470203
+  timestamp: 1755185777126
 - conda: https://conda.anaconda.org/conda-forge/linux-64/libraw-0.21.4-h9969a89_0.conda
   sha256: 96bbd009b3d7f82e9af37e980af9285431ecd5c6f098a0f1afe0021d8d02b88a
   md5: e4fdd13a67d5b30459463e925b9e7e1f
@@ -5009,9 +5009,9 @@ packages:
   timestamp: 1695420780098
 - pypi: ./
   name: pyrs
-  version: 1.7.0.dev60+d202508141543
-  sha256: 2eab895aaf192454187e1eb8e776b3b5c68693529436b193fbe6e771d9bb36b1
-  requires_python: '>=3.10'
+  version: 1.7.0.dev61+d202508141743
+  sha256: 284ef701d0054929344e69ebd0451317683a2ae2f4f8a55c76c68d7a572b5b60
+  requires_python: '>=3.11'
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/linux-64/pyside6-6.7.3-py311h9053184_1.conda
   sha256: 63cb5632be20196b5a28ad02bd0145bd68c42a662f3aadface13e23551a7874c
