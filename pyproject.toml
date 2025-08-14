@@ -109,6 +109,9 @@ versioningit = "*"
 hatch = "*"
 toml = "*"
 
+[tool.pixi.feature.package.pypi-dependencies]
+toml-cli = "*"
+
 [tool.pixi.feature.developer.dependencies]
 pre-commit = "*"
 flake8 = "*"
@@ -157,7 +160,7 @@ build-wheel = { cmd = "python setup.py bdist_wheel; check-wheel-contents dist/py
 
 # Conda packaging tasks
 build-conda-command = { cmd = "pixi build", description = "Build the conda package command" }
-build-conda = { description = "Build the conda package", depends-on = ["sync-version", "build-conda-command", "reset-version"] }
+build-conda = { description = "Build the conda package", depends-on = ["backup-toml", "sync-version", "build-conda-command", "reset-toml"] }
 publish-conda = { cmd = "anaconda upload *.conda", description = "Publish the .conda package to anaconda.org", depends-on = ["build-conda"] }
 clean-conda = { cmd = "rm -f *.conda", description = "Clean the local .conda build artifacts" }
 
@@ -175,8 +178,9 @@ lint-flake8 = { cmd = "flake8 pyrs scripts tests --count --max-line-length=119 -
 
 # MISC
 clean-all = { description = "Clean all build artifacts", depends-on = ["clean-pypi", "clean-docs", "clean-conda"] }
-sync-version = { cmd = "version=$(python -m versioningit); python -c \"import toml; data=toml.load('pyproject.toml'); data['tool']['pixi']['package']['version']='$version'; open('pyproject.toml', 'w').write(toml.dumps(data))\"", description = "Sync pyproject.toml version with Git version" }
-reset-version = { cmd = "python -c \"import toml; data=toml.load('pyproject.toml'); data['tool']['pixi']['package']['version']='0.0.0'; open('pyproject.toml', 'w').write(toml.dumps(data))\"", description = "Reset the package version to 0.0.0" }
+sync-version = { cmd = 'version=$(python -m versioningit); toml set tool.pixi.package.version "$version" --toml-path pyproject.toml', description = "Sync pyproject.toml version with Git version" }
+backup-toml = { cmd = "cp pyproject.toml pyproject.toml.bak", description = "Backup the pyproject.toml file" }
+reset-toml = { cmd = "cp pyproject.toml.bak pyproject.toml; rm pyproject.toml.bak", description = "Reset the pyproject.toml file to the original state" }
 
 # Application tasks
 pyrs-build = { cmd = "python setup.py build", description = "Build the pyrs application" }
