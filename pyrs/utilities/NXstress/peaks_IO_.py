@@ -25,14 +25,14 @@ class Peaks_IO:
     # ALL methods must be `classmethod`.  ##
     ########################################
 
-    def _init_group(cls, nx: NXFile):
-        # Initialize the 'peaks' group
-        
-        # assumes 'entry' already exists
+    def _init_group(cls, nx: NXFile) -> NXreflections:
+        # Initialize (or re-initialize) the 'peaks' group
 
-        # Create an NXreflections (PEAKS) group under entry
-        peaks = NXreflections()
-        entry['peaks'] = peaks
+        # assumes 'entry' already exists
+        if 'peaks' not in nx.root['entry']:
+            # Create an NXreflections (PEAKS) group under entry
+            nx.root['entry']['peaks'] = NXreflections()
+        peaks = nx.root['entry']['peaks']
 
         # Create extensible (resizable) fields for h, k, l, etc.
         chunk_shape = (100,)             # Reasonable chunk size (tunable)
@@ -84,16 +84,13 @@ class Peaks_IO:
         
         peaks['strain_error'] = NXfield(np.empty((0,), dtype=np.float64),
                                       maxshape=(None,), chunks=chunk_shape)
-        
+        return peaks
     
     def write(cls, nx: NXFile, peaks: PeaksCollection):
-        # Append the values for a single peak, for all of its scan_points,
+        # Initialize and / or append to the PEAKS group:
+        #   append the values for a single peak, for all of its scan_points,
         #   to the PEAKS group in the NXstress-format NXFile object.
-
-        # Initialize and / or append to the PEAKS group.
-        peaks = nx['entry'].get('peaks', NXreflections())
-        if 'peaks' not in nx['entry']:
-            nx['entry']['peaks'] = peaks
+        peaks = cls._init_group(nx)
 
         scan_point = peaks.get_sub_runs()
         N = len(scan_points)
