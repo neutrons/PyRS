@@ -25,7 +25,7 @@ class Peaks_IO:
     # ALL methods must be `classmethod`.  ##
     ########################################
 
-    def _init_group(cls, nx: NXFile) -> NXreflections:
+    def _init_group(cls, nx: NXFile, peaks: PeakCollection, logs: SampleLogs) -> NXreflections:
         # Initialize (or re-initialize) the 'peaks' group
 
         # assumes 'entry' already exists
@@ -52,6 +52,19 @@ class Peaks_IO:
         
         peaks['phase_name'] = NXfield(np.empty((0,), dtype=vlen_str_dtype),
                                       maxshape=(None,), chunks=chunk_shape)
+        
+        # Components of the normalized scattering vector Q in the sample reference frame
+        #   'qx', 'qy', and 'qz' are *required* by NXstress, but it looks as if PyRS doesn't
+        #   use these -- initialize to `NaN`.
+        peaks['qx'] = NXfield(np.empty((0,), dtype=np.float64),
+                              maxshape=(None,), chunks=chunk_shape, fillvalue=np.nan)
+        peaks['qx'].attrs['units'] = '1'        
+        peaks['qy'] = NXfield(np.empty((0,), dtype=np.float64),
+                              maxshape=(None,), chunks=chunk_shape, fillvalue=np.nan)        
+        peaks['qy'].attrs['units'] = '1'        
+        peaks['qz'] = NXfield(np.empty((0,), dtype=np.float64),
+                              maxshape=(None,), chunks=chunk_shape, fillvalue=np.nan)        
+        peaks['qz'].attrs['units'] = '1'        
 
         peaks['peak_profile'] = NXfield(np.empty((0,), dtype=vlen_str_dtype),
                                         maxshape=(None,), chunks=chunk_shape)
@@ -59,34 +72,58 @@ class Peaks_IO:
                                       maxshape=(None,), chunks=chunk_shape)
         
         peaks['params_name'] = NXfield(np.empty((0, N_param), dtype=vlen_str_dtype),
-                                      maxshape=(None, N_param), chunks=chunk_shape)        
+                                       maxshape=(None, N_param), chunks=chunk_shape)        
         peaks['params_value'] = NXfield(np.empty((0, N_param), dtype=np.float64),
                                         maxshape=(None, N_param), chunks=chunk_shape)        
         peaks['params_error'] = NXfield(np.empty((0, N_param), dtype=np.float64),
                                         maxshape=(None, N_param), chunks=chunk_shape)        
+
+        peaks['center'] = NXfield(np.empty((0,), dtype=np.float64),
+                                  maxshape=(None,), chunks=chunk_shape)
+        peaks['center'].attrs['units'] = 'degree'
+        
+        peaks['center_errors'] = NXfield(np.empty((0,), dtype=np.float64),
+                                         maxshape=(None,), chunks=chunk_shape)
+        peaks['center_errors'].attrs['units'] = 'degree'
+        peaks['center_type'] = NXfield(np.empty((0,), dtype=vlen_str_dtype),
+                                       maxshape=(None,), chunks=chunk_shape)        
 
         peaks['fit_costs'] = NXfield(np.empty((0,), dtype=np.float64),
                                      maxshape=(None,), chunks=chunk_shape)
         peaks['fit_status'] = NXfield(np.empty((0,), dtype=vlen_str_dtype),
                                       maxshape=(None,), chunks=chunk_shape)
        
-        peaks['wavelength'] = NXfield(np.empty((0,), dtype=np.float64),
-                                      maxshape=(None,), chunks=chunk_shape)
+        ## Wavelength doesn't go here: it should go to NXinstrument (or NXmonochromator).
+        ## peaks['wavelength'] = NXfield(np.empty((0,), dtype=np.float64),
+        ##                              maxshape=(None,), chunks=chunk_shape)
         
-        peaks['d_reference'] = NXfield(np.empty((0,), dtype=np.float64),
+        # Sample position for each subrun -- initialize to `NaN`.
+        peaks['sx'] = NXfield(np.empty((0,), dtype=np.float64),
+                              maxshape=(None,), chunks=chunk_shape, fillvalue=np.nan)
+        peaks['sx'].attrs['units'] = logs.units('sx')        
+        peaks['sy'] = NXfield(np.empty((0,), dtype=np.float64),
+                              maxshape=(None,), chunks=chunk_shape, fillvalue=np.nan)        
+        peaks['sy'].attrs['units'] = logs.units('sx')        
+        peaks['sz'] = NXfield(np.empty((0,), dtype=np.float64),
+                              maxshape=(None,), chunks=chunk_shape, fillvalue=np.nan)        
+        peaks['sx'].attrs['units'] = logs.units('sx')        
+
+
+x These go in `FIT/peak_parameters` !        
+x        peaks['d_reference'] = NXfield(np.empty((0,), dtype=np.float64),
                                       maxshape=(None,), chunks=chunk_shape)
          
-        peaks['d_reference_error'] = NXfield(np.empty((0,), dtype=np.float64),
+x        peaks['d_reference_error'] = NXfield(np.empty((0,), dtype=np.float64),
                                       maxshape=(None,), chunks=chunk_shape)
         
-        peaks['strain'] = NXfield(np.empty((0,), dtype=np.float64),
+x        peaks['strain'] = NXfield(np.empty((0,), dtype=np.float64),
                                       maxshape=(None,), chunks=chunk_shape)
         
-        peaks['strain_error'] = NXfield(np.empty((0,), dtype=np.float64),
+x        peaks['strain_error'] = NXfield(np.empty((0,), dtype=np.float64),
                                       maxshape=(None,), chunks=chunk_shape)
         return peaks
     
-    def write(cls, nx: NXFile, peaks: PeakCollection):
+    def write(cls, nx: NXFile, peaks: PeakCollection, logs: SampleLogs):
         # Initialize and / or append to the PEAKS group:
         #   append the values for a single peak, for all of its scan_points,
         #   to the PEAKS group in the NXstress-format NXFile object.
@@ -100,15 +137,23 @@ class Peaks_IO:
         peak_profile = np.array(peaks.peak_profile,) * N)
         background = np.array(peaks.background_type,) * N)
         
-        # Use _effective_ peak parameters here: all peaks will then have the same number of parameter.
-        params_name = np.array((EFFECTIVE_PEAK_PARAMETERS,) * N)
-        params_value, params_error = peaks.get_effective_params()
-        params_value = np.stack((params_value,) * N)
-        params_error = np.stack((params_error,) * N)
+        # Use _effective_ peak parameters here: all peaks will then have the same number of parameter,
+        #   and all parameter values will be in the expected column.
+        # For the moment, I'm assuming that we have one value for each of 'N' subruns.
+        params_name = np.tile(np.array(EFFECTIVE_PEAK_PARAMETERS), (N, 1))
+        vs, es = peaks.get_effective_params()
+        params_value = np.column_stack([vs[param] for param in EFFECTIVE_PEAK_PARAMETERS]) # shape: (N, N_param)
+        params_error = np.column_stack([es[param] for param in EFFECTIVE_PEAK_PARAMETERS])
    
-        fit_costs, fit_status = np.stack((peaks.get_chisq(),) * N),  np.array((tuple(peaks.get_fit_status()),) * N)
+        center = params_value['Center']
+        center_errors = params_error['Center']
+        center_type = np.array(('two-theta',) * N)
         
-        wavelength = np.array((peaks._wavelength,) * N)
+        fit_costs = peaks.get_chisq()
+        fit_status = peaks.get_fit_status()
+        
+        ## Wavelength doesn't go here: it should go to NXinstrument (or NXmonochromator).
+        ## wavelength = np.array((peaks._wavelength,) * N)
         
         d_reference, d_reference_error = peaks.get_d_reference()
         d_reference = np.array((d_reference,) * N)
