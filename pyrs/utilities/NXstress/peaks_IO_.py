@@ -86,7 +86,7 @@ class Peaks_IO:
                                       maxshape=(None,), chunks=chunk_shape)
         return peaks
     
-    def write(cls, nx: NXFile, peaks: PeaksCollection):
+    def write(cls, nx: NXFile, peaks: PeakCollection):
         # Initialize and / or append to the PEAKS group:
         #   append the values for a single peak, for all of its scan_points,
         #   to the PEAKS group in the NXstress-format NXFile object.
