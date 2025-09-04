@@ -25,6 +25,7 @@ class Peaks_IO:
     # ALL methods must be `classmethod`.  ##
     ########################################
 
+    @classmethod
     def _init_group(cls, nx: NXFile, peaks: PeakCollection, logs: SampleLogs) -> NXreflections:
         # Initialize (or re-initialize) the 'peaks' group
 
@@ -123,6 +124,7 @@ x        peaks['strain_error'] = NXfield(np.empty((0,), dtype=np.float64),
                                       maxshape=(None,), chunks=chunk_shape)
         return peaks
     
+    @classmethod
     def write(cls, nx: NXFile, peaks: PeakCollection, logs: SampleLogs):
         # Initialize and / or append to the PEAKS group:
         #   append the values for a single peak, for all of its scan_points,
