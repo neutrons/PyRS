@@ -3,12 +3,14 @@ NXstress_IO
 
 Primary service class for NeXus NXstress-compatible I/O.
 """
+import h5py
 from nexusformat.nexus import NXEntry, NXFile
+import numpy as np
 from pydantic import validate_call
 
 from pyrs.core.workspaces import HidraWorkspace
 
-from NXstress import required_logs
+from NXstress import REQUIRED_LOGS, FIELD_DTYPE
 from .input_data_IO_ import InputData_IO
 from .instrument_IO_ import Instrument_IO
 from .sample_IO_ import Sample_IO
@@ -58,6 +60,7 @@ REQUIRED PARAMETERS FOR NXstress:
 │   ├─ l                                   (dataset)
 │   └─ phase_name                          (dataset)
 """
+    
 
 class NXstress_IO:
     ########################################
@@ -68,7 +71,7 @@ class NXstress_IO:
     @validate_call
     def _validateWorkspace(cls, ws: HidraWorkspace):
         logs = ws.sample_log_names
-        for k in required_logs:
+        for k in REQUIRED_LOGS:
             if k not in logs:
                 raise ValueError(f"NXstress requires log '{k}', which is not present")
     
