@@ -17,9 +17,53 @@ REQUIRED PARAMETERS FOR NXstress:
 │   ├─ name                                (dataset)
 │   ├─ source                              (NXsource, group)
 │   ├─ detector                            (NXdetector, group)
-│   └─ mask (optional)                     (NXcollection, group)
+│   └─ masks (optional)                     (NXcollection, group)
 """
 
+class _Masks:
+    # `INSTRUMENT/masks` (NXcollection) is allowed by the `NXstress` schema,
+    #    but is not specified by the schema.
+
+    # Masks are stored by name.
+    # Mask names must be distinct over both <detector masks> and <solid angle masks>:
+    #   this allows us to successfully use the mask name as a suffix tag on other groups,
+    #   without requiring the same sub-categorization for those groups.
+
+    def _init_group(cls, instrument: NXinstrument) -> :
+        # initialize the `INSTRUMENT/mask` group
+        if 'masks' in instrument:
+            raise RuntimeError("Usage error: 'INSTRUMENT/masks' group already exists.")
+
+        masks = NXcollection()
+        masks['names'] = NXfield(np.empty((0,), dtype=vlen_str_dtype),
+                                 maxshape=(None,), chunks=chunk_shape)
+        masks['detector'] = NXcollection()
+        masks['solid_angle'] = NXcollection()
+        instrument['masks'] = mask
+        return instrument['masks']
+
+    def write_masks(cls, instrument: NXinstrument, ws: HidraWorkspace, bool detectorMasks = True):
+        # write or append masks to the `INSTRUMENT/masks` group
+        masks = cls._init_group(instrument)
+        names = []
+        
+        # Unify the `_mask_dict` to a standard Python `dict`.
+        _masks = ws._mask_dict.copy()
+        if not appending and bool(ws._default_mask):
+            _masks[DEFAULT_TAG] = ws._default_mask
+        
+        dest = masks['detector'] if detectorMasks else masks['solid_angle']
+        for mask in _masks:
+            if mask in names:
+                raise RuntimeError(
+                    f'Usage error: mask "{name}" has already been written:\n'
+                    + '  names must be distinct over both detector and solid-angle masks'
+                )
+            names.append(mask)
+            dest[mask] = NXfield(_masks[mask])
+        masks['names'].resize((len(names),))
+        masks['names'] = names
+    
 class Instrument_IO:
     ########################################
     # ALL methods must be `classmethod`.  ##

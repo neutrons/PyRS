@@ -49,6 +49,10 @@ def NXSTRESS_REQUIRED_NAME(StrEnum):
     #   and should not be changed.
     PEAK_PARAMETERS = ('peak_parameters', False, NXparameters)
     BACKGROUND_PARAMETERS = ('background_parameters', False, NXparameters)
+    DIFFRACTOGRAM = ('diffractogram', False, NXfield)
+    DIFFRACTOGRAM_ERRORS = ('diffractogram_errors', False, NXfield)
+    FIT = ('fit', False, NXfield)
+    FIT_ERRORS = ('fit_errors', False, NXfield)
 
     def __new__(cls, value, allowMultiple: bool, nxClass: NXgroup):
         obj = str.__new__(cls, value)
@@ -59,9 +63,22 @@ def NXSTRESS_REQUIRED_NAME(StrEnum):
 
 EFFECTIVE_BACKGROUND_PARAMETERS = ['A0', 'A1', 'A2']
 
-def group_naming_scheme(base_name: str, instance: int | str) -> str:
+# Name or suffix corresponding to the default dataset:
+# -- when a group name uses this as a suffix tag (e.g. multiple FIT (NXprocess) groups, one for each mask)
+#    this default tag should be _omitted_ from the group name.
+# -- presently this is only used for masks, to allow multiple FIT groups.
+DEFAULT_TAG = '_DEFAULT_'
+
+def group_naming_scheme(base_name: str, suffix: int | str) -> str:
     # Generate the name for an HDF5 group, allowing for multiple group instances:
     #   instance: 
-    #     int: enumerated group names, '_1' is usually omitted;
-    #     str: special group names (e.g. 'diffractogram'), delineated by tag
-    return f'{base_name}' + (f'_{instance}' if isinstance(instance, str) or instance > 1 else '')
+    #     int: enumerated group names: '_1' is omitted;
+    #     str: group names (e.g. 'FIT' (NXprocess)), delineated using a tag suffix: '__DEFAULT_' is omitted.
+    tag = ''
+    if isinstance(suffix, int) and suffix > 1\
+        or isinstance(suffix, str) and suffix != DEFAULT_TAG:
+      tag = f'_{suffix}'
+    else:
+      raise f'`group_naming_scheme`: not implemented for "{suffix}" suffix'
+    return f'{base_name}{tag}'
+

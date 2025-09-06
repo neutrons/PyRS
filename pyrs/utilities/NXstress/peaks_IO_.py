@@ -67,16 +67,16 @@ class Peaks_IO:
                               maxshape=(None,), chunks=chunk_shape, fillvalue=np.nan)        
         peaks['qz'].attrs['units'] = '1'        
 
-        peaks['peak_profile'] = NXfield(np.empty((0,), dtype=vlen_str_dtype),
+x        peaks['peak_profile'] = NXfield(np.empty((0,), dtype=vlen_str_dtype),
                                         maxshape=(None,), chunks=chunk_shape)
-        peaks['background'] = NXfield(np.empty((0,), dtype=vlen_str_dtype),
+x        peaks['background'] = NXfield(np.empty((0,), dtype=vlen_str_dtype),
                                       maxshape=(None,), chunks=chunk_shape)
         
-        peaks['params_name'] = NXfield(np.empty((0, N_param), dtype=vlen_str_dtype),
+x        peaks['params_name'] = NXfield(np.empty((0, N_param), dtype=vlen_str_dtype),
                                        maxshape=(None, N_param), chunks=chunk_shape)        
-        peaks['params_value'] = NXfield(np.empty((0, N_param), dtype=np.float64),
+x        peaks['params_value'] = NXfield(np.empty((0, N_param), dtype=np.float64),
                                         maxshape=(None, N_param), chunks=chunk_shape)        
-        peaks['params_error'] = NXfield(np.empty((0, N_param), dtype=np.float64),
+x        peaks['params_error'] = NXfield(np.empty((0, N_param), dtype=np.float64),
                                         maxshape=(None, N_param), chunks=chunk_shape)        
 
         peaks['center'] = NXfield(np.empty((0,), dtype=np.float64),
@@ -89,9 +89,9 @@ class Peaks_IO:
         peaks['center_type'] = NXfield(np.empty((0,), dtype=vlen_str_dtype),
                                        maxshape=(None,), chunks=chunk_shape)        
 
-        peaks['fit_costs'] = NXfield(np.empty((0,), dtype=np.float64),
+x        peaks['fit_costs'] = NXfield(np.empty((0,), dtype=np.float64),
                                      maxshape=(None,), chunks=chunk_shape)
-        peaks['fit_status'] = NXfield(np.empty((0,), dtype=vlen_str_dtype),
+x        peaks['fit_status'] = NXfield(np.empty((0,), dtype=vlen_str_dtype),
                                       maxshape=(None,), chunks=chunk_shape)
        
         ## Wavelength doesn't go here: it should go to NXinstrument (or NXmonochromator).
@@ -110,13 +110,14 @@ class Peaks_IO:
         peaks['sx'].attrs['units'] = logs.units('sx')        
 
 
-x These go in `FIT/peak_parameters` !        
+x These go in `PEAKS/center...` !        
 x        peaks['d_reference'] = NXfield(np.empty((0,), dtype=np.float64),
                                       maxshape=(None,), chunks=chunk_shape)
          
 x        peaks['d_reference_error'] = NXfield(np.empty((0,), dtype=np.float64),
                                       maxshape=(None,), chunks=chunk_shape)
-        
+
+x NOT sure about these?        
 x        peaks['strain'] = NXfield(np.empty((0,), dtype=np.float64),
                                       maxshape=(None,), chunks=chunk_shape)
         
@@ -186,8 +187,8 @@ x        peaks['strain_error'] = NXfield(np.empty((0,), dtype=np.float64),
         peaks['wavelength'].resize((new_len,))
         peaks['d_reference'].resize((new_len,))
         peaks['d_reference_error'].resize((new_len,))
-        peaks['strain'].resize((new_len,))
-        peaks['strain_error'].resize((new_len,))
+?        peaks['strain'].resize((new_len,))
+?        peaks['strain_error'].resize((new_len,))
         
         peaks['scan_point'][curr_len:] = scan_point
         peaks['h'][curr_len:] = h
@@ -206,5 +207,5 @@ x        peaks['strain_error'] = NXfield(np.empty((0,), dtype=np.float64),
         peaks['wavelength'][curr_len:] = wavelength
         peaks['d_reference'][curr_len:] = d_reference
         peaks['d_reference_error'][curr_len:] = d_reference_error
-        peaks['strain'][curr_len:] = strain
-        peaks['strain_error'][curr_len:] = strain_error        
+?        peaks['strain'][curr_len:] = strain
+?        peaks['strain_error'][curr_len:] = strain_error        
