@@ -6,10 +6,6 @@ This class provides I/O for the `peaks` `NXreflections` subgroup:
   this subgroup includes fitted peak data, as used in reduction.
 """
 
-import numpy as np
-from nexusformat.nexus import NXentry, NXreflections, NXfield, NXroot, save
-
-
 """
 REQUIRED PARAMETERS FOR NXstress:
 ---------------------------------
@@ -20,11 +16,37 @@ REQUIRED PARAMETERS FOR NXstress:
 │   ├─ l                                   (dataset)
 │   └─ phase_name                          (dataset)
 """
+
+import numpy as np
+from nexusformat.nexus import NXentry, NXreflections, NXfield
+from pydantic import validate_call
+import re
+from typing import Tuple
+
 class Peaks_IO:
     ########################################
     # ALL methods must be `classmethod`.  ##
     ########################################
 
+    @classmethod
+    def _parse_peak_tag(cls, tag: str) -> Tuple[str, Tuple[int, int, int]]:
+        # Parse a peak-tag string into its <phase name> and Miller indices (h, k, l).
+        maybeHKL = max(re.finditer(r"\d+", s), key=lambda m: len(m.group(0)), default=None)
+        if maybeHKL is None or len(maybeHKL.group(0)) % 3 != 0:
+            raise RuntimeError(
+                f"Unable to parse peak tag '{tag}' into its its <phase name> and Miller indices (h, k, l)."
+            )
+        # Extract <phase name> as the rest of the tag.
+        i, j = maybeHKL.span()
+        phase = tag[:i] + tag[j:]
+        
+        # Extract (h, k, l)
+        maybeHKL = maybeHKL.group(0)
+        N_d = len(maybeHKL) // 3
+        h, k, l = int(maybeHKL[0: N_d]), int(maybeHKL[N_d: 2 * N_d]), int(maybeHKL[2 * N_d: 3 * N_d])
+        
+        return phase, (h, k, l)
+        
     @classmethod
     def _init_group(cls, entry: NXentry, peaks: PeakCollection, logs: SampleLogs) -> NXreflections:
         # Initialize the 'peaks' group
@@ -128,8 +150,10 @@ x        peaks['strain_error'] = NXfield(np.empty((0,), dtype=np.float64),
 
         scan_point = peaks.get_sub_runs()
         N = len(scan_points)
-        (h, k, l), phase_name = cls._parsePeakTag(peaks.peak_tag)
-        h, k, l, phase_name = np.array((h,) * N), np.array((k,) * N), np.array((l,) * N), np.array((phase_name,) * N)
+        phase_name, (h, k, l) = cls._parse_peak_tag(peaks.peak_tag)
+        # Convert to datasets wtih one entry per scan point.
+        phase_name = np.array((phase_name,) * N) 
+        h, k, l = np.array((h,) * N), np.array((k,) * N), np.array((l,) * N)
 
         peak_profile = np.array(peaks.peak_profile,) * N)
         background = np.array(peaks.background_type,) * N)
