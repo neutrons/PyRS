@@ -26,20 +26,14 @@ class Peaks_IO:
     ########################################
 
     @classmethod
-    def _init_group(cls, nx: NXFile, peaks: PeakCollection, logs: SampleLogs) -> NXreflections:
-        # Initialize (or re-initialize) the 'peaks' group
+    def _init_group(cls, entry: NXentry, peaks: PeakCollection, logs: SampleLogs) -> NXreflections:
+        # Initialize the 'peaks' group
 
         # assumes 'entry' already exists
-        if 'peaks' not in nx.root['entry']:
-            # Create an NXreflections (PEAKS) group under entry
-            nx.root['entry']['peaks'] = NXreflections()
-        peaks = nx.root['entry']['peaks']
-
-        # Create extensible (resizable) fields for h, k, l, etc.
-        chunk_shape = (100,)             # Reasonable chunk size (tunable)
-        
-        # Use h5py's special dtype for variable-length UTF-8 strings
-        vlen_str_dtype = h5py.string_dtype(encoding='utf-8')
+        if 'peaks' in entry:
+            raise RuntimeError("Usage error: PEAKS (NXreflections) group already initialized.")
+        entry['peaks'] = NXreflections()
+        peaks = entry['peaks']
 
         peaks['scan_point'] = NXfield(np.empty(initial_shape, dtype=np.int32),
                                       maxshape=max_shape, chunks=chunk_shape)

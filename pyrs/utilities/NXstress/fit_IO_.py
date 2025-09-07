@@ -127,7 +127,7 @@ class _DIFFRACTOGRAM:
         
     @classmethod
     def _init_data(cls, fit: NXprocess, ws: HidraWorkspace, maskName: str, peaks: PeakCollection) -> NXparameters:
-        # required DIFFRACTION ('diffraction_data') subgroup
+        # required DIFFRACTOGRAM (NXdata) subgroup:
         dg = cls._init_group(fit)
         two_theta = ws._2theta_matrix
         if not maskName in ws._diff_data_set:
@@ -138,20 +138,29 @@ class _DIFFRACTOGRAM:
             NXSTRESS_REQUIRED_NAME.FIT,
             NXSTRESS_REQUIRED_NAME.FIT_ERRORS
         ] 
-        dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM] = NXfield(ws._diff_data_set[maskName], dtype=FIELD_DTYPE.FLOAT_DATA)
-        dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM].attrs["interpretation"] = "spectrum"
-        dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM].attrs["units"] = "counts"
- 
-        dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM_ERRORS] = NXfield(???)
-        dg[NXSTRESS_REQUIRED_NAME.FIT] = NXfield(???)
-        dg[NXSTRESS_REQUIRED_NAME.FIT_ERROR] = NXfield(???)
-        
- 
         dg.attrs['axes'] = ['scan_point', 'two_theta']
         dg['scan_point'] = NXfield(ws.get_sub_runs())
         dg['scan_point'].attrs['units'] = ''
         dg['two_theta'] = NXfield(two_theta)
         dg['two_theta'].attrs['units'] = 'degree'
+        
+        
+        dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM] = NXfield(ws._diff_data_set[maskName], dtype=FIELD_DTYPE.FLOAT_DATA)
+        dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM].attrs['interpretation'] = 'spectrum'
+        dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM].attrs['units'] = 'counts'
+ 
+        dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM_ERRORS] = NXfield(ws._var_data_set[maskName], dtype=FIELD_DTYPE.FLOAT_DATA)
+        
+        # ENTRY/FIT/DIFFRACTOGRAM/fit, fit_errors: required datasets: these should contain the spectrum reconstructed from the fitted model.
+        #   We don't seem to have this yet anywhere in PyRS, so it will be initialized to NaN.
+        dg[NXSTRESS_REQUIRED_NAME.FIT] = NXfield(np.empty((0, 0), dtype=np.float64),
+                                                 maxshape=(None, None), chunks=chunk_shape, fillvalue=np.nan)
+        dg[NXSTRESS_REQUIRED_NAME.FIT].attrs['interpretation'] = 'spectrum'
+        dg[NXSTRESS_REQUIRED_NAME.FIT].attrs['units'] = 'counts'                                        
+        dg[NXSTRESS_REQUIRED_NAME.FIT_ERROR] = NXfield(np.empty((0, 0), dtype=np.float64),
+                                                       maxshape=(None, None), chunks=chunk_shape, fillvalue=np.nan)
+        dg[NXSTRESS_REQUIRED_NAME.FIT_ERROR].attrs['units'] = 'counts'                                        
+        
 
 class FIT_IO:
     ########################################
@@ -160,12 +169,12 @@ class FIT_IO:
 
     ##
     ## Notes:
-    ## -- Under 'NXstress', there can be multiple FIT (NXprocess) groups in the file, but the results from only 
+    ## -- Under 'NXstress', there can be multiple FIT (NXprocess) groups in the NXentry, but the results from only 
     ##    one of these should be promoted to the canonical fit results in the PEAKS (NXreflections) group.
-    ## -- In case we need to promote multiple FIT results, multiple ENTRY (NXentry) groups should be used; each
-    ##    with a separate FIT (NXprocess) and PEAKS (NXreflections) subgroups.
     ## -- FIT (NXprocess) contains the as-fit peak and background parameters, including any information associated
     ##    with the fitting process.  In this section, any appropriate coordinate system may be used.
+    ## -- Not yet in PyRS: FIT/DIFFRACTOGRAM/fit, fit_errors: these datasets should contain the reconstructed spectrum
+    #     from the fitted model.  We don't seem to have methods to do this yet, so these are initialized to NaN.
     ## -- The canonical fit results in PEAKS (NXreflections) should contain the final results, converted to the final
     ##    coordinate system (e.g. usually `d-spacing`).
     ##
