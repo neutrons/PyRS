@@ -77,8 +77,11 @@ class NXstress_IO:
     
     @classmethod
     @validate_call
-    def _init_group(cls, nx: NXFile, ws: HidraWorkspace) -> NXEntry:
-        # Write the attributes required at the outermost level.
+    def _init_group(cls, ws: HidraWorkspace) -> NXEntry:
+        # Create the NXentry and initialize any required attributes.
+  
+        ## TODO: support appending to an existing entry.
+        
         """
         ├─ @definition                             (attribute: "NXstress")
         ├─ @start_time                             (attribute: ISO8601 string)
@@ -87,40 +90,76 @@ class NXstress_IO:
         :: apart from 'definition', these attributes may also be
              lists by subrun.
         """
-        
-        entry = None
-        if 'entry' in nx.root:
-            entry = nx.root['entry']
-        else:
-            entry = NXentry()
-            nx.root['entry'] = NXentry()
-            entry['definition'] = 'NXstress'
-            
-            # lists of 'start_time', 'end_time' for all subruns
-            entry['start_time'] = ws.get_sample_log_values('start_time')
-            entry['end_time'] = ws.get_sample_log_values('end_time')
-            
-            # the type of the primary strain calculation:
-            #   this might also be 'two-theta', but 'd-spacing' seems more likely
-            entry['processingtype'] = 'd-spacing'
+        entry = NXentry()
+        entry['definition'] = 'NXstress'
+
+        # lists of 'start_time', 'end_time' for all subruns
+        entry['start_time'] = ws.get_sample_log_values('start_time')
+        entry['end_time'] = ws.get_sample_log_values('end_time')
+
+        # the type of the primary strain calculation:
+        #   this might also be 'two-theta', but 'd-spacing' seems more likely
+        entry['processingtype'] = 'd-spacing'
+
         return entry 
-             
-        
+                     
     @classmethod
     @validate_call
-    def write(cls, nx: NXFile, ws: HidraWorkspace):
-        # Validate that all properties required by NXstress are present.
-        cls._validateWorkspace(ws)
+    def write(cls, nx: NXFile, ws: HidraWorkspace, peaks: PeakCollection, entry_number: int = 1):
+        # Add an NXstress NXentry tree to a NeXus-format HDF5 file:
+        #   this form allows _multiple_ NXentry to be added, each with its own <entry number>.
+        #   For example, an entry could be added for each distint set of sample conditions.
         
-        # add required attributes, when initializing the file
-        cls._init_group(nx, ws)
+        ## TODO: support appending additional subruns (, or masks) to an existing entry.
+        
+        ######################################################
+        ## Recommended usage:                               ##
+        ## -------------------------------------------------##
+        ## from nexusformat import NXfile                   ##
+        ## ...                                              ##
+        ## ws: HidraWorkspace                               ##
+        ## peaks: PeakCollection                            ##
+        ## ...                                              ##
+        ## # To write the first (, or only) entry:          ##
+        ## with NXfile(<file name>.nxs, 'w') as f:          ##
+        ##     NXstress.write(f, ws, peaks)                 ##
+        ## -------------------------------------------------##
+        ## # To write an additional entry:                  ##
+        ## with NXfile(<file name>.nxs, 'a') as f:          ##
+        ##     NXstress.write(f, ws, peaks, entry_number=2) ##
+        ######################################################
+        
+        # Verify that all properties required by NXstress are present.
+        cls._validateWorkspace(ws)
+
+        # Do not assume that this is the only NXentry:
+        #   start with the existing NXroot.
+        root: NXroot = nx.root       
+        entry_name = group_naming_scheme(GROUP_NAME.ENTRY, entry_number)
+        if entry_name in root:
+            raise RuntimeError("Not implemented: appending to existing entry '{entry_name}'.")
+        
+        # Initialize this NXentry, and add required attributes.
+        entry = cls._init_group(ws)
+        root[entry_name] = entry
         
         # 'input_data' group
-        InputData_IO.writeSubruns(nx, ws)
+        entry[GROUP_NAME.INPUT_DATA] = _InputData.init_group(nx, ws)
         
         # 'instrument' group
-        # Q: 'calibrated' or not, shifted detectors or NOT -- how does 'HidraProjectFile' deal with this?
-        Instrument_IO.writeInstrument(nx, ws.get_instrument_setup(), ws.get_detector_shift())
+        entry[GROUP_NAME.INSTRUMENT] = _Instrument.init_group(ws)
         
-        # 'sample' group
+        # 'SAMPLE_DESCRIPTION' group
+        entry[GROUP_NAME.SAMPLE_DESCRIPTION] = _Sample.init_group(ws.sampleLogs)
+        
+        # 'FIT' group[s] (one for each detector mask):
+        for mask in ws._diff_data_set:
+            ## TODO: mask naming (and storage) is messed up.  They all need to be accessed the same way,
+            ##   regardless of whether or not the "default" mask is being accessed.
+            ##   Here we assume that this loop also accesses data for the _DEFAULT_ mask, and that the default
+            ##   mask has the '_DEFAULT_' name, and not some other name, such as 'main'?!          
+            entry[group_naming_scheme(GROUP_NAME.FIT, mask)] = _Fit.init_group(mask, ws, peaks, ws.sampleLogs)
+        
+        # 'PEAKS' group
+        entry[GROUP_NAME.PEAKS] = _Peaks.init_group(peaks, ws.sampleLogs)
         

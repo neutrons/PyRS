@@ -17,42 +17,42 @@ from nexusformat.nexus import NXdata, Nxfile
 import numpy as np
 from pydantic import validate_call
 
-class InputData_IO:
+class _InputData:
     ########################################
     # ALL methods must be `classmethod`.  ##
     ########################################
 
     @classmethod
     @validate_call
-    def writeSubruns(cls, nx: NXFile, ws: HidraWorkspace):
-        # Write input data for all subruns in the workspace.
+    def init_group(cls, ws: HidraWorkspace, data: NXdata = None):
+        # Initialize the input-data group.
         scan_points = ws.get_sub_runs()
         scans = np.stack([ws.get_detector_counts(p) for p in scan_points])
         
         # TODO: append to the group, if it already exists.
-        if 'input_data' in nx['entry']:
+        if data is not None:
             raise RuntimeError("not implemented: append detector_counts data to NXstress file")
-        
-        data_group = NXdata()
-        data_group['detector_counts'] = scans
-        data_group['scan_point'] = scan_points
+        else:        
+            data = NXdata()
+        data['detector_counts'] = scans
+        data['scan_point'] = scan_points
 
         # Set attributes for axes and signal
-        data_group.attrs['signal'] = 'detector_counts'
-        data_group.attrs['axes'] = ['scan_point', '.']
-        nx['entry']['input_data'] = data_group
+        data.attrs['signal'] = 'detector_counts'
+        data.attrs['axes'] = ['scan_point', '.']
+        
+        return data
 
     @classmethod
     @validate_call
-    def readSubruns(cls, ws: HidraWorkspace, nx: NXFile):
-        # Initialize `HidraWorkspace` detector_counts data.
+    def readSubruns(cls, ws: HidraWorkspace, nx: NXFile, data: NXdata):
+        # Initialize `HidraWorkspace` detector_counts from input-data group.
         
         # TODO: append to the `HidraWorkspace`, if any detector_counts data already exists.
         if len(ws.get_sub_runs():
             raise RuntimeError("not implemented: append detector_counts data to workspace")
         
-        data_group = nx['entry']['input_data']
-        scan_points = data_group['scan_point']
-        scans = data_group['detector_counts']
+        scan_points = data['scan_point']
+        scans = data['detector_counts']
         for n, p in enumerate(scan_points):
             ws.set_raw_counts(p, scans[n])

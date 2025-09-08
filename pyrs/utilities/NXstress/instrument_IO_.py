@@ -33,22 +33,22 @@ class _Masks:
     #   this allows us to successfully use the mask name as a suffix tag on other groups,
     #   without requiring the same sub-categorization for those groups.
 
-    def _init_group(cls, instrument: NXinstrument) -> :
-        # initialize the `INSTRUMENT/mask` group
-        if 'masks' not in instrument:
-            # Allow append: both 'detector' and 'solid_angle' masks may exist,
-            #   and will need to be added in separate steps.
-            masks = NXcollection()
-            masks['names'] = NXfield(np.empty((0,), dtype=vlen_str_dtype),
-                                     maxshape=(None,), chunks=chunk_shape)
-            masks['detector'] = NXcollection()
-            masks['solid_angle'] = NXcollection()
-            instrument['masks'] = mask
-        return instrument['masks']
+    def _init(cls) -> NXcollection:
+        # initialize the `masks` (NXcollection) group
+        masks = NXcollection()
+        masks['names'] = NXfield(np.empty((0,), dtype=vlen_str_dtype),
+                                 maxshape=(None,), chunks=chunk_shape)
+        masks['detector'] = NXcollection()
+        masks['solid_angle'] = NXcollection()
 
-    def write_masks(cls, instrument: NXinstrument, ws: HidraWorkspace, bool detectorMasks = True):
+        return masks
+
+    def init_group(cls, ws: HidraWorkspace, bool detectorMasks = True, masks: NXcollection = None):
         # write or append masks to the `INSTRUMENT/masks` group
-        masks = cls._init_group(instrument)
+
+        # Allow append: both 'detector' and 'solid_angle' masks may exist,
+        #   and will need to be added in separate steps.
+        masks = masks if masks is not None else cls._init()
         names = masks['names'].aslist()
         appending = len(names) > 0
         
@@ -69,18 +69,19 @@ class _Masks:
             dest[mask] = NXfield(_masks[mask], units='')
         masks['names'].resize((len(names),))
         masks['names'] = names
-
+        
+        return masks
     
-class Instrument_IO:
+class _Instrument:
     ########################################
     # ALL methods must be `classmethod`.  ##
     ########################################
 
     @classmethod
     @validatecall
-    def _init_data(cls, entry: NXentry, ws: HidraWorkspace):
+    def init_group(cls, ws: HidraWorkspace):
         """
-        Create a new NXinstrument subtree.
+        Create a new NXinstrument group subtree.
         Conventions:
           - Array datasets use explicit NumPy dtypes (np.int64 / np.float64).
           - Python native int/float are used for scalars.
@@ -195,17 +196,16 @@ class Instrument_IO:
             note = None
 
         inst = NXinstrument(name='HB2B')
-        inst["source"] = src
-        inst["monochromator"] = mono
-        inst["detector"] = det
-        inst['beam_intensity_profile'] = beam
+        inst[GROUP_NAME.SOURCE] = src
+        inst[GROUP_NAME.MONOCHROMATOR] = mono
+        inst[GROUP_NAME.DETECTOR] = det
+        inst[GROUP_NAME.BEAM] = beam
         if note is not None:
             inst["detector_calibration"] = note
         
         # Add an optional 'masks' subgroup, to contain any detector or solid-angle masks.
         # For the moment, we only write detector masks -- the `HidraWorkspace` doesn't
         # yet seem to provide a way to distinguish between a detector and a solid-angle mask.
-        _Masks.write_masks(inst, ws, detectorMasks=True)
+        inst[GROUP_NAME.MASKS] = _Masks.init_group(ws, detectorMasks=True)
         
         return inst
-        

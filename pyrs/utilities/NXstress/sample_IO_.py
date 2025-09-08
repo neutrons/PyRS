@@ -24,7 +24,7 @@ from pyrs.dataobjects.constants import HidraConstants
 from pyrs.dataobjects.samplelogs import SampleLogs
 
 
-class Sample_IO:
+class _Sample:
     ########################################
     # ALL methods must be `classmethod`.  ##
     ########################################
@@ -40,44 +40,38 @@ class Sample_IO:
     }
 
     @classmethod
-    def writeSampleDescription(cls, entry: NXentry, sampleLogs: SampleLogs) -> NXsample:
+    def init_group(cls, sampleLogs: SampleLogs) -> NXsample:
         """
-        Populate ENTRY/SAMPLE_DESCRIPTION (NXsample) following NXstress schema:
+        Create SAMPLE_DESCRIPTION (NXsample) group following NXstress schema:
           - subrun[nP]: link to the scanpoint axis
           - vx[nP], vy[nP], vz[nP]: sample positions in mm (from SampleLogs, converted via PointList)
           - name: sample descriptive name if present in logs; otherwise 'unknown'
           - chemical_formula: sample formula if present in logs; otherwise 'unknown'
           - [optional fields, only if present in the logs]: 'temperature', 'stress_field'
-        Assumptions:
-          - nx contains an existing NXentry at path 'ENTRY'
-          - this is the first write of 'SAMPLE_DESCRIPTION' for this file
         """
         # Create SAMPLE_DESCRIPTION as an NXsample
         sd = NXsample()
-        entry["sample"] = sd  # creates ENTRY/SAMPLE_DESCRIPTION
 
-        # 1) Sample name (required by NXstress). Try the expected log key; fall back to 'unknown'.
-        # there's only one value for 'SampleName'
-        sd["name"] = sampleLogs.get(HidraConstants.SAMPLE_NAME, ('unknown',))[0]
+        # Name of sample (required): try the expected log key; fall back to 'unknown'.
+        sd["name"] = NXfield(sampleLogs.get(HidraConstants.SAMPLE_NAME, ('unknown',))[0])
 
-        # 2) Link scanpoints to subruns: subrun[nP] (unitless)
+        # Link scanpoints to subruns: subrun[nP] (unitless)
         # SampleLogs.subruns is a SubRuns object; use .rawcopy() to get a NumPy array
         scan_points = sampleLogs.subruns.rawcopy()
-        sd['scan_point'] = NXfield(scan_points.astype(np.int64), units='')
+        sd['scan_point'] = NXfield(scan_points.astype(FIELD_DTYPE.INT_DATA), units='')
         N_scan = len(scan_points)
 
         # 3) Sample positions per scanpoint (mm). Use SampleLogs.getpointlist().
-        # PointList returns vx, vy, vz arrays in millimeters by design.
+        # PointList returns vx, vy, vz arrays in millimeters.
         pl = sampleLogs.getpointlist()
         for axis_name, axis_values in zip(HidraConstants.SAMPLECOORDINATENAMES, (pl.vx, pl.vy, pl.vz)):
-            vs = np.asarray(axis_values, dtype=np.float64)
+            vs = np.asarray(axis_values, dtype=FIELD_DTYPE.FLOAT_DATA)
             if vs.shape[0] != N_scan:
                 raise RuntimeError(
                     f"NXstress required log '{axis_name}' has unexpected shape.\n"
                     f"  First axis should be <scan point> (== {N_scan}), not {vs.shape[0]}"
                 ) 
-            f = NXfield(vs, name=axis_name)
-            f.attrs["units"] = "mm"
+            f = NXfield(vs, name=axis_name, units='mm')
             sd[axis_name] = f
 
         # Optionally, add other NXstress SAMPLE_DESCRIPTION fields if available in logs:
@@ -85,11 +79,12 @@ class Sample_IO:
         #   - `HidraConstants.TEMPERATURE`[nTemp] (NXTEMPERATURE)
         #   - `HidraConstants.STRESS_FIELD`[nsField] (with `@direction` attr = 'x'|'y'|'z')
         # The lines below are safe no-ops if the corresponding logs are not present.
-        sd["chemical_formula" = sampleLogs.get(HidraConstants.CHEMICAL_FORMULA, ('unknown',))[0]
+        sd["chemical_formula"] = NXfield(sampleLogs.get(HidraConstants.CHEMICAL_FORMULA, ('unknown',))[0])
 
         # Example of temperature if present (stored as numeric array and units carried separately)
         if HidraConstants.TEMPERATURE in sampleLogs:
-            tvals = np.asarray(sampleLogs[tkey], dtype=np.float64)
+            tkey = HidraConstants.TEMPERATURE
+            tvals = np.asarray(sampleLogs[tkey], dtype=FIELD_DTYPE.FLOAT_DATA)
             tf = NXfield(tvals, name="temperature")
             tf.attrs["units"] = sampleLogs.units(tkey) or "K"
             sd["temperature"] = tf
@@ -101,7 +96,7 @@ class Sample_IO:
             #      <stress field> :: (<scan points>, ...)
             #      <stress field direction > :: {'x', 'y', 'z'}: scalar
             #              
-            sf = np.asarray(sampleLogs[HidraConstants.STRESS_FIELD], dtype=np.float64)
+            sf = np.asarray(sampleLogs[HidraConstants.STRESS_FIELD], dtype=FIELD_DTYPE.FLOAT_DATA)
             if sf.shape[0] != N_scan:
                 raise RuntimeError(
                     f"NXstress required log '{HidraConstants.STRESS_FIELD}' has unexpected shape.\n"

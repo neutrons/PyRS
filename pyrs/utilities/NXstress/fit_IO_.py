@@ -31,22 +31,12 @@ REQUIRED PARAMETERS FOR NXstress:
 │        └─ @signal                        (attribute: string)
 """
 
-class _Peak_parameters:
-     
-    @classmethod
-    @validate_call
-    def _init_group(cls, fit: NXprocess) -> NXparameters:
-        # initialize a new `peak_parameters` subgroup
-        if NXSTRESS_REQUIRED_NAME.PEAK_PARAMETERS in fit:
-            raise RuntimeError('usage error: re-initialization of 'FIT/peak_parameters' subgroup)
-        fit[NXSTRESS_REQUIRED_NAME.PEAK_PARAMETERS] = NXSTRESS_REQUIRED_NAME.PEAK_PARAMETERS.nxClass()
-        pp = fit[NXSTRESS_GROUP_NAME.PEAK_PARAMETERS]
-        return pp
+class _PeakParameters:
         
     @classmethod
-    def _init_data(cls, fit: NXprocess, peaks: PeakCollection) -> NXparameters:
+    def init_group(cls, peaks: PeakCollection) -> NXparameters:
         # required 'peak_parameters' subgroup
-        pp = cls._init_group(fit)
+        pp = NXparameters()
         
         peak_profile = peaks.peak_profile
         background_function = BackgroundFunction.getFunction(peaks.background_type)
@@ -87,21 +77,13 @@ class _Peak_parameters:
         return pp
           
 
-class _Background_parameters:
-     
-    @classmethod
-    def _init_group(cls, fit: NXprocess) -> NXparameters:
-        # initialize a new `background_parameters` subgroup
-        if NXSTRESS_REQUIRED_NAME.BACKGROUND_PARAMETERS in fit:
-            raise RuntimeError('usage error: re-initialization of 'FIT/background_parameters' subgroup)
-        fit[NXSTRESS_REQUIRED_NAME.BACKGROUND_PARAMETERS] = NXSTRESS_REQUIRED_NAME.BACKGROUND_PARAMETERS.nxClass()
-        bp = fit[NXSTRESS_GROUP_NAME.BACKGROUND_PARAMETERS]
-        return bp
+class _BackgroundParameters:
         
     @classmethod
+    @validate_call
     def _init_data(cls, fit: NXprocess, peaks: PeakCollection) -> NXparameters:
         # required 'background_parameters' subgroup
-        bp = cls._init_group(fit)
+        bp = NXparameters()
 
         background_function = BackgroundFunction.getFunction(peaks.background_type)
 
@@ -115,18 +97,14 @@ class _Background_parameters:
 class _DIFFRACTOGRAM:
     
     @classmethod
-    def _init_group(cls, fit: NXprocess, ws: HidraWorkspace) -> NXdata:
-        if GROUP_NAME.DIFFRACTOGRAM in fit:
-            raise RuntimeError(f"Usage error: re-initialization of `NXentry/FIT/DIFFRACTOGRAM` group.")
+    def _init(cls, ws: HidraWorkspace) -> NXdata:
         if not bool(ws._2theta_matrix):
-            raise RuntimeError("Usage error: cannot write NXstress file: workspace includes no reduced data.")
-        
+            raise RuntimeError("Usage error: cannot write NXstress file: workspace includes no reduced data.")        
         dg = NXdata()
-        fit[GROUP_NAME.DIFFRACTOGRAM] = dg
         return dg 
         
     @classmethod
-    def _init_data(cls, fit: NXprocess, ws: HidraWorkspace, maskName: str, peaks: PeakCollection) -> NXparameters:
+    def init_group(cls, ws: HidraWorkspace, maskName: str, peaks: PeakCollection) -> NXparameters:
         # required DIFFRACTOGRAM (NXdata) subgroup:
         dg = cls._init_group(fit)
         two_theta = ws._2theta_matrix
@@ -161,8 +139,10 @@ class _DIFFRACTOGRAM:
                                                        maxshape=(None, None), chunks=chunk_shape, fillvalue=np.nan)
         dg[NXSTRESS_REQUIRED_NAME.FIT_ERROR].attrs['units'] = 'counts'                                        
         
+        return dg
+        
 
-class FIT_IO:
+class _FIT:
     ########################################
     # ALL methods must be `classmethod`.  ##
     ########################################
@@ -179,26 +159,35 @@ class FIT_IO:
     ##    coordinate system (e.g. usually `d-spacing`).
     ##
     @classmethod
-    def _init_group(cls, entry: NXentry, maskName: str, peaks: PeakCollection, logs: SampleLogs) -> NXprocess:
+    def _init(cls, maskName: str, logs: SampleLogs) -> NXprocess:
         # Initialize the 'FIT' (NXprocess) group:
         #   in case of multiple 'FIT' groups: <mask name> is used as a name suffix.
 
         name = group_naming_scheme(GROUP_NAME.FIT, maskName)
         if name in entry:
             raise RuntimeError(f"Usage error: FIT (NXprocess) group '{name}' already exists in the NXstress file.")
-        fit = NXprocess
-        entry[name] = fit
-        return fit
+        fit = NXprocess()
         
-        fit = nx.root['entry']['reduced_data']
+        fit['name'] = f'NXprocess group for mask {maskName}'
+        # Required information fields:
+        fit['raw_data_file'] = NXfield('')
+        fit['date'] = NXfield('')
+        fit['program'] = NXfield('PyRS')
+        fit['description'] = NXnote()
+        fit['description']['detector_mask'] = NXfield(maskName)
+
+        return fit
     
-    def _init_data(cls, entry: NXentry, maskName: str, ws: HidraWorkspace, peaks: PeakCollection, logs: SampleLogs):
-        # Add data to a new 'FIT' (NXprocess) group:
-        #   in case of multiple 'FIT' groups: <mask name> is used as a name suffix.
+    def init_group(cls, maskName: str, ws: HidraWorkspace, peaks: PeakCollection, logs: SampleLogs):
+        # Initialize a new 'FIT' (NXprocess) group:
+        #   in case of multiple 'FIT' groups: <mask name> should be used as a name suffix
+        #   (see `_definitions.group_naming_scheme`).
         
         ## Under `NXstress`: `FIT` (NXprocess) groups contain peak and background-fit results, including any
         ##    information relevant to the fitting process used.
-        fit = cls._init_group(entry, maskName)
-        _Peak_parameters._init_data(fit, peaks)
-        _Background_parameters._init_data(fit, peaks)
-        _DIFFRACTOGRAM._init_data(fit, ws, maskName, peaks)
+        fit = cls._init(entry, maskName, logs)
+        fit[GROUP_NAME.PEAK_PARAMETERS] = _Peak_parameters.init_group(peaks)
+        fit[GROUP_NAME.BACKGROUND_PARAMETERS] = _Background_parameters.init_group(peaks)
+        fit[GROUP_NAME.DIFFRACTOGRAM] = _Diffractogram.init_group(ws, maskName, peaks)
+        
+        return fit
