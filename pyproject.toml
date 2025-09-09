@@ -34,6 +34,11 @@ artifacts = [
 [tool.hatch.build.targets.wheel]
 packages = ["pyrs"]
 
+[tool.pytest.ini_options]
+pythonpath = [
+  "tests"
+]
+
 [tool.versioningit.vcs]
 method = "git"
 default-tag = "0.1.0"
@@ -67,6 +72,8 @@ matplotlib = "*"
 numpy = "*"
 pandas = "*"
 types-six = "*"
+nexusformat = ">=1.0.8,<2"
+pydantic = ">=2.7.3,<3"
 
 [tool.pixi.pypi-dependencies]
 # PyPI dependencies, including this package to allow local editable installs
