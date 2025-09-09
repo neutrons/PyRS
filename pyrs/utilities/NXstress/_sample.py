@@ -1,5 +1,5 @@
 """
-sample_IO
+pyrs/utilities/NXstress/_sample.py
 
 Private service class for NeXus NXstress-compatible I/O.
 This class provides I/O for the `sample` `NXsample` subgroup.
@@ -20,8 +20,12 @@ REQUIRED PARAMETERS FOR NXstress:
 from typing import Optional
 import numpy as np
 from nexusformat.nexus import NXFile, NXsample, NXfield
+
 from pyrs.dataobjects.constants import HidraConstants
-from pyrs.dataobjects.samplelogs import SampleLogs
+from pyrs.dataobjects.sample_logs import SampleLogs
+from pyrs.utilities.pydantic_transition import validate_call_
+
+from._definitions import FIELD_DTYPE
 
 
 class _Sample:
@@ -32,7 +36,7 @@ class _Sample:
     # Log keys included in the NXstress schema.
     NXstress_logs = {
         HidraConstants.SAMPLE_NAME,
-        *HidraConstants.SAMPLECOORDINATENAMES,
+        *HidraConstants.SAMPLE_COORDINATE_NAMES,
         HidraConstants.CHEMICAL_FORMULA,
         HidraConstants.TEMPERATURE,
         HidraConstants.STRESS_FIELD,
@@ -56,16 +60,16 @@ class _Sample:
         sd["name"] = NXfield(sampleLogs.get(HidraConstants.SAMPLE_NAME, ('unknown',))[0])
 
         # Link scanpoints to subruns: subrun[nP] (unitless)
-        # SampleLogs.subruns is a SubRuns object; use .rawcopy() to get a NumPy array
-        scan_points = sampleLogs.subruns.rawcopy()
-        sd['scan_point'] = NXfield(scan_points.astype(FIELD_DTYPE.INT_DATA), units='')
+        # SampleLogs.subruns is a SubRuns object; use .raw_copy() to get a NumPy array
+        scan_points = sampleLogs.subruns.raw_copy()
+        sd['scan_point'] = NXfield(scan_points.astype(FIELD_DTYPE.INT_DATA.value), units='')
         N_scan = len(scan_points)
 
-        # 3) Sample positions per scanpoint (mm). Use SampleLogs.getpointlist().
+        # 3) Sample positions per scanpoint (mm). Use SampleLogs.get_pointlist().
         # PointList returns vx, vy, vz arrays in millimeters.
-        pl = sampleLogs.getpointlist()
-        for axis_name, axis_values in zip(HidraConstants.SAMPLECOORDINATENAMES, (pl.vx, pl.vy, pl.vz)):
-            vs = np.asarray(axis_values, dtype=FIELD_DTYPE.FLOAT_DATA)
+        pl = sampleLogs.get_pointlist()
+        for axis_name, axis_values in zip(HidraConstants.SAMPLE_COORDINATE_NAMES, (pl.vx, pl.vy, pl.vz)):
+            vs = np.asarray(axis_values, dtype=FIELD_DTYPE.FLOAT_DATA.value)
             if vs.shape[0] != N_scan:
                 raise RuntimeError(
                     f"NXstress required log '{axis_name}' has unexpected shape.\n"
@@ -84,7 +88,7 @@ class _Sample:
         # Example of temperature if present (stored as numeric array and units carried separately)
         if HidraConstants.TEMPERATURE in sampleLogs:
             tkey = HidraConstants.TEMPERATURE
-            tvals = np.asarray(sampleLogs[tkey], dtype=FIELD_DTYPE.FLOAT_DATA)
+            tvals = np.asarray(sampleLogs[tkey], dtype=FIELD_DTYPE.FLOAT_DATA.value)
             tf = NXfield(tvals, name="temperature")
             tf.attrs["units"] = sampleLogs.units(tkey) or "K"
             sd["temperature"] = tf
@@ -96,7 +100,7 @@ class _Sample:
             #      <stress field> :: (<scan points>, ...)
             #      <stress field direction > :: {'x', 'y', 'z'}: scalar
             #              
-            sf = np.asarray(sampleLogs[HidraConstants.STRESS_FIELD], dtype=FIELD_DTYPE.FLOAT_DATA)
+            sf = np.asarray(sampleLogs[HidraConstants.STRESS_FIELD], dtype=FIELD_DTYPE.FLOAT_DATA.value)
             if sf.shape[0] != N_scan:
                 raise RuntimeError(
                     f"NXstress required log '{HidraConstants.STRESS_FIELD}' has unexpected shape.\n"

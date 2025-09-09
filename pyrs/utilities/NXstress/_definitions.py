@@ -3,30 +3,61 @@ pyrs/utilities/NXstress/_definitions.py
 
 Constants and definitions used by NeXus NXstress-compatible I/O.
 """
-from enum import StrEnum
+from enum import Enum, StrEnum
 import h5py
 from nexusformat.nexus import (
+    NXbeam,
+    NXcollection,
     NXdata,
+    NXdetector,
     NXentry,
+    NXfield,
+    NXgroup,
     NXinstrument,
+    NXnote,
+    NXparameters,
     NXprocess,
     NXreflections,
-    NXsample
+    NXsample,
+    NXsource,
+    NXtransformations
 )
 import numpy as np
+from typing import List
+
+from pyrs.utilities.pydantic_transition import validate_call_
 
 REQUIRED_LOGS: List[str] = []
 
-class FIELD_DTYPE(type, Enum):
+
+class _TypeBehavior:
+    # Avoid metaclass conflict if mixin were derived from `type` directly.
+    
+    def __call__(self, *args, **kwargs):
+        # Allow calling the enum member to construct via the underlying type
+        return self.value(*args, **kwargs)
+
+    def is_instance(self, obj):
+        return isinstance(obj, self.value)
+
+    def is_subclass(self, cls):
+        return issubclass(cls, self.value)
+
+    def __str__(self):
+        return self.value.__name__
+
+        
+class FIELD_DTYPE(_TypeBehavior, Enum):
     # HDF5 dataset types for various fields
     FLOAT_CONSTANT = np.float64
     FLOAT_DATA     = np.float32
     INT_DATA       = np.int32
     STRING         = h5py.string_dtype(encoding='utf-8')
 
+
 CHUNK_SHAPE = (100,)    # Reasonable chunk size (tunable)
             
-def REQUIRED_NAME(StrEnum):
+class REQUIRED_NAME(StrEnum):
     # These are *required* group or dataset names, as specified in the `NXstress` schema.
     
     # FIT/DIFFRACTOGRAM sub-fields:
@@ -41,7 +72,7 @@ def REQUIRED_NAME(StrEnum):
     BEAM = 'beam_intensity_profile'
     PEAKS = 'peaks'
             
-def GROUP_NAME(StrEnum):
+class GROUP_NAME(StrEnum):
     # Group names: ordered by their appearance in the NXstress schema:
     #
     # -- Unless initialized from a `REQUIRED_NAME`, these may be modified as necessary.

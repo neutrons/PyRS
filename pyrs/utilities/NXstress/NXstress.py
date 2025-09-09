@@ -1,16 +1,19 @@
 """
-NXstress_IO
+pyrs/utilities/NXstress/NXstress.py
 
 Primary service class for NeXus NXstress-compatible I/O.
 """
 import h5py
-from nexusformat.nexus import NXEntry, NXFile
+from nexusformat.nexus import (
+    NXentry, NXFile
+)
 import numpy as np
-from pydantic import validate_call
 
 from pyrs.core.workspaces import HidraWorkspace
+from pyrs.peaks.peak_collection import PeakCollection
+from pyrs.utilities.pydantic_transition import validate_call_
 
-from NXstress import REQUIRED_LOGS, FIELD_DTYPE
+from ._definitions import REQUIRED_LOGS, FIELD_DTYPE
 from ._input_data import _InputData
 from ._instrument import _Instrument
 from ._sample import _Sample
@@ -68,7 +71,7 @@ class NXstress:
     ########################################
     
     @classmethod
-    @validate_call
+    @validate_call_
     def _validateWorkspace(cls, ws: HidraWorkspace):
         logs = ws.sample_log_names
         for k in REQUIRED_LOGS:
@@ -76,8 +79,8 @@ class NXstress:
                 raise ValueError(f"NXstress requires log '{k}', which is not present")
     
     @classmethod
-    @validate_call
-    def _init_group(cls, ws: HidraWorkspace) -> NXEntry:
+    @validate_call_
+    def _init_group(cls, ws: HidraWorkspace) -> NXentry:
         # Create the NXentry and initialize any required attributes.
   
         ## TODO: support appending to an existing entry.
@@ -86,25 +89,25 @@ class NXstress:
         ├─ @definition                             (attribute: "NXstress")
         ├─ @start_time                             (attribute: ISO8601 string)
         ├─ @end_time                               (attribute: ISO8601 string)
-        ├─ @processingtype                         (attribute: string)
+        ├─ @processing_type                         (attribute: string)
         :: apart from 'definition', these attributes may also be
              lists by subrun.
         """
         entry = NXentry()
-        entry['definition'] = 'NXstress'
+        entry.attrs['definition'] = 'NXstress'
 
         # lists of 'start_time', 'end_time' for all subruns
-        entry['start_time'] = ws.get_sample_log_values('start_time')
-        entry['end_time'] = ws.get_sample_log_values('end_time')
+        entry.attrs['start_time'] = ws.get_sample_log_values('start_time')
+        entry.attrs['end_time'] = ws.get_sample_log_values('end_time')
 
         # the type of the primary strain calculation:
         #   this might also be 'two-theta', but 'd-spacing' seems more likely
-        entry['processingtype'] = 'd-spacing'
+        entry.attrs['processing_type'] = 'd-spacing'
 
         return entry 
                      
     @classmethod
-    @validate_call
+    @validate_call_
     def write(cls, nx: NXFile, ws: HidraWorkspace, peaks: PeakCollection, entry_number: int = 1):
         # Add an NXstress NXentry tree to a NeXus-format HDF5 file:
         #   this form allows _multiple_ NXentry to be added, each with its own <entry number>.
@@ -158,6 +161,9 @@ class NXstress:
             ##   regardless of whether or not the "default" mask is being accessed.
             ##   Here we assume that this loop also accesses data for the _DEFAULT_ mask, and that the default
             ##   mask has the '_DEFAULT_' name, and not some other name, such as 'main'?!          
+            name = group_naming_scheme(GROUP_NAME.FIT, mask)
+            if name in entry:
+                raise RuntimeError(f"Usage error: FIT (NXprocess) group '{name}' already exists in the NXstress file.")
             entry[group_naming_scheme(GROUP_NAME.FIT, mask)] = _Fit.init_group(mask, ws, peaks, ws.sampleLogs)
         
         # 'PEAKS' group

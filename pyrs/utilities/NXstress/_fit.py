@@ -1,16 +1,26 @@
 """
-fit_IO
+pyrs/utilities/NXstress/_fit.py
 
 Private service class for NeXus NXstress-compatible I/O.
 This class provides I/O for the `fit` `NXprocess` subgroup:
   this subgroup includes the reduced output data as a 'diffraction_data' `NXdata` group.
 """
-from pyrs.core.peak_profile_utility import BackgroundFunction
+from nexusformat.nexus import (
+    NXdata, NXfield, NXnote, NXparameters, NXprocess
+)
+import numpy as np
+
+from pyrs.peaks.peak_collection import PeakCollection
+from pyrs.core.peak_profile_utility import (
+    BackgroundFunction, EFFECTIVE_PEAK_PARAMETERS
+)
+from pyrs.core.workspaces import HidraWorkspace
+from pyrs.dataobjects.sample_logs import SampleLogs
+from pyrs.utilities.pydantic_transition import validate_call_
 
 from ._definitions import (
     FIELD_DTYPE, CHUNK_SHAPE, 
-    GROUP_NAME, NXSTRESS_GROUP_NAME,
-    EFFECTIVE_BACKGROUND_PARAMETERS,
+    GROUP_NAME, EFFECTIVE_BACKGROUND_PARAMETERS,
     group_naming_scheme
 )
 
@@ -38,9 +48,10 @@ class _PeakParameters:
         # required 'peak_parameters' subgroup
         pp = NXparameters()
         
+        N_scan = len(peaks.sub_runs)
         peak_profile = peaks.peak_profile
         background_function = BackgroundFunction.getFunction(peaks.background_type)
-        background_params = background_function.native_parameters()
+        background_params = background_function.native_parameters
         
         # Use _effective_ peak parameters here: all peaks will then have the same number of parameter,
         #   and all parameter values will be in the expected column.
@@ -48,30 +59,30 @@ class _PeakParameters:
         
         ## Include _only_ the peak parameters, _exclude_ the background parameters.
         peak_parameters = [param for param in EFFECTIVE_PEAK_PARAMETERS if param not in EFFECTIVE_BACKGROUND_PARAMETERS]
-        params_name = np.tile(np.array(peak_parameters), (N, 1))
+        params_name = np.tile(np.array(peak_parameters), (N_scan, 1))
         params_value, params_error = peaks.get_effective_params()
         
-        pp['title'] = NXfield(peak_profile, dtype=FIELD_DTYPE.STRING)
+        pp['title'] = NXfield(peak_profile, dtype=FIELD_DTYPE.STRING.value)
         
         # Note: fitted values use `FLOAT_DATA`, calculated values use `FLOAT_CONSTANT`.
         #   This is a premature optimization: probably both should just use `np.float64`.
-        pp['center'] = params_value['Center'].astype(FIELD_DTYPE.FLOAT_DATA)
+        pp['center'] = params_value['Center'].astype(FIELD_DTYPE.FLOAT_DATA.value)
         pp['center'].attrs['units'] = 'degree'
-        pp['center_errors'] = params_error['Center'].astype(FIELD_DTYPE.FLOAT_DATA)
+        pp['center_errors'] = params_error['Center'].astype(FIELD_DTYPE.FLOAT_DATA.value)
         pp['center_errors'].attrs['units'] = 'degree'
-        pp['height'] = params_value['Height'].astype(FIELD_DTYPE.FLOAT_DATA)
+        pp['height'] = params_value['Height'].astype(FIELD_DTYPE.FLOAT_DATA.value)
         pp['height'].attrs['units'] = 'counts'
-        pp['height_errors'] = params_error['Height'].astype(FIELD_DTYPE.FLOAT_DATA)
+        pp['height_errors'] = params_error['Height'].astype(FIELD_DTYPE.FLOAT_DATA.value)
         pp['height_errors'].attrs['units'] = 'counts'
-        pp['fwhm'] = params_value['FWHM'].astype(FIELD_DTYPE.FLOAT_DATA)
+        pp['fwhm'] = params_value['FWHM'].astype(FIELD_DTYPE.FLOAT_DATA.value)
         pp['fwhm'].attrs['units'] = 'degree'
-        pp['fwhm_errors'] = params_error['FWHM'].astype(FIELD_DTYPE.FLOAT_DATA)
+        pp['fwhm_errors'] = params_error['FWHM'].astype(FIELD_DTYPE.FLOAT_DATA.value)
         pp['fwhm_errors'].attrs['units'] = 'degree'
         
         # Voigt or Pseudo-Voigt: Lorentzian fraction
-        pp['form_factor'] = (1.0 - params_value['mixing']).astype(FIELD_DTYPE.FLOAT_DATA)
+        pp['form_factor'] = (1.0 - params_value['Mixing']).astype(FIELD_DTYPE.FLOAT_DATA.value)
         pp['form_factor'].attrs['units'] = '1'
-        pp['form_factor_errors'] = params_error['mixing'].astype(FIELD_DTYPE.FLOAT_DATA)
+        pp['form_factor_errors'] = params_error['Mixing'].astype(FIELD_DTYPE.FLOAT_DATA.value)
         pp['form_factor_errors'].attrs['units'] = '1'
         
         return pp
@@ -80,8 +91,8 @@ class _PeakParameters:
 class _BackgroundParameters:
         
     @classmethod
-    @validate_call
-    def _init_data(cls, fit: NXprocess, peaks: PeakCollection) -> NXparameters:
+    @validate_call_
+    def init_group(cls, peaks: PeakCollection) -> NXparameters:
         # required 'background_parameters' subgroup
         bp = NXparameters()
 
@@ -89,7 +100,7 @@ class _BackgroundParameters:
 
         ## Include _only_ the background parameters.
         params_value, params_error = peaks.get_effective_params()
-        bp['title'] = NXfield(background_function, dtype=vlen_str_dtype) 
+        bp['title'] = NXfield(background_function, dtype=FIELD_DTYPE.STRING.value) 
         bp['A'] = np.column_stack([params_value[param] for param in EFFECTIVE_BACKGROUND_PARAMETERS]) # shape: (N_scan, N_param)
         
         return bp
@@ -98,7 +109,7 @@ class _Diffractogram:
     
     @classmethod
     def _init(cls, ws: HidraWorkspace) -> NXdata:
-        if not bool(ws._2theta_matrix):
+        if ws._2theta_matrix is None:
             raise RuntimeError("Usage error: cannot write NXstress file: workspace includes no reduced data.")        
         dg = NXdata()
         return dg 
@@ -106,7 +117,7 @@ class _Diffractogram:
     @classmethod
     def init_group(cls, ws: HidraWorkspace, maskName: str, peaks: PeakCollection) -> NXparameters:
         # required DIFFRACTOGRAM (NXdata) subgroup:
-        dg = cls._init_group(fit)
+        dg = cls._init(ws)
         two_theta = ws._2theta_matrix
         if not maskName in ws._diff_data_set:
             raise RuntimeError(f"Reduced data for mask '{maskName}' is not included in the workspace.")
@@ -123,20 +134,20 @@ class _Diffractogram:
         dg['two_theta'].attrs['units'] = 'degree'
         
         
-        dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM] = NXfield(ws._diff_data_set[maskName], dtype=FIELD_DTYPE.FLOAT_DATA)
+        dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM] = NXfield(ws._diff_data_set[maskName], dtype=FIELD_DTYPE.FLOAT_DATA.value)
         dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM].attrs['interpretation'] = 'spectrum'
         dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM].attrs['units'] = 'counts'
  
-        dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM_ERRORS] = NXfield(ws._var_data_set[maskName], dtype=FIELD_DTYPE.FLOAT_DATA)
+        dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM_ERRORS] = NXfield(ws._var_data_set[maskName], dtype=FIELD_DTYPE.FLOAT_DATA.value)
         
         # ENTRY/FIT/DIFFRACTOGRAM/fit, fit_errors: required datasets: these should contain the spectrum reconstructed from the fitted model.
         #   We don't seem to have this yet anywhere in PyRS, so it will be initialized to NaN.
         dg[NXSTRESS_REQUIRED_NAME.FIT] = NXfield(np.empty((0, 0), dtype=np.float64),
-                                                 maxshape=(None, None), chunks=chunk_shape, fillvalue=np.nan)
+                                                 maxshape=(None, None), chunks=CHUNK_SHAPE, fillvalue=np.nan)
         dg[NXSTRESS_REQUIRED_NAME.FIT].attrs['interpretation'] = 'spectrum'
         dg[NXSTRESS_REQUIRED_NAME.FIT].attrs['units'] = 'counts'                                        
         dg[NXSTRESS_REQUIRED_NAME.FIT_ERROR] = NXfield(np.empty((0, 0), dtype=np.float64),
-                                                       maxshape=(None, None), chunks=chunk_shape, fillvalue=np.nan)
+                                                       maxshape=(None, None), chunks=CHUNK_SHAPE, fillvalue=np.nan)
         dg[NXSTRESS_REQUIRED_NAME.FIT_ERROR].attrs['units'] = 'counts'                                        
         
         return dg
@@ -159,13 +170,11 @@ class _Fit:
     ##    coordinate system (e.g. usually `d-spacing`).
     ##
     @classmethod
+    @validate_call_
     def _init(cls, maskName: str, logs: SampleLogs) -> NXprocess:
         # Initialize the 'FIT' (NXprocess) group:
         #   in case of multiple 'FIT' groups: <mask name> is used as a name suffix.
 
-        name = group_naming_scheme(GROUP_NAME.FIT, maskName)
-        if name in entry:
-            raise RuntimeError(f"Usage error: FIT (NXprocess) group '{name}' already exists in the NXstress file.")
         fit = NXprocess()
         
         fit['name'] = f'NXprocess group for mask {maskName}'
@@ -178,6 +187,8 @@ class _Fit:
 
         return fit
     
+    @classmethod
+    @validate_call_
     def init_group(cls, maskName: str, ws: HidraWorkspace, peaks: PeakCollection, logs: SampleLogs):
         # Initialize a new 'FIT' (NXprocess) group:
         #   in case of multiple 'FIT' groups: <mask name> should be used as a name suffix
@@ -185,9 +196,9 @@ class _Fit:
         
         ## Under `NXstress`: `FIT` (NXprocess) groups contain peak and background-fit results, including any
         ##    information relevant to the fitting process used.
-        fit = cls._init(entry, maskName, logs)
-        fit[GROUP_NAME.PEAK_PARAMETERS] = _Peak_parameters.init_group(peaks)
-        fit[GROUP_NAME.BACKGROUND_PARAMETERS] = _Background_parameters.init_group(peaks)
+        fit = cls._init(maskName, logs)
+        fit[GROUP_NAME.PEAK_PARAMETERS] = _PeakParameters.init_group(peaks)
+        fit[GROUP_NAME.BACKGROUND_PARAMETERS] = _BackgroundParameters.init_group(peaks)
         fit[GROUP_NAME.DIFFRACTOGRAM] = _Diffractogram.init_group(ws, maskName, peaks)
         
         return fit

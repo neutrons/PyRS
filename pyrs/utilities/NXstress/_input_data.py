@@ -1,5 +1,5 @@
 """
-input_data_IO
+pyrs/utilities/NXstress/_input_data.py
 
 Private service class for NeXus NXstress-compatible I/O.
 This class provides I/O for the `input_data` `NXdata` subgroup.
@@ -13,9 +13,11 @@ NONE: 'input_data' (NXdata, group) is allowed by the NXstress schema, but it is 
 """
 
 
-from nexusformat.nexus import NXdata, Nxfile
+from nexusformat.nexus import NXdata, NXFile
 import numpy as np
-from pydantic import validate_call
+
+from pyrs.core.workspaces import HidraWorkspace
+from pyrs.utilities.pydantic_transition import validate_call_
 
 class _InputData:
     ########################################
@@ -23,7 +25,7 @@ class _InputData:
     ########################################
 
     @classmethod
-    @validate_call
+    @validate_call_
     def init_group(cls, ws: HidraWorkspace, data: NXdata = None):
         # Initialize the input-data group.
         
@@ -47,12 +49,12 @@ class _InputData:
         return data
 
     @classmethod
-    @validate_call
+    @validate_call_
     def readSubruns(cls, ws: HidraWorkspace, nx: NXFile, data: NXdata):
         # Initialize `HidraWorkspace` detector_counts from input-data group.
         
         # TODO: append to the `HidraWorkspace`, if any detector_counts data already exists.
-        if len(ws.get_sub_runs():
+        if len(ws.get_sub_runs()):
             raise RuntimeError("not implemented: append detector_counts data to workspace")
         
         scan_points = data['scan_point']

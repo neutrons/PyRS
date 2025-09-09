@@ -1,17 +1,21 @@
 """
-instrument_IO
+pyrs/utilities/NXstress/_instrument.py
 
 Private service class for NeXus NXstress-compatible I/O.
 This class provides I/O for the `instrument` `NXinstrument` subgroup.
 """
 
 from nexusformat.nexus import (
-    NXdetector, NXfield, NXinstrument, NXmonochomator,
+    NXcollection, NXdetector, NXfield, NXinstrument, NXmonochromator,
     NXnote, NXsource, NXtransformations
 )
 import numpy as np
 import json
-from pydantic import validate_call
+
+from pyrs.core.workspaces import HidraWorkspace
+from pyrs.utilities.pydantic_transition import validate_call_
+
+from ._definitions import FIELD_DTYPE
 
 """
 REQUIRED PARAMETERS FOR NXstress:
@@ -36,14 +40,14 @@ class _Masks:
     def _init(cls) -> NXcollection:
         # initialize the `masks` (NXcollection) group
         masks = NXcollection()
-        masks['names'] = NXfield(np.empty((0,), dtype=vlen_str_dtype),
+        masks['names'] = NXfield(np.empty((0,), dtype=FIELD_DTYPE.STRING.value),
                                  maxshape=(None,), chunks=chunk_shape)
         masks['detector'] = NXcollection()
         masks['solid_angle'] = NXcollection()
 
         return masks
 
-    def init_group(cls, ws: HidraWorkspace, bool detectorMasks = True, masks: NXcollection = None):
+    def init_group(cls, ws: HidraWorkspace, detectorMasks: bool = True, masks: NXcollection = None):
         # write or append masks to the `INSTRUMENT/masks` group
 
         # Allow append: both 'detector' and 'solid_angle' masks may exist,
@@ -78,7 +82,7 @@ class _Instrument:
     ########################################
 
     @classmethod
-    @validatecall
+    @validate_call_
     def init_group(cls, ws: HidraWorkspace):
         """
         Create a new NXinstrument group subtree.
