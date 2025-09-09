@@ -9,23 +9,22 @@ import pytest
 RNG = np.random.default_rng(seed=0x923f109b1d944af5)
 
 @pytest.fixture
-def createPeakCollection(*, 
-    peak_tag: str,
-    peak_profile,
-    background_type,
-    wavelength: float,
-    projectfilename: str,
-    runnumber: int,
-    N_subrun: int,
-    exclude_list = None,
-    N_counts = 1000, # range for random counts
-    N_span = 10000.0, # domain for random axes
-    error_fraction = 0.01 # fractional error for various initializations
-    ):
-    # This fixture generates a `PeakCollection` instance initialized using
-    #   somewhat physical, but random, values.
+def createPeakCollection():
+    # This fixture generates a `PeakCollection` instance initialized using random values.
     
-    def _init() -> PeakCollection:
+    def _init(*, 
+        peak_tag: str,
+        peak_profile,
+        background_type,
+        wavelength: float,
+        projectfilename: str,
+        runnumber: int,
+        N_subrun: int,
+        exclude_list = None,
+        N_counts = 1000, # range for random counts
+        N_span = 10000.0, # domain for random axes
+        error_fraction = 0.01 # fractional error for various initializations
+        ) -> PeakCollection:
         peaks = PeakCollection(
             peak_tag, peak_profile, background_type,
             wavelength=wavelength,
@@ -45,32 +44,35 @@ def createPeakCollection(*,
         #   for example, no negative peak widths or out-of-range mixing fractions.
         params = peaks._peak_profile.native_parameters
         dtypes = dict(get_parameter_dtype(peaks._peak_profile, peaks._background_type))
-        param_values = np.zeros(N_subrun, dtypes.items())
+        param_values = np.zeros(N_subrun, list(dtypes.items()))
+        param_errors = np.zeros(N_subrun, list(dtypes.items()))
         for param in params:
+            dtype = dtypes[param]
             match param:
                 case 'Height' | 'Intensity':
-                    vs = RNG.random(0.0, N_counts, size=(N_subrun,))
-                    es = RNG.random(0.0, error_fraction * N_counts, size=(N_subrun,))
+                    vs = RNG.uniform(0.0, N_counts, size=(N_subrun,)).astype(dtype)
+                    es = RNG.uniform(0.0, error_fraction * N_counts, size=(N_subrun,)).astype(dtype)
                 case 'PeakCentre':
-                    vs = RNG.random(0.0, N_span, size=(N_subrun,))
-                    es = RNG.random(0.0, error_fraction * N_span, size=(N_subrun,))
+                    vs = RNG.uniform(0.0, N_span, size=(N_subrun,)).astype(dtype)
+                    es = RNG.uniform(0.0, error_fraction * N_span, size=(N_subrun,)).astype(dtype)
                 case 'Sigma' | 'FWHM':
-                    vs = RNG.random(0.0, N_span / 10.0, size=(N_subrun,))
-                    es = RNG.random(0.0, error_fraction * N_span / 10.0, size=(N_subrun,))
+                    vs = RNG.uniform(0.0, N_span / 10.0, size=(N_subrun,)).astype(dtype)
+                    es = RNG.uniform(0.0, error_fraction * N_span / 10.0, size=(N_subrun,)).astype(dtype)
                 case 'Mixing':
-                    vs = RNG.random(0.0, 1.0, size=(N_subrun,))
-                    es = RNG.random(0.0, error_fraction * 1.0, size=(N_subrun,))
+                    vs = RNG.uniform(0.0, 1.0, size=(N_subrun,)).astype(dtype)
+                    es = RNG.uniform(0.0, error_fraction * 1.0, size=(N_subrun,)).astype(dtype)
                 case _:
                     raise RuntimeError(f"`createPeakCollection`: unexpected param '{param}'")
 
             param_values[param] = vs
             param_errors[param] = es
-        fit_costs = RNG.random(0.0, 100.0, size=(N_subrun,))
+            
+        fit_costs = RNG.uniform(0.0, 100.0, size=(N_subrun,)).astype(dtype)
             
         peaks.set_peak_fitting_values(
             subruns,
-            parameter_values,
-            parameter_errors,
+            param_values,
+            param_errors,
             fit_costs,
             exclude_list
         )
@@ -80,4 +82,3 @@ def createPeakCollection(*,
     
     # teardown follows
     pass
-
