@@ -48,22 +48,20 @@ def createPeakCollection(*,
         param_values = np.zeros(N_subrun, dtypes.items())
         for param in params:
             match param:
-            case 'Height':
-            case 'Intensity':
-                vs = RNG.random(0.0, N_counts, size=(N_subrun,))
-                es = RNG.random(0.0, error_fraction * N_counts, size=(N_subrun,))
-            case 'PeakCentre':
-                vs = RNG.random(0.0, N_span, size=(N_subrun,))
-                es = RNG.random(0.0, error_fraction * N_span, size=(N_subrun,))
-            case 'Sigma':
-            case 'FWHM':
-                vs = RNG.random(0.0, N_span / 10.0, size=(N_subrun,))
-                es = RNG.random(0.0, error_fraction * N_span / 10.0, size=(N_subrun,))
-            case 'Mixing':
-                vs = RNG.random(0.0, 1.0, size=(N_subrun,))
-                es = RNG.random(0.0, error_fraction * 1.0, size=(N_subrun,))
-            case _:
-                raise RuntimeError(f"`createPeakCollection`: unexpected param '{param}'")
+                case 'Height' | 'Intensity':
+                    vs = RNG.random(0.0, N_counts, size=(N_subrun,))
+                    es = RNG.random(0.0, error_fraction * N_counts, size=(N_subrun,))
+                case 'PeakCentre':
+                    vs = RNG.random(0.0, N_span, size=(N_subrun,))
+                    es = RNG.random(0.0, error_fraction * N_span, size=(N_subrun,))
+                case 'Sigma' | 'FWHM':
+                    vs = RNG.random(0.0, N_span / 10.0, size=(N_subrun,))
+                    es = RNG.random(0.0, error_fraction * N_span / 10.0, size=(N_subrun,))
+                case 'Mixing':
+                    vs = RNG.random(0.0, 1.0, size=(N_subrun,))
+                    es = RNG.random(0.0, error_fraction * 1.0, size=(N_subrun,))
+                case _:
+                    raise RuntimeError(f"`createPeakCollection`: unexpected param '{param}'")
 
             param_values[param] = vs
             param_errors[param] = es
