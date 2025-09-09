@@ -74,6 +74,17 @@ class HidraProjectFile:
         if self._io_mode == HidraProjectFileMode.OVERWRITE:
             self._init_project()
 
+    ######################################
+    ## Context-manager support methods: ##
+    ######################################
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+        return False  # do not suppress exceptions
+    ######################################
+    
     def _checkFileAccess(self):
         '''Verify the file has the correct acces permissions and set the value of ``self._is_writable``
         '''
