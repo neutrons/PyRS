@@ -20,7 +20,7 @@ ON_GITHUB_ACTIONS = bool(os.environ.get('GITHUB_ACTIONS', False))
 def test_data_dir():
     # WARNING, there may be multiple `conftest.py`: do _not_ use `sys.modules[__name__].__file__` here!
     this_module_path = Path(__file__).resolve()  # absolute path to this module
-    this_module_directory = this_module_path.parent     # directory containing this module
+    this_module_directory = this_module_path.parent  # directory containing this module
     return str(this_module_directory / 'data')
 
 
