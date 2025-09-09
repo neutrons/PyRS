@@ -26,7 +26,10 @@ class _InputData:
     @validate_call
     def init_group(cls, ws: HidraWorkspace, data: NXdata = None):
         # Initialize the input-data group.
-        scan_points = ws.get_sub_runs()
+        
+        # Raw data may not actually be loaded in the `HidraWorkspace`:
+        #   in that case, just initialize an empty NXdata group.
+        scan_points = ws._raw_counts.keys()
         scans = np.stack([ws.get_detector_counts(p) for p in scan_points])
         
         # TODO: append to the group, if it already exists.

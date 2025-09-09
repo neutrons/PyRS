@@ -11,11 +11,11 @@ from pydantic import validate_call
 from pyrs.core.workspaces import HidraWorkspace
 
 from NXstress import REQUIRED_LOGS, FIELD_DTYPE
-from .input_data_IO_ import InputData_IO
-from .instrument_IO_ import Instrument_IO
-from .sample_IO_ import Sample_IO
-from .fit_IO_ import Fit_IO
-from .peaks_IO_ import Peaks_IO
+from ._input_data import _InputData
+from ._instrument import _Instrument
+from ._sample import _Sample
+from ._fit import _Fit
+from ._peaks import _Peaks
 
 
 """
@@ -62,7 +62,7 @@ REQUIRED PARAMETERS FOR NXstress:
 """
     
 
-class NXstress_IO:
+class NXstress:
     ########################################
     # ALL methods must be `classmethod`.  ##
     ########################################

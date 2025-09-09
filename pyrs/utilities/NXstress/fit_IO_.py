@@ -94,7 +94,7 @@ class _BackgroundParameters:
         
         return bp
         
-class _DIFFRACTOGRAM:
+class _Diffractogram:
     
     @classmethod
     def _init(cls, ws: HidraWorkspace) -> NXdata:
@@ -142,7 +142,7 @@ class _DIFFRACTOGRAM:
         return dg
         
 
-class _FIT:
+class _Fit:
     ########################################
     # ALL methods must be `classmethod`.  ##
     ########################################
