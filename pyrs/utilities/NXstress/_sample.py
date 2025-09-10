@@ -19,7 +19,9 @@ REQUIRED PARAMETERS FOR NXstress:
 
 from typing import Optional
 import numpy as np
-from nexusformat.nexus import NXFile, NXsample, NXfield
+from nexusformat.nexus import (
+    NXcollection, NXFile, NXsample, NXfield
+)
 
 from pyrs.dataobjects.constants import HidraConstants
 from pyrs.dataobjects.sample_logs import SampleLogs
@@ -67,8 +69,15 @@ class _Sample:
 
         # 3) Sample positions per scanpoint (mm). Use SampleLogs.get_pointlist().
         # PointList returns vx, vy, vz arrays in millimeters.
-        pl = sampleLogs.get_pointlist()
-        for axis_name, axis_values in zip(HidraConstants.SAMPLE_COORDINATE_NAMES, (pl.vx, pl.vy, pl.vz)):
+        try:
+            pl = sampleLogs.get_pointlist()
+            vv = (pl.vx, pl.vy, pl.vz)
+        except AssertionError as e:
+            if 'some coordinates do not have finite values' in str(e):
+                vv = (np.full((N_scan,), np.nan),) * 3
+            else:
+                raise
+        for axis_name, axis_values in zip(HidraConstants.SAMPLE_COORDINATE_NAMES, vv):
             vs = np.asarray(axis_values, dtype=FIELD_DTYPE.FLOAT_DATA.value)
             if vs.shape[0] != N_scan:
                 raise RuntimeError(

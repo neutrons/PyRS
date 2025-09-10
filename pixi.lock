@@ -5095,7 +5095,7 @@ packages:
   timestamp: 1695420780098
 - pypi: ./
   name: pyrs
-  version: 1.7.0.dev85+d202509091936
+  version: 1.7.0.dev90+d202509101730
   sha256: 2b444f9edf14303c6a923fdc7bd9546d3058c37ac571578eaab91a1829b45110
   requires_python: '>=3.11'
   editable: true

@@ -19,6 +19,9 @@ import numpy as np
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.pydantic_transition import validate_call_
 
+from ._definitions import FIELD_DTYPE
+
+
 class _InputData:
     ########################################
     # ALL methods must be `classmethod`.  ##
@@ -32,7 +35,8 @@ class _InputData:
         # Raw data may not actually be loaded in the `HidraWorkspace`:
         #   in that case, just initialize an empty NXdata group.
         scan_points = ws._raw_counts.keys()
-        scans = np.stack([ws.get_detector_counts(p) for p in scan_points])
+        scans = np.stack([ws.get_detector_counts(p) for p in scan_points]) if len(scan_points)\
+                    else np.empty((0, 0), dtype=FIELD_DTYPE.FLOAT_DATA.value)
         
         # TODO: append to the group, if it already exists.
         if data is not None:

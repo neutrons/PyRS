@@ -27,41 +27,41 @@ REQUIRED PARAMETERS FOR NXstress:
 
 /<entryname>                               (NXentry, group)
 │
-├─ @definition                             (attribute: "NXstress")
-├─ @start_time                             (attribute: ISO8601 string)
-├─ @end_time                               (attribute: ISO8601 string)
-├─ @processingtype                         (attribute: string)
+├─ definition                                (dataset: "NXstress")
+├─ start_time                                (dataset: ISO8601 string)
+├─ end_time                                  (dataset: ISO8601 string)
+├─ processingtype                            (dataset: string)
 │
 ├─ instrument                             (NXinstrument, group)
-│   ├─ name                                (dataset)
-│   ├─ source                              (NXsource, group)
-│   ├─ detector                            (NXdetector, group)
-│   └─ mask (optional)                     (NXcollection, group)
+│   ├─ name                                 (dataset: string)
+│   ├─ source                               (NXsource, group)
+│   ├─ detector                             (NXdetector, group)
+│   └─ mask (optional)                      (NXcollection, group)
 │
 ├─ sample                                 (NXsample, group)
-│   ├─ name                                (dataset)
-│   ├─ chemical_formula (optional)         (dataset)
-│   ├─ temperature (optional)              (dataset)
-│   ├─ stress_field (optional)             (dataset)
-│   └─ gauge_volume (optional)             (NXparameters, group)
+│   ├─ name                                 (dataset: string)
+│   ├─ chemical_formula (optional)          (dataset: string)
+│   ├─ temperature (optional)               (dataset: string)
+│   ├─ stress_field (optional)              (dataset: string)
+│   └─ gauge_volume (optional)              (NXparameters, group)
 │
 ├─ fit                                    (NXprocess, group)
-│   ├─ @date                               (attribute: ISO8601 string)
-│   ├─ @program                            (attribute: string)
-│   ├─ description                         (NXnote, group)
-│   ├─ peakparameters                      (NXparameters, group)
-│   └─ diffractogram                       (NXdata, group)
-│        ├─ diffractogram                  (dataset)
-│        ├─ diffractogram_errors           (dataset)
-│        ├─ daxis/xaxis                    (dataset)
-│        ├─ @axes                          (attribute: string)
-│        └─ @signal                        (attribute: string)
+│   ├─ @date                                (attribute: ISO8601 string)
+│   ├─ @program                             (attribute: string)
+│   ├─ description                          (NXnote, group)
+│   ├─ peakparameters                       (NXparameters, group)
+│   └─ diffractogram                        (NXdata, group)
+│        ├─ diffractogram                     (dataset)
+│        ├─ diffractogram_errors              (dataset)
+│        ├─ daxis/xaxis                       (dataset)
+│        ├─ @axes                             (attribute: string)
+│        └─ @signal                           (attribute: string)
 │
 ├─ peaks                                  (NXreflections, group)
-│   ├─ h                                   (dataset)
-│   ├─ k                                   (dataset)
-│   ├─ l                                   (dataset)
-│   └─ phase_name                          (dataset)
+│   ├─ h                                    (dataset)
+│   ├─ k                                    (dataset)
+│   ├─ l                                    (dataset)
+│   └─ phase_name                           (dataset)
 """
     
 
@@ -86,23 +86,23 @@ class NXstress:
         ## TODO: support appending to an existing entry.
         
         """
-        ├─ @definition                             (attribute: "NXstress")
-        ├─ @start_time                             (attribute: ISO8601 string)
-        ├─ @end_time                               (attribute: ISO8601 string)
-        ├─ @processing_type                         (attribute: string)
-        :: apart from 'definition', these attributes may also be
+        ├─ definition                             (dataset: "NXstress")
+        ├─ start_time                             (dataset: ISO8601 string)
+        ├─ end_time                               (dataset: ISO8601 string)
+        ├─ processing_type                        (dataset: string)
+        :: apart from 'definition', these fields may also be
              lists by subrun.
         """
         entry = NXentry()
-        entry.attrs['definition'] = 'NXstress'
+        entry['definition'] = 'NXstress'
 
         # lists of 'start_time', 'end_time' for all subruns
-        entry.attrs['start_time'] = ws.get_sample_log_values('start_time')
-        entry.attrs['end_time'] = ws.get_sample_log_values('end_time')
+        entry['start_time'] = ws.get_sample_log_values('start_time')
+        entry['end_time'] = ws.get_sample_log_values('end_time')
 
         # the type of the primary strain calculation:
         #   this might also be 'two-theta', but 'd-spacing' seems more likely
-        entry.attrs['processing_type'] = 'd-spacing'
+        entry['processing_type'] = 'd-spacing'
 
         return entry 
                      

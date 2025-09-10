@@ -14,6 +14,7 @@ from nexusformat.nexus import (
     NXfield,
     NXgroup,
     NXinstrument,
+    NXmonochromator,
     NXnote,
     NXparameters,
     NXprocess,
@@ -90,6 +91,7 @@ class GROUP_NAME(StrEnum):
     DETECTOR = ('detector', True, NXdetector)
     TRANSFORMATIONS = ('transformations', False, NXtransformations)
     BEAM = (REQUIRED_NAME.BEAM, False, NXbeam)
+    MONOCHROMATOR = ('monochromator', False, NXmonochromator)
 
     SAMPLE_DESCRIPTION = ('sample', False, NXsample)
     

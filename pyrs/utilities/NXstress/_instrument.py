@@ -6,7 +6,7 @@ This class provides I/O for the `instrument` `NXinstrument` subgroup.
 """
 
 from nexusformat.nexus import (
-    NXcollection, NXdetector, NXfield, NXinstrument, NXmonochromator,
+    NXbeam, NXcollection, NXdetector, NXfield, NXinstrument, NXmonochromator,
     NXnote, NXsource, NXtransformations
 )
 import numpy as np
@@ -15,7 +15,7 @@ import json
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.pydantic_transition import validate_call_
 
-from ._definitions import FIELD_DTYPE
+from ._definitions import CHUNK_SHAPE, GROUP_NAME, FIELD_DTYPE
 
 """
 REQUIRED PARAMETERS FOR NXstress:
@@ -37,23 +37,27 @@ class _Masks:
     #   this allows us to successfully use the mask name as a suffix tag on other groups,
     #   without requiring the same sub-categorization for those groups.
 
+    @classmethod
+    @validate_call_
     def _init(cls) -> NXcollection:
         # initialize the `masks` (NXcollection) group
         masks = NXcollection()
         masks['names'] = NXfield(np.empty((0,), dtype=FIELD_DTYPE.STRING.value),
-                                 maxshape=(None,), chunks=chunk_shape)
+                                 maxshape=(None,), chunks=CHUNK_SHAPE)
         masks['detector'] = NXcollection()
         masks['solid_angle'] = NXcollection()
 
         return masks
 
+    @classmethod
+    @validate_call_
     def init_group(cls, ws: HidraWorkspace, detectorMasks: bool = True, masks: NXcollection = None):
         # write or append masks to the `INSTRUMENT/masks` group
 
         # Allow append: both 'detector' and 'solid_angle' masks may exist,
         #   and will need to be added in separate steps.
         masks = masks if masks is not None else cls._init()
-        names = masks['names'].aslist()
+        names = masks['names'].nxvalue
         appending = len(names) > 0
         
         # Unify the `_mask_dict` to a standard Python `dict`.
@@ -93,21 +97,13 @@ class _Instrument:
           - DENEXDetectorGeometry.pixeldimension -> (px, py) (meters)
           - If present, setup._geometryshift is DENEXDetectorShift.
         """
-        setup: HidraSetup = ws.get_instrument_setup()
+        # Wavelength (use the 'universal' value, if available)
+        wavelength = ws.get_wavelength(True, False)
 
-        # Wavelength (Angstrom -> m)
-        wl_ang = setup.get_wavelength(None)  # maybe: Angstrom
-        wl_m = float(wl_ang) * 1.0e-10 if wl_ang is not None else float("nan")
-
-        # Geometry (prefer calibrated)
-        geom: DENEXDetectorGeometry = setup.getinstrumentgeometry(calibrated=True)
-        
-        # Optional detector shift / rotation:
-        #   use any detector shift attached to the setup,
-        #   fallback to any shift attached to the workspace.
-        shift_obj: DENEXDetectorShift = setup._geometry_shift\
-            if bool(setup._geometry_shift) else ws.get_detector_shift()
-        is_calibrated = shift_obj is not None
+        # Detector base geometry and transformations
+        geom: DENEXDetectorGeometry = ws.get_instrument_setup()
+        shift: DENEXDetectorGeometryShift | None = ws.get_detector_shift()
+        is_calibrated = shift is not None
 
         # Construct required NeXus subgroups:
         #   NXsource, NXmonochromator, NXdetector, NXtransformations.
@@ -116,7 +112,8 @@ class _Instrument:
         src['probe'] = NXfield('neutron')
 
         mono = NXmonochromator()
-        mono['wavelength'] = NXfield(wl_m, units='m')
+        # TODO: should this be `wavelength` by <sub run>?
+        mono['wavelength'] = NXfield(wavelength if wavelength is not None else float("nan"), units='angstrom')
 
         det = NXdetector()
         det['type'] = 'He_3 PSD'
@@ -132,9 +129,8 @@ class _Instrument:
         det["x_pixel_size"] = NXfield(np.array(px_m, dtype=np.float64), dtype=np.float64, units="m")
         det["y_pixel_size"] = NXfield(np.array(py_m, dtype=np.float64), dtype=np.float64, units="m")
         
-        # TODO: "L2" could *possibly* go into TRANSFORMATIONS,
-        #   where the combined endpoint-transformation of the detector array
-        #   could be stored.
+        # TODO: RE `L2`: At present there seems no way to determine if the `DENEXDetectorGeometry`
+        #   already has had the _arm_ shift applied to it -- this issue needs to be fixed!
         det["distance"] = NXfield(np.array(L2_m, dtype=np.float64), dtype=np.float64, units="m")
 
         # Beam intensity profile

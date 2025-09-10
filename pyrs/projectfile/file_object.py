@@ -487,6 +487,7 @@ class HidraProjectFile:
         """
         Get instrument geometry parameters
         :return: an instance of instrument_geometry.InstrumentSetup
+            *** TODO: actually this returns an instance of `DENEXDetectorGeometry`! ***
         """
         # Get group
         geometry_group = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.GEOMETRY_SETUP]

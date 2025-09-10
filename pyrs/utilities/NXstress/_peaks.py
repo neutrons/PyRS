@@ -152,8 +152,8 @@ class _Peaks:
         peaks['k'][curr_len:] = k
         peaks['l'][curr_len:] = l
         peaks['phase_name'][curr_len:] = phase_name
-
-        peaks['center'][curr_len:] = d_reference
-        peaks['center_errors'][curr_len:] = d_reference_error
+        
+        peaks['center'][curr_len:] = d_reference.ravel()
+        peaks['center_errors'][curr_len:] = d_reference_error.ravel()
 
         return peaks
