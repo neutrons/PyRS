@@ -248,5 +248,5 @@ class NXstress:
             entry[dgram_name] = _Fit.init_group(mask, ws, peaks, ws._sample_logs)
         
         # 'PEAKS' group
-        entry[GROUP_NAME.PEAKS] = _Peaks.init_group(peaks, ws.sampleLogs)
+        entry[GROUP_NAME.PEAKS] = _Peaks.init_group(peaks, ws._sample_logs)
         

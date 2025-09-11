@@ -15,7 +15,9 @@ import json
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.pydantic_transition import validate_call_
 
-from ._definitions import CHUNK_SHAPE, GROUP_NAME, FIELD_DTYPE
+from ._definitions import (
+    CHUNK_SHAPE, DEFAULT_TAG, FIELD_DTYPE, GROUP_NAME
+)
 
 """
 REQUIRED PARAMETERS FOR NXstress:
@@ -62,7 +64,7 @@ class _Masks:
         
         # Unify the `_mask_dict` to a standard Python `dict`.
         _masks = ws._mask_dict.copy()
-        if not appending and bool(ws._default_mask):
+        if not appending and ws._default_mask is not None:
             # There's only one default mask.
             _masks[DEFAULT_TAG] = ws._default_mask
         
