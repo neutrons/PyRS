@@ -117,8 +117,8 @@ class _Peaks:
         #   according to the NXstress schema, this group contains the canonical reduction data,
         #   in a form usable for stress / strain calculations.
         
-        # TODO: this section is implemented in a form that allows new data to be appended,
-        #   however at present appending data is not yet supported.
+        # TODO: this section is implemented in a form that allows new scan-point data to be appended
+        #   However, at present, appending data is not yet supported.
         peaks = cls._init(logs)
 
         scan_point = peak_collection.sub_runs.raw_copy()

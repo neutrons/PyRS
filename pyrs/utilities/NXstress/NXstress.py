@@ -5,15 +5,22 @@ Primary service class for NeXus NXstress-compatible I/O.
 """
 import h5py
 from nexusformat.nexus import (
-    NXentry, NXFile
+    NXentry, NXFile, NXroot
 )
 import numpy as np
+from pathlib import Path
 
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.peaks.peak_collection import PeakCollection
 from pyrs.utilities.pydantic_transition import validate_call_
 
-from ._definitions import REQUIRED_LOGS, FIELD_DTYPE
+from ._definitions import (
+    DEFAULT_TAG,
+    FIELD_DTYPE,
+    GROUP_NAME,
+    group_naming_scheme,
+    REQUIRED_LOGS
+)    
 from ._input_data import _InputData
 from ._instrument import _Instrument
 from ._sample import _Sample
@@ -66,9 +73,76 @@ REQUIRED PARAMETERS FOR NXstress:
     
 
 class NXstress:
-    ########################################
-    # ALL methods must be `classmethod`.  ##
-    ########################################
+    ##################################################################
+    ## Service class to write NXstress-compliant NXentries:         ##
+    ##   the `write` method writes the next `NXentry` to the file.  ##
+    ##################################################################
+
+    ## Context-manager related methods:
+    def __init__(self, file_path: Path, mode: str = "r"):
+        self._path = str(file_path)
+        self._mode = mode
+        self._nx = NXFile(self._path, self._mode)  # low-level handle
+        self._root = None  # will *ONLY* be set in __enter__
+         
+    def __enter__(self) -> 'NXstress':
+        # READBACK modes are incomplete, at the moment:
+        if self._mode in ("r",):
+            raise RuntimeError("Not implemented: 'NXstress' I/O in read-only mode.")
+        
+        # Bind/create the NXroot so root.nxfile exists
+        if self._mode in ("r", "r+", "a"):
+            # Load existing file into a NeXus tree
+            self._root = self._nx.readfile()
+        elif self._mode in ("w", "x", "w-"):  # h5py-style create modes
+            # Create a new, empty tree and bind it to the file
+            self._root = NXroot()
+            self._nx.writefile(self._root)
+        else:
+            # Fallback: try to read; adjust to project policy as needed
+            self._root = self._nx.readfile()
+
+        return self
+        
+    def __exit__(self, exc_type, exc, tb):
+        # Close via NXroot’s NXFile; then close the low-level handle defensively
+        try:
+            if self._root is not None and self._root.nxfile.is_open():
+                self._root.nxfile.close()
+        except Exception:
+            pass
+        try:
+            if self._nx.is_open():
+                self._nx.close()
+        except Exception:
+            pass
+        # Do not suppress exceptions
+        return False
+
+    def write(self, ws: HidraWorkspace, peaks: PeakCollection):
+        # Write the _next_ NXentry to the file:
+        #
+        # -- multiple NXentry are allowed by the NXstress schema.
+        # -- each NXentry includes:
+        #
+        #   -- [optional] input_data: raw detector counts, indexed by 'scan_point' (aka: 'subrun');
+        #   -- the `NXinstrument`, including its `NXdetector`, applicable `NXtransformations`
+        #      and detector and solid-angle masks; 
+        #   -- a single canonical PEAKS instance,
+        #   -- reduced 'diffraction_data' sections: organized by mask name, each section includes:
+        #
+        #     -- peak-fit details;
+        #     -- normalized and reduced data, indexed by 'scan_point';
+        #     -- a calculated model spectrum: this section is still in progress. 
+        #
+        if self._root is None:
+            raise RuntimeError("Usage error: only usage as context manager is supported!")
+        self._write(self._nx, ws, peaks)
+            
+    ############################################
+    # ALL non-context-manager related methods ##
+    #   must be `classmethod`.                ##
+    ############################################
     
     @classmethod
     @validate_call_
@@ -108,7 +182,7 @@ class NXstress:
                      
     @classmethod
     @validate_call_
-    def write(cls, nx: NXFile, ws: HidraWorkspace, peaks: PeakCollection, entry_number: int = 1):
+    def _write(cls, nx: NXFile, ws: HidraWorkspace, peaks: PeakCollection):
         # Add an NXstress NXentry tree to a NeXus-format HDF5 file:
         #   this form allows _multiple_ NXentry to be added, each with its own <entry number>.
         #   For example, an entry could be added for each distint set of sample conditions.
@@ -118,53 +192,60 @@ class NXstress:
         ######################################################
         ## Recommended usage:                               ##
         ## -------------------------------------------------##
-        ## from nexusformat import NXfile                   ##
+        ## from pyrs/utilities/NXstress import NXstress     ##
         ## ...                                              ##
         ## ws: HidraWorkspace                               ##
         ## peaks: PeakCollection                            ##
         ## ...                                              ##
         ## # To write the first (, or only) entry:          ##
-        ## with NXfile(<file name>.nxs, 'w') as f:          ##
-        ##     NXstress.write(f, ws, peaks)                 ##
+        ## with NXstress(<file name>.nxs, 'w') as nxS:      ##
+        ##     nxS.write(f, ws, peaks)                      ##
         ## -------------------------------------------------##
         ## # To write an additional entry:                  ##
-        ## with NXfile(<file name>.nxs, 'a') as f:          ##
-        ##     NXstress.write(f, ws, peaks, entry_number=2) ##
+        ## # alternatively, this could have been done       ##
+        ## # in the first `with` clause above.              ##
+        ## with NXfile(<same file name>.nxs, 'a') as nxS:   ##
+        ##     nxS.write(f, ws, peaks)                      ##
         ######################################################
         
         # Verify that all properties required by NXstress are present.
         cls._validateWorkspace(ws)
 
         # Do not assume that this is the only NXentry:
-        #   start with the existing NXroot.
-        root: NXroot = nx.root       
+        #   start with the existing NXroot, and write the _next_ NXentry.
+        root: NXroot = nx.root
+        entry_number = len(root.NXentry) + 1       
         entry_name = group_naming_scheme(GROUP_NAME.ENTRY, entry_number)
         if entry_name in root:
-            raise RuntimeError("Not implemented: appending to existing entry '{entry_name}'.")
+            raise RuntimeError("Not implemented: appending to existing `NXentry` '/{entry_name}'.")
         
         # Initialize this NXentry, and add required attributes.
         entry = cls._init_group(ws)
         root[entry_name] = entry
         
         # 'input_data' group
-        entry[GROUP_NAME.INPUT_DATA] = _InputData.init_group(nx, ws)
+        entry[GROUP_NAME.INPUT_DATA] = _InputData.init_group(ws)
         
         # 'instrument' group
         entry[GROUP_NAME.INSTRUMENT] = _Instrument.init_group(ws)
         
         # 'SAMPLE_DESCRIPTION' group
-        entry[GROUP_NAME.SAMPLE_DESCRIPTION] = _Sample.init_group(ws.sampleLogs)
+        entry[GROUP_NAME.SAMPLE_DESCRIPTION] = _Sample.init_group(ws._sample_logs)
         
         # 'FIT' group[s] (one for each detector mask):
-        for mask in ws._diff_data_set:
+        masks = set(ws._mask_dict.keys())
+        masks.add(DEFAULT_TAG)
+        for mask in masks:
             ## TODO: mask naming (and storage) is messed up.  They all need to be accessed the same way,
             ##   regardless of whether or not the "default" mask is being accessed.
             ##   Here we assume that this loop also accesses data for the _DEFAULT_ mask, and that the default
             ##   mask has the '_DEFAULT_' name, and not some other name, such as 'main'?!          
-            name = group_naming_scheme(GROUP_NAME.FIT, mask)
-            if name in entry:
-                raise RuntimeError(f"Usage error: FIT (NXprocess) group '{name}' already exists in the NXstress file.")
-            entry[group_naming_scheme(GROUP_NAME.FIT, mask)] = _Fit.init_group(mask, ws, peaks, ws.sampleLogs)
+            dgram_name = group_naming_scheme(GROUP_NAME.FIT, mask)
+            if dgram_name in entry.NXprocess:
+                raise RuntimeError(
+                    f"Usage error: FIT (NXprocess) group '{name}' already exists in the current NXentry '{entry_name}'."
+                )
+            entry[dgram_name] = _Fit.init_group(mask, ws, peaks, ws._sample_logs)
         
         # 'PEAKS' group
         entry[GROUP_NAME.PEAKS] = _Peaks.init_group(peaks, ws.sampleLogs)

@@ -144,7 +144,7 @@ def group_naming_scheme(base_name: str, suffix: int | str) -> str:
     #     int: enumerated group names: '_1' is omitted;
     #     str: group names (e.g. 'FIT' (NXprocess)), delineated using a tag suffix: '__DEFAULT_' is omitted.
     if not isinstance(suffix, (int, str)):
-      raise f'`group_naming_scheme`: not implemented for "{suffix}" suffix'    
+      raise RuntimeError(f"`group_naming_scheme`: not implemented for suffix '{suffix}'")    
     
     tag = ''
     if isinstance(suffix, int) and suffix > 1\

@@ -9,6 +9,7 @@ from nexusformat.nexus import (
     NXdata, NXfield, NXnote, NXparameters, NXprocess
 )
 import numpy as np
+from typing import Tuple
 
 from pyrs.peaks.peak_collection import PeakCollection
 from pyrs.core.peak_profile_utility import (
@@ -19,7 +20,7 @@ from pyrs.dataobjects.sample_logs import SampleLogs
 from pyrs.utilities.pydantic_transition import validate_call_
 
 from ._definitions import (
-    FIELD_DTYPE, CHUNK_SHAPE, 
+    FIELD_DTYPE, CHUNK_SHAPE, DEFAULT_TAG,
     GROUP_NAME, EFFECTIVE_BACKGROUND_PARAMETERS,
     group_naming_scheme
 )
@@ -106,7 +107,24 @@ class _BackgroundParameters:
         return bp
         
 class _Diffractogram:
-    
+
+    @classmethod
+    def _get_diffraction_data(cls, ws: HidraWorkspace, mask_name: str) -> Tuple[np.ndarray, np.ndarray]:
+        # Workaround for PyRS codebase bizarre use of `None` as the default key.
+        data_key, errors_key = cls._diffraction_data_keys(mask_name)
+        return ws._diff_data_set[data_key], ws._var_data_set[errors_key]
+
+    @classmethod
+    def _diffraction_data_keys(cls, mask_name: str) -> Tuple[str, str]:
+        # Workaround for PyRS codebase bizarre use of `None` as the default key.
+        if mask_name != DEFAULT_TAG:
+            data_key = mask_name
+            errors_key = f"{mask_name}_var"
+        else:
+            data_key = None # WTF?
+            errors_key = 'main_var'
+        return data_key, errors_key 
+        
     @classmethod
     def _init(cls, ws: HidraWorkspace) -> NXdata:
         if ws._2theta_matrix is None:
@@ -115,40 +133,46 @@ class _Diffractogram:
         return dg 
         
     @classmethod
+    @validate_call_
     def init_group(cls, ws: HidraWorkspace, maskName: str, peaks: PeakCollection) -> NXparameters:
-        # required DIFFRACTOGRAM (NXdata) subgroup:
+        # required DIFFRACTOGRAM (NXdata) subgroup:        
+        data_key, errors_key = cls._diffraction_data_keys(maskName)
+        if data_key not in ws._diff_data_set or errors_key not in ws._var_data_set:
+            # *** DEBUG ***
+            print(f"=====> diffraction data: {ws._diff_data_set.keys()}, errors: {ws._var_data_set.keys()}")
+            raise RuntimeError(f"Reduced data for mask '{maskName}' is not attached to the workspace.")
+        
         dg = cls._init(ws)
-        two_theta = ws._2theta_matrix
-        if not maskName in ws._diff_data_set:
-            raise RuntimeError(f"Reduced data for mask '{maskName}' is not included in the workspace.")
-        dg.attrs['signal'] = NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM
+        dg.attrs['signal'] = GROUP_NAME.DGRAM_DIFFRACTOGRAM
         dg.attrs['auxiliary_signals'] = [
-            NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM_ERRORS,
-            NXSTRESS_REQUIRED_NAME.FIT,
-            NXSTRESS_REQUIRED_NAME.FIT_ERRORS
+            GROUP_NAME.DGRAM_DIFFRACTOGRAM_ERRORS,
+            GROUP_NAME.DGRAM_FIT,
+            GROUP_NAME.DGRAM_FIT_ERRORS
         ] 
         dg.attrs['axes'] = ['scan_point', 'two_theta']
         dg['scan_point'] = NXfield(ws.get_sub_runs())
         dg['scan_point'].attrs['units'] = ''
+        
+        two_theta = ws._2theta_matrix
         dg['two_theta'] = NXfield(two_theta)
         dg['two_theta'].attrs['units'] = 'degree'
         
-        
-        dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM] = NXfield(ws._diff_data_set[maskName], dtype=FIELD_DTYPE.FLOAT_DATA.value)
-        dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM].attrs['interpretation'] = 'spectrum'
-        dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM].attrs['units'] = 'counts'
+        data, errors = cls._get_diffraction_data(ws, maskName)
+        dg[GROUP_NAME.DGRAM_DIFFRACTOGRAM] = NXfield(data, dtype=FIELD_DTYPE.FLOAT_DATA.value)
+        dg[GROUP_NAME.DGRAM_DIFFRACTOGRAM].attrs['interpretation'] = 'spectrum'
+        dg[GROUP_NAME.DGRAM_DIFFRACTOGRAM].attrs['units'] = 'counts'
  
-        dg[NXSTRESS_REQUIRED_NAME.DIFFRACTOGRAM_ERRORS] = NXfield(ws._var_data_set[maskName], dtype=FIELD_DTYPE.FLOAT_DATA.value)
+        dg[GROUP_NAME.DGRAM_DIFFRACTOGRAM_ERRORS] = NXfield(errors, dtype=FIELD_DTYPE.FLOAT_DATA.value)
         
         # ENTRY/FIT/DIFFRACTOGRAM/fit, fit_errors: required datasets: these should contain the spectrum reconstructed from the fitted model.
-        #   We don't seem to have this yet anywhere in PyRS, so it will be initialized to NaN.
-        dg[NXSTRESS_REQUIRED_NAME.FIT] = NXfield(np.empty((0, 0), dtype=np.float64),
-                                                 maxshape=(None, None), chunks=CHUNK_SHAPE, fillvalue=np.nan)
-        dg[NXSTRESS_REQUIRED_NAME.FIT].attrs['interpretation'] = 'spectrum'
-        dg[NXSTRESS_REQUIRED_NAME.FIT].attrs['units'] = 'counts'                                        
-        dg[NXSTRESS_REQUIRED_NAME.FIT_ERROR] = NXfield(np.empty((0, 0), dtype=np.float64),
-                                                       maxshape=(None, None), chunks=CHUNK_SHAPE, fillvalue=np.nan)
-        dg[NXSTRESS_REQUIRED_NAME.FIT_ERROR].attrs['units'] = 'counts'                                        
+        #   For the moment, this will be initialized to NaN.
+        dg[GROUP_NAME.DGRAM_FIT] = NXfield(np.empty((0, 0), dtype=np.float64),
+                                           maxshape=(None, None), chunks=CHUNK_SHAPE, fillvalue=np.nan)
+        dg[GROUP_NAME.DGRAM_FIT].attrs['interpretation'] = 'spectrum'
+        dg[GROUP_NAME.DGRAM_FIT].attrs['units'] = 'counts'                                        
+        dg[GROUP_NAME.DGRAM_FIT_ERRORS] = NXfield(np.empty((0, 0), dtype=np.float64),
+                                                  maxshape=(None, None), chunks=CHUNK_SHAPE, fillvalue=np.nan)
+        dg[GROUP_NAME.DGRAM_FIT_ERRORS].attrs['units'] = 'counts'                                        
         
         return dg
         
@@ -199,6 +223,6 @@ class _Fit:
         fit = cls._init(maskName, logs)
         fit[GROUP_NAME.PEAK_PARAMETERS] = _PeakParameters.init_group(peaks)
         fit[GROUP_NAME.BACKGROUND_PARAMETERS] = _BackgroundParameters.init_group(peaks)
-        fit[GROUP_NAME.DIFFRACTOGRAM] = _Diffractogram.init_group(ws, maskName, peaks)
+        fit[GROUP_NAME.DGRAM_DIFFRACTOGRAM] = _Diffractogram.init_group(ws, maskName, peaks)
         
         return fit

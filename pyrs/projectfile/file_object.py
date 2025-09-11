@@ -77,7 +77,7 @@ class HidraProjectFile:
     ######################################
     ## Context-manager support methods: ##
     ######################################
-    def __enter__(self):
+    def __enter__(self) -> 'HidraProjectFile':
         return self
         
     def __exit__(self, exc_type, exc, tb):
