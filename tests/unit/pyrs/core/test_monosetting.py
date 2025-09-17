@@ -20,7 +20,7 @@ def test_monosetting_from_rotation():
     assert monosetting == MonoSetting.Si220
 
     with pytest.raises(ValueError):
-        monosetting.getFromRotation(-12.)
+        monosetting.getFromRotation(178)
 
 
 def test_monosetting_conversions():
