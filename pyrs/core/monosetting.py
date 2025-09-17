@@ -37,17 +37,17 @@ class MonoSetting(Enum):
         mrot = mrot
         if -41.0 < mrot < -38.0:
             return MonoSetting.Si333
-        elif -1.0 < mrot < 1.0:
+        elif -4.0 < mrot < 1.0:
             return MonoSetting.Si511
         elif -25.0 < mrot < -14.0:
             return MonoSetting.Si422
-        elif -170.0 < mrot < -166.0:
+        elif -175.0 < mrot < -166.0:
             return MonoSetting.Si331
-        elif 14.0 < mrot < 18.0:
+        elif 12.0 < mrot < 18.0:
             return MonoSetting.Si400
-        elif -11.5 < mrot < -6.0:
+        elif -13.5 < mrot < -6.0:
             return MonoSetting.Si311
-        elif -200.0 < mrot < -175.0:
+        elif -200.0 < mrot < -177.0:
             return MonoSetting.Si220
         else:
             raise ValueError('Unable to determine monosetting from the monochromator rotation angle {}'.format(mrot))
