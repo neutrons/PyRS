@@ -30,8 +30,8 @@ REQUIRED PARAMETERS FOR NXstress:
 ---------------------------------
 
 ├─ fit                                    (NXprocess, group)
-│   ├─ @date                               (attribute: ISO8601 string)
-│   ├─ @program                            (attribute: string)
+│   ├─ date                               (dataset: ISO8601 string)
+│   ├─ program                            (dataset: string)
 │   ├─ description                         (NXnote, group)
 │   ├─ peakparameters                      (NXparameters, group)
 │   └─ diffractogram                       (NXdata, group)
@@ -195,7 +195,7 @@ class _Fit:
     ##
     @classmethod
     @validate_call_
-    def _init(cls, maskName: str, logs: SampleLogs) -> NXprocess:
+    def _init(cls, maskName: str, logs: SampleLogs, processing_description: str) -> NXprocess:
         # Initialize the 'FIT' (NXprocess) group:
         #   in case of multiple 'FIT' groups: <mask name> is used as a name suffix.
 
@@ -208,19 +208,27 @@ class _Fit:
         fit['program'] = NXfield('PyRS')
         fit['description'] = NXnote()
         fit['description']['detector_mask'] = NXfield(maskName)
+        fit['description']['processing description'] = NXfield(processing_description)
 
         return fit
     
     @classmethod
     @validate_call_
-    def init_group(cls, maskName: str, ws: HidraWorkspace, peaks: PeakCollection, logs: SampleLogs):
+    def init_group(
+        cls,
+        maskName: str,
+        ws: HidraWorkspace,
+        peaks: PeakCollection,
+        logs: SampleLogs,
+        processing_description: str = ''
+    ):
         # Initialize a new 'FIT' (NXprocess) group:
         #   in case of multiple 'FIT' groups: <mask name> should be used as a name suffix
         #   (see `_definitions.group_naming_scheme`).
         
         ## Under `NXstress`: `FIT` (NXprocess) groups contain peak and background-fit results, including any
         ##    information relevant to the fitting process used.
-        fit = cls._init(maskName, logs)
+        fit = cls._init(maskName, logs, processing_description)
         fit[GROUP_NAME.PEAK_PARAMETERS] = _PeakParameters.init_group(peaks)
         fit[GROUP_NAME.BACKGROUND_PARAMETERS] = _BackgroundParameters.init_group(peaks)
         fit[GROUP_NAME.DGRAM_DIFFRACTOGRAM] = _Diffractogram.init_group(ws, maskName, peaks)

@@ -135,10 +135,36 @@ class NXstress:
         #     -- normalized and reduced data, indexed by 'scan_point';
         #     -- a calculated model spectrum: this section is still in progress. 
         #
+        
+        ######################################################
+        ## Recommended usage:                               ##
+        ## -------------------------------------------------##
+        ## from pyrs/utilities/NXstress import NXstress     ##
+        ## ...                                              ##
+        ## ws: HidraWorkspace                               ##
+        ## peaks: PeakCollection                            ##
+        ## ...                                              ##
+        ## # To write the first (, or only) entry:          ##
+        ## with NXstress(<file name>.nxs, 'w') as nxS:      ##
+        ##     nxS.write(f, ws, peaks)                      ##
+        ## -------------------------------------------------##
+        ## # To write an additional entry:                  ##
+        ## # alternatively, this could have been done       ##
+        ## # in the first `with` clause above.              ##
+        ## with NXfile(<same file name>.nxs, 'a') as nxS:   ##
+        ##     nxS.write(f, ws, peaks)                      ##
+        ######################################################
+        
         if self._root is None:
             raise RuntimeError("Usage error: only usage as context manager is supported!")
-        self._write(self._nx, ws, peaks)
-            
+        entry_number = len(self._root.NXentry) + 1       
+        entry_name = group_naming_scheme(GROUP_NAME.ENTRY, entry_number)
+        if entry_name in self._root:
+            raise RuntimeError(f"Not implemented: overwriting existing `NXentry` '/{entry_name}'.")
+        
+        entry = self.init_group(ws, peaks)
+        self._root[entry_name] = entry
+
     ############################################
     # ALL non-context-manager related methods ##
     #   must be `classmethod`.                ##
@@ -154,11 +180,9 @@ class NXstress:
     
     @classmethod
     @validate_call_
-    def _init_group(cls, ws: HidraWorkspace) -> NXentry:
+    def _init(cls, ws: HidraWorkspace) -> NXentry:
         # Create the NXentry and initialize any required attributes.
   
-        ## TODO: support appending to an existing entry.
-        
         """
         ├─ definition                             (dataset: "NXstress")
         ├─ start_time                             (dataset: ISO8601 string)
@@ -182,46 +206,17 @@ class NXstress:
                      
     @classmethod
     @validate_call_
-    def _write(cls, nx: NXFile, ws: HidraWorkspace, peaks: PeakCollection):
-        # Add an NXstress NXentry tree to a NeXus-format HDF5 file:
-        #   this form allows _multiple_ NXentry to be added, each with its own <entry number>.
-        #   For example, an entry could be added for each distint set of sample conditions.
-        
-        ## TODO: support appending additional subruns (, or masks) to an existing entry.
-        
-        ######################################################
-        ## Recommended usage:                               ##
-        ## -------------------------------------------------##
-        ## from pyrs/utilities/NXstress import NXstress     ##
-        ## ...                                              ##
-        ## ws: HidraWorkspace                               ##
-        ## peaks: PeakCollection                            ##
-        ## ...                                              ##
-        ## # To write the first (, or only) entry:          ##
-        ## with NXstress(<file name>.nxs, 'w') as nxS:      ##
-        ##     nxS.write(f, ws, peaks)                      ##
-        ## -------------------------------------------------##
-        ## # To write an additional entry:                  ##
-        ## # alternatively, this could have been done       ##
-        ## # in the first `with` clause above.              ##
-        ## with NXfile(<same file name>.nxs, 'a') as nxS:   ##
-        ##     nxS.write(f, ws, peaks)                      ##
-        ######################################################
-        
+    def init_group(cls, ws: HidraWorkspace, peaks: PeakCollection) -> NXentry:
+        # Create and initialize a single NXstress-compatible NXentry tree:
+        #   _multiple_ NXentry can exist within an NXstress-compatible HDF5 file.
+        #   For example, distinct entries might be added for each set of
+        #   data-reduction or sample conditions.
+       
         # Verify that all properties required by NXstress are present.
         cls._validateWorkspace(ws)
-
-        # Do not assume that this is the only NXentry:
-        #   start with the existing NXroot, and write the _next_ NXentry.
-        root: NXroot = nx.root
-        entry_number = len(root.NXentry) + 1       
-        entry_name = group_naming_scheme(GROUP_NAME.ENTRY, entry_number)
-        if entry_name in root:
-            raise RuntimeError("Not implemented: appending to existing `NXentry` '/{entry_name}'.")
         
         # Initialize this NXentry, and add required attributes.
-        entry = cls._init_group(ws)
-        root[entry_name] = entry
+        entry = cls._init(ws)
         
         # 'input_data' group
         entry[GROUP_NAME.INPUT_DATA] = _InputData.init_group(ws)
@@ -250,3 +245,4 @@ class NXstress:
         # 'PEAKS' group
         entry[GROUP_NAME.PEAKS] = _Peaks.init_group(peaks, ws._sample_logs)
         
+        return entry

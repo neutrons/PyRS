@@ -86,10 +86,16 @@ class _Instrument:
     ########################################
     # ALL methods must be `classmethod`.  ##
     ########################################
-
+    
+    @classmethod
+    def _init(cls, name: str, shortname: str) -> NXinstrument:
+        inst = NXinstrument(shortname=shortname) # 'shortname' is an attribute
+        inst['name'] = name                      # 'name is a field
+        return inst
+        
     @classmethod
     @validate_call_
-    def init_group(cls, ws: HidraWorkspace):
+    def init_group(cls, ws: HidraWorkspace) -> NXinstrument:
         """
         Create a new NXinstrument group subtree.
         Conventions:
@@ -99,6 +105,8 @@ class _Instrument:
           - DENEXDetectorGeometry.pixeldimension -> (px, py) (meters)
           - If present, setup._geometryshift is DENEXDetectorShift.
         """
+        inst = cls._init("HB2B", "HB2B")
+        
         # Wavelength (use the 'universal' value, if available)
         wavelength = ws.get_wavelength(True, False)
 
@@ -197,7 +205,6 @@ class _Instrument:
         else:
             note = None
 
-        inst = NXinstrument(name='HB2B')
         inst[GROUP_NAME.SOURCE] = src
         inst[GROUP_NAME.MONOCHROMATOR] = mono
         inst[GROUP_NAME.DETECTOR] = det

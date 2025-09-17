@@ -98,6 +98,7 @@ class GROUP_NAME(StrEnum):
     # FIT (NXprocess) groups contain the reduced data (and associated metadata):
     #   there should be one FIT group corresponding to each detector mask.
     FIT   = ('fit', True, NXprocess)
+    DESCRIPTION = ('description', False, NXnote)
     PEAK_PARAMETERS = (REQUIRED_NAME.PEAK_PARAMETERS, False, NXparameters)
     BACKGROUND_PARAMETERS = (REQUIRED_NAME.BACKGROUND_PARAMETERS, False, NXparameters)
     DIFFRACTOGRAM = ('diffractogram', False, NXdata)
