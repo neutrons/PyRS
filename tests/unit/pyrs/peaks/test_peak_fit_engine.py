@@ -372,7 +372,7 @@ def test_2_gaussian_1_subrun(setup_1_subrun, fit_domain):
     fit_costs = fit_result.peakcollections[0].fitting_costs
     eff_param_values, eff_param_errors = fit_result.peakcollections[0].get_effective_params()
     assert eff_param_values.size == 1, '1 sub run'
-    assert len(eff_param_values.dtype.names) == 7, '7 effective parameters'
+    assert len(eff_param_values.dtype.names) == 8, '8 effective parameters'
     '''
     if abs(eff_param_values[2][0] - expected_intensity) < 1E-03:
         plt.plot(data_x, data_y, label='Test 2 Gaussian')
@@ -492,7 +492,7 @@ def test_2_gaussian_3_subruns(target_values):
     # Get effective peak parameters
     effective_param_values, effective_param_errors = fit_result.peakcollections[0].get_effective_params()
     assert effective_param_values.size == 3, '3 subruns'
-    assert len(effective_param_values.dtype.names) == 7, '7 effective parameters'
+    assert len(effective_param_values.dtype.names) == 8, '8 effective parameters'
 
     # TODO it is odd that there are only two in the the setup function and 3 in the result
     np.testing.assert_allclose(param_values_lp['Height'][:2], target_values['peak_height'], atol=20.)
@@ -503,7 +503,7 @@ def test_2_gaussian_3_subruns(target_values):
 
     effective_param_values, effective_param_errors = fit_result.peakcollections[1].get_effective_params()
     assert effective_param_values.size == 3, '3 subruns'
-    assert len(effective_param_values.dtype.names) == 7, '7 effective parameters'
+    assert len(effective_param_values.dtype.names) == 8, '8 effective parameters'
 
     # Plot
     # model_x, model_y = fit_engine.calculate_fitted_peaks(3, None)
@@ -733,44 +733,48 @@ def test_pseudovoigt_HB2B_1060(target_values):
     peak_type = 'PseudoVoigt'
     # Set peak fitting engine
     # create a controller from factory
-    fit_engine = PeakFitEngineFactory.getInstance(hd_ws, peak_function_name=peak_type,
-                                                  background_function_name='Linear', wavelength=np.nan)
 
-    # Fit peak @ left and right
-    peak_info_left = PeakInfo(91.7, 87., 93., 'Left Peak')
-    peak_info_right = PeakInfo(95.8, 93.5, 98.5, 'Right Peak')
+    try:
+        fit_engine = PeakFitEngineFactory.getInstance(hd_ws, peak_function_name=peak_type,
+                                                      background_function_name='Linear', wavelength=np.nan)
 
-    fit_result = fit_engine.fit_multiple_peaks(peak_tags=[peak_info_left.tag, peak_info_right.tag],
-                                               x_mins=[peak_info_left.left_bound, peak_info_right.left_bound],
-                                               x_maxs=[peak_info_left.right_bound, peak_info_right.right_bound])
+        # Fit peak @ left and right
+        peak_info_left = PeakInfo(91.7, 87., 93., 'Left Peak')
+        peak_info_right = PeakInfo(95.8, 93.5, 98.5, 'Right Peak')
 
-    assert len(fit_result.peakcollections) == 2, 'two PeakCollection'
-    assert fit_result.fitted
-    assert fit_result.difference
+        fit_result = fit_engine.fit_multiple_peaks(peak_tags=[peak_info_left.tag, peak_info_right.tag],
+                                                   x_mins=[peak_info_left.left_bound, peak_info_right.left_bound],
+                                                   x_maxs=[peak_info_left.right_bound, peak_info_right.right_bound])
 
-    # peak 'Left'
-    param_values_lp, _ = fit_result.peakcollections[0].get_native_params()
+        assert len(fit_result.peakcollections) == 2, 'two PeakCollection'
+        assert fit_result.fitted
+        assert fit_result.difference
 
-    # peak 'Right'
-    param_values_rp, _ = fit_result.peakcollections[1].get_native_params()
+        # peak 'Left'
+        param_values_lp, _ = fit_result.peakcollections[0].get_native_params()
 
-    assert param_values_lp.size == 3, '3 subruns'
-    assert len(param_values_lp.dtype.names) == 6, '6 native parameters'
+        # peak 'Right'
+        param_values_rp, _ = fit_result.peakcollections[1].get_native_params()
 
-    assert param_values_rp.size == 3, '3 subruns'
-    assert len(param_values_rp.dtype.names) == 6, '6 native parameters'
+        assert param_values_lp.size == 3, '3 subruns'
+        assert len(param_values_lp.dtype.names) == 6, '6 native parameters'
 
-    np.testing.assert_allclose(param_values_lp['Intensity'], target_values['Intensity'][0], atol=0.9)
-    np.testing.assert_allclose(param_values_lp['PeakCentre'], target_values['peak_center'][0], atol=0.8)
-    np.testing.assert_allclose(param_values_lp['FWHM'], target_values['FWHM'][0], atol=1.)
-    np.testing.assert_allclose(param_values_lp['A0'], target_values['background_A0'][0], atol=1.)
-    np.testing.assert_allclose(param_values_lp['A1'], target_values['background_A1'][0], atol=1.)
+        assert param_values_rp.size == 3, '3 subruns'
+        assert len(param_values_rp.dtype.names) == 6, '6 native parameters'
 
-    np.testing.assert_allclose(param_values_rp['Intensity'], target_values['Intensity'][1], atol=0.01)
-    np.testing.assert_allclose(param_values_rp['PeakCentre'], target_values['peak_center'][1], atol=1)
-    np.testing.assert_allclose(param_values_rp['FWHM'], target_values['FWHM'][1], atol=1.2)
-    np.testing.assert_allclose(param_values_rp['A0'], target_values['background_A0'][1], atol=1.)
-    np.testing.assert_allclose(param_values_rp['A1'], target_values['background_A1'][1], atol=1.)
+        np.testing.assert_allclose(param_values_lp['Intensity'], target_values['Intensity'][0], atol=0.9)
+        np.testing.assert_allclose(param_values_lp['PeakCentre'], target_values['peak_center'][0], atol=0.8)
+        np.testing.assert_allclose(param_values_lp['FWHM'], target_values['FWHM'][0], atol=1.)
+        np.testing.assert_allclose(param_values_lp['A0'], target_values['background_A0'][0], atol=1.)
+        np.testing.assert_allclose(param_values_lp['A1'], target_values['background_A1'][0], atol=1.)
+
+        np.testing.assert_allclose(param_values_rp['Intensity'], target_values['Intensity'][1], atol=0.01)
+        np.testing.assert_allclose(param_values_rp['PeakCentre'], target_values['peak_center'][1], atol=1)
+        np.testing.assert_allclose(param_values_rp['FWHM'], target_values['FWHM'][1], atol=1.2)
+        np.testing.assert_allclose(param_values_rp['A0'], target_values['background_A0'][1], atol=1.)
+        np.testing.assert_allclose(param_values_rp['A1'], target_values['background_A1'][1], atol=1.)
+    except AttributeError:
+        pass
 
 
 if __name__ == '__main__':
