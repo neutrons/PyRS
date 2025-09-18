@@ -1,10 +1,43 @@
+[project]
+name = "pyrs"
+description = "Data reduction and visualization of neutron data measured at the HFIR HB2B instrument"
+dynamic = ["version"]
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["neutrons", "python"]
+readme = "README.rst"
+
+####################
+### Build config ###
+####################
+
 [build-system]
-requires = ["setuptools >= 48", "versioningit", "wheel", "toml"]
-build-backend = "setuptools.build_meta"
+build-backend = "hatchling.build"
+requires = ["hatchling", "versioningit"]
+
+[tool.hatch.version]
+source = "versioningit"
+
+[tool.hatch.build.hooks.versioningit-onbuild]
+source-file = "pyrs/_version.py"
+build-file = "pyrs/_version.py"
+replacement = '"{next_version}"'
+
+[tool.hatch.build]
+artifacts = [
+  "pyrs/_version.py",
+  "pyrs/**/*.yml",
+  "pyrs/**/*.yaml",
+  "pyrs/**/*.ini",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["pyrs"]
 
 [tool.versioningit.vcs]
 method = "git"
-default-tag = "1.2.0"
+default-tag = "0.1.0"
+
 
 [tool.versioningit.next-version]
 method = "minor"
@@ -16,3 +49,139 @@ distance-dirty = "{next_version}.dev{distance}+d{build_date:%Y%m%d%H%M}"
 
 [tool.versioningit.write]
 file = "pyrs/_version.py"
+
+[tool.pixi.workspace]
+preview = [ "pixi-build",]
+channels = [ "conda-forge", "mantid", "https://prefix.dev/pixi-build-backends",]
+platforms = [ "linux-64",]
+
+[tool.pixi.dependencies]
+python = "*"
+pip = "*"
+mantidworkbench = ">=6.13.0,<6.14.0"
+qtpy = "*"
+pyqt = "*"
+uncertainties = "*"
+libarchive = "*"
+matplotlib = "*"
+numpy = "*"
+pandas = "*"
+types-six = "*"
+
+[tool.pixi.pypi-dependencies]
+# PyPI dependencies, including this package to allow local editable installs
+pyrs = { path = ".", editable = true }
+
+[tool.pixi.package.host-dependencies]
+hatchling = "*"
+versioningit = "*"
+
+[tool.pixi.package.run-dependencies]
+mantidworkbench = ">=6.13.0,<6.14.0"
+qtpy = "*"
+pyqt = "*"
+uncertainties = "*"
+libarchive = "*"
+matplotlib = "*"
+numpy = "*"
+pandas = "*"
+types-six = "*"
+
+
+# ------------------------------- #
+# Pixi Feature Dependencies       #
+# ------------------------------- #
+[tool.pixi.feature.test.dependencies]
+pytest = "*"
+pytest-qt = "*"
+pytest-cov = "*"
+flake8 = "*"
+mypy = "*"
+
+[tool.pixi.feature.package.dependencies]
+boa = "*"
+anaconda-client = "*"
+conda-build = "<24"
+conda-verify = "*"
+twine = "*"
+versioningit = "*"
+hatch = "*"
+toml = "*"
+
+[tool.pixi.feature.package.pypi-dependencies]
+toml-cli = "*"
+
+[tool.pixi.feature.developer.dependencies]
+pre-commit = "*"
+flake8 = "*"
+mypy = "*"
+python-build = "*"
+
+[tool.pixi.feature.docs.dependencies]
+sphinx = "*"
+sphinx_rtd_theme = "*"
+sphinxcontrib-mermaid = "*"
+types-pyyaml = "*"
+versioningit = "*"
+
+[tool.pixi.package]
+name = "pyrs"
+version = "0.0.0"  # placeholder, overwritten by sync-version
+
+[tool.pixi.package.build]
+backend = { name = "pixi-build-python", version = "0.1.*" }
+channels = [
+  "conda-forge",
+  "mantid",
+  "https://prefix.dev/pixi-build-backends",
+  "https://prefix.dev/conda-forge",
+]
+
+[tool.pixi.environments]
+default = { features = [
+  "docs",
+  "developer",
+  "package",
+  "test",
+], solve-group = "default" }
+
+# --------------- #
+# Pixi Tasks      #
+# --------------- #
+[tool.pixi.tasks]
+# PyPi packaging tasks
+build-pypi = { cmd = "hatch build", description = "Build the package for PyPI" }
+publish-pypi = { cmd = "twine upload dist/*", description = "Publish the package to PyPI", depends-on = ["build-pypi"] }
+publish-pypi-test = { cmd = "twine upload --repository testpypi dist/*", description = "Publish the package to TestPyPI", depends-on = ["build-pypi"] }
+clean-pypi = { cmd = "rm -rf dist", description = "Clean the PyPI build artifacts" }
+
+# Conda packaging tasks
+build-conda-command = { cmd = "pixi build", description = "Build the conda package command" }
+build-conda = { description = "Build the conda package", depends-on = ["backup-toml", "sync-version", "build-conda-command", "reset-toml"] }
+publish-conda = { cmd = "anaconda upload *.conda", description = "Publish the .conda package to anaconda.org", depends-on = ["build-conda"] }
+clean-conda = { cmd = "rm -f *.conda", description = "Clean the local .conda build artifacts" }
+
+# Documentation tasks
+build-docs = { cmd = "sphinx-build -b html docs/source docs/_build", description = "Build the documentation" }
+clean-docs = { cmd = "rm -rf docs/_build", description = "Clean the documentation build artifacts" }
+docs-serve = { cmd = "python -m http.server 8000 -d docs/_build", description = "Serve documentation locally on port 8000" }
+docs-autobuild = { cmd = "sphinx-autobuild docs/source docs/_build --host 0.0.0.0 --port 8000", description = "Auto-rebuild and serve docs on changes" }
+
+# Testing tasks
+test = { cmd = "pytest --cov=pyrs --cov-report=xml --cov-report=term ./tests", description = "Run the tests with coverage" }
+test-import-framework = { cmd = "python -c 'import pyrs'; python -c 'import qtpy'; python -c 'import mantidqt'", description = "Test import of main dependencies" }
+
+lint-flake8 = { cmd = "flake8 pyrs scripts tests --count --max-line-length=119 --exclude pyrs/icons", description = "Run flake8 linter on the codebase" }
+
+# MISC
+clean-all = { description = "Clean all build artifacts", depends-on = ["clean-pypi", "clean-docs", "clean-conda"] }
+sync-version = { cmd = 'version=$(python -m versioningit); toml set tool.pixi.package.version "$version" --toml-path pyproject.toml', description = "Sync pyproject.toml version with Git version" }
+backup-toml = { cmd = "cp pyproject.toml pyproject.toml.bak", description = "Backup the pyproject.toml file" }
+reset-toml = { cmd = "cp pyproject.toml.bak pyproject.toml; rm pyproject.toml.bak", description = "Reset the pyproject.toml file to the original state" }
+
+# Application tasks
+pyrs = { cmd = "python scripts/pyrsplot", description = "Start the pyrs application"}
+
+[tool.mypy]
+ignore_missing_imports = true
+namespace_packages = true
