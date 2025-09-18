@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import time
 import os
 from pyrs.calibration import mantid_peakfit_calibration
@@ -132,7 +133,7 @@ def check_method_input(REFINE_METHOD, SPLITTER):
     return
 
 
-if __name__ == '__main__':
+def main():
     import sys
     import json
 
@@ -220,3 +221,7 @@ if __name__ == '__main__':
     else:
         calibrator.print_calibration()
         print(calibrator.refinement_summary)
+
+if __name__ == '__main__':
+    main()
+    

@@ -8,7 +8,10 @@ keywords = ["neutrons", "python"]
 readme = "README.rst"
 
 [project.scripts]
-pyrs = "pyrs.pyrsplot:main"
+pyrsplot = "scripts.pyrsplot:main"
+pyrs-calibration = "scripts.pyrs_calibration:main"
+pyrs-calibration-correlation = "scripts.pyrs_calibration_correlation:main"
+create-mask = "scripts.create_mask:main"
 
 ####################
 ### Build config ###

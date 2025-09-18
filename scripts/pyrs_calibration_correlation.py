@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # type: ignore
 import numpy as np
 import time
@@ -194,7 +195,7 @@ def check_method_input(REFINE_METHOD, SPLITTER):
     return
 
 
-if __name__ == '__main__':
+def main():
     import sys
     import json
 
@@ -287,3 +288,7 @@ if __name__ == '__main__':
     else:
         calibrator.print_calibration()
         print(calibrator.refinement_summary)
+
+if __name__ == '__main__':
+    main()
+    
