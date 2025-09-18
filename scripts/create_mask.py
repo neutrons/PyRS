@@ -204,11 +204,12 @@ class MaskProcessApp:
         return num_masked
 
 
-def main(argv):
+def main():
     """ Main argument
     :param argv:
     :return:
     """
+    argv = sys.argv
     if len(argv) == 1:
         print('Generate masks (HDF5)\n> {} --help'.format(argv[0]))
         sys.exit(-1)
@@ -346,4 +347,4 @@ def parse_input_arguments(argv):
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    main()
