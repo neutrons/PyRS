@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # type: ignore
 import numpy as np
 import time
@@ -194,16 +195,19 @@ def check_method_input(REFINE_METHOD, SPLITTER):
     return
 
 
-if __name__ == '__main__':
+def main(argv=None):
     import sys
     import json
+    
+    if argv is None:
+        argv = sys.argv
 
-    if len(sys.argv) == 1:
+    if len(argv) == 1:
         print('Requires a json input.\n{}\n{}\n{}'.format(_options, M_options, P_options))
         _write_template()
         raise RuntimeError('template.json was created as an example input')
 
-    with open(sys.argv[1], 'r') as json_input:
+    with open(argv[1], 'r') as json_input:
         try:
             calibration_user_inputs = json.load(json_input)
         except ValueError:
@@ -287,3 +291,7 @@ if __name__ == '__main__':
     else:
         calibrator.print_calibration()
         print(calibrator.refinement_summary)
+
+if __name__ == '__main__':
+    main()
+    

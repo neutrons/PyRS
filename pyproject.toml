@@ -7,6 +7,12 @@ license = { text = "MIT" }
 keywords = ["neutrons", "python"]
 readme = "README.rst"
 
+[project.scripts]
+pyrsplot = "scripts.pyrsplot:main"
+pyrs-calibration = "scripts.pyrs_calibration:main"
+pyrs-calibration-correlation = "scripts.pyrs_calibration_correlation:main"
+create-mask = "scripts.create_mask:main"
+
 ####################
 ### Build config ###
 ####################
@@ -32,7 +38,7 @@ artifacts = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["pyrs"]
+packages = ["pyrs", "scripts"]
 
 [tool.versioningit.vcs]
 method = "git"
@@ -171,7 +177,7 @@ docs-autobuild = { cmd = "sphinx-autobuild docs/source docs/_build --host 0.0.0.
 test = { cmd = "pytest --cov=pyrs --cov-report=xml --cov-report=term ./tests", description = "Run the tests with coverage" }
 test-import-framework = { cmd = "python -c 'import pyrs'; python -c 'import qtpy'; python -c 'import mantidqt'", description = "Test import of main dependencies" }
 
-lint-flake8 = { cmd = "flake8 pyrs scripts tests --count --max-line-length=119 --exclude pyrs/icons", description = "Run flake8 linter on the codebase" }
+lint-flake8 = { cmd = "flake8 pyrs scripts tests --count --max-line-length=119 --exclude pyrs/icons,scripts", description = "Run flake8 linter on the codebase" }
 
 # MISC
 clean-all = { description = "Clean all build artifacts", depends-on = ["clean-pypi", "clean-docs", "clean-conda"] }
@@ -180,7 +186,7 @@ backup-toml = { cmd = "cp pyproject.toml pyproject.toml.bak", description = "Bac
 reset-toml = { cmd = "cp pyproject.toml.bak pyproject.toml; rm pyproject.toml.bak", description = "Reset the pyproject.toml file to the original state" }
 
 # Application tasks
-pyrs = { cmd = "python scripts/pyrsplot", description = "Start the pyrs application"}
+pyrs = { cmd = "pyrsplot", description = "Start the pyrs application"}
 
 [tool.mypy]
 ignore_missing_imports = true
