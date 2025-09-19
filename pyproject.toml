@@ -185,6 +185,8 @@ sync-version = { cmd = 'version=$(python -m versioningit); toml set tool.pixi.pa
 backup-toml = { cmd = "cp pyproject.toml pyproject.toml.bak", description = "Backup the pyproject.toml file" }
 reset-toml = { cmd = "cp pyproject.toml.bak pyproject.toml; rm pyproject.toml.bak", description = "Reset the pyproject.toml file to the original state" }
 
+# Application tasks
+pyrs = { cmd = "python scripts/pyrsplot", description = "Start the pyrs application"}
 
 [tool.mypy]
 ignore_missing_imports = true
