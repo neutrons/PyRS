@@ -177,7 +177,7 @@ docs-autobuild = { cmd = "sphinx-autobuild docs/source docs/_build --host 0.0.0.
 test = { cmd = "pytest --cov=pyrs --cov-report=xml --cov-report=term ./tests", description = "Run the tests with coverage" }
 test-import-framework = { cmd = "python -c 'import pyrs'; python -c 'import qtpy'; python -c 'import mantidqt'", description = "Test import of main dependencies" }
 
-lint-flake8 = { cmd = "flake8 pyrs scripts tests --count --max-line-length=119 --exclude pyrs/icons", description = "Run flake8 linter on the codebase" }
+lint-flake8 = { cmd = "flake8 pyrs scripts tests --count --max-line-length=119 --exclude pyrs/icons,scripts", description = "Run flake8 linter on the codebase" }
 
 # MISC
 clean-all = { description = "Clean all build artifacts", depends-on = ["clean-pypi", "clean-docs", "clean-conda"] }
