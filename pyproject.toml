@@ -186,7 +186,7 @@ backup-toml = { cmd = "cp pyproject.toml pyproject.toml.bak", description = "Bac
 reset-toml = { cmd = "cp pyproject.toml.bak pyproject.toml; rm pyproject.toml.bak", description = "Reset the pyproject.toml file to the original state" }
 
 # Application tasks
-pyrs = { cmd = "python scripts/pyrsplot", description = "Start the pyrs application"}
+pyrs = { cmd = "pyrsplot", description = "Start the pyrs application"}
 
 [tool.mypy]
 ignore_missing_imports = true

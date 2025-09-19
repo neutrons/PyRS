@@ -204,12 +204,13 @@ class MaskProcessApp:
         return num_masked
 
 
-def main():
+def main(argv=None):
     """ Main argument
     :param argv:
     :return:
     """
-    argv = sys.argv
+    if argv is None:
+        argv = sys.argv
     if len(argv) == 1:
         print('Generate masks (HDF5)\n> {} --help'.format(argv[0]))
         sys.exit(-1)
@@ -221,7 +222,7 @@ def main():
     for iarg, arg_i in enumerate(argv):
         print(iarg, arg_i)
 
-    result = parse_input_arguments(sys.argv[1:])
+    result = parse_input_arguments(argv[1:])
     if result is None:
         sys.exit(1)
     else:

@@ -133,16 +133,19 @@ def check_method_input(REFINE_METHOD, SPLITTER):
     return
 
 
-def main():
+def main(argv=None):
     import sys
     import json
+    
+    if argv is None:
+        argv = sys.argv
 
-    if len(sys.argv) == 1:
+    if len(argv) == 1:
         print('Requires a json input.\n{}\n{}'.format(_options, M_options))
         _write_template()
         raise RuntimeError('template.json was created as an example input')
 
-    with open(sys.argv[1], 'r') as json_input:
+    with open(argv[1], 'r') as json_input:
         try:
             calibration_inputs = json.load(json_input)
         except ValueError:
