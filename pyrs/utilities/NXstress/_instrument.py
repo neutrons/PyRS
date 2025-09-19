@@ -45,7 +45,7 @@ class _Masks:
         # initialize the `masks` (NXcollection) group
         masks = NXcollection()
         masks['names'] = NXfield(np.empty((0,), dtype=FIELD_DTYPE.STRING.value),
-                                 maxshape=(None,), chunks=CHUNK_SHAPE)
+                                 maxshape=(None,), chunks=CHUNK_SHAPE(1))
         masks['detector'] = NXcollection()
         masks['solid_angle'] = NXcollection()
 
@@ -54,10 +54,10 @@ class _Masks:
     @classmethod
     @validate_call_
     def init_group(cls, ws: HidraWorkspace, detectorMasks: bool = True, masks: NXcollection = None):
-        # write or append masks to the `INSTRUMENT/masks` group
+        # Write or append masks to the `NXcollection`
 
         # Allow append: both 'detector' and 'solid_angle' masks may exist,
-        #   and will need to be added in separate steps.
+        #   and if so, will need to be added in separate steps.
         masks = masks if masks is not None else cls._init()
         names = masks['names'].nxvalue
         appending = len(names) > 0
@@ -88,9 +88,9 @@ class _Instrument:
     ########################################
     
     @classmethod
-    def _init(cls, name: str, shortname: str) -> NXinstrument:
-        inst = NXinstrument(shortname=shortname) # 'shortname' is an attribute
-        inst['name'] = name                      # 'name is a field
+    def _init(cls, name: str, short_name: str) -> NXinstrument:
+        inst = NXinstrument(short_name=short_name) # 'short_name' is an attribute
+        inst['name'] = name                       # 'name is a field
         return inst
         
     @classmethod
@@ -145,6 +145,7 @@ class _Instrument:
 
         # Beam intensity profile
         beam = NXbeam()
+        # TODO: fill in the beam-intensity profile.
         
         # Transformations chain (values as native floats; axis vectors as float64 arrays)
         trans = NXtransformations()
@@ -206,9 +207,9 @@ class _Instrument:
             note = None
 
         inst[GROUP_NAME.SOURCE] = src
+        inst[GROUP_NAME.BEAM] = beam
         inst[GROUP_NAME.MONOCHROMATOR] = mono
         inst[GROUP_NAME.DETECTOR] = det
-        inst[GROUP_NAME.BEAM] = beam
         if note is not None:
             inst["detector_calibration"] = note
         

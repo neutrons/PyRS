@@ -45,7 +45,11 @@ class _Peaks:
             )
         # Extract <phase name> as the rest of the tag.
         i, j = maybeHKL.span()
-        phase = tag[:i] + tag[j:]
+        phase = (tag[:i] + tag[j:]).strip()
+        if not bool(phase):
+            raise RuntimeError(
+                f"Unable to parse <phase name> from peak tag '{tag}'."
+            )
         
         # Extract (h, k, l)
         maybeHKL = maybeHKL.group(0)
@@ -60,54 +64,63 @@ class _Peaks:
         peaks = NXreflections()
 
         peaks['scan_point'] = NXfield(np.empty((0,), dtype=np.int32),
-                                      maxshape=(None,), chunks=CHUNK_SHAPE)
+                                      maxshape=(None,), chunks=CHUNK_SHAPE(1))
 
         peaks['h'] = NXfield(np.empty((0,), dtype=np.int32),
-                             maxshape=(None,), chunks=CHUNK_SHAPE)
+                             maxshape=(None,), chunks=CHUNK_SHAPE(1),
+                             units='')
         peaks['k'] = NXfield(np.empty((0,), dtype=np.int32),
-                             maxshape=(None,), chunks=CHUNK_SHAPE)
+                             maxshape=(None,), chunks=CHUNK_SHAPE(1),
+                             units='')
         peaks['l'] = NXfield(np.empty((0,), dtype=np.int32),
-                             maxshape=(None,), chunks=CHUNK_SHAPE)
+                             maxshape=(None,), chunks=CHUNK_SHAPE(1),
+                             units='')
         
         peaks['phase_name'] = NXfield(np.empty((0,), dtype=FIELD_DTYPE.STRING.value),
-                                      maxshape=(None,), chunks=CHUNK_SHAPE)
+                                      maxshape=(None,), chunks=CHUNK_SHAPE(1))
         
         ## Components of the normalized scattering vector Q in the sample reference frame
         ##   'qx', 'qy', and 'qz' are *required* by NXstress, but it looks as if PyRS doesn't
         ##   use these -- initialize to `NaN`.
         peaks['qx'] = NXfield(np.empty((0,), dtype=np.float64),
-                              maxshape=(None,), chunks=CHUNK_SHAPE, fillvalue=np.nan)
+                              maxshape=(None,), chunks=CHUNK_SHAPE(1), fillvalue=np.nan)
         peaks['qx'].attrs['units'] = '1'        
         peaks['qy'] = NXfield(np.empty((0,), dtype=np.float64),
-                              maxshape=(None,), chunks=CHUNK_SHAPE, fillvalue=np.nan)        
+                              maxshape=(None,), chunks=CHUNK_SHAPE(1), fillvalue=np.nan)        
         peaks['qy'].attrs['units'] = '1'        
         peaks['qz'] = NXfield(np.empty((0,), dtype=np.float64),
-                              maxshape=(None,), chunks=CHUNK_SHAPE, fillvalue=np.nan)        
+                              maxshape=(None,), chunks=CHUNK_SHAPE(1), fillvalue=np.nan)        
         peaks['qz'].attrs['units'] = '1'        
         ##
 
         peaks['center'] = NXfield(
             np.empty((0,), dtype=np.float64),
-            maxshape=(None,), chunks=CHUNK_SHAPE,
+            maxshape=(None,), chunks=CHUNK_SHAPE(1),
             units='angstrom'
         )        
         peaks['center_errors'] = NXfield(
             np.empty((0,), dtype=np.float64),
             maxshape=(None,),
-            chunks=CHUNK_SHAPE,
+            chunks=CHUNK_SHAPE(1),
             units='angstrom')
         peaks['center_type'] = NXfield('d-spacing')  
         
         # Sample position for each subrun -- initialize to `NaN`.
+        ss_units = {
+            ## work around: units may be an empty string
+            'sx': logs.units('sx') if bool(logs.units('sx')) else 'mm',
+            'sy': logs.units('sy') if bool(logs.units('sy')) else 'mm',
+            'sz': logs.units('sz') if bool(logs.units('sz')) else 'mm',
+        }
         peaks['sx'] = NXfield(np.empty((0,), dtype=np.float64),
-                              maxshape=(None,), chunks=CHUNK_SHAPE, fillvalue=np.nan)
-        peaks['sx'].attrs['units'] = logs.units('sx')        
+                              maxshape=(None,), chunks=CHUNK_SHAPE(1), fillvalue=np.nan,
+                              units=ss_units['sx'])
         peaks['sy'] = NXfield(np.empty((0,), dtype=np.float64),
-                              maxshape=(None,), chunks=CHUNK_SHAPE, fillvalue=np.nan)        
-        peaks['sy'].attrs['units'] = logs.units('sx')        
+                              maxshape=(None,), chunks=CHUNK_SHAPE(1), fillvalue=np.nan,
+                              units=ss_units['sy'])
         peaks['sz'] = NXfield(np.empty((0,), dtype=np.float64),
-                              maxshape=(None,), chunks=CHUNK_SHAPE, fillvalue=np.nan)        
-        peaks['sx'].attrs['units'] = logs.units('sx')        
+                              maxshape=(None,), chunks=CHUNK_SHAPE(1), fillvalue=np.nan,
+                              units=ss_units['sz'])
 
         return peaks
     
@@ -147,6 +160,10 @@ class _Peaks:
         peaks['center'].resize((new_len,))
         peaks['center_errors'].resize((new_len,))
         
+        peaks['sx'].resize((new_len,))
+        peaks['sy'].resize((new_len,))
+        peaks['sz'].resize((new_len,))
+        
         peaks['scan_point'][curr_len:] = scan_point
         peaks['h'][curr_len:] = h
         peaks['k'][curr_len:] = k
@@ -155,5 +172,9 @@ class _Peaks:
         
         peaks['center'][curr_len:] = d_reference.ravel()
         peaks['center_errors'][curr_len:] = d_reference_error.ravel()
+        
+        peaks['sx'][curr_len:] = logs['sx']
+        peaks['sy'][curr_len:] = logs['sy']
+        peaks['sz'][curr_len:] = logs['sz']
 
         return peaks

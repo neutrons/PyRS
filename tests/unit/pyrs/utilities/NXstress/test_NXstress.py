@@ -1,10 +1,12 @@
 import numpy as np
 from nexusformat.nexus import (
     NXbeam,
+    NXcollection,
     NXdata,
     NXdetector,
     NXentry,
     NXinstrument,
+    NXmonochromator,
     NXnote,
     NXparameters,
     NXprocess,
@@ -13,15 +15,20 @@ from nexusformat.nexus import (
     NXsource
 )
 from pathlib import Path
+import shutil
 
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.peaks.peak_collection import PeakCollection
 from pyrs.utilities.NXstress._definitions import (
-    GROUP_NAME
+    FIELD_DTYPE, GROUP_NAME
 )
-from pyrs.utilities.NXstress._fit import _Fit
+from pyrs.utilities.NXstress._fit import (
+    _Diffractogram, _Fit, _PeakParameters, _BackgroundParameters
+)
 from pyrs.utilities.NXstress._input_data import _InputData
-from pyrs.utilities.NXstress._instrument import _Instrument
+from pyrs.utilities.NXstress._instrument import (
+    _Instrument, _Masks
+)
 from pyrs.utilities.NXstress._peaks import _Peaks
 from pyrs.utilities.NXstress._sample import _Sample
 from pyrs.utilities.NXstress.NXstress import NXstress
@@ -99,13 +106,13 @@ class TestNXstress:
             runnumber=12345,
             N_subrun=N_subrun    
         )        
-        
+                     
         file_path = tmp_path / 'test_NXstress_context_manager.nxs'
         assert not file_path.exists()
         
         with NXstress(file_path, 'w') as nx:
             nx.write(ws, peak0)
-            assert nx._nx._root is not None
+            assert nx._root is not None
         assert file_path.exists()
     
     def test_NXentry_fields(
@@ -280,14 +287,27 @@ class TestNXstress:
             runnumber=12345,
             N_subrun=N_subrun    
         )        
-        
-        file_path = tmp_path / 'test_NXentry_multiple.nxs'
+        peak1 = createPeakCollection(
+            peak_tag="Si 111",
+            peak_profile="PseudoVoigt",
+            background_type="Quadratic",
+            wavelength=20.6,
+            projectfilename="/does/not/exist.h5",
+            runnumber=12345,
+            N_subrun=N_subrun    
+        )
+                
+        file_path = tmp_path / 'test_NXstress_multiple_NXentry.nxs'
         with NXstress(file_path, 'w') as nx:
             nx.write(ws, peak0)
-            nx.write(ws, peak0)
-            assert len(nx._nx.root.NXentry) == 2
-            assert 'entry' in nx._nx.root
-            assert 'entry_2' in nx._nx.root
+            nx.write(ws, peak1)
+            assert len(nx._root.NXentry) == 2
+            assert 'entry' in nx._root
+            assert 'entry_2' in nx._root
+        assert file_path.exists()
+        
+        # *** DEBUG *** : for validation:
+        shutil.copy2(file_path, Path('/mnt/data0/workspaces/ORNL-work/PyRS/tmp/validation'))
         
     def test__Instrument_fields_and_subgroups(
         self,
@@ -304,8 +324,11 @@ class TestNXstress:
         required_fields = ('name',)
         required_subgroups = (
             (GROUP_NAME.SOURCE, NXsource),
+            (GROUP_NAME.BEAM, NXbeam),
+            (GROUP_NAME.MONOCHROMATOR, NXmonochromator),
             (GROUP_NAME.DETECTOR, NXdetector),
-            (GROUP_NAME.BEAM, NXbeam)
+            # Optional field for NXstress:
+            (GROUP_NAME.MASKS, NXcollection)
         )
         
         inst = _Instrument.init_group(ws)
@@ -315,7 +338,33 @@ class TestNXstress:
         for key, NXclass_ in required_subgroups:
             assert key in inst
             assert isinstance(inst[key], NXclass_)
-                
+        
+    def test__Masks_fields_and_subgroups(
+        self,
+        load_HidraWorkspace: HidraWorkspace,
+        ):
+        ws = load_HidraWorkspace(
+            file_name=self.PROJECT_FILE_A,
+            name='test_workspace',
+            # raw-counts load => instrument load
+            load_raw_counts=True,
+            load_reduced_diffraction=True
+        )
+        
+        required_fields = ('names',)
+        required_subgroups = (
+            ('detector', NXcollection),
+            ('solid_angle', NXcollection)
+        )
+        
+        masks = _Masks.init_group(ws, detectorMasks=True)
+        assert isinstance(masks, NXcollection)
+        for key in required_fields:
+            assert key in masks
+        for key, NXclass_ in required_subgroups:
+            assert key in masks
+            assert isinstance(masks[key], NXclass_)
+                 
     def test__Sample_fields_and_subgroups(
         self,
         load_HidraWorkspace: HidraWorkspace,
@@ -391,6 +440,149 @@ class TestNXstress:
     def test__Fit_multiple(self):
         pass
                 
+    def test__PeakParameters_fields_and_subgroups(
+        self,
+        load_HidraWorkspace: HidraWorkspace,
+        createPeakCollection: PeakCollection
+        ):
+        
+        # Load a workspace in order to get a realistic <scan point> axis.
+        ws = load_HidraWorkspace(
+            file_name=self.PROJECT_FILE_B,
+            name='test_workspace',
+            load_raw_counts=False,
+            load_reduced_diffraction=True
+        )
+        sampleLogs = ws._sample_logs
+        subruns = sampleLogs.subruns.raw_copy()
+        
+        N_subrun = len(subruns)
+        peak0 = createPeakCollection(
+            peak_tag="Al 251540",
+            peak_profile="PseudoVoigt",
+            background_type="Quadratic",
+            wavelength=25.4,
+            projectfilename="/does/not/exist.h5",
+            runnumber=12345,
+            N_subrun=N_subrun    
+        )        
+        peak0_params_value, peak0_params_error = peak0.get_effective_params()
+        
+        required_fields = (
+            'title',
+            'center',
+            # Not all of these fields are required by `NXstress`, but
+            #   as these are available in PyRS, they will be used here.
+            'center_errors',
+            'height',
+            'height_errors',
+            'fwhm',
+            'fwhm_errors',
+            'form_factor',
+            'form_factor_errors'
+        )
+        
+        peak_parameters = _PeakParameters.init_group(peak0)
+        assert isinstance(peak_parameters, NXparameters)
+        for key in required_fields:
+            assert key in peak_parameters
+        
+        # Verify mixing to form factor conversion.
+        assert pytest.approx(peak_parameters['form_factor'], 1.0e-6) ==\
+            (1.0 - peak0_params_value['Mixing']).astype(FIELD_DTYPE.FLOAT_DATA.value)
+                
+    def test__BackgroundParameters_fields_and_subgroups(
+        self,
+        load_HidraWorkspace: HidraWorkspace,
+        createPeakCollection: PeakCollection
+        ):
+        
+        # Load a workspace in order to get a realistic <scan point> axis.
+        ws = load_HidraWorkspace(
+            file_name=self.PROJECT_FILE_B,
+            name='test_workspace',
+            load_raw_counts=False,
+            load_reduced_diffraction=True
+        )
+        sampleLogs = ws._sample_logs
+        subruns = sampleLogs.subruns.raw_copy()
+        
+        N_subrun = len(subruns)
+        peak0 = createPeakCollection(
+            peak_tag="Al 251540",
+            peak_profile="PseudoVoigt",
+            background_type="Quadratic",
+            wavelength=25.4,
+            projectfilename="/does/not/exist.h5",
+            runnumber=12345,
+            N_subrun=N_subrun    
+        )        
+        peak0_params_value, peak0_params_error = peak0.get_effective_params()
+        
+        required_fields = (
+            'title',
+            # Not all of these fields are required by `NXstress`, but
+            #   as PyRS uses polynomial background functions, they will be used here.
+            'A',
+            'A_errors'
+        )
+        
+        background_parameters = _BackgroundParameters.init_group(peak0)
+        assert isinstance(background_parameters, NXparameters)
+        for key in required_fields:
+            assert key in background_parameters
+                
+    def test__Diffractogram_fields_and_subgroups(
+        self,
+        load_HidraWorkspace: HidraWorkspace,
+        createPeakCollection: PeakCollection
+        ):
+        ws = load_HidraWorkspace(
+            file_name=self.PROJECT_FILE_B,
+            name='test_workspace',
+            load_raw_counts=False,
+            load_reduced_diffraction=True
+        )
+        sampleLogs = ws._sample_logs
+        subruns = sampleLogs.subruns.raw_copy()
+        
+        N_subrun = len(subruns)
+        peak0 = createPeakCollection(
+            peak_tag="Al 251540",
+            peak_profile="Gaussian",
+            background_type="Quadratic",
+            wavelength=25.4,
+            projectfilename="/does/not/exist.h5",
+            runnumber=12345,
+            N_subrun=N_subrun    
+        )        
+        
+        required_attributes = (
+            'signal',
+            'auxiliary_signals',
+            'axes'
+        )
+        required_fields = (
+            'scan_point',
+            'two_theta',
+            GROUP_NAME.DGRAM_DIFFRACTOGRAM,
+            GROUP_NAME.DGRAM_DIFFRACTOGRAM_ERRORS,
+            GROUP_NAME.DGRAM_FIT,
+            GROUP_NAME.DGRAM_FIT_ERRORS
+        )
+        required_subgroups = ()
+        
+        dgram = _Diffractogram.init_group(ws, '_DEFAULT_', peak0)
+        assert isinstance(dgram, NXdata)
+        for key in required_attributes:
+            assert key in dgram.attrs
+        for key in required_fields:
+            assert key in dgram
+        # Placeholder: there are currently no required subgroups:
+        for key, NXclass_ in required_subgroups:
+            assert key in dgram
+            assert isinstance(dgram[key], NXclass_)
+                
     def test__Peaks_fields_and_subgroups(
         self,
         tmp_path: Path,
@@ -432,7 +624,38 @@ class TestNXstress:
         for key, NXclass_ in required_subgroups:
             assert key in peaks
             assert isinstance(peaks[key], NXclass_)
-    
+
+    def test__parse_peak_tag(self):
+        phase, (h, k, l) = _Peaks._parse_peak_tag('Al 452411') 
+        assert phase == 'Al'
+        assert (45, 24, 11) == (h, k, l)
+        
+        phase, (h, k, l) = _Peaks._parse_peak_tag('111 Al2O3') 
+        assert phase == 'Al2O3'
+        assert (1, 1, 1) == (h, k, l)
+        
+        phase, (h, k, l) = _Peaks._parse_peak_tag('010203 Silicon') 
+        assert phase == 'Silicon'
+        assert (1, 2, 3) == (h, k, l)
+        
+        # Behavior check: takes longest digits substring.
+        #   This would not be a "real" peak tag!
+        phase, (h, k, l) = _Peaks._parse_peak_tag('321 010203 Silicon') 
+        assert phase == '321  Silicon'
+        assert (1, 2, 3) == (h, k, l)
+        
+        with pytest.raises(RuntimeError, match=r".*Unable to parse peak tag.*"):
+            # substrings must have length divisible by 3
+            _phase, (_h, _k, _l) = _Peaks._parse_peak_tag('0102 Silicon') 
+        
+        with pytest.raises(RuntimeError, match=r".*Unable to parse peak tag.*"):
+            # must contain an (h, k, l) substring
+            _phase, (_h, _k, _l) = _Peaks._parse_peak_tag('Silicon') 
+        
+        with pytest.raises(RuntimeError, match=r".*Unable to parse <phase name> from peak tag.*"):
+            # must contain a phase substring
+            _phase, (_h, _k, _l) = _Peaks._parse_peak_tag('102030') 
+        
     def test__InputData_fields_and_subgroups(
         self,
         load_HidraWorkspace: HidraWorkspace,

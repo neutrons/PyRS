@@ -24,7 +24,7 @@ from nexusformat.nexus import (
     NXtransformations
 )
 import numpy as np
-from typing import List
+from typing import List, Tuple
 
 from pyrs.utilities.pydantic_transition import validate_call_
 
@@ -56,7 +56,9 @@ class FIELD_DTYPE(_TypeBehavior, Enum):
     STRING         = h5py.string_dtype(encoding='utf-8')
 
 
-CHUNK_SHAPE = (100,)    # Reasonable chunk size (tunable)
+def CHUNK_SHAPE(rank: int) -> Tuple[int, ...]:
+    # chunk fast-axis only
+    return (1,) * (rank - 1) + (100,)
             
 class REQUIRED_NAME(StrEnum):
     # These are *required* group or dataset names, as specified in the `NXstress` schema.

@@ -27,7 +27,7 @@ from pyrs.dataobjects.constants import HidraConstants
 from pyrs.dataobjects.sample_logs import SampleLogs
 from pyrs.utilities.pydantic_transition import validate_call_
 
-from._definitions import FIELD_DTYPE
+from._definitions import CHUNK_SHAPE, FIELD_DTYPE
 
 
 class _Sample:
@@ -64,7 +64,10 @@ class _Sample:
         # Link scanpoints to subruns: subrun[nP] (unitless)
         # SampleLogs.subruns is a SubRuns object; use .raw_copy() to get a NumPy array
         scan_points = sampleLogs.subruns.raw_copy()
-        sd['scan_point'] = NXfield(scan_points.astype(FIELD_DTYPE.INT_DATA.value), units='')
+        sd['scan_point'] = NXfield(
+                               scan_points.astype(FIELD_DTYPE.INT_DATA.value),
+                               chunks=CHUNK_SHAPE(1), maxshape=(None,), units=''
+                           )
         N_scan = len(scan_points)
 
         # 3) Sample positions per scanpoint (mm). Use SampleLogs.get_pointlist().

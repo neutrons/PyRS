@@ -58,12 +58,12 @@ class _PeakParameters:
         #   and all parameter values will be in the expected column.
         # For the moment, I'm assuming that we have one value for each of 'N_scan' subruns.
         
-        ## Include _only_ the peak parameters, _exclude_ the background parameters.
+        ## Include _only_ the PEAK parameters, _exclude_ the BACKGROUND parameters.
         peak_parameters = [param for param in EFFECTIVE_PEAK_PARAMETERS if param not in EFFECTIVE_BACKGROUND_PARAMETERS]
         params_name = np.tile(np.array(peak_parameters), (N_scan, 1))
         params_value, params_error = peaks.get_effective_params()
         
-        pp['title'] = NXfield(peak_profile, dtype=FIELD_DTYPE.STRING.value)
+        pp['title'] = NXfield(str(peak_profile), dtype=FIELD_DTYPE.STRING.value)
         
         # Note: fitted values use `FLOAT_DATA`, calculated values use `FLOAT_CONSTANT`.
         #   This is a premature optimization: probably both should just use `np.float64`.
@@ -101,8 +101,9 @@ class _BackgroundParameters:
 
         ## Include _only_ the background parameters.
         params_value, params_error = peaks.get_effective_params()
-        bp['title'] = NXfield(background_function, dtype=FIELD_DTYPE.STRING.value) 
+        bp['title'] = NXfield(str(background_function), dtype=FIELD_DTYPE.STRING.value) 
         bp['A'] = np.column_stack([params_value[param] for param in EFFECTIVE_BACKGROUND_PARAMETERS]) # shape: (N_scan, N_param)
+        bp['A_errors'] = np.column_stack([params_error[param] for param in EFFECTIVE_BACKGROUND_PARAMETERS]) # shape: (N_scan, N_param)
         
         return bp
         
@@ -134,7 +135,7 @@ class _Diffractogram:
         
     @classmethod
     @validate_call_
-    def init_group(cls, ws: HidraWorkspace, maskName: str, peaks: PeakCollection) -> NXparameters:
+    def init_group(cls, ws: HidraWorkspace, maskName: str, peaks: PeakCollection) -> NXdata:
         # required DIFFRACTOGRAM (NXdata) subgroup:        
         data_key, errors_key = cls._diffraction_data_keys(maskName)
         if data_key not in ws._diff_data_set or errors_key not in ws._var_data_set:
@@ -167,11 +168,11 @@ class _Diffractogram:
         # ENTRY/FIT/DIFFRACTOGRAM/fit, fit_errors: required datasets: these should contain the spectrum reconstructed from the fitted model.
         #   For the moment, this will be initialized to NaN.
         dg[GROUP_NAME.DGRAM_FIT] = NXfield(np.empty((0, 0), dtype=np.float64),
-                                           maxshape=(None, None), chunks=CHUNK_SHAPE, fillvalue=np.nan)
+                                           maxshape=(None, None), chunks=CHUNK_SHAPE(2), fillvalue=np.nan)
         dg[GROUP_NAME.DGRAM_FIT].attrs['interpretation'] = 'spectrum'
         dg[GROUP_NAME.DGRAM_FIT].attrs['units'] = 'counts'                                        
         dg[GROUP_NAME.DGRAM_FIT_ERRORS] = NXfield(np.empty((0, 0), dtype=np.float64),
-                                                  maxshape=(None, None), chunks=CHUNK_SHAPE, fillvalue=np.nan)
+                                                  maxshape=(None, None), chunks=CHUNK_SHAPE(2), fillvalue=np.nan)
         dg[GROUP_NAME.DGRAM_FIT_ERRORS].attrs['units'] = 'counts'                                        
         
         return dg

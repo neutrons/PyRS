@@ -13,13 +13,13 @@ NONE: 'input_data' (NXdata, group) is allowed by the NXstress schema, but it is 
 """
 
 
-from nexusformat.nexus import NXdata, NXFile
+from nexusformat.nexus import NXdata, NXfield, NXFile
 import numpy as np
 
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.pydantic_transition import validate_call_
 
-from ._definitions import FIELD_DTYPE
+from ._definitions import CHUNK_SHAPE, FIELD_DTYPE
 
 
 class _InputData:
@@ -35,7 +35,7 @@ class _InputData:
         # Raw data may not actually be loaded in the `HidraWorkspace`:
         #   in that case, just initialize an empty NXdata group.
         scan_points = ws._raw_counts.keys()
-        scans = np.stack([ws.get_detector_counts(p) for p in scan_points]) if len(scan_points)\
+        scans = np.stack([ws.get_detector_counts(p).astype(FIELD_DTYPE.FLOAT_DATA.value) for p in scan_points]) if len(scan_points)\
                     else np.empty((0, 0), dtype=FIELD_DTYPE.FLOAT_DATA.value)
         
         # TODO: append to the group, if it already exists.
@@ -43,7 +43,7 @@ class _InputData:
             raise RuntimeError("not implemented: append detector_counts data to NXstress file")
         else:        
             data = NXdata()
-        data['detector_counts'] = scans
+        data['detector_counts'] = NXfield(scans, maxshape=(None, None), chunks=CHUNK_SHAPE(2))
         data['scan_point'] = scan_points
 
         # Set attributes for axes and signal
@@ -61,7 +61,7 @@ class _InputData:
         if len(ws.get_sub_runs()):
             raise RuntimeError("not implemented: append detector_counts data to workspace")
         
-        scan_points = data['scan_point']
-        scans = data['detector_counts']
+        scan_points = data['scan_point'].nxdata
+        scans = data['detector_counts'].nxdata
         for n, p in enumerate(scan_points):
             ws.set_raw_counts(p, scans[n])

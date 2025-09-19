@@ -5,7 +5,7 @@ Primary service class for NeXus NXstress-compatible I/O.
 """
 import h5py
 from nexusformat.nexus import (
-    NXentry, NXFile, NXroot
+    NXentry, NXFile, nxopen, NXroot
 )
 import numpy as np
 from pathlib import Path
@@ -86,36 +86,16 @@ class NXstress:
         self._root = None  # will *ONLY* be set in __enter__
          
     def __enter__(self) -> 'NXstress':
-        # READBACK modes are incomplete, at the moment:
-        if self._mode in ("r",):
-            raise RuntimeError("Not implemented: 'NXstress' I/O in read-only mode.")
-        
-        # Bind/create the NXroot so root.nxfile exists
-        if self._mode in ("r", "r+", "a"):
-            # Load existing file into a NeXus tree
-            self._root = self._nx.readfile()
-        elif self._mode in ("w", "x", "w-"):  # h5py-style create modes
-            # Create a new, empty tree and bind it to the file
-            self._root = NXroot()
-            self._nx.writefile(self._root)
-        else:
-            # Fallback: try to read; adjust to project policy as needed
-            self._root = self._nx.readfile()
+        self._root = nxopen(self._path, self._mode)
+        self._root.__enter__()
 
         return self
         
     def __exit__(self, exc_type, exc, tb):
-        # Close via NXroot’s NXFile; then close the low-level handle defensively
-        try:
-            if self._root is not None and self._root.nxfile.is_open():
-                self._root.nxfile.close()
-        except Exception:
-            pass
-        try:
-            if self._nx.is_open():
-                self._nx.close()
-        except Exception:
-            pass
+        if self._root:
+            self._root.__exit__(exc_type, exc, tb)
+            self._root = None
+
         # Do not suppress exceptions
         return False
 
