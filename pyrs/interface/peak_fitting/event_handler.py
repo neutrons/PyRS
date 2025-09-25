@@ -37,6 +37,7 @@ class EventHandler:
             pass
 
     def save(self):
+        print(self.parent.current_hidra_file_name)
         self.save_fit_result(self.parent.current_hidra_file_name)
 
     def save_fit_result(self, out_file_name=''):
@@ -54,6 +55,9 @@ class EventHandler:
         fit_result = self.parent.fit_result
         if fit_result is None:
             return
+
+        if type(out_file_name) is list:
+            out_file_name = out_file_name[0]
 
         if out_file_name is not None and self.parent._curr_file_name != out_file_name:
             copyfile(self.parent._curr_file_name, out_file_name)
