@@ -79,8 +79,9 @@ class Load:
     def __parse_working_files(self, project_file=""):
         """Keep the filepath and append runs being fitted"""
         if type(project_file) is list:
-            project_file = project_file[0].split('HB2B')[0] + ''.join(['HB2B_{}'.format(run.split('.')[0].split('_')[-1])
-                                                                       for run in project_file])
+            project_file = project_file[0].split('HB2B')[0] + \
+                ''.join(['HB2B_{}'.format(run.split('.')[0].split('_')[-1])
+                         for run in project_file])
             if project_file[-3:] != '.h5':
                 project_file += '.h5'
 
