@@ -566,10 +566,6 @@ class PyHB2BReduction:
         # Convert vector counts array's dtype to float
         counts_array = self._detector_counts.astype('float64')
 
-        # print('[INFO] PyRS.Instrument: pixels 2theta range: ({}, {}) vs 2theta histogram range: ({}, {})'
-        #       ''.format(pixel_2theta_array.min(), pixel_2theta_array.max(), two_theta_bins.min(),
-        #                 two_theta_bins.max()))
-
         # Apply mask: act on local variable vec_counts and thus won't affect raw data
         if mask_array is not None:
             # mask detector counts, assuming detector mask and counts are in same order of pixel
@@ -584,11 +580,6 @@ class PyHB2BReduction:
             # no mask: do nothing
             pass
         # END-IF-ELSE
-
-        # Histogram:
-        # NOTE: input 2theta_range may not be accurate because 2theta max may not be on the full 2-theta tick
-        # TODO - If use vanadium for normalization, then (1) flag to normalize by pixel count and (2) efficiency
-        #        are not required anymore but both of them will be replaced by integrated vanadium counts
 
         # use numpy.histogram
         two_theta_bins, intensity_vector, variances_vector = self.histogram_by_numpy(pixel_2theta_array,
@@ -702,9 +693,12 @@ class PyHB2BReduction:
             # setup uncertainties arrays
             data_array = unp.uarray(data_hist, data_var)
             van_array = unp.uarray(van_hist, van_var)
+            van_array_max = unp.uarray(van_hist[van_hist == van_hist.max()].max(),
+                                       van_var[van_hist == van_hist.max()].max())
 
             # normalize data
-            normalized_data = data_array * (van_array.max() / van_array)
+            normalized_data = data_array * (van_array_max / van_array)
+
             data_hist = unp.nominal_values(normalized_data)
             data_var = unp.std_devs(normalized_data)
 
