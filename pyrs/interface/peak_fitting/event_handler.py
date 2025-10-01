@@ -52,6 +52,7 @@ class EventHandler:
 
         """
 
+        print(out_file_name)
         fit_result = self.parent.fit_result
         if fit_result is None:
             return
