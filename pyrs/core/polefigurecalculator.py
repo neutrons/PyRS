@@ -109,7 +109,7 @@ class PoleFigureCalculator:
 
         '''
 
-        if shift:
+        if shiftchi:
             self.calculate_pole_figure(shiftchi=shiftchi)
 
         try:
