@@ -124,7 +124,7 @@ class Splitter:
     ----------
     runObj: ~mantid.
     """
-    def __init__(self, runObj):
+    def __init__(self, runObj, split_obj='scan_index', split_inc=None):
         self._log = Logger(__name__)
 
         # verify the scan index exists
@@ -135,7 +135,7 @@ class Splitter:
             raise RuntimeError('"scan_index" does not exist') from e
 
         # Get the time and value from the run object
-        scan_index_times = runObj['scan_index'].times   # absolute times
+        scan_index_times = runObj[split_obj].times   # absolute times
         scan_index_value = runObj['scan_index'].value
         # TODO add final time from pcharge logs + 1s with scan_index=0
 
@@ -146,18 +146,23 @@ class Splitter:
         self.subruns = None
         self.propertyFilters = list()
 
-        self.__generate_sub_run_splitter(scan_index_times, scan_index_value)
+        self.__generate_sub_run_splitter(scan_index_times, scan_index_value,
+                                         split_obj='scan_index', split_inc=split_inc)
         self.__correct_starting_scan_index_time(runObj)
         self._createPropertyFilters()
 
-    def __generate_sub_run_splitter(self, scan_index_times, scan_index_value) -> None:
+    def __generate_sub_run_splitter(self, scan_index_times, scan_index_value,
+                                    split_obj='scan_index', split_inc=None) -> None:
         """Generate event splitters according to sub runs
 
         """
         # Init
         sub_run_time_list = list()
         sub_run_value_list = list()
-        num_scan_index = scan_index_times.shape[0]
+        if (split_obj != 'scan_index') and (scan_index_times.shape[0] > 1) and (split_inc is not None):
+            num_scan_index = np.arange(int(scan_index_times.max() / split_inc)) + 1
+        else:
+            num_scan_index = scan_index_times.shape[0]
 
         # Loop through all scan indexes to get the correct splitters
         curr_sub_run = 0
@@ -359,7 +364,7 @@ class NeXusConvertingApp:
         if self._event_ws_name in mtd:
             DeleteWorkspace(Workspace=self._event_ws_name, EnableLogging=False)
 
-    def __load_logs(self, logs_to_keep):
+    def __load_logs(self, logs_to_keep, filterbytime=False):
         '''Use mantid to load the logs then set up the Splitters object'''
         if self._live_wsp is not None:
             # setup workspace for event logs
@@ -378,7 +383,10 @@ class NeXusConvertingApp:
 
         # raise an exception if there is only one scan index entry
         # this is an underlying assumption of the rest of the code
-        if self._event_wksp.run()['scan_index'].size() == 1 \
+        if filterbytime:
+            # object to be used for splitting times
+            self._splitter = Splitter(self._event_wksp.run())
+        elif self._event_wksp.run()['scan_index'].size() == 1 \
                 or np.unique(self._event_wksp.run()['scan_index'].value).size == 1:
             self._splitter = None
         else:
