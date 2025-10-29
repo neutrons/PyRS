@@ -231,9 +231,9 @@ class TextureFittingCrtl:
 
         return
 
-    def extract_polar_projection(self, peak_number):
+    def extract_polar_projection(self, peak_number, shiftchi=False):
         if self._model._polefigureinterface is not None:
-            return self._model._polefigureinterface.get_polefigure_array(peak_id=int(peak_number))
+            return self._model._polefigureinterface.get_polefigure_array(peak_id=int(peak_number), shiftchi=shiftchi)
 
         else:
             return None
@@ -331,7 +331,7 @@ class TextureFittingCrtl:
                 plot_scatter = True
 
             if (VizSetup.polar_bt.isChecked()):
-                polar_data = self.extract_polar_projection(peak_number=int(peak_number))
+                polar_data = self.extract_polar_projection(peak_number=int(peak_number), shiftchi=VizSetup.shift_bt.isChecked())
 
                 if polar_data is not None:
 
@@ -340,13 +340,8 @@ class TextureFittingCrtl:
 
                     R, P = np.meshgrid(np.unique(alpha), np.unique(beta))
                     vec_z = griddata(((alpha, beta)), polar_data[:, 2], (R, P), method='nearest')
-
-                    if VizSetup.shift_bt.isChecked():
-                        vec_x = (90 - R) * np.cos(np.deg2rad(P))
-                        vec_y = (90 - R) * np.sin(np.deg2rad(P))
-                    else:
-                        vec_x = R * np.cos(np.deg2rad(P))
-                        vec_y = R * np.sin(np.deg2rad(P))
+                    vec_x = R * np.cos(np.deg2rad(P))
+                    vec_y = R * np.sin(np.deg2rad(P))
 
                     x_label = r'$\alpha$'
                     y_label = r'$\beta$'

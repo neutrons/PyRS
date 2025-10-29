@@ -48,7 +48,7 @@ class PoleFigureCalculator:
             # set
             self._peak_info_dict[peak_id] = log_dict
 
-    def calculate_pole_figure(self, peak_id_list=None):
+    def calculate_pole_figure(self, peak_id_list=None, shiftchi=False):
         """ Calculate pole figures
         :param det_id_list:
         :return:
@@ -64,7 +64,8 @@ class PoleFigureCalculator:
         for peak_id in peak_id_list:
             # calculator by each detector
             peak_info_dict = self._peak_info_dict[peak_id]
-
+            if shiftchi:
+                peak_info_dict['chi'] = 90 - peak_info_dict['chi']
             # construct the output
             num_pts = len(peak_info_dict['chi'])
             pole_figure_array = np.ndarray(shape=(num_pts, 3), dtype='float')
@@ -93,7 +94,7 @@ class PoleFigureCalculator:
             # convert
             self._pole_figure_dict[peak_id] = pole_figure_array
 
-    def get_polefigure_array(self, peak_id):
+    def get_polefigure_array(self, peak_id, shiftchi=False):
         '''
         return array with polefigure angles and intensity
 
@@ -107,6 +108,9 @@ class PoleFigureCalculator:
         nd.array
 
         '''
+
+        if shift:
+            self.calculate_pole_figure(shiftchi=shiftchi)
 
         try:
             return self._pole_figure_dict[peak_id]
