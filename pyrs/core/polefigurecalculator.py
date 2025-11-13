@@ -191,8 +191,8 @@ class PoleFigureCalculator:
         :param phi:
         :return: 2-tuple as the projection (alpha, beta)
         """
-        theta = to_float('theta', theta)
-        omega = to_float('Omega', omega)
+        theta = -1 * to_float('theta', theta)
+        omega = -1 * to_float('Omega', omega)
         chi = to_float('chi', chi)
         phi = to_float('phi', phi)
         eta = to_float('eta', eta)
@@ -200,26 +200,24 @@ class PoleFigureCalculator:
         sp = np.sin(np.deg2rad(phi))
         sw = np.sin(np.deg2rad(omega))
         sc = np.sin(np.deg2rad(chi))
-        sg = np.sin(np.deg2rad(eta + 270))
+        sg = np.sin(np.deg2rad(270 + eta))
         st = np.sin(np.deg2rad(theta))
 
         cp = np.cos(np.deg2rad(phi))
         cw = np.cos(np.deg2rad(omega))
         cc = np.cos(np.deg2rad(chi))
-        cg = np.cos(np.deg2rad(eta + 270))
+        cg = np.cos(np.deg2rad(270 + eta))
         ct = np.cos(np.deg2rad(theta))
 
-        h1 = st*(sp*sc*sw + cp*cw) + ct*cg*sp*cc - ct*sg*(sp*sc*cw-cp*sw)
+        h1 = st*(sp*sc*sw+cp*cw) + ct*cg*sp*cc - ct*sg*(sp*sc*cw-cp*sw)
         h2 = -st*(cp*sc*sw-sp*cw) - ct*cg*cp*cc + ct*sg*(cp*sc*cw+sp*sw)
-        h_length = np.sqrt(np.square(h1) + np.square(h2))
+        h3 = st*cc*sw - ct*sg*cc*cw - ct*cg*sc
 
-        alpha = np.rad2deg(np.arccos(h_length))
-        beta = np.rad2deg(np.arccos(h1 / h_length))
+        alpha = np.rad2deg(np.arcsin(h3))
 
-        if h2 < 0:
-            beta = -1 * beta
+        beta = np.rad2deg(np.arctan2(h2, h1)) # y/x
 
-        return 90 - alpha, beta
+        return alpha, beta
 
     def reset_calculator(self):
         """ reset the pole figure calculator
