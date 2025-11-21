@@ -147,8 +147,8 @@ versioningit = "*"
 python = "*"
 pip = "*"
 mantidworkbench = { version = ">=6.14.0", channel = "mantid/label/nightly" }
-mantid = { version = ">=6.14.0", channel = "mantid/label/nightly" }
-mantidqt = { version = ">=6.14.0", channel = "mantid/label/nightly" }
+mantid = { channel = "mantid/label/nightly" }
+mantidqt = { channel = "mantid/label/nightly" }
 uncertainties = "*"
 libarchive = "*"
 pandas = "*"
@@ -161,8 +161,8 @@ types-six = "*"
 python = "*"
 pip = "*"
 mantidworkbench = { version = ">=6.14.0,<6.15.0", channel = "mantid-ornl/label/rc" }
-mantid = { version = ">=6.14.0,<6.15.0", channel = "mantid-ornl/label/rc" }
-mantidqt = { version = ">=6.14.0,<6.15.0", channel = "mantid-ornl/label/rc" }
+mantid = { channel = "mantid-ornl/label/rc" }
+mantidqt = { channel = "mantid-ornl/label/rc" }
 uncertainties = "*"
 libarchive = "*"
 pandas = "*"
@@ -175,8 +175,8 @@ types-six = "*"
 python = "*"
 pip = "*"
 mantidworkbench = { version = ">=6.14.0,<6.15.0", channel = "mantid-ornl/label/main" }
-mantid = { version = ">=6.14.0,<6.15.0", channel = "mantid-ornl/label/main" }
-mantidqt = { version = ">=6.14.0,<6.15.0", channel = "mantid-ornl/label/main" }
+mantid = { channel = "mantid-ornl/label/main" }
+mantidqt = { channel = "mantid-ornl/label/main" }
 uncertainties = "*"
 libarchive = "*"
 pandas = "*"
