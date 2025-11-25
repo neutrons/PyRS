@@ -58,7 +58,17 @@ file = "pyrs/_version.py"
 
 [tool.pixi.workspace]
 preview = [ "pixi-build",]
-channels = [ "conda-forge", "mantid", "https://prefix.dev/pixi-build-backends",]
+channels = [
+  "conda-forge",
+  # Prefer ORNL-specific Mantid builds first so strict channel priority
+  # doesn't exclude needed mantidqt/mantidworkbench candidates.
+  "mantid-ornl/label/main",  # ORNL-specific stable releases
+  "mantid-ornl/label/rc",  # Fallback to RC if stable not available
+  "mantid-ornl/label/nightly",  # ORNL-specific nightly builds
+  "mantid/label/main",  # Primary source for stable Mantid releases
+  "mantid/label/nightly",  # Upstream nightly builds
+  "https://prefix.dev/pixi-build-backends",
+]
 platforms = [ "linux-64",]
 
 [tool.pixi.dependencies]
@@ -130,6 +140,48 @@ sphinxcontrib-mermaid = "*"
 types-pyyaml = "*"
 versioningit = "*"
 
+# ------------------------------- #
+# Development Environment Feature #
+# ------------------------------- #
+[tool.pixi.feature.dev.dependencies]
+python = "*"
+pip = "*"
+mantidworkbench = { version = ">=6.14.0", channel = "mantid/label/nightly" }
+mantid = { channel = "mantid/label/nightly" }
+mantidqt = { channel = "mantid/label/nightly" }
+uncertainties = "*"
+libarchive = "*"
+pandas = "*"
+types-six = "*"
+
+# ------------------------------- #
+# QA Environment Feature #
+# ------------------------------- #
+[tool.pixi.feature.qa.dependencies]
+python = "*"
+pip = "*"
+mantidworkbench = { version = ">=6.14.0,<6.15.0", channel = "mantid-ornl/label/rc" }
+mantid = { channel = "mantid-ornl/label/rc" }
+mantidqt = { channel = "mantid-ornl/label/rc" }
+uncertainties = "*"
+libarchive = "*"
+pandas = "*"
+types-six = "*"
+
+# ------------------------------- #
+# Production Environment Feature #
+# ------------------------------- #
+[tool.pixi.feature.prod.dependencies]
+python = "*"
+pip = "*"
+mantidworkbench = { version = ">=6.14.0,<6.15.0", channel = "mantid-ornl/label/main" }
+mantid = { channel = "mantid-ornl/label/main" }
+mantidqt = { channel = "mantid-ornl/label/main" }
+uncertainties = "*"
+libarchive = "*"
+pandas = "*"
+types-six = "*"
+
 [tool.pixi.package]
 name = "pyrs"
 version = "0.0.0"  # placeholder, overwritten by sync-version
@@ -138,7 +190,11 @@ version = "0.0.0"  # placeholder, overwritten by sync-version
 backend = { name = "pixi-build-python", version = "0.1.*" }
 channels = [
   "conda-forge",
-  "mantid",
+  "mantid-ornl/label/main",  # ORNL-specific stable releases
+  "mantid-ornl/label/rc",  # Fallback to RC if stable not available
+  "mantid-ornl/label/nightly",  # ORNL-specific nightly builds
+  "mantid/label/main",  # Primary source for stable Mantid releases
+  "mantid/label/nightly",  # Upstream nightly builds
   "https://prefix.dev/pixi-build-backends",
   "https://prefix.dev/conda-forge",
 ]
@@ -147,9 +203,30 @@ channels = [
 default = { features = [
   "docs",
   "developer",
+  "dev",
   "package",
   "test",
 ], solve-group = "default" }
+# Production environment with stable Mantid versions
+prod = {features = ["test", "package", "docs", "prod"], solve-group = "prod"}
+# Development environment with nightly Mantid builds
+dev = {features = ["test", "package", "docs", "dev"], solve-group = "dev"}
+# QA environment with RC or prod packages
+qa = {features = ["test", "package", "docs", "qa"], solve-group = "qa"}
+
+# Environment-specific channel configurations
+[tool.pixi.feature.dev.activation.env]
+# Development environment can use nightly builds
+MANTID_CHANNEL_PRIORITY = "nightly"
+
+[tool.pixi.feature.qa.activation.env]
+# QA environment uses RC or prod packages
+MANTID_CHANNEL_PRIORITY = "rc_prod"
+
+[tool.pixi.feature.prod.activation.env]
+# Production environment uses only stable releases
+MANTID_CHANNEL_PRIORITY = "stable_only"
+
 
 # --------------- #
 # Pixi Tasks      #
