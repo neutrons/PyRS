@@ -126,6 +126,7 @@ class ScalarFieldSample:
                  z: Union[List[float], np.ndarray]) -> None:
         all_lengths = [len(values), len(errors), len(x), len(y), len(z)]
         assert len(set(all_lengths)) == 1, 'input lists must all have the same lengths'
+
         self._sample = unumpy.uarray(values, errors)
         self._point_list = PointList([x, y, z])
         self._name = name

@@ -98,7 +98,6 @@ class DENEXDetectorGeometry:
         :return:
         """
         checkdatatypes.check_type('Detector geometry shift', geometry_shift, DENEXDetectorShift)
-
         self._calibration_file = DENEXDetectorShift.calibration_file
         self._arm_length += geometry_shift.center_shift_z
 
@@ -157,6 +156,8 @@ class DENEXDetectorShift:
 
         # Need data from client to finish this
         self.calibrated_wave_length = {'Si001': 1.00}
+
+        self.calibration_file = calibration_file
 
     def __str__(self):
         nice = '[Calibration]\nShift:    {},  {},  {}\nRotation: {}, {}, {}\n' \
