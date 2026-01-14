@@ -881,7 +881,7 @@ class HidraWorkspace:
             if variances_array is None:
                 temp_intensity_array = intensity_array.copy()
                 temp_intensity_array[temp_intensity_array < 1] = 1
-                variances_array = numpy.sqrt(temp_intensity_array)
+                variances_array = np.sqrt(temp_intensity_array)
                 del temp_intensity_array
 
             # END-IF
