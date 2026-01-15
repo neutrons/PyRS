@@ -11,7 +11,7 @@ HEADER_MAPPING = [('experiment_identifier', 'IPTS number'),
                   ('run_number', 'Run'),
                   ('run_title', 'Scan title'),
                   ('sample_name', 'Sample name'),
-                  ('item_number', 'Item number'),  # BL11A:CS:ITEMS on powgen
+                  ('item_number', 'Item number'),  # HB2B:CS:ITEMS
                   ('hkl', 'HKL phase'),
                   ('StrainDirection', 'Strain direction'),  # was suggested to be "strain_dir"
                   ('mono_setting', 'Monochromator Setting'),

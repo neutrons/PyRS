@@ -643,9 +643,9 @@ class FitCalibration:
         return np.array([self._calib[6]])
 
     def set_shift(self, out):
-        self._calib[0:3] = out[0]
+        self._calib[0:3] = out[0][:]
         self._calibstatus = out[2]
-        self._caliberr[0:3] = out[1]
+        self._caliberr[0:3] = out[1][:]
 
         return
 
@@ -664,16 +664,16 @@ class FitCalibration:
         return
 
     def set_rotation(self, out):
-        self._calib[3:6] = out[0]
+        self._calib[3:6] = out[0][:]
         self._calibstatus = out[2]
-        self._caliberr[3:6] = out[1]
+        self._caliberr[3:6] = out[1][:]
 
         return
 
     def set_geo(self, out):
-        self._calib[0:7] = out[0]
+        self._calib[0:7] = out[0][:]
         self._calibstatus = out[2]
-        self._caliberr[0:7] = out[1]
+        self._caliberr[0:7] = out[1][:]
 
         return
 

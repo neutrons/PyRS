@@ -853,7 +853,7 @@ class StrainStressViewer(QMainWindow):
         self.plot_select.plot_param.currentTextChanged.connect(self.update_plot)
         right_layout.addWidget(self.plot_select)
 
-        self.viz_tab = VizTabs(self)
+        self.viz_tab = VizTabs(parent=self)
         right_layout.addWidget(self.viz_tab)
 
         right.setLayout(right_layout)
