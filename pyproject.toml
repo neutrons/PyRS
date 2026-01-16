@@ -57,19 +57,19 @@ distance-dirty = "{next_version}.dev{distance}+d{build_date:%Y%m%d%H%M}"
 file = "pyrs/_version.py"
 
 [tool.pixi.workspace]
-preview = [ "pixi-build",]
+preview = ["pixi-build"]
 channels = [
   "conda-forge",
   # Prefer ORNL-specific Mantid builds first so strict channel priority
   # doesn't exclude needed mantidqt/mantidworkbench candidates.
-  "mantid-ornl/label/main",  # ORNL-specific stable releases
-  "mantid-ornl/label/rc",  # Fallback to RC if stable not available
-  "mantid-ornl/label/nightly",  # ORNL-specific nightly builds
-  "mantid/label/main",  # Primary source for stable Mantid releases
-  "mantid/label/nightly",  # Upstream nightly builds
+  "mantid-ornl/label/main",                 # ORNL-specific stable releases
+  "mantid-ornl/label/rc",                   # Fallback to RC if stable not available
+  "mantid-ornl/label/nightly",              # ORNL-specific nightly builds
+  "mantid/label/main",                      # Primary source for stable Mantid releases
+  "mantid/label/nightly",                   # Upstream nightly builds
   "https://prefix.dev/pixi-build-backends",
 ]
-platforms = [ "linux-64",]
+platforms = ["linux-64"]
 
 [tool.pixi.dependencies]
 python = "*"
@@ -184,20 +184,19 @@ types-six = "*"
 
 [tool.pixi.package]
 name = "pyrs"
-version = "0.0.0"  # placeholder, overwritten by sync-version
+version = "0.0.0" # placeholder, overwritten by sync-version
 
 [tool.pixi.package.build]
-backend = { name = "pixi-build-python", version = "0.4.*" }
-channels = [
+backend = { name = "pixi-build-python", version = "0.4.*", channels = [
   "conda-forge",
-  "mantid-ornl/label/main",  # ORNL-specific stable releases
-  "mantid-ornl/label/rc",  # Fallback to RC if stable not available
-  "mantid-ornl/label/nightly",  # ORNL-specific nightly builds
-  "mantid/label/main",  # Primary source for stable Mantid releases
-  "mantid/label/nightly",  # Upstream nightly builds
+  "mantid-ornl/label/main",                 # ORNL-specific stable releases
+  "mantid-ornl/label/rc",                   # Fallback to RC if stable not available
+  "mantid-ornl/label/nightly",              # ORNL-specific nightly builds
+  "mantid/label/main",                      # Primary source for stable Mantid releases
+  "mantid/label/nightly",                   # Upstream nightly builds
   "https://prefix.dev/pixi-build-backends",
   "https://prefix.dev/conda-forge",
-]
+] }
 
 [tool.pixi.environments]
 default = { features = [
@@ -208,11 +207,11 @@ default = { features = [
   "test",
 ], solve-group = "default" }
 # Production environment with stable Mantid versions
-prod = {features = ["test", "package", "docs", "prod"], solve-group = "prod"}
+prod = { features = ["test", "package", "docs", "prod"], solve-group = "prod" }
 # Development environment with nightly Mantid builds
-dev = {features = ["test", "package", "docs", "dev"], solve-group = "dev"}
+dev = { features = ["test", "package", "docs", "dev"], solve-group = "dev" }
 # QA environment with RC or prod packages
-qa = {features = ["test", "package", "docs", "qa"], solve-group = "qa"}
+qa = { features = ["test", "package", "docs", "qa"], solve-group = "qa" }
 
 # Environment-specific channel configurations
 [tool.pixi.feature.dev.activation.env]
@@ -234,14 +233,25 @@ MANTID_CHANNEL_PRIORITY = "stable_only"
 [tool.pixi.tasks]
 # PyPi packaging tasks
 build-pypi = { cmd = "hatch build", description = "Build the package for PyPI" }
-publish-pypi = { cmd = "twine upload dist/*", description = "Publish the package to PyPI", depends-on = ["build-pypi"] }
-publish-pypi-test = { cmd = "twine upload --repository testpypi dist/*", description = "Publish the package to TestPyPI", depends-on = ["build-pypi"] }
+publish-pypi = { cmd = "twine upload dist/*", description = "Publish the package to PyPI", depends-on = [
+  "build-pypi",
+] }
+publish-pypi-test = { cmd = "twine upload --repository testpypi dist/*", description = "Publish the package to TestPyPI", depends-on = [
+  "build-pypi",
+] }
 clean-pypi = { cmd = "rm -rf dist", description = "Clean the PyPI build artifacts" }
 
 # Conda packaging tasks
 build-conda-command = { cmd = "pixi build", description = "Build the conda package command" }
-build-conda = { description = "Build the conda package", depends-on = ["backup-toml", "sync-version", "build-conda-command", "reset-toml"] }
-publish-conda = { cmd = "anaconda upload *.conda", description = "Publish the .conda package to anaconda.org", depends-on = ["build-conda"] }
+build-conda = { description = "Build the conda package", depends-on = [
+  "backup-toml",
+  "sync-version",
+  "build-conda-command",
+  "reset-toml",
+] }
+publish-conda = { cmd = "anaconda upload *.conda", description = "Publish the .conda package to anaconda.org", depends-on = [
+  "build-conda",
+] }
 clean-conda = { cmd = "rm -f *.conda", description = "Clean the local .conda build artifacts" }
 
 # Documentation tasks
@@ -257,13 +267,17 @@ test-import-framework = { cmd = "python -c 'import pyrs'; python -c 'import qtpy
 lint-flake8 = { cmd = "flake8 pyrs scripts tests --count --max-line-length=119 --exclude pyrs/icons,scripts", description = "Run flake8 linter on the codebase" }
 
 # MISC
-clean-all = { description = "Clean all build artifacts", depends-on = ["clean-pypi", "clean-docs", "clean-conda"] }
+clean-all = { description = "Clean all build artifacts", depends-on = [
+  "clean-pypi",
+  "clean-docs",
+  "clean-conda",
+] }
 sync-version = { cmd = 'version=$(python -m versioningit); toml set tool.pixi.package.version "$version" --toml-path pyproject.toml', description = "Sync pyproject.toml version with Git version" }
 backup-toml = { cmd = "cp pyproject.toml pyproject.toml.bak", description = "Backup the pyproject.toml file" }
 reset-toml = { cmd = "cp pyproject.toml.bak pyproject.toml; rm pyproject.toml.bak", description = "Reset the pyproject.toml file to the original state" }
 
 # Application tasks
-pyrs = { cmd = "pyrsplot", description = "Start the pyrs application"}
+pyrs = { cmd = "pyrsplot", description = "Start the pyrs application" }
 
 [tool.mypy]
 ignore_missing_imports = true
