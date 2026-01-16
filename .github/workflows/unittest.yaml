@@ -11,6 +11,11 @@ on:
     # daily cron job at UTC+6 == EST+1
     - cron: "0 6 * * *"
 
+# cancel previous job if new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   linux:
     runs-on: ubuntu-latest
