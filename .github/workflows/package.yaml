@@ -65,7 +65,7 @@ jobs:
         id: trigger
         with:
           url: https://code.ornl.gov
-          project_id: PROJECT_ID
+          project_id: 18073
           ref_name: main
           token: ${{ secrets.GITLAB_DEPLOY_TOKEN }}
 
