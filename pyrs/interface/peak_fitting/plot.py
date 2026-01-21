@@ -90,6 +90,7 @@ class Plot:
         fit_result = self.parent.fit_result
         if fit_result:
             sub_run_index = int(self.parent.fit_result.peakcollections[0].sub_runs.get_indices(sub_run_number)[0])
+
             x_array = self.parent.fit_result.fitted.readX(sub_run_index)
             y_array = self.parent.fit_result.fitted.readY(sub_run_index)
             self.parent._ui_graphicsView_fitSetup.plot_fitted_data(x_array, y_array)
@@ -210,15 +211,14 @@ class Plot:
         o_gui = GuiUtilities(parent=self.parent)
         x_axis_name = str(self.parent.ui.comboBox_xaxisNames.currentText())
         y_axis_name = str(self.parent.ui.comboBox_yaxisNames.currentText())
-        x_axis_peak_index = o_gui.get_plot1d_axis_peak_label_index(is_xaxis=True)
-        y_axis_peak_index = o_gui.get_plot1d_axis_peak_label_index(is_xaxis=False)
+        peak_index = o_gui.get_plot1d_axis_peak_label_index(is_xaxis=False)
 
         o_data_retriever = DataRetriever(parent=self.parent)
 
         is_plot_with_error = True
 
-        axis_x_data, axis_x_error = o_data_retriever.get_data(name=x_axis_name, peak_index=x_axis_peak_index)
-        axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=y_axis_peak_index)
+        axis_x_data, axis_x_error = o_data_retriever.get_data(name=x_axis_name, peak_index=peak_index)
+        axis_y_data, axis_y_error = o_data_retriever.get_data(name=y_axis_name, peak_index=peak_index)
 
         if ((x_axis_name in LIST_AXIS_TO_PLOT['fit'].keys()) or
                 (y_axis_name in LIST_AXIS_TO_PLOT['fit'].keys())):
