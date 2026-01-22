@@ -571,6 +571,7 @@ def strain_field_samples(test_data_dir):
     # uncertainties are all zero
     peaks_array = np.zeros(subruns.size, dtype=get_parameter_dtype('gaussian', 'Linear'))
     peaks_array['PeakCentre'][:] = 180.  # position of two-theta in degrees
+    peaks_array['Height'][:] = 1.0  # position of two-theta in degrees
     peaks_error = np.zeros(subruns.size, dtype=get_parameter_dtype('gaussian', 'Linear'))
     peak_collection = PeakCollection('dummy', 'gaussian', 'linear', wavelength=2.,
                                      d_reference=1., d_reference_error=0.)

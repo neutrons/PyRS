@@ -187,7 +187,8 @@ name = "pyrs"
 version = "0.0.0" # placeholder, overwritten by sync-version
 
 [tool.pixi.package.build]
-backend = { name = "pixi-build-python", version = "0.4.*", channels = [
+backend = { name = "pixi-build-python", version = "0.4.*"}
+channels = [
   "conda-forge",
   "mantid-ornl/label/main",                 # ORNL-specific stable releases
   "mantid-ornl/label/rc",                   # Fallback to RC if stable not available
@@ -196,7 +197,7 @@ backend = { name = "pixi-build-python", version = "0.4.*", channels = [
   "mantid/label/nightly",                   # Upstream nightly builds
   "https://prefix.dev/pixi-build-backends",
   "https://prefix.dev/conda-forge",
-] }
+] 
 
 [tool.pixi.environments]
 default = { features = [

@@ -5,6 +5,7 @@ from pyrs.core.peak_profile_utility import get_parameter_dtype, get_effective_pa
 from pyrs.dataobjects import SubRuns  # type: ignore
 from typing import Optional, Tuple, Union
 from uncertainties import unumpy
+from uncertainties import ufloat
 
 __all__ = ['PeakCollection', 'PeakCollectionLite']
 
@@ -419,7 +420,7 @@ class PeakCollection:
         d_fitted = self._get_dspacing_center()
 
         # multiplying by 1e6 converts to micro
-        strain = conversion_factor * (d_fitted - self._d_reference)/self._d_reference
+        strain = conversion_factor * (d_fitted - self._d_reference) / self._d_reference
 
         # unpack the values to return
         return unumpy.nominal_values(strain), unumpy.std_devs(strain)
@@ -445,8 +446,11 @@ class PeakCollection:
         theta_center = unumpy.uarray(0.5 * np.deg2rad(effective_values['Center']),
                                      0.5 * np.deg2rad(effective_errors['Center']))
         sine_theta = unumpy.sin(theta_center)
+
         try:
             dspacing_center = 0.5 * self._wavelength / sine_theta
+            dspacing_center[effective_values['Height'] == 0.0] = ufloat(0, np.nan)
+
         except ZeroDivisionError:
             # replace zeros in the denominator with nan explicitly
             dspacing_center = np.where(unumpy.nominal_values(sine_theta) != 0.,
