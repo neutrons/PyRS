@@ -146,9 +146,9 @@ versioningit = "*"
 [tool.pixi.feature.dev.dependencies]
 python = "*"
 pip = "*"
-mantidworkbench = { version = ">=6.14.0", channel = "mantid/label/nightly" }
-mantid = { channel = "mantid/label/nightly" }
-mantidqt = { channel = "mantid/label/nightly" }
+mantidworkbench = { version = ">=6.14.0", channel = "mantid-ornl/label/nightly" }
+mantid = { channel = "mantid-ornl/label/nightly" }
+mantidqt = { channel = "mantid-ornl/label/nightly" }
 uncertainties = "*"
 libarchive = "*"
 pandas = "*"

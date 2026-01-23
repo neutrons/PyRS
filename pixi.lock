@@ -7064,8 +7064,8 @@ packages:
   timestamp: 1695420780098
 - pypi: ./
   name: pyrs
-  version: 1.9.0.dev10+d202601231537
-  sha256: 612f526cf7a8f20103205d67f05eb5bdc551331846224b440e6fe2189fa60797
+  version: 1.9.0.dev12+d202601231552
+  sha256: 2d2b3445b4d729670fa3c4e8b3a4fc6ebac837460aa85fd94ee0de82336935f9
   requires_python: '>=3.11'
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/linux-64/pyside6-6.9.2-py311h72d58bf_1.conda
