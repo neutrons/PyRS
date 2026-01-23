@@ -1682,10 +1682,12 @@ class StrainField(_StrainField):
             # an index, specifying one sample point from one of the StrainFieldSingle components. Here
             # we are finding out the sample points of the StrainFieldSingle object specified by
             # `strain_index` contributing to the overall StrainField object
+            keep_i = np.array(peak_collection.exclude)
             idx = self._winners.point_indexes[indices]  # type: ignore
             assert np.all(idx < len(peak_collection))
             values[indices], errors[indices] = values_i[idx], errors_i[idx]
-            keep[indices] = peak_collection.exclude[idx] is True
+
+            keep[indices] = keep_i[idx] is True
 
         values[keep] = np.nan
 
