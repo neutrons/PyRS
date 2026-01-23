@@ -1674,10 +1674,10 @@ class StrainField(_StrainField):
                 peak_param_values, peak_param_errors = peak_collection.get_effective_params(*args, **kwargs)
                 values_i = peak_param_values[method]
                 errors_i = peak_param_errors[method]
-                keep_i = np.array(peak_collection.exclude) == True
+                keep_i = np.logical_not(np.array(peak_collection.exclude))
             else:
                 values_i, errors_i = getattr(peak_collection, f"{method}")(*args, **kwargs)
-                keep_i = np.array(peak_collection.exclude) == True
+                keep_i = np.logical_not(np.array(peak_collection.exclude))
 
             # find points of the current single-scan strain's list contributing to the overall list of points
             # `self._winners.point_indexes` is a list as long as `self._point_list`. Each entry provides

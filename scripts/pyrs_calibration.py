@@ -164,8 +164,6 @@ def main(argv=None):
     for key in list(calibration_inputs.keys()):
         if key.lower() in powerinput:
             POWDER_RUN = calibration_inputs[key]
-        elif key.lower() == "ipts":
-            IPTS_ = calibration_inputs[key]
         elif key.lower() == "cycle":
             HFIR_CYCLE = calibration_inputs[key]
         elif key.lower() == "method":
