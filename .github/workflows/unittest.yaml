@@ -2,13 +2,11 @@ name: unit-test
 
 on:
   workflow_dispatch:
+  pull_request:   # Run on pull requests targeting any base branch
   push:
     branches: [next, qa, main]
     tags: ["v*"]
-  pull_request:
-    # Run on pull requests targeting any base branch
-  schedule:
-    # daily cron job at UTC+6 == EST+1
+  schedule:      # daily cron job at UTC+6 == EST+1
     - cron: "0 6 * * *"
 
 # cancel previous job if new commit is pushed
@@ -36,7 +34,8 @@ jobs:
 
       - name: Start xvfb daemon
         run: |
-          /sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -ac -screen 0 1280x1024x16
+          /sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile \
+                               --background --exec /usr/bin/Xvfb -- :99 -ac -screen 0 1280x1024x16
 
       - name: Mantid pre-requisites - create a properties file that turns off network access
         run: |
@@ -81,12 +80,6 @@ jobs:
       - uses: prefix-dev/setup-pixi@v0.9.3
         with:
           manifest-path: pyproject.toml
-
-      - name: ruff
-        run: pixi run lint-ruff
-
-      - name: ruff format
-        run: pixi run lint-ruff-format
 
       - name: mypy
         run: pixi run mypy pyrs scripts tests

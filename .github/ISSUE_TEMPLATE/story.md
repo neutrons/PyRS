@@ -1,9 +1,9 @@
-<!-- 
+<!--
 	story.md
 	Version 1.0
 	This is a GitLab Issue description template to be used to create a user story
-	
-	Derive a unique Title from the User Story Statement below. 
+
+	Derive a unique Title from the User Story Statement below.
 -->
 
 
@@ -24,14 +24,14 @@ Description, Additional Detail, Context:
 ---------------------------------------
 
 
-Implemented By Task(s): 
+Implemented By Task(s):
 -----------------------
 - Task: *\<task url or ID\>*
 
 
 Other:
 -----------
-Legacy ID: 
+Legacy ID:
 
 <!--
 	- ID: Issues ID assigned by GitLab
@@ -39,7 +39,7 @@ Legacy ID:
 		- Note: There should be only 1 owner of a story
 	- Complexity: Use the GitLab Issue Weight
 		- Filled in by development team
--->                                     
+-->
 
 /label ~"IssueType::Story"
 /label ~"State::1-Draft"

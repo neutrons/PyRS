@@ -25,7 +25,7 @@ these other attributes for tracking purposes:*
 | **ID** | **Complexity** |  **Est.** |  **Author** |
 | ------ | ---------------|-----------|-------------|
 | id1 | compl1 | Est1 | auth1 |
-                                       
+
 
 As a \<*role or type of user*\> I want to \< *take some action or
 achieve some goal*\> so that \<*some reason, e.g. I get this benefit*\>

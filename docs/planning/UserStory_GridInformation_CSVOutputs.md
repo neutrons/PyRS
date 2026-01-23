@@ -4,7 +4,7 @@ GridInformation CSV Output:
 | **ID** | **Complexity** |  **Est.** |  **Author** |
 | ------ | ---------------|-----------|-------------|
 | GRID-CSV-OUT | Medium | TBD | Jeff Bunn / Chris Fancher |
-                                       
+
 
 As a neutron beamline user, I want to output my data into a readily readable .csv format
 after a strain grid has been established in the strain-stress GUI. This datafile
@@ -30,5 +30,5 @@ below for both the detailed and summary case.
 Description, Additional Detail, Context
 ---------------------------------------
 
-GridInformation Summary Output Template File: HB2B_StressStrain_peak0_Summary.csv  
+GridInformation Summary Output Template File: HB2B_StressStrain_peak0_Summary.csv
 GridInformation Detailed Output Template File: HB2B_StressStrain_peak0_Detailed.csv

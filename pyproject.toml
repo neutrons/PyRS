@@ -111,7 +111,6 @@ types-six = "*"
 pytest = "*"
 pytest-qt = "*"
 pytest-cov = "*"
-ruff = "*"
 mypy = "*"
 
 [tool.pixi.feature.package.dependencies]
@@ -129,7 +128,6 @@ toml-cli = "*"
 
 [tool.pixi.feature.developer.dependencies]
 pre-commit = "*"
-ruff = "*"
 mypy = "*"
 python-build = "*"
 
@@ -184,10 +182,10 @@ types-six = "*"
 
 [tool.pixi.package]
 name = "pyrs"
-version = "0.0.0"  # placeholder, overwritten by sync-version
+version = "0.0.0" # placeholder, overwritten by sync-version
 
 [tool.pixi.package.build]
-backend = { name = "pixi-build-python", version = "*"}
+backend = { name = "pixi-build-python", version = "*" }
 channels = [
   "conda-forge",
   "mantid-ornl/label/main",                 # ORNL-specific stable releases
@@ -265,10 +263,6 @@ docs-autobuild = { cmd = "sphinx-autobuild docs/source docs/_build --host 0.0.0.
 test = { cmd = "pytest --cov=pyrs --cov-report=xml --cov-report=term ./tests", description = "Run the tests with coverage" }
 test-import-framework = { cmd = "python -c 'import pyrs'; python -c 'import qtpy'; python -c 'import mantidqt'", description = "Test import of main dependencies" }
 
-format-ruff = { cmd = "ruff format pyrs scripts tests", description = "Format code with ruff" }
-lint-ruff = { cmd = "ruff check --fix pyrs scripts tests", description = "Run ruff linter" }
-lint-ruff-format = { cmd = "ruff format --check pyrs scripts tests", description = "Check formatting with ruff" }
-
 # MISC
 clean-all = { description = "Clean all build artifacts", depends-on = [
   "clean-pypi",
@@ -290,6 +284,9 @@ namespace_packages = true
 line-length = 119
 target-version = "py311"
 exclude = ["pyrs/icons", "scripts"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
 
 [tool.ruff.format]
 line-ending = "lf"
