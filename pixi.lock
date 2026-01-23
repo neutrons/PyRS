@@ -7080,8 +7080,8 @@ packages:
   timestamp: 1695420780098
 - pypi: ./
   name: pyrs
-  version: 1.9.0.dev17
-  sha256: cc9a2ee72ac0db0e2a898b591203d628dd456f6615594a7271c55a3c9cb14579
+  version: 1.9.0.dev17+d202601231645
+  sha256: abbf7b520c6105db67b972742c7c520bf7eec901a57d50a48dd695b5d7468b77
   requires_python: '>=3.11'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/pyside6-6.9.2-py311h72d58bf_1.conda
   sha256: 9540cbc6de195e8fb49ea4ef39567f11982580f007914617e1ab482193db114c

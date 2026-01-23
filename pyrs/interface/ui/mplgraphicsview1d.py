@@ -96,7 +96,7 @@ class MplGraphicsView1D(QWidget):
         :return:
         """
         # get the row-index and column-index if not given
-        if not (line_id in self._lineSubplotMap):
+        if line_id not in self._lineSubplotMap:
             raise RuntimeError("Line ID {0} is not recorded in line-subplot map".format(line_id))
 
         # check inputs and others

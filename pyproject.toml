@@ -266,7 +266,7 @@ test = { cmd = "pytest --cov=pyrs --cov-report=xml --cov-report=term ./tests", d
 test-import-framework = { cmd = "python -c 'import pyrs'; python -c 'import qtpy'; python -c 'import mantidqt'", description = "Test import of main dependencies" }
 
 format-ruff = { cmd = "ruff format pyrs scripts tests", description = "Format code with ruff" }
-lint-ruff = { cmd = "ruff check pyrs scripts tests", description = "Run ruff linter" }
+lint-ruff = { cmd = "ruff check --fix pyrs scripts tests", description = "Run ruff linter" }
 lint-ruff-format = { cmd = "ruff format --check pyrs scripts tests", description = "Check formatting with ruff" }
 
 # MISC
