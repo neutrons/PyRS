@@ -4,21 +4,22 @@ from qtpy.QtWidgets import QLineEdit, QFileDialog, QMessageBox, QComboBox  # typ
 
 
 def browse_dir(parent, caption, default_dir):
-    """ Browse a directory
+    """Browse a directory
     :param parent:
     :param caption:
     :param default_dir:
     :return: non-empty string for selected directory; empty string for canceled operation
     """
     # check inputs
-    assert isinstance(parent, object), 'Parent {} must be of some object.'.format(parent)
-    checkdatatypes.check_string_variable('File browsing title/caption', caption)
+    assert isinstance(parent, object), "Parent {} must be of some object.".format(parent)
+    checkdatatypes.check_string_variable("File browsing title/caption", caption)
     checkdatatypes.check_file_name(default_dir, check_exist=False, is_dir=True)
 
     # get directory
-    chosen_dir = QFileDialog.getExistingDirectory(parent, caption, default_dir,
-                                                  options=QFileDialog.DontUseNativeDialog)
-    print('[DB...BAT] Chosen dir: {} of type {}'.format(chosen_dir, type(chosen_dir)))
+    chosen_dir = QFileDialog.getExistingDirectory(
+        parent, caption, default_dir, options=QFileDialog.DontUseNativeDialog
+    )
+    print("[DB...BAT] Chosen dir: {} of type {}".format(chosen_dir, type(chosen_dir)))
     chosen_dir = str(chosen_dir).strip()
 
     return chosen_dir
@@ -54,18 +55,16 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
     # checkdatatypes.check_bool_variable('Flag for browse a list of files to load', file_list)
     # checkdatatypes.check_bool_variable('Flag to select loading or saving file', save_file)
     if file_filter is None:
-        file_filter = 'All Files (*.*)'
+        file_filter = "All Files (*.*)"
     else:
-        checkdatatypes.check_string_variable('File filter', file_filter)
-        file_filter = '{};;All Files (*.*)'.format(file_filter)
+        checkdatatypes.check_string_variable("File filter", file_filter)
+        file_filter = "{};;All Files (*.*)".format(file_filter)
 
     if save_file:
         # browse file name to save to
-        save_set = QFileDialog.getSaveFileName(parent,
-                                               caption=caption,
-                                               directory=default_dir,
-                                               filter=file_filter,
-                                               options=QFileDialog.DontUseNativeDialog)
+        save_set = QFileDialog.getSaveFileName(
+            parent, caption=caption, directory=default_dir, filter=file_filter, options=QFileDialog.DontUseNativeDialog
+        )
         if isinstance(save_set, tuple):
             # returned include both file name and filter
             file_name = str(save_set[0])
@@ -74,8 +73,9 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
 
     elif file_list:
         # browse file names to load
-        open_set = QFileDialog.getOpenFileNames(parent, caption, default_dir, file_filter,
-                                                options=QFileDialog.DontUseNativeDialog)
+        open_set = QFileDialog.getOpenFileNames(
+            parent, caption, default_dir, file_filter, options=QFileDialog.DontUseNativeDialog
+        )
 
         if isinstance(open_set, tuple):
             file_name_list = open_set[0]
@@ -89,8 +89,9 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
 
     else:
         # browse single file name
-        open_set = QFileDialog.getOpenFileName(parent, caption, default_dir, file_filter,
-                                               options=QFileDialog.DontUseNativeDialog)
+        open_set = QFileDialog.getOpenFileName(
+            parent, caption, default_dir, file_filter, options=QFileDialog.DontUseNativeDialog
+        )
 
         if isinstance(open_set, tuple):
             file_name = open_set[0]
@@ -116,11 +117,14 @@ def parse_combo_box(combo_box, data_type):
     -------
 
     """
-    assert isinstance(combo_box, QComboBox), 'Method parse_combo_box expects 0-th input {} to be a ' \
-                                             'QComboBox instance but not a {}' \
-                                             ''.format(combo_box, type(combo_box))
-    assert isinstance(data_type, type), 'Method parse_line_edit expects 1-st input {} to be a type ' \
-                                        'but not a {}'.format(data_type, type(data_type))
+    assert isinstance(combo_box, QComboBox), (
+        "Method parse_combo_box expects 0-th input {} to be a QComboBox instance but not a {}".format(
+            combo_box, type(combo_box)
+        )
+    )
+    assert isinstance(data_type, type), (
+        "Method parse_line_edit expects 1-st input {} to be a type but not a {}".format(data_type, type(data_type))
+    )
 
     # parse
     input_str = str(combo_box.currentText()).strip()
@@ -142,12 +146,12 @@ def parse_integer(int_str):
         int_str = str(int_str.text())
     else:
         # Then it has to be a string
-        checkdatatypes.check_string_variable('Integer string', int_str)
+        checkdatatypes.check_string_variable("Integer string", int_str)
 
     try:
         int_value = int(int_str)
     except ValueError as value_error:
-        raise RuntimeError('Unable to parse {0} to integer due to {1}'.format(int_str, value_error))
+        raise RuntimeError("Unable to parse {0} to integer due to {1}".format(int_str, value_error))
 
     return int_value
 
@@ -158,47 +162,47 @@ def parse_rigorous_int_string(int_str):
     :param int_str:
     :return:
     """
-    checkdatatypes.check_string_variable('Integer in string', int_str)
+    checkdatatypes.check_string_variable("Integer in string", int_str)
 
     # negative?
-    if int_str.startswith('-'):
+    if int_str.startswith("-"):
         sign = -1
-        int_str = int_str.split('-')[1]
+        int_str = int_str.split("-")[1]
     else:
         sign = 1
 
     # must be an integer
     if int_str.isdigit() is False:
-        raise ValueError('{} cannot be recognized as an integer rigorously'.format(int_str))
+        raise ValueError("{} cannot be recognized as an integer rigorously".format(int_str))
 
     # convert
     try:
-        int_number = sign*int(int_str)
+        int_number = sign * int(int_str)
     except ValueError as val_err:
-        raise ValueError('Unable to convert string {} to an integer: {}'.format(int_str, val_err))
+        raise ValueError("Unable to convert string {} to an integer: {}".format(int_str, val_err))
 
     return int_number
 
 
 def parse_integers(int_list_string):
-    """ parse a list of integers.  Note that the start is inclusive and the end is exclusive
+    """parse a list of integers.  Note that the start is inclusive and the end is exclusive
     example 1:4, 6:12, 8:12
     :param int_list_string:
     :return: list of int or range tuples
     """
-    checkdatatypes.check_string_variable('Integer list (string)', int_list_string)
+    checkdatatypes.check_string_variable("Integer list (string)", int_list_string)
 
     # remove unnecessary spaces
-    int_list_string = int_list_string.replace(' ', '')
+    int_list_string = int_list_string.replace(" ", "")
 
     # split by ,
-    int_range_list = int_list_string.split(',')
+    int_range_list = int_list_string.split(",")
 
     # parse to integers
     int_list = list()
     try:
         for int_range in int_range_list:
-            column_counts = int_range.count(':') + int_range.count('-')
+            column_counts = int_range.count(":") + int_range.count("-")
 
             if column_counts == 0:
                 # single value
@@ -206,10 +210,10 @@ def parse_integers(int_list_string):
 
             elif column_counts == 1:
                 # given a range
-                if '-' in int_range:
-                    int_str_list = int_range.split('-')
+                if "-" in int_range:
+                    int_str_list = int_range.split("-")
                 else:
-                    int_str_list = int_range.split(':')
+                    int_str_list = int_range.split(":")
 
                 start_int = parse_rigorous_int_string(int_str_list[0])
                 end_int = parse_rigorous_int_string(int_str_list[1])
@@ -217,7 +221,7 @@ def parse_integers(int_list_string):
 
             else:
                 # bad inputs
-                raise ValueError('{0} has too many : to recognize'.format(int_range))
+                raise ValueError("{0} has too many : to recognize".format(int_range))
     except ValueError as val_err:
         raise RuntimeError('Unable to parse integer list "{}" due to {}'.format(int_list_string, val_err))
 
@@ -229,8 +233,8 @@ def parse_integers(int_list_string):
     return int_list
 
 
-def pop_message(parent, message, detailed_message=None, message_type='error'):
-    """ pop up a message with specified message type such as error, warning, info...
+def pop_message(parent, message, detailed_message=None, message_type="error"):
+    """pop up a message with specified message type such as error, warning, info...
     :param parent:
     :param message:
     :param detailed_message: detailed message optionally shown to user
@@ -238,33 +242,33 @@ def pop_message(parent, message, detailed_message=None, message_type='error'):
     :return:
     """
     message_type = message_type.lower()
-    if message_type not in ['error', 'warning', 'info']:
-        raise TypeError('Message type {0} is not supported.'.format(message_type))
+    if message_type not in ["error", "warning", "info"]:
+        raise TypeError("Message type {0} is not supported.".format(message_type))
 
     # check types
-    checkdatatypes.check_string_variable('(Main) message to show', message)
+    checkdatatypes.check_string_variable("(Main) message to show", message)
     if detailed_message is not None:
-        checkdatatypes.check_string_variable('(Detailed) message to show', detailed_message)
+        checkdatatypes.check_string_variable("(Detailed) message to show", detailed_message)
 
     # create a QMessageBox
     msg_box = QMessageBox()
 
     # set information type
-    if message_type == 'info':
+    if message_type == "info":
         msg_box.setIcon(QMessageBox.Information)
-    elif message_type == 'error':
+    elif message_type == "error":
         msg_box.setIcon(QMessageBox.Critical)
-    elif message_type == 'warning':
+    elif message_type == "warning":
         msg_box.setIcon(QMessageBox.Warning)
 
     # set text
     msg_box.setText(message)
     if detailed_message is not None:
         msg_box.setDetailedText(detailed_message)  # another button
-    msg_box.setWindowTitle('PyRS Message')
+    msg_box.setWindowTitle("PyRS Message")
 
     # box
     msg_box.setStandardButtons(QMessageBox.Ok)
 
     ret_val = msg_box.exec_()
-    print('Message box return value: {}'.format(ret_val))
+    print("Message box return value: {}".format(ret_val))

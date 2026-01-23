@@ -1,6 +1,7 @@
 """
 Graphics class with matplotlib backend specific for advanced 1D plot
 """
+
 from matplotlib.pyplot import subplots, subplots_adjust, figure
 import numpy as np
 
@@ -11,12 +12,11 @@ from pyrs.interface.ui.mplconstants import MplBasicColors, MplLineMarkers
 
 
 class MplGraphicsView1D(QWidget):
-    """ A combined graphics view including matplotlib canvas and a navigation tool bar
+    """A combined graphics view including matplotlib canvas and a navigation tool bar
     1. specific for 1-D data
     """
 
-    def __init__(self, parent, row_size=None, col_size=None, tool_bar=True,
-                 three_d_fig=False):
+    def __init__(self, parent, row_size=None, col_size=None, tool_bar=True, three_d_fig=False):
         """Initialization
         :param parent:
         :param row_size: number of figures per column, i.e., number of rows
@@ -52,7 +52,7 @@ class MplGraphicsView1D(QWidget):
         else:
             self._myToolBar = None
 
-        self._myCanvas.mpl_connect('button_press_event', self.button_clicked_in_canvas)
+        self._myCanvas.mpl_connect("button_press_event", self.button_clicked_in_canvas)
 
         # state of operation
         self._isZoomed = False
@@ -71,12 +71,21 @@ class MplGraphicsView1D(QWidget):
         self._myCanvas.reset_view_3d()
 
     def button_clicked_in_canvas(self, event):
-        print("-> {} click: button={:d}, x={:d}, y={:d}, xdata={:f}, ydata={:f}".format(event.dblclick, event.button,
-                                                                                        event.x, event.y, event.xdata,
-                                                                                        event.ydata))
+        print(
+            "-> {} click: button={:d}, x={:d}, y={:d}, xdata={:f}, ydata={:f}".format(
+                event.dblclick, event.button, event.x, event.y, event.xdata, event.ydata
+            )
+        )
 
-    def _update_plot_line_information(self, line_id, is_main, remove_line, vec_x=None,
-                                      vec_y=None, label=None, ):
+    def _update_plot_line_information(
+        self,
+        line_id,
+        is_main,
+        remove_line,
+        vec_x=None,
+        vec_y=None,
+        label=None,
+    ):
         """update the plot line information
         :param line_id:
         :param is_main: flag whether this is for main axes. Other wise it is for right axes
@@ -87,12 +96,11 @@ class MplGraphicsView1D(QWidget):
         :return:
         """
         # get the row-index and column-index if not given
-        if not (line_id in self._lineSubplotMap):
-            raise RuntimeError('Line ID {0} is not recorded in line-subplot map'.format(line_id))
+        if line_id not in self._lineSubplotMap:
+            raise RuntimeError("Line ID {0} is not recorded in line-subplot map".format(line_id))
 
         # check inputs and others
-        assert isinstance(line_id, int), 'Line ID {0} must be an integer but not a {1}.' \
-                                         ''.format(line_id, type(line_id))
+        assert isinstance(line_id, int), "Line ID {0} must be an integer but not a {1}.".format(line_id, type(line_id))
 
         plot_dict = self._myMainPlotDict
 
@@ -108,54 +116,79 @@ class MplGraphicsView1D(QWidget):
         # set information to plot dictionary
         plot_dict[line_id] = [label, min_x, max_x, min_y, max_y]
 
-    def add_plot(self, vec_x, vec_y, x_err=None, y_err=None, is_right=False,
-                 color=None, label='',
-                 x_label=None, y_label=None, marker=None, markersize=2, line_style=None,
-                 line_width=1, show_legend=True):
-
+    def add_plot(
+        self,
+        vec_x,
+        vec_y,
+        x_err=None,
+        y_err=None,
+        is_right=False,
+        color=None,
+        label="",
+        x_label=None,
+        y_label=None,
+        marker=None,
+        markersize=2,
+        line_style=None,
+        line_width=1,
+        show_legend=True,
+    ):
         # check whether the input is empty
         if len(vec_y) == 0:
-            print('[WARNING] Input is an empty vector set')
+            print("[WARNING] Input is an empty vector set")
             return False
 
         # plot at the main axis
-        line_key = self._myCanvas.add_main_plot(vec_x, vec_y, x_err, y_err,
-                                                color, label, x_label,
-                                                y_label, marker, line_style,
-                                                line_width, show_legend,
-                                                markersize=markersize)
+        line_key = self._myCanvas.add_main_plot(
+            vec_x,
+            vec_y,
+            x_err,
+            y_err,
+            color,
+            label,
+            x_label,
+            y_label,
+            marker,
+            line_style,
+            line_width,
+            show_legend,
+            markersize=markersize,
+        )
 
         # add line to dictionary
         self._lineSubplotMap[line_key] = line_key
 
         # update line information
-        self._update_plot_line_information(line_key, is_main=not is_right,
-                                           remove_line=False, label=label, vec_x=vec_x, vec_y=vec_y)
+        self._update_plot_line_information(
+            line_key, is_main=not is_right, remove_line=False, label=label, vec_x=vec_x, vec_y=vec_y
+        )
 
         return line_key
 
-    def add_3d_scatter(self, vec_x, vec_y, vec_z, plot_scatter, colors=None,
-                       x_label='', y_label='', z_label='', label=''):
-
+    def add_3d_scatter(
+        self, vec_x, vec_y, vec_z, plot_scatter, colors=None, x_label="", y_label="", z_label="", label=""
+    ):
         # check whether the input is empty
         if (len(vec_x) == 0) or (len(vec_y) == 0) or (len(vec_z) == 0):
-            print('[WARNING] Input is an empty vector set')
+            print("[WARNING] Input is an empty vector set")
             return False
 
-        line_key = self._myCanvas.add_3d_scatter(vec_x, vec_y, vec_z, plot_scatter, colors=colors,
-                                                 x_label=x_label, y_label=y_label, z_label=z_label)
+        line_key = self._myCanvas.add_3d_scatter(
+            vec_x, vec_y, vec_z, plot_scatter, colors=colors, x_label=x_label, y_label=y_label, z_label=z_label
+        )
 
         # add line to dictionary
         self._lineSubplotMap[line_key] = line_key
 
         # update line information
-        self._update_plot_line_information(line_key, is_main=True,
-                                           remove_line=False, label=label, vec_x=vec_x, vec_y=vec_y)
+        self._update_plot_line_information(
+            line_key, is_main=True, remove_line=False, label=label, vec_x=vec_x, vec_y=vec_y
+        )
 
         return line_key
 
     def canvas(self):
-        """ Get the canvas
+        """Get the canvas
         :return:
         """
         return self._myCanvas
@@ -177,13 +210,11 @@ class MplGraphicsView1D(QWidget):
         self._myCanvas.clear_canvas()
 
     def draw(self):
-        """ Draw to commit the change
-        """
+        """Draw to commit the change"""
         return self._myCanvas.draw()
 
     def evt_toolbar_home(self):
-        """
-        """
+        """ """
         # turn off zoom mode
         self._isZoomed = False
 
@@ -222,8 +253,7 @@ class MplGraphicsView1D(QWidget):
         return self._myCanvas.get_x_limits()
 
     def get_y_limit(self):
-        """ Get limit of Y-axis
-        """
+        """Get limit of Y-axis"""
         return self._myCanvas.getYLimit()
 
     def get_canvas(self):
@@ -242,8 +272,7 @@ class MplGraphicsView1D(QWidget):
         return self._myCanvas.subplot_indexes
 
     def setAutoLineMarkerColorCombo(self):
-        """ Set the default/auto line marker/color combination list
-        """
+        """Set the default/auto line marker/color combination list"""
         self._myLineMarkerColorList = list()
         for marker in MplLineMarkers:
             for color in MplBasicColors:
@@ -251,7 +280,7 @@ class MplGraphicsView1D(QWidget):
 
 
 class Qt4MplCanvasMultiFigure(FigureCanvas):
-    """  A customized Qt widget for matplotlib figure.
+    """A customized Qt widget for matplotlib figure.
     It can be used to replace GraphicsView of QtGui
     """
 
@@ -264,12 +293,12 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         # Instantiating matplotlib Figure. It is a requirement to initialize a figure canvas
         if three_d_fig:
             self.fig = figure()
-            self.axes_main = self.fig.add_subplot(1, 1, 1, projection='3d')
+            self.axes_main = self.fig.add_subplot(1, 1, 1, projection="3d")
         else:
             self.fig, self.axes_main = subplots(1, 1, sharex=True)
 
-        self.fig.patch.set_facecolor('white')
-        subplots_adjust(left=.15, bottom=.15, top=.9, right=.95)
+        self.fig.patch.set_facecolor("white")
+        subplots_adjust(left=0.15, bottom=0.15, top=0.9, right=0.95)
 
         # Initialize parent class and set parent
         super(Qt4MplCanvasMultiFigure, self).__init__(self.fig)
@@ -310,14 +339,24 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
     def reset_view_3d(self):
         self.axes_main.remove()
-        self.axes_main = self.fig.add_subplot(1, 1, 1, projection='3d')
+        self.axes_main = self.fig.add_subplot(1, 1, 1, projection="3d")
 
-    def add_main_plot(self, vec_x, vec_y,
-                      x_err=None, y_err=None,
-                      color=None, label='',
-                      x_label=None, y_label=None,
-                      marker=None, line_style=None,
-                      line_width=1, show_legend=True, markersize=4,):
+    def add_main_plot(
+        self,
+        vec_x,
+        vec_y,
+        x_err=None,
+        y_err=None,
+        color=None,
+        label="",
+        x_label=None,
+        y_label=None,
+        marker=None,
+        line_style=None,
+        line_width=1,
+        show_legend=True,
+        markersize=4,
+    ):
         """Add 1D plot on the main side (left)
         :param vec_x:
         :param vec_y:
@@ -334,20 +373,24 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         """
 
         if isinstance(vec_x, np.ndarray) is False or isinstance(vec_y, np.ndarray) is False:
-            raise NotImplementedError('Input vec_x or vec_y for addPlot() must be numpy.array,'
-                                      'but not {} and {}.'.format(type(vec_x), type(vec_y)))
+            raise NotImplementedError(
+                "Input vec_x or vec_y for addPlot() must be numpy.array,but not {} and {}.".format(
+                    type(vec_x), type(vec_y)
+                )
+            )
 
         plot_errors = (y_err is not None) or (x_err is not None)
 
         if len(vec_x) != len(vec_y):
-            raise NotImplementedError('Input vec_x (shape: {}) and vec_y (shape: {}) must have same size.'
-                                      ''.format(vec_x.shape, vec_y.shape))
+            raise NotImplementedError(
+                "Input vec_x (shape: {}) and vec_y (shape: {}) must have same size.".format(vec_x.shape, vec_y.shape)
+            )
 
         if (y_err is not None) and (len(y_err) != len(vec_y)):
-            raise NotImplementedError('Input vec_y and y_error must have same size.')
+            raise NotImplementedError("Input vec_y and y_error must have same size.")
 
         if (x_err is not None) and (len(x_err) != len(vec_x)):
-            raise NotImplementedError('Input vec_x and x_error must have same size.')
+            raise NotImplementedError("Input vec_x and x_error must have same size.")
 
         # set x-axis and y-axis label
         if x_label is not None:
@@ -359,9 +402,9 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         if color is None:
             color = (0, 1, 0, 1)
         if marker is None:
-            marker = 'None'
+            marker = "None"
         if line_style is None:
-            line_style = '-'
+            line_style = "-"
 
         # self.clear_canvas()
         # self.axes_main.clear()
@@ -369,36 +412,58 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         # color must be RGBA (4-tuple)
         if plot_errors is False:
             # return: list of matplotlib.lines.Line2D object
-            r = self.axes_main.plot(vec_x, vec_y, color=color,
-                                    marker=marker, markersize=markersize,
-                                    linestyle=line_style, label=label,
-                                    linewidth=line_width)
+            r = self.axes_main.plot(
+                vec_x,
+                vec_y,
+                color=color,
+                marker=marker,
+                markersize=markersize,
+                linestyle=line_style,
+                label=label,
+                linewidth=line_width,
+            )
 
             self.axes_main.autoscale()
 
         else:
             if y_err is None:
-                r = self.axes_main.errorbar(vec_x, vec_y,
-                                            xerr=x_err,
-                                            color=color, marker=marker,
-                                            linestyle=line_style, label=label,
-                                            linewidth=line_width)
+                r = self.axes_main.errorbar(
+                    vec_x,
+                    vec_y,
+                    xerr=x_err,
+                    color=color,
+                    marker=marker,
+                    linestyle=line_style,
+                    label=label,
+                    linewidth=line_width,
+                )
             elif x_err is None:
-                r = self.axes_main.errorbar(vec_x, vec_y,
-                                            yerr=y_err,
-                                            color=color, marker=marker,
-                                            linestyle=line_style, label=label,
-                                            linewidth=line_width)
+                r = self.axes_main.errorbar(
+                    vec_x,
+                    vec_y,
+                    yerr=y_err,
+                    color=color,
+                    marker=marker,
+                    linestyle=line_style,
+                    label=label,
+                    linewidth=line_width,
+                )
             else:
                 # both error
-                r = self.axes_main.errorbar(vec_x, vec_y,
-                                            xerr=x_err, yerr=y_err,
-                                            color=color, marker=marker,
-                                            linestyle=line_style, label=label,
-                                            linewidth=line_width)
+                r = self.axes_main.errorbar(
+                    vec_x,
+                    vec_y,
+                    xerr=x_err,
+                    yerr=y_err,
+                    color=color,
+                    marker=marker,
+                    linestyle=line_style,
+                    label=label,
+                    linewidth=line_width,
+                )
 
         # set aspect ratio
-        self.axes_main.set_aspect('auto')
+        self.axes_main.set_aspect("auto")
 
         # set/update legend
         if show_legend:
@@ -420,21 +485,21 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
 
         return line_key
 
-    def add_3d_scatter(self, vec_x, vec_y, vec_z, plot_scatter, colors=None,
-                       x_label='', y_label='', z_label=''):
-
+    def add_3d_scatter(self, vec_x, vec_y, vec_z, plot_scatter, colors=None, x_label="", y_label="", z_label=""):
         try:
             if plot_scatter:
-                r = self.axes_main.scatter(vec_x, vec_y, vec_z, marker='D', color=colors)
+                r = self.axes_main.scatter(vec_x, vec_y, vec_z, marker="D", color=colors)
 
             elif (plot_scatter is False) and (colors is None):
-                r = self.axes_main.plot_surface(vec_x, vec_y, vec_z, rstride=1, cstride=1,
-                                                cmap='coolwarm', linewidth=0, antialiased=False)
+                r = self.axes_main.plot_surface(
+                    vec_x, vec_y, vec_z, rstride=1, cstride=1, cmap="coolwarm", linewidth=0, antialiased=False
+                )
 
             else:
                 rcount, ccount, _ = colors.shape
-                r = self.axes_main.plot_surface(vec_x, vec_y, vec_z, rcount=rcount, ccount=ccount,
-                                                facecolors=colors, shade=False)
+                r = self.axes_main.plot_surface(
+                    vec_x, vec_y, vec_z, rcount=rcount, ccount=ccount, facecolors=colors, shade=False
+                )
 
                 r.set_facecolor((0, 0, 0, 0))
 
@@ -443,7 +508,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             self.axes_main.set_zlabel(z_label)
 
             # set aspect ratio
-            self.axes_main.set_aspect('auto')
+            self.axes_main.set_aspect("auto")
 
             # END-IF
 
@@ -460,8 +525,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         return line_key
 
     def clear_canvas(self):
-        """ Clear data including lines and image from canvas
-        """
+        """Clear data including lines and image from canvas"""
         # clear all lines
         self.axes_main.cla()
 
@@ -471,8 +535,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
         return
 
     def _flush(self):
-        """ A dirty hack to flush the image
-        """
+        """A dirty hack to flush the image"""
         w, h = self.get_width_height()
         self.resize(w + 1, h)
         self.resize(w, h)
@@ -482,7 +545,7 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
     def get_axis(self):
         return self.axes_main
 
-    def _setup_legend(self, location='best', is_main=True, font_size=10):
+    def _setup_legend(self, location="best", is_main=True, font_size=10):
         """Set up legend
         self.axes.legend(): Handler is a Line2D object. Lable maps to the line object
         :param location:
@@ -501,11 +564,12 @@ class Qt4MplCanvasMultiFigure(FigureCanvas):
             "center right",
             "lower center",
             "upper center",
-            "center"]
+            "center",
+        ]
 
         # Check legend location valid or not
         if location not in allowed_location_list:
-            location = 'best'
+            location = "best"
 
         # main axes on subplot
         handles, labels = self.axes_main.get_legend_handles_labels()

@@ -30,10 +30,9 @@ def test_merged_projectfile_viewer(combine_projects_window):
 
     assert window.isVisible()
 
-    files_list = '"tests/data/HB2B_1327.h5", '\
-        '"tests/data/HB2B_1328.h5", '\
-        '"tests/data/HB2B_1331.h5", '\
-        '"tests/data/HB2B_1332.h5"'
+    files_list = (
+        '"tests/data/HB2B_1327.h5", "tests/data/HB2B_1328.h5", "tests/data/HB2B_1331.h5", "tests/data/HB2B_1332.h5"'
+    )
 
     # This is to handle modal dialogs
     def handle_dialog(text):
@@ -56,7 +55,7 @@ def test_merged_projectfile_viewer(combine_projects_window):
     assert window.model._hidra_ws.get_sub_runs().size == 362
     qtbot.wait(wait)
 
-    QtCore.QTimer.singleShot(300, functools.partial(handle_dialog, 'test_export.h5'))
+    QtCore.QTimer.singleShot(300, functools.partial(handle_dialog, "test_export.h5"))
     window.fileLoading.file_load_dilg.saveFileDialog()
 
     window.hide()

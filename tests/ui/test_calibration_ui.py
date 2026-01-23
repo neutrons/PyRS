@@ -6,6 +6,7 @@ from pyrs.core import pyrscore
 from qtpy import QtCore, QtWidgets
 import functools
 import os
+
 # import json
 import pytest
 
@@ -48,21 +49,21 @@ def test_detector_calibration(calibration_window):
     # # Browse e11 Data File ...
     # # wait until dialog is loaded then handle it, this is required
     # # because the dialog is modal
-    QtCore.QTimer.singleShot(300, functools.partial(handle_dialog,
-                                                    "tests/data/calibration_tests/HB2B_3510.nxs.h5"))
+    QtCore.QTimer.singleShot(300, functools.partial(handle_dialog, "tests/data/calibration_tests/HB2B_3510.nxs.h5"))
     qtbot.mouseClick(window.fileLoading.file_load_dilg.browse_button, QtCore.Qt.LeftButton)
 
     qtbot.wait(wait)
-    assert window._model.nexus_file.split('/')[-1] == 'HB2B_3510.nxs.h5'
+    assert window._model.nexus_file.split("/")[-1] == "HB2B_3510.nxs.h5"
     qtbot.wait(wait)
 
-    QtCore.QTimer.singleShot(300, functools.partial(handle_dialog,
-                                                    "tests/data/calibration_tests/test_ui_recipe_load.json"))
+    QtCore.QTimer.singleShot(
+        300, functools.partial(handle_dialog, "tests/data/calibration_tests/test_ui_recipe_load.json")
+    )
     qtbot.mouseClick(window.peak_lines_setup.load_info, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
 
     qtbot.wait(wait)
-    assert window._model.nexus_file.split('/')[-1] == 'HB2B_3510.nxs.h5'
+    assert window._model.nexus_file.split("/")[-1] == "HB2B_3510.nxs.h5"
     qtbot.wait(wait)
 
     qtbot.mouseClick(window.peak_lines_setup.fit, QtCore.Qt.LeftButton)

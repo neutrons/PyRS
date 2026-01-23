@@ -71,7 +71,7 @@ class DetectorCalibrationModel(QObject):
         if self._calibration_obj is not None:
             self._calibration_obj = FitCalibration(nexus_file=self._nexus_file, eta_slice=eta_bins, bins=tth_bins)
 
-    def _init_calibration(self, nexus_file, tth=512, eta=3.):
+    def _init_calibration(self, nexus_file, tth=512, eta=3.0):
         self._calibration_obj = FitCalibration(nexus_file=nexus_file, eta_slice=eta, bins=tth)
         self._nexus_file = nexus_file
 
@@ -89,7 +89,6 @@ class DetectorCalibrationModel(QObject):
         return _x, self._calibration_obj._calibration[y_item, 1:]
 
     def calibrate_detector(self, fit_recipe):
-
         if self._calibration_obj is not None:
             # self._calibration_obj.initalize_calib_results()
             calibration = []
@@ -111,18 +110,22 @@ class DetectorCalibrationModel(QObject):
                     self._calibration_obj.calibrate_distance()
                 elif recipe == "full":
                     self._calibration_obj.FullCalibration()
-                elif recipe == 'wavelength_tth0':
+                elif recipe == "wavelength_tth0":
                     self._calibration_obj.calibrate_wave_shift()
-                elif recipe == 'tth0':
+                elif recipe == "tth0":
                     self._calibration_obj.calibrate_tth0()
 
-                if recipe != '':
+                if recipe != "":
                     calibration.append(np.copy(self._calibration_obj.calibration_array))
                     calibration_error.append(np.copy(self._calibration_obj.calibration_error_array))
 
             try:
-                return calibration, calibration_error, self._calibration_obj.residual_sum, \
-                    self._calibration_obj.residual_rmse
+                return (
+                    calibration,
+                    calibration_error,
+                    self._calibration_obj.residual_sum,
+                    self._calibration_obj.residual_rmse,
+                )
             except IndexError:
                 return calibration, -1, -1, -1
 

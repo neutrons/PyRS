@@ -22,10 +22,19 @@ class FitCalibration:
     Calibrate by grid searching algorithm using Brute Force or Monte Carlo random walk
     """
 
-    def __init__(self, _inst=None, nexus_file=None, mask_file=None, vanadium=None,
-                 eta_slice=3, bins=512, reduction_engine=None, pow_lines=None,
-                 max_nfev=None, method='trf'):
-
+    def __init__(
+        self,
+        _inst=None,
+        nexus_file=None,
+        mask_file=None,
+        vanadium=None,
+        eta_slice=3,
+        bins=512,
+        reduction_engine=None,
+        pow_lines=None,
+        max_nfev=None,
+        method="trf",
+    ):
         """
         Initialization
 
@@ -65,15 +74,15 @@ class FitCalibration:
         self._residualpoints = None
         self.singlepeak = False
 
-        self.refinement_summary = ''
+        self.refinement_summary = ""
 
         self.fitted_ws = None
         self._max_nfev = max_nfev
         self._ref_method = method
 
-        self._ref_powders = np.array(['Ni', 'Fe', 'Mo'])
+        self._ref_powders = np.array(["Ni", "Fe", "Mo"])
         self._ref_powders_sy = np.array([62, 12, -13])
-        self._ref_structure = np.array(['FCC', 'BCC', 'BCC'])
+        self._ref_structure = np.array(["FCC", "BCC", "BCC"])
         # self._ref_lattice = [3.523799438, 2.8663982, 3.14719963]
         self._ref_lattice = [3.526314, 2.865579, 3.147664]
 
@@ -82,7 +91,7 @@ class FitCalibration:
 
     @property
     def sy(self):
-        return self._hidra_ws.get_sample_log_values('sy')
+        return self._hidra_ws.get_sample_log_values("sy")
 
     @property
     def sub_runs(self):
@@ -118,8 +127,9 @@ class FitCalibration:
         self._max_nfev = nfev
 
     def set_inst_shifts_wl(self, params):
-        self._hidra_ws.set_detector_shift(DENEXDetectorShift(params[0], params[1], params[2],
-                                                             params[3], params[4], params[5], params[6]))
+        self._hidra_ws.set_detector_shift(
+            DENEXDetectorShift(params[0], params[1], params[2], params[3], params[4], params[5], params[6])
+        )
 
         self._hidra_ws.set_wavelength(params[7], False)
 
@@ -144,24 +154,33 @@ class FitCalibration:
 
         self.reducer = ReductionApp()
         self.reducer.load_hidra_workspace(self._hidra_ws)
-        self.reducer.reduce_data(sub_runs=None,
-                                 instrument_file=None, calibration_file=None,
-                                 mask=self.mask_file, num_bins=self.bins, eta_step=self.eta_slices,
-                                 van_file=self.vanadium)
+        self.reducer.reduce_data(
+            sub_runs=None,
+            instrument_file=None,
+            calibration_file=None,
+            mask=self.mask_file,
+            num_bins=self.bins,
+            eta_step=self.eta_slices,
+            van_file=self.vanadium,
+        )
 
     def reduce_data(self):
-
         self._hidra_ws._mask_dict = dict()
         self.reducer = ReductionApp()
         self.reducer.load_hidra_workspace(self._hidra_ws)
 
-        self.reducer.reduce_data(sub_runs=self.sub_runs[np.array(self._keep_subrun_list)],
-                                 instrument_file=None, calibration_file=None,
-                                 mask=self.mask_file, num_bins=self.bins, eta_step=self.eta_slices,
-                                 van_file=self.vanadium)
+        self.reducer.reduce_data(
+            sub_runs=self.sub_runs[np.array(self._keep_subrun_list)],
+            instrument_file=None,
+            calibration_file=None,
+            mask=self.mask_file,
+            num_bins=self.bins,
+            eta_step=self.eta_slices,
+            van_file=self.vanadium,
+        )
 
     def get_diff_peaks(self, sub_run):
-        '''
+        """
         Determine peak position for reference lattice
 
         Parameters
@@ -174,14 +193,14 @@ class FitCalibration:
         np.array
             array of two theta peaks for the reference powder.
 
-        '''
+        """
 
         dspace = self._powders_lattice[sub_run] / self._diff_peaks[self._powders_struc[sub_run]]
         return np.rad2deg(np.arcsin(self._hidra_ws.get_wavelength(False, False) / 2 / dspace) * 2)
 
     def get_powder_lines(self):
-        self._powders = [''] * self.sy.size
-        self._powders_struc = [''] * self.sy.size
+        self._powders = [""] * self.sy.size
+        self._powders_struc = [""] * self.sy.size
         self._powders_lattice = np.zeros_like(self.sy)
         self._keep_subrun_list = np.array([True] * self.sy.size)
 
@@ -195,8 +214,8 @@ class FitCalibration:
                 pass
 
         self._diff_peaks = {}
-        self._diff_peaks['BCC'] = np.sqrt(np.array([2, 4, 6, 8, 10, 12]))
-        self._diff_peaks['FCC'] = np.sqrt(np.array([3, 4, 8, 11, 12, 19]))
+        self._diff_peaks["BCC"] = np.sqrt(np.array([2, 4, 6, 8, 10, 12]))
+        self._diff_peaks["FCC"] = np.sqrt(np.array([3, 4, 8, 11, 12, 19]))
 
     def initalize_calib_arrays(self):
         # calibration: numpy array. size as 7 for ... [6] for wave length
@@ -207,7 +226,7 @@ class FitCalibration:
         self._calib_start = np.array(8 * [0], dtype=np.float64)
 
         # Set wave length
-        self.monosetting = MonoSetting.getFromRotation(self._hidra_ws.get_sample_log_value('mrot', 1))
+        self.monosetting = MonoSetting.getFromRotation(self._hidra_ws.get_sample_log_value("mrot", 1))
         self._calib[7] = float(self.monosetting)
         self._calib_start[7] = float(self.monosetting)
 
@@ -230,8 +249,9 @@ class FitCalibration:
                     tth, int_vec, error_vec = self.reducer.get_diffraction_data(sub_run, mask_id=mask)
                     self._fitting_ws.set_reduced_diffraction_data(i_mask + 1, None, tth, int_vec, error_vec)
 
-                _fit_engine = PeakFitEngineFactory.getInstance(self._fitting_ws, 'PseudoVoigt', 'Linear',
-                                                               wavelength=self._calib[7], out_of_plane_angle=None)
+                _fit_engine = PeakFitEngineFactory.getInstance(
+                    self._fitting_ws, "PseudoVoigt", "Linear", wavelength=self._calib[7], out_of_plane_angle=None
+                )
 
                 peaks = peaks[(peaks > (tth.min() + 1)) * (peaks < (tth.max() - 1))]
 
@@ -244,16 +264,16 @@ class FitCalibration:
                     fits = _fit_engine.fit_multiple_peaks(["peak_tags"], [peak - 3], [peak + 3])
 
                     _ws.append(fits.fitted)
-                    center_errors = np.concatenate((center_errors,
-                                                    fits.peakcollections[0].get_effective_params()[0]['Center'] -
-                                                    peak))
+                    center_errors = np.concatenate(
+                        (center_errors, fits.peakcollections[0].get_effective_params()[0]["Center"] - peak)
+                    )
 
                 self.fitted_ws[i_run] = _ws
 
         return center_errors
 
     def get_alignment_residual(self, x):
-        """ Cost function for peaks alignment to determine wavelength
+        """Cost function for peaks alignment to determine wavelength
         :param x: list/array of detector shift/rotation and neutron wavelength values
         :x[0]: shift_x, x[1]: shift_y, x[2]: shift_z, x[3]: rot_x, x[4]: rot_y, x[5]: rot_z, x[6]: tth_0,
         x[7]: wavelength
@@ -270,18 +290,16 @@ class FitCalibration:
         residual = self.fit_peaks()
 
         print("")
-        print('Iteration      {}'.format(self._calibration.shape[1]))
-        print('RMSE         = {}'.format(np.sqrt((residual**2).sum() / residual.shape[0])))
-        print('Residual Sum = {}'.format(np.sum(residual)))
+        print("Iteration      {}".format(self._calibration.shape[1]))
+        print("RMSE         = {}".format(np.sqrt((residual**2).sum() / residual.shape[0])))
+        print("Residual Sum = {}".format(np.sum(residual)))
 
         self._residual_sum.append(residual.sum())
         self._residual_rmse.append(np.sqrt((residual**2).sum() / residual.shape[0]))
 
         return residual
 
-    def FitDetector(self, fun, x0, jac='3-point', bounds=[],
-                    i_index=2, Brute=False):
-
+    def FitDetector(self, fun, x0, jac="3-point", bounds=[], i_index=2, Brute=False):
         if Brute:
             BOUNDS = []
             lL = bounds[1]
@@ -293,17 +311,25 @@ class FitCalibration:
 
         else:
             if len(bounds[0]) != len(bounds[1]):
-                raise RuntimeError('User must specify bounds of equal length')
+                raise RuntimeError("User must specify bounds of equal length")
 
             if len(x0) != len(bounds[1]):
-                raise RuntimeError('User must specify bounds of equal length')
+                raise RuntimeError("User must specify bounds of equal length")
 
-            if self._ref_method == 'lm':
-                out = least_squares(fun, x0, jac='3-point', method=self._ref_method,
-                                    max_nfev=self._max_nfev, args=(Brute, i_index))
+            if self._ref_method == "lm":
+                out = least_squares(
+                    fun, x0, jac="3-point", method=self._ref_method, max_nfev=self._max_nfev, args=(Brute, i_index)
+                )
             else:
-                out = least_squares(fun, x0, jac='3-point', bounds=bounds, method=self._ref_method,
-                                    max_nfev=self._max_nfev, args=(Brute, i_index))
+                out = least_squares(
+                    fun,
+                    x0,
+                    jac="3-point",
+                    bounds=bounds,
+                    method=self._ref_method,
+                    max_nfev=self._max_nfev,
+                    args=(Brute, i_index),
+                )
 
             J = out.jac
 
@@ -319,7 +345,7 @@ class FitCalibration:
             return [out.x, var, out.status]
 
     def peak_alignment_wave_shift(self, x, ReturnScalar=False, i_index=2):
-        """ Cost function for peaks alignment to determine wavelength
+        """Cost function for peaks alignment to determine wavelength
         :param x:
         :return:
         """
@@ -336,7 +362,7 @@ class FitCalibration:
         return residual
 
     def peak_alignment_single(self, x, ReturnScalar=False, i_index=2):
-        """ Cost function for peaks alignment to determine wavelength
+        """Cost function for peaks alignment to determine wavelength
         :param x:
         :return:
         """
@@ -352,8 +378,7 @@ class FitCalibration:
         return residual
 
     def peak_alignment_shift(self, x, ReturnScalar=False, i_index=2):
-
-        """ Cost function for peaks alignment to determine detector shift
+        """Cost function for peaks alignment to determine detector shift
         :param x:
         :param roi_vec_set: list/array of ROI/mask vector
         :param return_scalar:
@@ -369,9 +394,8 @@ class FitCalibration:
 
         return residual
 
-    def peak_alignment_rotation(self, x, ReturnScalar=False,
-                                i_index=2):
-        """ Cost function for peaks alignment to determine detector rotation
+    def peak_alignment_rotation(self, x, ReturnScalar=False, i_index=2):
+        """Cost function for peaks alignment to determine detector rotation
         :param x:
         :param roi_vec_set: list/array of ROI/mask vector
         :param return_scalar:
@@ -388,9 +412,8 @@ class FitCalibration:
 
         return residual
 
-    def peak_alignment_geometry(self, x, ReturnScalar=False,
-                                i_index=2):
-        """ Cost function for peaks alignment to determine detector rotation
+    def peak_alignment_geometry(self, x, ReturnScalar=False, i_index=2):
+        """Cost function for peaks alignment to determine detector rotation
         :param x:
         :param roi_vec_set: list/array of ROI/mask vector
         :param return_scalar:
@@ -408,7 +431,7 @@ class FitCalibration:
         return residual
 
     def peaks_alignment_all(self, x, ReturnScalar=False, i_index=2):
-        """ Cost function for peaks alignment to determine wavelength and detector shift and rotation
+        """Cost function for peaks alignment to determine wavelength and detector shift and rotation
         :param x:
         :param roi_vec_set: list/array of ROI/mask vector
         :return:
@@ -421,8 +444,7 @@ class FitCalibration:
 
         return residual
 
-    def calibrate_single(self, initial_guess=None, ConstrainPosition=True, LL=[], UL=[],
-                         i_index=0):
+    def calibrate_single(self, initial_guess=None, ConstrainPosition=True, LL=[], UL=[], i_index=0):
         """Calibrate wave length
 
         Parameters
@@ -434,8 +456,9 @@ class FitCalibration:
 
         """
 
-        out = self.FitDetector(self.peak_alignment_single, initial_guess, jac='3-point', bounds=(LL, UL),
-                               i_index=i_index)
+        out = self.FitDetector(
+            self.peak_alignment_single, initial_guess, jac="3-point", bounds=(LL, UL), i_index=i_index
+        )
 
         return out
 
@@ -454,8 +477,9 @@ class FitCalibration:
         if initial_guess is None:
             initial_guess = self.get_wavelength()
 
-        out = self.calibrate_single(initial_guess=initial_guess,
-                                    LL=[self._calib[7] - .025], UL=[self._calib[7] + .025], i_index=7)
+        out = self.calibrate_single(
+            initial_guess=initial_guess, LL=[self._calib[7] - 0.025], UL=[self._calib[7] + 0.025], i_index=7
+        )
 
         self.set_wavelength(out)
 
@@ -476,8 +500,11 @@ class FitCalibration:
         if initial_guess is None:
             initial_guess = np.concatenate((self.get_tth0(), self.get_wavelength()))
 
-        out = self.FitDetector(self.peak_alignment_wave_shift, initial_guess,
-                               bounds=([-5.0, self._calib[7]-.025], [5.0, self._calib[7]+.025]))
+        out = self.FitDetector(
+            self.peak_alignment_wave_shift,
+            initial_guess,
+            bounds=([-5.0, self._calib[7] - 0.025], [5.0, self._calib[7] + 0.025]),
+        )
 
         self.set_wave_shift(out)
 
@@ -498,8 +525,7 @@ class FitCalibration:
         if initial_guess is None:
             initial_guess = np.array([self.get_calib()[0]])
 
-        out = self.calibrate_single(initial_guess=initial_guess,
-                                    LL=[-0.05], UL=[0.05], i_index=0)
+        out = self.calibrate_single(initial_guess=initial_guess, LL=[-0.05], UL=[0.05], i_index=0)
 
         self.set_shiftx(out)
 
@@ -518,8 +544,7 @@ class FitCalibration:
         if initial_guess is None:
             initial_guess = np.array([self.get_calib()[1]])
 
-        out = self.calibrate_single(initial_guess=initial_guess,
-                                    LL=[-0.05], UL=[0.05], i_index=1)
+        out = self.calibrate_single(initial_guess=initial_guess, LL=[-0.05], UL=[0.05], i_index=1)
 
         self.set_shifty(out)
 
@@ -540,8 +565,7 @@ class FitCalibration:
         if initial_guess is None:
             initial_guess = np.array([self.get_calib()[2]])
 
-        out = self.calibrate_single(initial_guess=initial_guess,
-                                    LL=[-0.1], UL=[0.1], i_index=2)
+        out = self.calibrate_single(initial_guess=initial_guess, LL=[-0.1], UL=[0.1], i_index=2)
 
         self.set_distance(out)
 
@@ -562,60 +586,60 @@ class FitCalibration:
         if initial_guess is None:
             initial_guess = np.array([self.get_calib()[6]])
 
-        out = self.calibrate_single(initial_guess=initial_guess,
-                                    LL=[-5.0], UL=[5.0], i_index=6)
+        out = self.calibrate_single(initial_guess=initial_guess, LL=[-5.0], UL=[5.0], i_index=6)
 
         self.set_tth0(out)
 
         return
 
     def CalibrateShift(self, initalGuess=None, bounds=None):
-
         if initalGuess is None:
             initalGuess = self.get_shift()
         if bounds is None:
-            bounds = [[-.05, -.05, -.15], [.05, .05, .15]]
+            bounds = [[-0.05, -0.05, -0.15], [0.05, 0.05, 0.15]]
 
-        out = self.FitDetector(self.peak_alignment_shift, initalGuess,
-                               bounds=(bounds[0], bounds[1]))
+        out = self.FitDetector(self.peak_alignment_shift, initalGuess, bounds=(bounds[0], bounds[1]))
 
         self.set_shift(out)
 
         return
 
     def CalibrateRotation(self, initalGuess=None):
-
         if initalGuess is None:
             initalGuess = self.get_rotation()
 
-        out = self.FitDetector(self.peak_alignment_rotation, initalGuess,
-                               bounds=([-5.0, -5.0, -5.0], [5.0, 5.0, 5.0]))
+        out = self.FitDetector(self.peak_alignment_rotation, initalGuess, bounds=([-5.0, -5.0, -5.0], [5.0, 5.0, 5.0]))
 
         self.set_rotation(out)
 
         return
 
     def CalibrateGeometry(self, initalGuess=None):
-
         if initalGuess is None:
             initalGuess = self.get_calib()[:7]
 
-        out = self.FitDetector(self.peak_alignment_geometry, initalGuess,
-                               bounds=([-.05, -.05, -.05, -5.0, -5.0, -5.0, -5.0],
-                                       [.05, .05, .05, 5.0, 5.0, 5.0, 5.0]))
+        out = self.FitDetector(
+            self.peak_alignment_geometry,
+            initalGuess,
+            bounds=([-0.05, -0.05, -0.05, -5.0, -5.0, -5.0, -5.0], [0.05, 0.05, 0.05, 5.0, 5.0, 5.0, 5.0]),
+        )
 
         self.set_geo(out)
 
         return
 
     def FullCalibration(self, initalGuess=None):
-
         if initalGuess is None:
             initalGuess = self.get_calib()
 
-        out = self.FitDetector(self.peaks_alignment_all, initalGuess,
-                               bounds=([-.05, -.05, -.15, -5.0, -5.0, -5.0, -5.0, self._calib[7]-.05],
-                                       [.05, .05, .15, 5.0, 5.0, 5.0, 5.0, self._calib[7]+.05]))
+        out = self.FitDetector(
+            self.peaks_alignment_all,
+            initalGuess,
+            bounds=(
+                [-0.05, -0.05, -0.15, -5.0, -5.0, -5.0, -5.0, self._calib[7] - 0.05],
+                [0.05, 0.05, 0.15, 5.0, 5.0, 5.0, 5.0, self._calib[7] + 0.05],
+            ),
+        )
 
         self.set_calibration(out)
 
@@ -779,7 +803,7 @@ class FitCalibration:
         """
         with open(file_name) as fIN:
             CalibData = json.load(fIN)
-            keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'TTH_0', 'Lambda']
+            keys = ["Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda"]
             for i in range(len(keys)):
                 self._calib[i] = CalibData[keys[i]]
 
@@ -802,12 +826,25 @@ class FitCalibration:
         """
 
         # Form DENEXDetectorShift objects
-        cal_shift = DENEXDetectorShift(self._calib[0], self._calib[1], self._calib[2], self._calib[3],
-                                       self._calib[4], self._calib[5], self._calib[6])
+        cal_shift = DENEXDetectorShift(
+            self._calib[0],
+            self._calib[1],
+            self._calib[2],
+            self._calib[3],
+            self._calib[4],
+            self._calib[5],
+            self._calib[6],
+        )
 
-        cal_shift_error = DENEXDetectorShift(self._caliberr[0], self._caliberr[1], self._caliberr[2],
-                                             self._caliberr[3], self._caliberr[4], self._caliberr[5],
-                                             self._caliberr[6])
+        cal_shift_error = DENEXDetectorShift(
+            self._caliberr[0],
+            self._caliberr[1],
+            self._caliberr[2],
+            self._caliberr[3],
+            self._caliberr[4],
+            self._caliberr[5],
+            self._caliberr[6],
+        )
 
         wl = self._calib[7]
         wl_error = self._caliberr[7]
@@ -815,24 +852,30 @@ class FitCalibration:
         # Determine output file name
         if file_name is None:
             # default case: write to archive
-            if os.access('/HFIR/HB2B/shared', os.W_OK):
-                file_name = '/HFIR/HB2B/shared/CALIBRATION/{}/HB2B_CAL_{}.json'.format(self.monosetting.name,
-                                                                                       time.strftime('%Y-%m-%dT%H:%M',
-                                                                                                     time.localtime()))
+            if os.access("/HFIR/HB2B/shared", os.W_OK):
+                file_name = "/HFIR/HB2B/shared/CALIBRATION/{}/HB2B_CAL_{}.json".format(
+                    self.monosetting.name, time.strftime("%Y-%m-%dT%H:%M", time.localtime())
+                )
                 write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name)
 
             else:
-                print('User does not privilege to write to {}'.format('/HFIR/HB2B/shared'))
+                print("User does not privilege to write to {}".format("/HFIR/HB2B/shared"))
 
         else:
             write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name)
 
         if write_latest:
-            if os.access('/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json', os.W_OK):
-                write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus,
-                                          '/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json')
+            if os.access("/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json", os.W_OK):
+                write_calibration_to_json(
+                    cal_shift,
+                    cal_shift_error,
+                    wl,
+                    wl_error,
+                    self._calibstatus,
+                    "/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json",
+                )
             else:
-                print('User does not privilege to write /HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json')
+                print("User does not privilege to write /HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json")
 
         return
 
@@ -847,20 +890,20 @@ class FitCalibration:
         None
         """
 
-        keys = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'TTH_0', 'Lambda']
-        print_string = '\n###########################################'
-        print_string += '\n########### Calibration Summary ###########'
-        print_string += '\n###########################################\n'
+        keys = ["Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda"]
+        print_string = "\n###########################################"
+        print_string += "\n########### Calibration Summary ###########"
+        print_string += "\n###########################################\n"
         if refine_step is not None:
-            print_string += '\nrefined using {}\n'.format(refine_step)
+            print_string += "\nrefined using {}\n".format(refine_step)
 
-        print_string += 'Iterations     {}\n'.format(self._calibration.shape[1])
-        print_string += 'RMSE         = {}\n'.format(self._residual_rmse[-1])
-        print_string += 'Residual Sum = {}\n'.format(self._residual_sum[-1])
+        print_string += "Iterations     {}\n".format(self._calibration.shape[1])
+        print_string += "RMSE         = {}\n".format(self._residual_rmse[-1])
+        print_string += "Residual Sum = {}\n".format(self._residual_sum[-1])
 
         print_string += "Parameter:  inital guess  refined value\n"
         for i in range(len(keys)):
-            print_string += '{:10s}{:^15.5f}{:^14.5f}\n'.format(keys[i], self._calib_start[i], self._calib[i])
+            print_string += "{:10s}{:^15.5f}{:^14.5f}\n".format(keys[i], self._calib_start[i], self._calib[i])
 
         self.refinement_summary += print_string
 

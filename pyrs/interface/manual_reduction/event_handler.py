@@ -9,8 +9,8 @@ from pyrs.utilities import get_default_output_dir, get_nexus_file  # type: ignor
 
 
 class EventHandler:
-    """Class to handle the event sent from UI widget
-    """
+    """Class to handle the event sent from UI widget"""
+
     def __init__(self, parent):
         """Init
 
@@ -24,7 +24,7 @@ class EventHandler:
 
         # controller
         self._controller = ReductionController()
-        self.__last_run_number = ''
+        self.__last_run_number = ""
 
     def _current_runnumber(self):
         run_number = str(self.ui.lineEdit_runNumber.text()).strip()
@@ -49,13 +49,18 @@ class EventHandler:
         self.ui.comboBox_sub_runs.clear()
 
         for sub_run in sorted(sub_runs):
-            self.ui.comboBox_sub_runs.addItem('{}'.format(sub_run))
+            self.ui.comboBox_sub_runs.addItem("{}".format(sub_run))
 
     def browse_calibration_file(self):
-        calibration_file = browse_file(self.parent, caption='Choose and set up the calibration file',
-                                       default_dir=self._controller.get_default_calibration_dir(),
-                                       file_filter='hdf5 (*hdf)', file_list=False, save_file=False)
-        if calibration_file is None or calibration_file == '':
+        calibration_file = browse_file(
+            self.parent,
+            caption="Choose and set up the calibration file",
+            default_dir=self._controller.get_default_calibration_dir(),
+            file_filter="hdf5 (*hdf)",
+            file_list=False,
+            save_file=False,
+        )
+        if calibration_file is None or calibration_file == "":
             # operation canceled
             return
 
@@ -69,8 +74,9 @@ class EventHandler:
         -------
 
         """
-        mask_file_name = browse_file(self.parent, 'Hidra Mask File', self._controller.get_default_mask_dir(),
-                                     'Mantid Mask(*.xml)', False, False)
+        mask_file_name = browse_file(
+            self.parent, "Hidra Mask File", self._controller.get_default_mask_dir(), "Mantid Mask(*.xml)", False, False
+        )
         self.ui.lineEdit_maskFile.setText(mask_file_name)
         return
 
@@ -81,9 +87,14 @@ class EventHandler:
         -------
 
         """
-        nexus_file_path = browse_file(self.parent, 'NeXus File',
-                                      self._controller.get_default_nexus_dir(ipts_number=None),
-                                      'NeXus(*.nxs.h5)', False, False)
+        nexus_file_path = browse_file(
+            self.parent,
+            "NeXus File",
+            self._controller.get_default_nexus_dir(ipts_number=None),
+            "NeXus(*.nxs.h5)",
+            False,
+            False,
+        )
         if nexus_file_path is not None:
             self.ui.lineEdit_runNumber.setText(nexus_file_path)
 
@@ -94,9 +105,8 @@ class EventHandler:
         -------
 
         """
-        output_dir = browse_dir(self.parent, caption='Output directory for reduced data',
-                                default_dir='/HFIR/HB2B/')
-        if output_dir != '':
+        output_dir = browse_dir(self.parent, caption="Output directory for reduced data", default_dir="/HFIR/HB2B/")
+        if output_dir != "":
             self.ui.lineEdit_outputDirectory.setText(output_dir)
 
     def browse_vanadium_file(self):
@@ -106,10 +116,16 @@ class EventHandler:
         -------
 
         """
-        vanadium_file_name = browse_file(self.parent, 'HiDRA Vanadium File', self._controller.get_default_mask_dir(),
-                                         'HiDRA project(*.h5)', False, False)
+        vanadium_file_name = browse_file(
+            self.parent,
+            "HiDRA Vanadium File",
+            self._controller.get_default_mask_dir(),
+            "HiDRA project(*.h5)",
+            False,
+            False,
+        )
 
-        if vanadium_file_name is not None and vanadium_file_name != '':
+        if vanadium_file_name is not None and vanadium_file_name != "":
             self.ui.lineEdit_vanRunNumber.setText(vanadium_file_name)
 
     def plot_detector_counts(self):
@@ -128,14 +144,18 @@ class EventHandler:
         try:
             counts_matrix = self._controller.get_detector_counts(sub_run, output_matrix=True)
         except RuntimeError as run_err:
-            pop_message(self.parent, 'Unable to plot sub run {} counts on detector view'.format(sub_run),
-                        str(run_err), message_type='error')
+            pop_message(
+                self.parent,
+                "Unable to plot sub run {} counts on detector view".format(sub_run),
+                str(run_err),
+                message_type="error",
+            )
             return
 
         # Plot
         # set information
         det_2theta = self._controller.get_sample_log_value(HidraConstants.TWO_THETA, sub_run)
-        info = 'sub-run: {}, 2theta = {}'.format(sub_run, det_2theta)
+        info = "sub-run: {}, 2theta = {}".format(sub_run, det_2theta)
 
         # mask ID is not None
         # if mask_id is not None:
@@ -159,7 +179,7 @@ class EventHandler:
         """
         # Get valid sub run
         sub_run = parse_combo_box(self.ui.comboBox_sub_runs, int)
-        print('[TEST-OUTPUT] sub run = {},  type = {}'.format(sub_run, type(sub_run)))
+        print("[TEST-OUTPUT] sub run = {},  type = {}".format(sub_run, type(sub_run)))
         if sub_run is None:
             return
 
@@ -167,17 +187,22 @@ class EventHandler:
         try:
             pattern = self._controller.get_powder_pattern(sub_run)
         except RuntimeError as run_err:
-            pop_message(self.parent, 'Unable to plot sub run {} histogram/powder pattern'.format(sub_run),
-                        str(run_err), message_type='error')
+            pop_message(
+                self.parent,
+                "Unable to plot sub run {} histogram/powder pattern".format(sub_run),
+                str(run_err),
+                message_type="error",
+            )
             return
 
         # Get detector 2theta of this sub run
         det_2theta = self._controller.get_sample_log_value(HidraConstants.TWO_THETA, sub_run)
-        info = 'sub-run: {}, 2theta = {}'.format(sub_run, det_2theta)
+        info = "sub-run: {}, 2theta = {}".format(sub_run, det_2theta)
 
         # Plot
-        self.ui.graphicsView_1DPlot.plot_diffraction(pattern[0], pattern[1], '2theta', 'intensity',
-                                                     line_label=info, keep_prev=False)
+        self.ui.graphicsView_1DPlot.plot_diffraction(
+            pattern[0], pattern[1], "2theta", "intensity", line_label=info, keep_prev=False
+        )
 
     def manual_reduce_run(self):
         """
@@ -197,7 +222,7 @@ class EventHandler:
             nexus_file = str(self.ui.lineEdit_runNumber.text()).strip()
 
             # quit if the input is not NeXus
-            if not (os.path.exists(nexus_file) and nexus_file.endswith('.nxs.h5')):
+            if not (os.path.exists(nexus_file) and nexus_file.endswith(".nxs.h5")):
                 return
         # END-IF
 
@@ -205,28 +230,31 @@ class EventHandler:
         project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
         # mask file
         mask_file = str(self.ui.lineEdit_maskFile.text().strip())
-        if mask_file == '':
+        if mask_file == "":
             mask_file = None
         # calibration file
         calibration_file = str(self.ui.lineEdit_calibrationFile.text().strip())
-        if calibration_file == '':
+        if calibration_file == "":
             calibration_file = None
         # vanadium file
         vanadium_file = str(self.ui.lineEdit_vanRunNumber.text().strip())
-        if vanadium_file == '':
+        if vanadium_file == "":
             vanadium_file = None
 
         # Start task
         if True:
             # single thread:
             try:
-                hidra_ws = self._controller.reduce_hidra_workflow(nexus_file, project_file,
-                                                                  self.ui.progressBar, mask=mask_file,
-                                                                  calibration=calibration_file,
-                                                                  vanadium_file=vanadium_file)
+                hidra_ws = self._controller.reduce_hidra_workflow(
+                    nexus_file,
+                    project_file,
+                    self.ui.progressBar,
+                    mask=mask_file,
+                    calibration=calibration_file,
+                    vanadium_file=vanadium_file,
+                )
             except RuntimeError as run_err:
-                pop_message(self.parent, 'Failed to reduce {}',
-                            str(run_err), message_type='error')
+                pop_message(self.parent, "Failed to reduce {}", str(run_err), message_type="error")
                 return
 
             # Update table
@@ -239,10 +267,12 @@ class EventHandler:
             self._set_sub_run_numbers(sub_runs)
 
         else:
-            task = BlockingAsyncTaskWithCallback(self._controller.reduce_hidra_workflow,
-                                                 args=(nexus_file, project_file, self.ui.progressBar),
-                                                 kwargs={'mask': mask_file, 'calibration': calibration_file},
-                                                 blocking_cb=QApplication.processEvents)
+            task = BlockingAsyncTaskWithCallback(
+                self._controller.reduce_hidra_workflow,
+                args=(nexus_file, project_file, self.ui.progressBar),
+                kwargs={"mask": mask_file, "calibration": calibration_file},
+                blocking_cb=QApplication.processEvents,
+            )
             # TODO - catch RuntimeError! ...
             # FIXME - check output directory
             task.start()
@@ -267,7 +297,7 @@ class EventHandler:
         """
 
         if state != Qt.Unchecked:
-            self.ui.lineEdit_maskFile.setText(self._controller.get_default_mask_dir() + 'HB2B_MASK_Latest.xml')
+            self.ui.lineEdit_maskFile.setText(self._controller.get_default_mask_dir() + "HB2B_MASK_Latest.xml")
         self.ui.lineEdit_maskFile.setEnabled(state == Qt.Unchecked)
         self.ui.pushButton_browseMaskFile.setEnabled(state == Qt.Unchecked)
 
@@ -284,8 +314,9 @@ class EventHandler:
 
         """
         if state != Qt.Unchecked:
-            self.ui.lineEdit_calibrationFile.setText(self._controller.get_default_calibration_dir() +
-                                                     'HB2B_Latest.json')
+            self.ui.lineEdit_calibrationFile.setText(
+                self._controller.get_default_calibration_dir() + "HB2B_Latest.json"
+            )
         self.ui.lineEdit_calibrationFile.setEnabled(state == Qt.Unchecked)
         self.ui.pushButton_browseCalibrationFile.setEnabled(state == Qt.Unchecked)
 
@@ -333,5 +364,5 @@ class EventHandler:
             self.ui.lineEdit_outputDirectory.setText(project_dir)
             self.__last_run_number = run_number
         except RuntimeError as e:
-            print('Failed to find project directory for {}'.format(run_number))
+            print("Failed to find project directory for {}".format(run_number))
             print(e)

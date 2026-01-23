@@ -82,8 +82,11 @@ jobs:
         with:
           manifest-path: pyproject.toml
 
-      - name: flake8
-        run: pixi run lint-flake8
+      - name: ruff
+        run: pixi run lint-ruff
+
+      - name: ruff format
+        run: pixi run lint-ruff-format
 
       - name: mypy
         run: pixi run mypy pyrs scripts tests

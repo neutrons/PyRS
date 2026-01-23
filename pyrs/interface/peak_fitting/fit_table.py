@@ -2,13 +2,12 @@ import numpy as np
 from qtpy.QtWidgets import QTableWidgetItem, QTableWidgetSelectionRange  # type:ignore
 from qtpy.QtGui import QColor  # type:ignore
 
-MICROSTRAIN = u"\u00b5strain"
+MICROSTRAIN = "\u00b5strain"
 SUCCESS = "success"
 COLOR_FAILED_FITTING = QColor(247, 173, 13)  # orange
 
 
 class FitTable:
-
     COL_SIZE = 100
     STATUS_COL_SIZE = 500  # last column
 
@@ -23,32 +22,31 @@ class FitTable:
 
     def populate_fit_result_table(self):
         _peak_selected = self.parent.ui.spinBox_peak_index.value()
-        _peak_collection = self.fit_result.peakcollections[_peak_selected-1]  # peak 1 is at 0 index
+        _peak_collection = self.fit_result.peakcollections[_peak_selected - 1]  # peak 1 is at 0 index
 
         _value = self._get_value_to_display(peak_collection=_peak_collection)
         _chisq = _peak_collection.fitting_costs
         _status = _peak_collection.get_fit_status()
         _exclude_list = _peak_collection.get_exclude_list()
 
-        _d_spacing = self._get_d_spacing_to_display(peak_selected=_peak_selected,
-                                                    peak_collection=_peak_collection)
+        _d_spacing = self._get_d_spacing_to_display(peak_selected=_peak_selected, peak_collection=_peak_collection)
 
         _microstrain_mapping = self._get_microstrain_mapping_to_display(peak_collection=_peak_collection)
 
         def _update_exclude_list(_row, _col):
             if self.parent.ui.tableView_fitSummary.item(_row, _col).checkState() == 0:
-                self.fit_result.peakcollections[_peak_selected-1].set_exclude_subrun(_row, False)
+                self.fit_result.peakcollections[_peak_selected - 1].set_exclude_subrun(_row, False)
             else:
-                self.fit_result.peakcollections[_peak_selected-1].set_exclude_subrun(_row, True)
+                self.fit_result.peakcollections[_peak_selected - 1].set_exclude_subrun(_row, True)
 
             # Update Plot Windows
             self.parent.axis_1d_changed()
             self.parent.axis_2d_changed()
 
-        def set_item(value='', fitting_worked=True, checked=False):
-            if value == 'checkbox':
+        def set_item(value="", fitting_worked=True, checked=False):
+            if value == "checkbox":
                 # case to add checkbox
-                _item = QTableWidgetItem('')
+                _item = QTableWidgetItem("")
                 _item.setCheckState(checked)
 
             else:
@@ -96,7 +94,7 @@ class FitTable:
             _global_col_index += 1
 
             # add exclude checkbox
-            _item = set_item(value='checkbox', checked=_exclude_list[_row])
+            _item = set_item(value="checkbox", checked=_exclude_list[_row])
             # self.parent.ui.tableView_fitSummary.setCellWidget(_row, _global_col_index, _item)
             self.parent.ui.tableView_fitSummary.setItem(_row, _global_col_index, _item)
             _global_col_index += 1
@@ -104,7 +102,7 @@ class FitTable:
         self.parent.ui.tableView_fitSummary.cellClicked.connect(_update_exclude_list)
 
     def _get_d_spacing_to_display(self, peak_selected=1, peak_collection=None):
-        _d_reference = np.float64(str(self.parent.ui.peak_range_table.item(peak_selected-1, 3).text()))
+        _d_reference = np.float64(str(self.parent.ui.peak_range_table.item(peak_selected - 1, 3).text()))
         peak_collection.set_d_reference(values=_d_reference)
         values, error = peak_collection.get_dspacing_center()
         if self.parent.ui.radioButton_fit_value.isChecked():
@@ -113,7 +111,7 @@ class FitTable:
             return error
 
     def _get_microstrain_mapping_to_display(self, peak_collection=None):
-        values, error = peak_collection.get_strain(units='microstrain')
+        values, error = peak_collection.get_strain(units="microstrain")
         if self.parent.ui.radioButton_fit_value.isChecked():
             return values
         else:
@@ -178,12 +176,12 @@ class FitTable:
         for _col_index, _col_value in enumerate(column_names):
             if _col_index == 0:
                 # _col_value = 'Sub-run #'
-                _col_value = 'Peak Center'
+                _col_value = "Peak Center"
             clean_column_names.append(_col_value)
 
         if self.parent.ui.radioButton_fit_value.isChecked():
             # also add chisq
-            clean_column_names.append('chisq')
+            clean_column_names.append("chisq")
 
         # add d-spacing column
         clean_column_names.append("d spacing")
@@ -199,5 +197,5 @@ class FitTable:
 
     def select_first_row(self):
         _nbr_column = self.get_number_of_columns()
-        selection_first_row = QTableWidgetSelectionRange(0, 0, 0, _nbr_column-1)
+        selection_first_row = QTableWidgetSelectionRange(0, 0, 0, _nbr_column - 1)
         self.parent.ui.tableView_fitSummary.setRangeSelected(selection_first_row, True)

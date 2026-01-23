@@ -6,6 +6,7 @@ from pyrs.interface.manual_reduction import manualreductionwindow
 
 try:
     import vtk.qt
+
     # https://stackoverflow.com/questions/51357630/vtk-rendering-not-working-as-expected-inside-pyqt
     vtk.qt.QVTKRWIBase = "QGLWidget"  # noqa: E402
 except ImportError:
@@ -40,7 +41,7 @@ class PyRSLauncher(QMainWindow):
         super(PyRSLauncher, self).__init__(None)
 
         # set up UI
-        self.ui = load_ui('pyrsmain.ui', baseinstance=self)
+        self.ui = load_ui("pyrsmain.ui", baseinstance=self)
 
         # define
         self.ui.pushButton_manualReduction.clicked.connect(self.do_launch_manual_reduction)

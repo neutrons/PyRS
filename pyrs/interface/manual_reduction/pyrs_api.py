@@ -4,24 +4,21 @@ import numpy as np
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 
-DEFAULT_MASK_DIRECTORY = '/HFIR/HB2B/shared/CALIBRATION/'
+DEFAULT_MASK_DIRECTORY = "/HFIR/HB2B/shared/CALIBRATION/"
 DEFAULT_CALIBRATION_DIRECTORY = DEFAULT_MASK_DIRECTORY
 
 
 class ReductionController:
-    """Control the data objects for manual reduction
+    """Control the data objects for manual reduction"""
 
-    """
     def __init__(self):
-        """Initialization of data structures
-
-        """
+        """Initialization of data structures"""
         # current HidraWorkspace used in reduction
         self._curr_hidra_ws = None
         # record of previously and currently processed HidraWorksapce
         self._hidra_ws_dict = dict()
         # Working directory
-        self._working_dir = '/HFIR/HB2B/'
+        self._working_dir = "/HFIR/HB2B/"
 
     @property
     def working_dir(self):
@@ -66,10 +63,10 @@ class ReductionController:
             directory
 
         """
-        nexus_path = '/HFIR/HB2B'
+        nexus_path = "/HFIR/HB2B"
 
         if ipts_number is not None:
-            nexus_path = os.path.join(nexus_path, 'IPTS-{}/nexus/'.format(ipts_number))
+            nexus_path = os.path.join(nexus_path, "IPTS-{}/nexus/".format(ipts_number))
 
         return nexus_path
 
@@ -83,7 +80,7 @@ class ReductionController:
 
         """
         if self._curr_hidra_ws is None:
-            raise RuntimeError('No HidraWorkspace is created or loaded')
+            raise RuntimeError("No HidraWorkspace is created or loaded")
 
         return self._curr_hidra_ws.get_sub_runs()
 
@@ -108,7 +105,7 @@ class ReductionController:
 
         """
         if self._curr_hidra_ws is None:
-            raise RuntimeError('No HidraWorkspace is created or loaded')
+            raise RuntimeError("No HidraWorkspace is created or loaded")
 
         # Get detector counts from HidraWorkspace.  Possibly raise a RuntimeError from called method
         det_counts_array = self._curr_hidra_ws.get_detector_counts(sub_run_number)
@@ -145,11 +142,12 @@ class ReductionController:
 
         """
         if self._curr_hidra_ws is None:
-            raise RuntimeError('No HidraWorkspace is created or loaded')
+            raise RuntimeError("No HidraWorkspace is created or loaded")
 
         # Get powder pattern
         vec_2theta, vec_intensity, vec_variance = self._curr_hidra_ws.get_reduced_diffraction_data(
-            sub_run=sub_run_number, mask_id=None)
+            sub_run=sub_run_number, mask_id=None
+        )
 
         return vec_2theta, vec_intensity
 
@@ -174,7 +172,7 @@ class ReductionController:
 
         """
         if self._curr_hidra_ws is None:
-            raise RuntimeError('No HidraWorkspace is created or loaded')
+            raise RuntimeError("No HidraWorkspace is created or loaded")
 
         return self._curr_hidra_ws.get_sample_log_value(log_name, sub_run_number)
 
@@ -190,18 +188,28 @@ class ReductionController:
 
         """
         if self._curr_hidra_ws is None:
-            raise RuntimeError('No HidraWorkspace is created or loaded')
+            raise RuntimeError("No HidraWorkspace is created or loaded")
 
         project_file_name = self._curr_hidra_ws.hidra_project_file
         if project_file_name is None:
-            raise RuntimeError('HiDRA workspace {} is not associated with any project file'
-                               ''.format(self._curr_hidra_ws.name))
+            raise RuntimeError(
+                "HiDRA workspace {} is not associated with any project file".format(self._curr_hidra_ws.name)
+            )
 
         # TODO - Need to find out the scenario!
-        raise NotImplementedError('Need use cases!')
+        raise NotImplementedError("Need use cases!")
 
-    def reduce_hidra_workflow(self, nexus, output_dir, progressbar, instrument=None, calibration=None, mask=None,
-                              vanadium_file=None, project_file_name=None):
+    def reduce_hidra_workflow(
+        self,
+        nexus,
+        output_dir,
+        progressbar,
+        instrument=None,
+        calibration=None,
+        mask=None,
+        vanadium_file=None,
+        project_file_name=None,
+    ):
         """Full workflow to reduce NeXus file
 
         Parameters
@@ -220,16 +228,25 @@ class ReductionController:
         -------
 
         """
-        self._curr_hidra_ws = reduce_hidra_workflow(nexus, output_dir, progressbar, instrument,
-                                                    calibration, mask, vanadium_file, project_file_name)
+        self._curr_hidra_ws = reduce_hidra_workflow(
+            nexus, output_dir, progressbar, instrument, calibration, mask, vanadium_file, project_file_name
+        )
 
         self._hidra_ws_dict[self._curr_hidra_ws.name] = self._curr_hidra_ws
 
         return self._curr_hidra_ws
 
 
-def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calibration=None, mask=None,
-                          vanadium_file=None, project_file_name=None):
+def reduce_hidra_workflow(
+    nexus,
+    output_dir,
+    progressbar,
+    instrument=None,
+    calibration=None,
+    mask=None,
+    vanadium_file=None,
+    project_file_name=None,
+):
     """Workflow of algorithms to reduce HB2B NeXus file to powder patterns
 
     Parameters
@@ -254,11 +271,11 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
 
     """
     # Init logger
-    logger = Logger('reduce_HB2B')
+    logger = Logger("reduce_HB2B")
 
     # Create project file (name) for default
     if project_file_name is None:
-        project_file_name = os.path.basename(nexus).split('.')[0] + '.h5'
+        project_file_name = os.path.basename(nexus).split(".")[0] + ".h5"
     project_file_name = os.path.join(output_dir, project_file_name)
 
     # Remove previous existing file
@@ -266,17 +283,20 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
         # overwrite existing file
         if os.access(project_file_name, os.W_OK):
             # log information
-            logger.information('Will overwrite existing projectfile {}'.format(project_file_name))
+            logger.information("Will overwrite existing projectfile {}".format(project_file_name))
         else:
             # no permission
-            raise RuntimeError('User does not have permission to overwrite existing HiDRA project file {}'
-                               ''.format(project_file_name))
+            raise RuntimeError(
+                "User does not have permission to overwrite existing HiDRA project file {}".format(project_file_name)
+            )
     else:
         # file does not exist so far
         base_dir = os.path.dirname(project_file_name)
         if not (os.path.exists(base_dir) and os.access(base_dir, os.W_OK)):
-            raise RuntimeError('User specified HiDRA project file path {} either does not exist or '
-                               'user does not have write access.'.format(base_dir))
+            raise RuntimeError(
+                "User specified HiDRA project file path {} either does not exist or "
+                "user does not have write access.".format(base_dir)
+            )
     # END-IF-ELSE
 
     # Set progress bar
@@ -294,18 +314,20 @@ def reduce_hidra_workflow(nexus, output_dir, progressbar, instrument=None, calib
     # add powder patterns
 
     # Calculate powder pattern
-    logger.notice('Adding powder patterns to Hidra Workspace {}'.format(hidra_ws))
+    logger.notice("Adding powder patterns to Hidra Workspace {}".format(hidra_ws))
 
     # Initialize a reducer
     reducer = ReductionApp()
     # add workspace to reducer
     reducer.load_hidra_workspace(hidra_ws)
     # reduce
-    reducer.reduce_data(instrument_file=instrument,
-                        calibration_file=calibration,
-                        mask=None,
-                        van_file=vanadium_file,
-                        sub_runs=list(hidra_ws.get_sub_runs()))
+    reducer.reduce_data(
+        instrument_file=instrument,
+        calibration_file=calibration,
+        mask=None,
+        van_file=vanadium_file,
+        sub_runs=list(hidra_ws.get_sub_runs()),
+    )
 
     if progressbar:
         progressbar.setVisible(True)

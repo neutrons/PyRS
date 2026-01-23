@@ -9,7 +9,7 @@ def _mask_detectors(counts_vec, mask_file=None):
     # ignoring returns two_theta and note
     mask_vec, _, _ = mask_util.load_pyrs_mask(mask_file)
     if counts_vec.shape != mask_vec.shape:
-        raise RuntimeError('Counts vector and mask vector has different shpae')
+        raise RuntimeError("Counts vector and mask vector has different shpae")
 
     masked_counts_vec = counts_vec * mask_vec
 
@@ -26,10 +26,10 @@ class ReductionApp:
         initialization
         """
         self._reduction_manager = reduction_manager.HB2BReductionManager()
-        self._hydra_ws = None   # HidraWorkspace used for reduction
+        self._hydra_ws = None  # HidraWorkspace used for reduction
 
         # initialize reduction session with a general name (single session script)
-        self._session = 'GeneralHB2BReduction'
+        self._session = "GeneralHB2BReduction"
         self._hydra_file_name = None
         self._sub_runs = None
 
@@ -101,9 +101,22 @@ class ReductionApp:
         # set workspace to reduction manager
         self._reduction_manager.init_session(self._session, self._hydra_ws)
 
-    def reduce_data(self, sub_runs, instrument_file, calibration_file, mask, mask_id=None,
-                    van_file=None, num_bins=1000, eta_step=None, eta_min=-8.2, eta_max=8.2,
-                    min_2theta=None, max_2theta=None, delta_2theta=None):
+    def reduce_data(
+        self,
+        sub_runs,
+        instrument_file,
+        calibration_file,
+        mask,
+        mask_id=None,
+        van_file=None,
+        num_bins=1000,
+        eta_step=None,
+        eta_min=-8.2,
+        eta_max=8.2,
+        min_2theta=None,
+        max_2theta=None,
+        delta_2theta=None,
+    ):
         """Reduce data from HidraWorkspace
 
         Parameters
@@ -148,7 +161,7 @@ class ReductionApp:
 
         # instrument file
         if instrument_file is not None:
-            print('instrument file: {}'.format(instrument_file))
+            print("instrument file: {}".format(instrument_file))
             # TODO - #84 - Implement
 
         # calibration file - WARNING the access to the calibration is radically different
@@ -159,14 +172,15 @@ class ReductionApp:
             geometry_calibration = False
 
         if calibration_file is not None:
-            if calibration_file.lower().endswith('.json'):
+            if calibration_file.lower().endswith(".json"):
                 calib_values = calibration_file_io.read_calibration_json_file(calibration_file_name=calibration_file)
                 geometry_calibration = calib_values[0]
                 wave_length = calib_values[2]
                 self._hydra_ws.set_wavelength(wave_length, True)
             else:
-                geometry_calibration =\
-                    calibration_file_io.import_calibration_ascii_file(geometry_file_name=calibration_file)
+                geometry_calibration = calibration_file_io.import_calibration_ascii_file(
+                    geometry_file_name=calibration_file
+                )
         # END-IF
 
         # Vanadium
@@ -179,23 +193,24 @@ class ReductionApp:
             van_array = None
             van_duration = None
 
-        self._reduction_manager.reduce_diffraction_data(self._session,
-                                                        apply_calibrated_geometry=geometry_calibration,
-                                                        min_2theta=min_2theta,
-                                                        max_2theta=max_2theta,
-                                                        num_bins=num_bins,
-                                                        sub_run_list=self._sub_runs,
-                                                        delta_2theta=delta_2theta,
-                                                        mask=mask,
-                                                        mask_id=mask_id,
-                                                        vanadium_counts=van_array,
-                                                        van_duration=van_duration,
-                                                        eta_step=eta_step,
-                                                        eta_min=eta_min,
-                                                        eta_max=eta_max)
+        self._reduction_manager.reduce_diffraction_data(
+            self._session,
+            apply_calibrated_geometry=geometry_calibration,
+            min_2theta=min_2theta,
+            max_2theta=max_2theta,
+            num_bins=num_bins,
+            sub_run_list=self._sub_runs,
+            delta_2theta=delta_2theta,
+            mask=mask,
+            mask_id=mask_id,
+            vanadium_counts=van_array,
+            van_duration=van_duration,
+            eta_step=eta_step,
+            eta_min=eta_min,
+            eta_max=eta_max,
+        )
 
     def plot_reduced_data(self, sub_run_number=None):
-
         if sub_run_number is None:
             sub_runs = self._reduction_manager.get_sub_runs(self._session)
         else:
@@ -232,16 +247,19 @@ class ReductionApp:
 
         # Sanity check
         if file_name is None:
-            raise RuntimeError('Output file name is not set property.  There is no default file name'
-                               'or user specified output file name.')
+            raise RuntimeError(
+                "Output file name is not set property.  There is no default file name"
+                "or user specified output file name."
+            )
 
         # Generate project file instance
         out_file = HidraProjectFile(file_name, mode)
 
         # If it is a new file, the sample logs and other information shall be exported too
         if mode == HidraProjectFileMode.OVERWRITE:
-            self._hydra_ws.save_experimental_data(out_file, sub_runs=self._sub_runs,
-                                                  ignore_raw_counts=ignore_raw_counts)
+            self._hydra_ws.save_experimental_data(
+                out_file, sub_runs=self._sub_runs, ignore_raw_counts=ignore_raw_counts
+            )
 
         # Calibrated wave length shall be written
         self._hydra_ws.save_wavelength(out_file)
