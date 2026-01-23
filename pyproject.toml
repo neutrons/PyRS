@@ -184,10 +184,10 @@ types-six = "*"
 
 [tool.pixi.package]
 name = "pyrs"
-version = "0.0.0" # placeholder, overwritten by sync-version
+version = "1.9.0.dev10+d202601231537" # placeholder, overwritten by sync-version
 
 [tool.pixi.package.build]
-backend = { name = "pixi-build-python", version = "0.4.*"}
+backend = { name = "pixi-build-python", version = "*"}
 channels = [
   "conda-forge",
   "mantid-ornl/label/main",                 # ORNL-specific stable releases
