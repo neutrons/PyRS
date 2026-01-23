@@ -19,12 +19,11 @@ class DetectorView(MplGraphicsView2D):
         return
 
     def plot_counts(self, count_vec):
-
         linear_size = np.sqrt(count_vec.shape[0])
 
         image_array = count_vec.reshape((linear_size, linear_size))
 
-        self.add_2d_plot(image_array, 0, linear_size, 0, linear_size, y_tick_label=None, plot_type='image')
+        self.add_2d_plot(image_array, 0, linear_size, 0, linear_size, y_tick_label=None, plot_type="image")
 
         return
 
@@ -42,7 +41,7 @@ class DetectorView(MplGraphicsView2D):
 
         """
         sub_run_number, mask_id = info_tuple
-        title = 'Sub run {}, Mask: {}'.format(sub_run_number, mask_id)
+        title = "Sub run {}, Mask: {}".format(sub_run_number, mask_id)
         self.set_title(title)
 
         # Resize detector count array
@@ -50,8 +49,11 @@ class DetectorView(MplGraphicsView2D):
             # 1D array: reshape to 2D
             image_size = int(np.sqrt(detector_counts.shape[0]))
             if image_size * image_size != detector_counts.shape[0]:
-                raise RuntimeError('Detector with {} counts cannot convert to a 2D view without further information'
-                                   ''.format(detector_counts.shape))
+                raise RuntimeError(
+                    "Detector with {} counts cannot convert to a 2D view without further information".format(
+                        detector_counts.shape
+                    )
+                )
             counts2d = detector_counts.reshape(image_size, image_size)
         else:
             # As Is
@@ -69,11 +71,10 @@ class GeneralDiffDataView(MplGraphicsView1D):
     """
 
     def __init__(self, parent, three_d_fig=False):
-        """ Initialization
+        """Initialization
         :param parent:
         """
-        super(GeneralDiffDataView, self).__init__(parent, 1, 1,
-                                                  three_d_fig=three_d_fig)
+        super(GeneralDiffDataView, self).__init__(parent, 1, 1, three_d_fig=three_d_fig)
 
         # management
         self._line_reference_list = list()
@@ -93,9 +94,10 @@ class GeneralDiffDataView(MplGraphicsView1D):
     def set_3Dview(self):
         self.reset_view_3d()
 
-    def plot_diffraction(self, vec_x, vec_y, x_label, y_label, color='red', line_style='-',
-                         line_label=None, keep_prev=True):
-        """ plot figure in scatter-style
+    def plot_diffraction(
+        self, vec_x, vec_y, x_label, y_label, color="red", line_style="-", line_label=None, keep_prev=True
+    ):
+        """plot figure in scatter-style
         :param vec_x:
         :param vec_y:
         :param x_label:
@@ -107,32 +109,40 @@ class GeneralDiffDataView(MplGraphicsView1D):
             self.clear_all_lines()
 
         # plot data in a scattering plot with auto re-scale
-        self.add_plot(vec_x, vec_y, line_style=line_style, marker=None,
-                      color=color, x_label=x_label, y_label=y_label,
-                      label=line_label)
+        self.add_plot(
+            vec_x,
+            vec_y,
+            line_style=line_style,
+            marker=None,
+            color=color,
+            x_label=x_label,
+            y_label=y_label,
+            label=line_label,
+        )
 
-    def plot_scatter_with_errors(self, vec_x=None, vec_y=None,
-                                 vec_x_error=None, vec_y_error=None,
-                                 x_label="", y_label=""):
-
+    def plot_scatter_with_errors(
+        self, vec_x=None, vec_y=None, vec_x_error=None, vec_y_error=None, x_label="", y_label=""
+    ):
         # plot data in a scattering plot with auto re-scale
-        ref_id = self.add_plot(vec_x,
-                               vec_y,
-                               x_err=vec_x_error,
-                               y_err=vec_y_error,
-                               line_style='',
-                               marker='*',
-                               markersize=6,
-                               color='black',
-                               x_label=x_label,
-                               y_label=y_label)
+        ref_id = self.add_plot(
+            vec_x,
+            vec_y,
+            x_err=vec_x_error,
+            y_err=vec_y_error,
+            line_style="",
+            marker="*",
+            markersize=6,
+            color="black",
+            x_label=x_label,
+            y_label=y_label,
+        )
 
         self._line_reference_list.append(ref_id)
         self._last_line_reference = ref_id
         self._current_x_axis_name = x_label
 
     def plot_scatter(self, vec_x, vec_y, x_label, y_label):
-        """ plot figure in scatter-style
+        """plot figure in scatter-style
         :param vec_x:
         :param vec_y:
         :param x_label:
@@ -146,29 +156,23 @@ class GeneralDiffDataView(MplGraphicsView1D):
                 self.reset_viewer()
 
         # plot data in a scattering plot with auto re-scale
-        ref_id = self.add_plot(vec_x,
-                               vec_y,
-                               line_style='',
-                               marker='*',
-                               markersize=6,
-                               color='black',
-                               x_label=x_label,
-                               y_label=y_label)
+        ref_id = self.add_plot(
+            vec_x, vec_y, line_style="", marker="*", markersize=6, color="black", x_label=x_label, y_label=y_label
+        )
 
         self._line_reference_list.append(ref_id)
         self._last_line_reference = ref_id
         self._current_x_axis_name = x_label
 
-    def plot_3D_scatter(self, vec_x, vec_y, vec_z, plot_scatter, colors=None,
-                        x_label='', y_label='', z_label=''):
-
+    def plot_3D_scatter(self, vec_x, vec_y, vec_z, plot_scatter, colors=None, x_label="", y_label="", z_label=""):
         # It is not allowed to plot 2 plot with different x-axis
         if self._last_line_reference is not None:
             self.reset_viewer()
 
         # plot data in a scattering plot with auto re-scale
-        ref_id = self.add_3d_scatter(vec_x, vec_y, vec_z, plot_scatter, colors=colors,
-                                     x_label=x_label, y_label=y_label, z_label=z_label)
+        ref_id = self.add_3d_scatter(
+            vec_x, vec_y, vec_z, plot_scatter, colors=colors, x_label=x_label, y_label=y_label, z_label=z_label
+        )
 
         self._line_reference_list.append(ref_id)
         self._last_line_reference = ref_id
@@ -214,15 +218,13 @@ class PeakFitSetupView(MplFitPlottingWidget):
         vec_x = diff_data_set[0][1:]
         vec_y = diff_data_set[1][1:]
 
-        ref_id = self.plot_data(data_set=(vec_x, vec_y), line_label=data_reference, color='black')
+        ref_id = self.plot_data(data_set=(vec_x, vec_y), line_label=data_reference, color="black")
         self.plot_data_fitting_ranges()
         # self._diff_reference_list.append(ref_id)
         self._last_diff_reference = ref_id
 
     def plot_fitted_data(self, x_array, y_array):
-        self.plot_data(data_set=(x_array, y_array),
-                       line_label='-',
-                       color='black', peak_ranges=self.list_peak_ranges)
+        self.plot_data(data_set=(x_array, y_array), line_label="-", color="black", peak_ranges=self.list_peak_ranges)
 
     def plot_model_data(self, diff_data_set, model_label, residual_set):
         """Plot model data from fitting
@@ -240,7 +242,7 @@ class PeakFitSetupView(MplFitPlottingWidget):
         vec_x = diff_data_set[0]
         vec_y = diff_data_set[1]
 
-        ref_id = self.plot_data(data_set=(vec_x, vec_y), color='red', line_label='model')
+        ref_id = self.plot_data(data_set=(vec_x, vec_y), color="red", line_label="model")
         self._last_model_reference = ref_id
 
         if residual_set is not None:
@@ -273,13 +275,13 @@ class PeakFitSetupView(MplFitPlottingWidget):
         :return:
         """
         # check input
-        assert isinstance(diff_data_set, tuple) and len(diff_data_set) >= 2, 'Diffraction data set {} ' \
-                                                                             'must be a 2-tuple but not a {}' \
-                                                                             ''.format(diff_data_set,
-                                                                                       type(diff_data_set))
+        assert isinstance(diff_data_set, tuple) and len(diff_data_set) >= 2, (
+            "Diffraction data set {} must be a 2-tuple but not a {}".format(diff_data_set, type(diff_data_set))
+        )
 
-        assert isinstance(model_data_set, tuple) and len(model_data_set) >= 2, \
-            'Model data set {} must be a 2-tuple but not a {}'.format(model_data_set, type(model_data_set))
+        assert isinstance(model_data_set, tuple) and len(model_data_set) >= 2, (
+            "Model data set {} must be a 2-tuple but not a {}".format(model_data_set, type(model_data_set))
+        )
 
         # remove previous difference curve
         if self._last_fit_diff_reference is not None:

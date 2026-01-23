@@ -19,71 +19,83 @@ def compare_csv(file1, file2):
 
 
 def strain_instantiator(name, values, errors, x, y, z):
-    return StrainField(name,
-                       peak_collection=PeakCollectionLite(name, strain=values, strain_error=errors),
-                       point_list=PointList([x, y, z]))
+    return StrainField(
+        name,
+        peak_collection=PeakCollectionLite(name, strain=values, strain_error=errors),
+        point_list=PointList([x, y, z]),
+    )
 
 
 def test_write_csv_empty_strain_filenames():
-
     with pytest.raises(RuntimeError) as exception_info:
         # strain that doesn't come from a project file
         X = [0.000, 1.000, 2.000, 3.000, 4.000, 5.000, 6.000, 7.000, 8.000, 9.000]
         Y = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
         Z = [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
 
-        strain11 = strain_instantiator('strain',
-                                       [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],
-                                       [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],
-                                       X, Y, Z)
-        strain22 = strain_instantiator('strain',
-                                       [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],
-                                       [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],
-                                       X, Y, Z)
-        strain33 = strain_instantiator('strain',
-                                       [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],
-                                       [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],
-                                       X, Y, Z)
+        strain11 = strain_instantiator(
+            "strain",
+            [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],
+            [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],
+            X,
+            Y,
+            Z,
+        )
+        strain22 = strain_instantiator(
+            "strain",
+            [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],
+            [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],
+            X,
+            Y,
+            Z,
+        )
+        strain33 = strain_instantiator(
+            "strain",
+            [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.080, 0.009],
+            [0.000, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],
+            X,
+            Y,
+            Z,
+        )
 
         stress = StressField(strain11, strain22, strain33, 200, 0.3)
-        SummaryGeneratorStress('dummy.csv', stress)
-        assert 'StrainField filenames in direction ' in str(exception_info.value)
+        SummaryGeneratorStress("dummy.csv", stress)
+        assert "StrainField filenames in direction " in str(exception_info.value)
 
 
 def test_write_csv_none_stress():
-
     with pytest.raises(RuntimeError) as exception_info:
-        SummaryGeneratorStress('dummy.csv',  None)
-        assert 'Error: stress input must be of type StressField' in str(exception_info.value)
+        SummaryGeneratorStress("dummy.csv", None)
+        assert "Error: stress input must be of type StressField" in str(exception_info.value)
 
 
 def test_write_csv_incorrect_filename(test_data_dir: str):
-
     with pytest.raises(RuntimeError) as exception_info:
-        sample11 = StrainField(test_data_dir + '/HB2B_1320.h5')
-        sample22 = StrainField(test_data_dir + '/HB2B_1320.h5')
-        sample33 = StrainField(test_data_dir + '/HB2B_1320.h5')
+        sample11 = StrainField(test_data_dir + "/HB2B_1320.h5")
+        sample22 = StrainField(test_data_dir + "/HB2B_1320.h5")
+        sample33 = StrainField(test_data_dir + "/HB2B_1320.h5")
         stress = StressField(sample11, sample22, sample33, 200, 0.3)
-        SummaryGeneratorStress('not_csv',  stress)
-        assert 'File name must end with extension ' in str(exception_info.value)
+        SummaryGeneratorStress("not_csv", stress)
+        assert "File name must end with extension " in str(exception_info.value)
 
 
-EXPECTED_FILE_SUMMARY_CSV_1320 = 'tests/data/HB2B_StressStrain_peak0_Summary_expected_1320.csv'
+EXPECTED_FILE_SUMMARY_CSV_1320 = "tests/data/HB2B_StressStrain_peak0_Summary_expected_1320.csv"
 
 
-@pytest.mark.parametrize('project_tags, expected_file',
-                         [([1320, 1320, 1320], EXPECTED_FILE_SUMMARY_CSV_1320)],
-                         ids=['HB2B_1320_SUMMARY_CSV'])
+@pytest.mark.parametrize(
+    "project_tags, expected_file",
+    [([1320, 1320, 1320], EXPECTED_FILE_SUMMARY_CSV_1320)],
+    ids=["HB2B_1320_SUMMARY_CSV"],
+)
 def test_write_summary_csv(test_data_dir: str, project_tags: str, expected_file: str):
-
-    sample11 = StrainField(test_data_dir + '/HB2B_{}.h5'.format(project_tags[0]))
-    sample22 = StrainField(test_data_dir + '/HB2B_{}.h5'.format(project_tags[1]))
-    sample33 = StrainField(test_data_dir + '/HB2B_{}.h5'.format(project_tags[2]))
+    sample11 = StrainField(test_data_dir + "/HB2B_{}.h5".format(project_tags[0]))
+    sample22 = StrainField(test_data_dir + "/HB2B_{}.h5".format(project_tags[1]))
+    sample33 = StrainField(test_data_dir + "/HB2B_{}.h5".format(project_tags[2]))
 
     stress = StressField(sample11, sample22, sample33, 200, 0.3)
     stress_facade = StressFacade(stress)
 
-    stress_csv_filename = 'HB2B_StressStrain_peak0_Summary.csv'
+    stress_csv_filename = "HB2B_StressStrain_peak0_Summary.csv"
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress_facade)
     stress_csv.write_summary_csv()
 
@@ -93,21 +105,23 @@ def test_write_summary_csv(test_data_dir: str, project_tags: str, expected_file:
     remove(stress_csv_filename)
 
 
-EXPECTED_FILE_SUMMARY_CSV_1320_33Calculated =\
-    'tests/data/HB2B_StressStrain_peak0_Summary_expected_1320_33InPlaneStrain.csv'
+EXPECTED_FILE_SUMMARY_CSV_1320_33Calculated = (
+    "tests/data/HB2B_StressStrain_peak0_Summary_expected_1320_33InPlaneStrain.csv"
+)
 
 
-@pytest.mark.parametrize('project_tags, expected_file',
-                         [([1320, 1320], EXPECTED_FILE_SUMMARY_CSV_1320_33Calculated)],
-                         ids=['HB2B_1320_SUMMARY_CSV_33INPLAINSTRAIN'])
+@pytest.mark.parametrize(
+    "project_tags, expected_file",
+    [([1320, 1320], EXPECTED_FILE_SUMMARY_CSV_1320_33Calculated)],
+    ids=["HB2B_1320_SUMMARY_CSV_33INPLAINSTRAIN"],
+)
 def test_write_summary_33calculated_csv(test_data_dir: str, project_tags: str, expected_file: str):
+    sample11 = StrainField(test_data_dir + "/HB2B_" + str(project_tags[0]) + ".h5")
+    sample22 = StrainField(test_data_dir + "/HB2B_" + str(project_tags[1]) + ".h5")
 
-    sample11 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[0]) + '.h5')
-    sample22 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[1]) + '.h5')
+    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type="in-plane-strain")  # type: ignore
 
-    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type='in-plane-strain')  # type: ignore
-
-    stress_csv_filename = 'HB2B_StressStrain_peak0_Summary_33InPlaneStrain.csv'
+    stress_csv_filename = "HB2B_StressStrain_peak0_Summary_33InPlaneStrain.csv"
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
     stress_csv.write_summary_csv()
 
@@ -117,21 +131,23 @@ def test_write_summary_33calculated_csv(test_data_dir: str, project_tags: str, e
     remove(stress_csv_filename)
 
 
-EXPECTED_FILE_SUMMARY_CSV_1320_33Calculated =\
-    'tests/data/HB2B_StressStrain_peak0_Summary_expected_1320_33InPlaneStress.csv'
+EXPECTED_FILE_SUMMARY_CSV_1320_33Calculated = (
+    "tests/data/HB2B_StressStrain_peak0_Summary_expected_1320_33InPlaneStress.csv"
+)
 
 
-@pytest.mark.parametrize('project_tags, expected_file',
-                         [([1320, 1320], EXPECTED_FILE_SUMMARY_CSV_1320_33Calculated)],
-                         ids=['HB2B_1320_SUMMARY_CSV_33INPLAINSTRESS'])
+@pytest.mark.parametrize(
+    "project_tags, expected_file",
+    [([1320, 1320], EXPECTED_FILE_SUMMARY_CSV_1320_33Calculated)],
+    ids=["HB2B_1320_SUMMARY_CSV_33INPLAINSTRESS"],
+)
 def test_write_summary_33inplanestress_csv(test_data_dir: str, project_tags: str, expected_file: str):
+    sample11 = StrainField(test_data_dir + "/HB2B_" + str(project_tags[0]) + ".h5")
+    sample22 = StrainField(test_data_dir + "/HB2B_" + str(project_tags[1]) + ".h5")
 
-    sample11 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[0]) + '.h5')
-    sample22 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[1]) + '.h5')
+    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type="in-plane-stress")  # type: ignore
 
-    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type='in-plane-stress')  # type: ignore
-
-    stress_csv_filename = 'HB2B_StressStrain_peak0_Summary_33InPlaneStress.csv'
+    stress_csv_filename = "HB2B_StressStrain_peak0_Summary_33InPlaneStress.csv"
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
     stress_csv.write_summary_csv()
 
@@ -142,14 +158,13 @@ def test_write_summary_33inplanestress_csv(test_data_dir: str, project_tags: str
 
 
 def test_write_summary_33calculated_nan_csv(test_data_dir: str):
+    sample11 = StrainField(test_data_dir + "/HB2B_1331.h5", peak_tag="peak0")
+    sample22 = StrainField(test_data_dir + "/HB2B_1332.h5", peak_tag="peak0")
 
-    sample11 = StrainField(test_data_dir + '/HB2B_1331.h5', peak_tag='peak0')
-    sample22 = StrainField(test_data_dir + '/HB2B_1332.h5', peak_tag='peak0')
-
-    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type='in-plane-strain')  # type: ignore
+    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type="in-plane-strain")  # type: ignore
     stress_facade = StressFacade(stress)
 
-    stress_csv_filename = 'HB2B_StressStrain_peak0_Summary_33Calculated_1331_1332.csv'
+    stress_csv_filename = "HB2B_StressStrain_peak0_Summary_33Calculated_1331_1332.csv"
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress_facade)
     stress_csv.write_summary_csv()
 
@@ -157,22 +172,21 @@ def test_write_summary_33calculated_nan_csv(test_data_dir: str):
     remove(stress_csv_filename)
 
 
-EXPECTED_FILE_FULL_CSV_1320 = 'tests/data/HB2B_StressStrain_peak0_Full_expected_1320.csv'
+EXPECTED_FILE_FULL_CSV_1320 = "tests/data/HB2B_StressStrain_peak0_Full_expected_1320.csv"
 
 
-@pytest.mark.parametrize('project_tags, expected_file',
-                         [([1320, 1320, 1320], EXPECTED_FILE_FULL_CSV_1320)],
-                         ids=['HB2B_1320_FULL_CSV'])
+@pytest.mark.parametrize(
+    "project_tags, expected_file", [([1320, 1320, 1320], EXPECTED_FILE_FULL_CSV_1320)], ids=["HB2B_1320_FULL_CSV"]
+)
 def test_write_full_csv(test_data_dir: str, project_tags: str, expected_file: str):
-
-    sample11 = StrainField(test_data_dir + '/HB2B_{}.h5'.format(project_tags[0]))
-    sample22 = StrainField(test_data_dir + '/HB2B_{}.h5'.format(project_tags[1]))
-    sample33 = StrainField(test_data_dir + '/HB2B_{}.h5'.format(project_tags[2]))
+    sample11 = StrainField(test_data_dir + "/HB2B_{}.h5".format(project_tags[0]))
+    sample22 = StrainField(test_data_dir + "/HB2B_{}.h5".format(project_tags[1]))
+    sample33 = StrainField(test_data_dir + "/HB2B_{}.h5".format(project_tags[2]))
 
     stress = StressField(sample11, sample22, sample33, 200, 0.3)
     stress_facade = StressFacade(stress)
 
-    stress_csv_filename = 'HB2B_StressStrain_peak0_Full.csv'
+    stress_csv_filename = "HB2B_StressStrain_peak0_Full.csv"
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress_facade)
     stress_csv.write_full_csv()
 
@@ -182,21 +196,21 @@ def test_write_full_csv(test_data_dir: str, project_tags: str, expected_file: st
     remove(stress_csv_filename)
 
 
-EXPECTED_FILE_FULL_CSV_1320_33Calculated =\
-    'tests/data/HB2B_StressStrain_peak0_Full_expected_1320_33InPlainStrain.csv'
+EXPECTED_FILE_FULL_CSV_1320_33Calculated = "tests/data/HB2B_StressStrain_peak0_Full_expected_1320_33InPlainStrain.csv"
 
 
-@pytest.mark.parametrize('project_tags, expected_file',
-                         [([1320, 1320], EXPECTED_FILE_FULL_CSV_1320_33Calculated)],
-                         ids=['HB2B_1320_FULL_CSV_33Calculated'])
+@pytest.mark.parametrize(
+    "project_tags, expected_file",
+    [([1320, 1320], EXPECTED_FILE_FULL_CSV_1320_33Calculated)],
+    ids=["HB2B_1320_FULL_CSV_33Calculated"],
+)
 def test_write_full_33calculated_csv(test_data_dir: str, project_tags: str, expected_file: str):
+    sample11 = StrainField(test_data_dir + "/HB2B_" + str(project_tags[0]) + ".h5")
+    sample22 = StrainField(test_data_dir + "/HB2B_" + str(project_tags[1]) + ".h5")
 
-    sample11 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[0]) + '.h5')
-    sample22 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[1]) + '.h5')
+    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type="in-plane-strain")  # type: ignore
 
-    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type='in-plane-strain')  # type: ignore
-
-    stress_csv_filename = 'HB2B_StressStrain_peak0_Full_33InPlainStrain.csv'
+    stress_csv_filename = "HB2B_StressStrain_peak0_Full_33InPlainStrain.csv"
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
     stress_csv.write_full_csv()
 
@@ -206,21 +220,21 @@ def test_write_full_33calculated_csv(test_data_dir: str, project_tags: str, expe
     remove(stress_csv_filename)
 
 
-EXPECTED_FILE_FULL_CSV_1320_33Calculated =\
-    'tests/data/HB2B_StressStrain_peak0_Full_expected_1320_33InPlainStress.csv'
+EXPECTED_FILE_FULL_CSV_1320_33Calculated = "tests/data/HB2B_StressStrain_peak0_Full_expected_1320_33InPlainStress.csv"
 
 
-@pytest.mark.parametrize('project_tags, expected_file',
-                         [([1320, 1320], EXPECTED_FILE_FULL_CSV_1320_33Calculated)],
-                         ids=['HB2B_1320_FULL_CSV_33INPLAINSTRESS'])
+@pytest.mark.parametrize(
+    "project_tags, expected_file",
+    [([1320, 1320], EXPECTED_FILE_FULL_CSV_1320_33Calculated)],
+    ids=["HB2B_1320_FULL_CSV_33INPLAINSTRESS"],
+)
 def test_write_full_33inplanestress_csv(test_data_dir: str, project_tags: str, expected_file: str):
+    sample11 = StrainField(test_data_dir + "/HB2B_" + str(project_tags[0]) + ".h5")
+    sample22 = StrainField(test_data_dir + "/HB2B_" + str(project_tags[1]) + ".h5")
 
-    sample11 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[0]) + '.h5')
-    sample22 = StrainField(test_data_dir + '/HB2B_' + str(project_tags[1]) + '.h5')
+    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type="in-plane-stress")  # type: ignore
 
-    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type='in-plane-stress')  # type: ignore
-
-    stress_csv_filename = 'HB2B_StressStrain_peak0_Full_33InPlainStress.csv'
+    stress_csv_filename = "HB2B_StressStrain_peak0_Full_33InPlainStress.csv"
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress)
     stress_csv.write_full_csv()
 
@@ -231,14 +245,13 @@ def test_write_full_33inplanestress_csv(test_data_dir: str, project_tags: str, e
 
 
 def test_write_full_33calculated_nan_csv(test_data_dir: str):
+    sample11 = StrainField(test_data_dir + "/HB2B_1331.h5", peak_tag="peak0")
+    sample22 = StrainField(test_data_dir + "/HB2B_1332.h5", peak_tag="peak0")
 
-    sample11 = StrainField(test_data_dir + '/HB2B_1331.h5', peak_tag='peak0')
-    sample22 = StrainField(test_data_dir + '/HB2B_1332.h5', peak_tag='peak0')
-
-    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type='in-plane-strain')  # type: ignore
+    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type="in-plane-strain")  # type: ignore
     stress_facade = StressFacade(stress)
 
-    stress_csv_filename = 'HB2B_StressStrain_peak0_Full_33Calculated_1331_1332.csv'
+    stress_csv_filename = "HB2B_StressStrain_peak0_Full_33Calculated_1331_1332.csv"
     stress_csv = SummaryGeneratorStress(stress_csv_filename, stress_facade)
     stress_csv.write_full_csv()
 

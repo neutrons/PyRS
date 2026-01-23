@@ -43,21 +43,24 @@ def generate_test_gaussian(vec_x, peak_center_list, peak_range_list, peak_height
         peak_range = peak_range_list[ipeak]
 
         # Set FWHM to 1/6 of peak range and then to Gaussian's Sigma
-        sigma = peak_range / 6. / (2. * np.sqrt(2. * np.log(2.)))
+        sigma = peak_range / 6.0 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
 
         # generate noise with amplitude of sqrt(peak_height)
         print(f"peak_height_list[ipeak] = {peak_height_list[ipeak]}")
         noise = (np.random.random_sample(vec_x.shape[0]) - 0.5) * np.sqrt(peak_height_list[ipeak])
 
         # calculate Gaussian function based on input peak center and peak range
-        vec_y += noise + peak_height_list[ipeak] * np.exp(-(vec_x - peak_center) ** 2 / sigma ** 2)
+        vec_y += noise + peak_height_list[ipeak] * np.exp(-((vec_x - peak_center) ** 2) / sigma**2)
 
-        parameters.append({'peak_center': peak_center,
-                           'peak_intensity': np.sqrt(2. * np.pi) * peak_height_list[ipeak] * sigma,
-                           'peak_FWHM': 2. * np.sqrt(2. * np.log(2.)) * sigma
-                           })
+        parameters.append(
+            {
+                "peak_center": peak_center,
+                "peak_intensity": np.sqrt(2.0 * np.pi) * peak_height_list[ipeak] * sigma,
+                "peak_FWHM": 2.0 * np.sqrt(2.0 * np.log(2.0)) * sigma,
+            }
+        )
 
-    return {'values': vec_y, 'parameters': parameters}
+    return {"values": vec_y, "parameters": parameters}
 
 
 def generate_test_pseudovoigt(vec_x, peak_center_list, peak_range_list, intensity_list):
@@ -92,22 +95,25 @@ def generate_test_pseudovoigt(vec_x, peak_center_list, peak_range_list, intensit
         peak_range = peak_range_list[ipeak]
 
         # Set FWHM
-        fwhm = peak_range / 6.
+        fwhm = peak_range / 6.0
         peak_intensity = intensity_list[ipeak]
         mixing = 0.75  # more Gaussian than Lorentzian
 
         # calculate Gaussian
         vec_y += pseudo_voigt(vec_x, peak_intensity, fwhm, mixing, peak_center)
-        parameters.append({'peak_center': peak_center,
-                           'peak_intensity': intensity_list[ipeak],
-                           'peak_FWHM': fwhm,
-                           })
+        parameters.append(
+            {
+                "peak_center": peak_center,
+                "peak_intensity": intensity_list[ipeak],
+                "peak_FWHM": fwhm,
+            }
+        )
     # END-FOR
 
     # Add noise
     noise = (np.random.random_sample(vec_x.shape[0]) - 0.5) * 2.0
 
-    return {'values': vec_y + noise, 'parameters': parameters}
+    return {"values": vec_y + noise, "parameters": parameters}
 
 
 def generate_test_background(vec_x, vec_y):
@@ -128,11 +134,12 @@ def generate_test_background(vec_x, vec_y):
 
     background = a1 * vec_x + a0
 
-    return {'values': vec_y + background, 'parameters': {'background_A0': a0, 'backgound_A1': a1}}
+    return {"values": vec_y + background, "parameters": {"background_A0": a0, "backgound_A1": a1}}
 
 
-def generate_hydra_workspace_single_subrun(peak_profile_type, min_x, max_x, num_x, peak_centers, peak_ranges,
-                                           peak_intensities):
+def generate_hydra_workspace_single_subrun(
+    peak_profile_type, min_x, max_x, num_x, peak_centers, peak_ranges, peak_intensities
+):
     """Generate HiDRAWorkspace for peak fitting test
 
     Default:
@@ -157,7 +164,7 @@ def generate_hydra_workspace_single_subrun(peak_profile_type, min_x, max_x, num_
 
     """
     # Create test workspace
-    test_workspace = HidraWorkspace('test')
+    test_workspace = HidraWorkspace("test")
 
     # resolution
     x_step = (max_x - min_x) / num_x
@@ -166,21 +173,21 @@ def generate_hydra_workspace_single_subrun(peak_profile_type, min_x, max_x, num_
     vec_x = np.arange(num_x) * x_step + min_x  # from 75 to 85 degree
 
     # Add profile
-    if peak_profile_type.lower() == 'gaussian':
+    if peak_profile_type.lower() == "gaussian":
         test_fitting_function = generate_test_gaussian(vec_x, peak_centers, peak_ranges, peak_intensities)
-    elif peak_profile_type.lower() == 'pseudovoigt':
+    elif peak_profile_type.lower() == "pseudovoigt":
         test_fitting_function = generate_test_pseudovoigt(vec_x, peak_centers, peak_ranges, peak_intensities)
         # peak_range *= 2  # PV requires larger fitting range
     else:
-        raise NotImplementedError('Peak profile {} is not supported to generate testing workspace')
+        raise NotImplementedError("Peak profile {} is not supported to generate testing workspace")
 
-    vec_y = test_fitting_function['values']
-    parameters = test_fitting_function['parameters']
+    vec_y = test_fitting_function["values"]
+    parameters = test_fitting_function["parameters"]
 
     # Add background
     test_background_function = generate_test_background(vec_x, vec_y)
-    vec_y = test_background_function['values']
-    parameters.append(test_background_function['parameters'])
+    vec_y = test_background_function["values"]
+    parameters.append(test_background_function["parameters"])
 
     # Print out the test data
     # for i in range(vec_x.shape[0]):
@@ -188,24 +195,22 @@ def generate_hydra_workspace_single_subrun(peak_profile_type, min_x, max_x, num_
 
     # Add diffraction pattern
     test_workspace.set_sub_runs([1])
-    test_workspace.set_reduced_diffraction_data(1, mask_id=None,
-                                                two_theta_array=vec_x,
-                                                intensity_array=vec_y)
+    test_workspace.set_reduced_diffraction_data(1, mask_id=None, two_theta_array=vec_x, intensity_array=vec_y)
 
-    return {'workspace': test_workspace, 'parameters': parameters}
+    return {"workspace": test_workspace, "parameters": parameters}
 
 
 def generate_hydra_workspace_multiple_sub_runs(ws_name, sub_run_data_dict):
     """Generate a multiple sub-run HiDRA workspace
-     Parameters
-     ----------
-     ws_name
-     sub_run_data_dict
-     Returns
-     -------
-     pyrs.core.workspaces.HidraWorkspace
-         Test Hidra workspace
-     """
+    Parameters
+    ----------
+    ws_name
+    sub_run_data_dict
+    Returns
+    -------
+    pyrs.core.workspaces.HidraWorkspace
+        Test Hidra workspace
+    """
 
     # Create test workspace
     test_workspace = HidraWorkspace(ws_name)
@@ -217,10 +222,9 @@ def generate_hydra_workspace_multiple_sub_runs(ws_name, sub_run_data_dict):
     # Add diffraction pattern
     for sub_run_i in sorted(sub_runs_list):
         vec_x, vec_y = sub_run_data_dict[sub_run_i]
-        test_workspace.set_reduced_diffraction_data(sub_run_i,
-                                                    mask_id=None,
-                                                    two_theta_array=vec_x,
-                                                    intensity_array=vec_y)
+        test_workspace.set_reduced_diffraction_data(
+            sub_run_i, mask_id=None, two_theta_array=vec_x, intensity_array=vec_y
+        )
 
     return test_workspace
 
@@ -229,44 +233,43 @@ def print_peak_results_and_check_positive(params, errors):
     names = params.dtype.names
     for offset, (peak_param, peak_error) in enumerate(zip(params, errors)):
         for name, value, error in zip(names, peak_param, peak_error):
-            print('peak[{}], {} = {} +- {}'.format(offset, name, value, error))
-            if name.startswith('A'):  # don't check the background
+            print("peak[{}], {} = {} +- {}".format(offset, name, value, error))
+            if name.startswith("A"):  # don't check the background
                 continue
-            assert value > 0., name
+            assert value > 0.0, name
 
 
-def assert_checks(fit_result, exp_params, obs_params, number_of_peakCollection,
-                  peak_profile_type=PeakShape.GAUSSIAN):
+def assert_checks(fit_result, exp_params, obs_params, number_of_peakCollection, peak_profile_type=PeakShape.GAUSSIAN):
     """verified the fitted parameters
-         Parameters
-         ----------
-         fit_result: object
-            results of the fitting
-         exp_params: dict(float)
-            parameters of original shape
-         obs_params:List(float)
-            parameter values of fitting
-         number_of_peakCollection:Integer
-            number of fitted peaks
-         peak_profile_type : str
-            type of peak profile
-         Returns
-         -------
+    Parameters
+    ----------
+    fit_result: object
+       results of the fitting
+    exp_params: dict(float)
+       parameters of original shape
+    obs_params:List(float)
+       parameter values of fitting
+    number_of_peakCollection:Integer
+       number of fitted peaks
+    peak_profile_type : str
+       type of peak profile
+    Returns
+    -------
 
-         """
-    assert len(fit_result.peakcollections) == number_of_peakCollection, 'Only one PeakCollection'
+    """
+    assert len(fit_result.peakcollections) == number_of_peakCollection, "Only one PeakCollection"
     assert fit_result.fitted
     assert fit_result.difference
 
     peak_profile_type = PeakShape.getShape(peak_profile_type)
     if peak_profile_type == PeakShape.GAUSSIAN:
-        np.testing.assert_allclose(obs_params['PeakCentre'], exp_params['peak_center'], rtol=50.)
+        np.testing.assert_allclose(obs_params["PeakCentre"], exp_params["peak_center"], rtol=50.0)
         # np.testing.assert_allclose(obs_params['Intensity'], exp_params['peak_intensity'], rtol=50.)
         # np.testing.assert_allclose(obs_params['FWHM'], exp_params['peak_FWHM'], rtol=50.)
     elif peak_profile_type == PeakShape.PSEUDOVOIGT:
-        np.testing.assert_allclose(obs_params['Intensity'], exp_params['peak_intensity'], rtol=50.)
-        np.testing.assert_allclose(obs_params['PeakCentre'], exp_params['peak_center'], rtol=50.)
-        np.testing.assert_allclose(obs_params['FWHM'], exp_params['peak_FWHM'], rtol=50.)
+        np.testing.assert_allclose(obs_params["Intensity"], exp_params["peak_intensity"], rtol=50.0)
+        np.testing.assert_allclose(obs_params["PeakCentre"], exp_params["peak_center"], rtol=50.0)
+        np.testing.assert_allclose(obs_params["FWHM"], exp_params["peak_FWHM"], rtol=50.0)
 
 
 @pytest.fixture()
@@ -279,17 +282,33 @@ def setup_1_subrun(request):
         except AttributeError:
             params = dict()
 
-    return generate_hydra_workspace_single_subrun(params['peak_profile_type'], params['min_x'], params['max_x'],
-                                                  params['num_x'], params['peak_center'], params['peak_range'],
-                                                  params['peak_intensities'],)
+    return generate_hydra_workspace_single_subrun(
+        params["peak_profile_type"],
+        params["min_x"],
+        params["max_x"],
+        params["num_x"],
+        params["peak_center"],
+        params["peak_range"],
+        params["peak_intensities"],
+    )
 
 
-@pytest.mark.parametrize("setup_1_subrun",
-                         [{'peak_profile_type': 'Gaussian', 'min_x': 75., 'max_x': 85., 'num_x': 500,
-                           'peak_center': [80.], 'peak_range': [10. * 0.25], 'peak_intensities': [10]}],
-                         indirect=True)
-@pytest.mark.parametrize('fit_domain',
-                         [(78.75, 81.25)])
+@pytest.mark.parametrize(
+    "setup_1_subrun",
+    [
+        {
+            "peak_profile_type": "Gaussian",
+            "min_x": 75.0,
+            "max_x": 85.0,
+            "num_x": 500,
+            "peak_center": [80.0],
+            "peak_range": [10.0 * 0.25],
+            "peak_intensities": [10],
+        }
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize("fit_domain", [(78.75, 81.25)])
 def test_1_gaussian_1_subrun(setup_1_subrun, fit_domain):
     """Test fitting single Gaussian peak on 1 spectrum with background
 
@@ -299,24 +318,28 @@ def test_1_gaussian_1_subrun(setup_1_subrun, fit_domain):
 
     """
     # initialize fit engine
-    fit_engine = PeakFitEngineFactory.getInstance(setup_1_subrun['workspace'], peak_function_name='Gaussian',
-                                                  background_function_name='Linear', wavelength=np.nan,
-                                                  out_of_plane_angle=None)
+    fit_engine = PeakFitEngineFactory.getInstance(
+        setup_1_subrun["workspace"],
+        peak_function_name="Gaussian",
+        background_function_name="Linear",
+        wavelength=np.nan,
+        out_of_plane_angle=None,
+    )
 
     # Fit
-    peak_tag = 'UnitTestGaussian'
+    peak_tag = "UnitTestGaussian"
     fit_result = fit_engine.fit_peaks(peak_tag=peak_tag, x_min=fit_domain[0], x_max=fit_domain[1])
     number_of_peakCollection = 1
     # get back the peak collection
     peakcollection = fit_result.peakcollections[0]
     assert peakcollection.peak_tag == peak_tag
-    parameters = setup_1_subrun['parameters'][0]
+    parameters = setup_1_subrun["parameters"][0]
     # Test the fitted parameters
     fit_costs = peakcollection.fitting_costs
     sub_runs = peakcollection.sub_runs
     eff_param_values, eff_param_errors = peakcollection.get_effective_params()
-    assert eff_param_values.dtype.names[0] == 'Center'
-    np.testing.assert_almost_equal(eff_param_values['Center'], parameters['peak_center'], decimal=1)
+    assert eff_param_values.dtype.names[0] == "Center"
+    np.testing.assert_almost_equal(eff_param_values["Center"], parameters["peak_center"], decimal=1)
     print_peak_results_and_check_positive(eff_param_values, eff_param_errors)
 
     # Read data again for raw data
@@ -334,23 +357,34 @@ def test_1_gaussian_1_subrun(setup_1_subrun, fit_domain):
     np.testing.assert_equal(fit_cost2, fit_costs)
 
     # Effective parameter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
-    assert eff_param_values['Center'] == param_values['PeakCentre']   # center
-    np.testing.assert_allclose(param_values['PeakCentre'], parameters['peak_center'], rtol=3e-2,
-                               err_msg='Peak center is not correct')
+    assert eff_param_values["Center"] == param_values["PeakCentre"]  # center
+    np.testing.assert_allclose(
+        param_values["PeakCentre"], parameters["peak_center"], rtol=3e-2, err_msg="Peak center is not correct"
+    )
 
     # Parameters verified
     assert_checks(fit_result, parameters, param_values, number_of_peakCollection)
 
     # fit goodness
-    assert fit_costs[0] < 2.0, 'Fit cost (chi2 = {}) is too large'.format(fit_costs[0])  # TODO was 0.5
+    assert fit_costs[0] < 2.0, "Fit cost (chi2 = {}) is too large".format(fit_costs[0])  # TODO was 0.5
 
 
-@pytest.mark.parametrize("setup_1_subrun", [{'peak_profile_type': 'Gaussian', 'min_x': 75., 'max_x': 95.,
-                                             'num_x': 1000, 'peak_center': [80., 90.],
-                                             'peak_range': [10. * 0.25, 11. * 0.25],
-                                             'peak_intensities': [10., 4]}], indirect=True)
-@pytest.mark.parametrize('fit_domain',
-                         [((76., 86.), (84., 94.))])
+@pytest.mark.parametrize(
+    "setup_1_subrun",
+    [
+        {
+            "peak_profile_type": "Gaussian",
+            "min_x": 75.0,
+            "max_x": 95.0,
+            "num_x": 1000,
+            "peak_center": [80.0, 90.0],
+            "peak_range": [10.0 * 0.25, 11.0 * 0.25],
+            "peak_intensities": [10.0, 4],
+        }
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize("fit_domain", [((76.0, 86.0), (84.0, 94.0))])
 def test_2_gaussian_1_subrun(setup_1_subrun, fit_domain):
     """Fit 2 Gaussian peaks for 1 sub run
 
@@ -358,22 +392,26 @@ def test_2_gaussian_1_subrun(setup_1_subrun, fit_domain):
     -------
 
     """
-    fit_engine = PeakFitEngineFactory.getInstance(setup_1_subrun['workspace'], peak_function_name='Gaussian',
-                                                  background_function_name='Linear', wavelength=np.nan)
+    fit_engine = PeakFitEngineFactory.getInstance(
+        setup_1_subrun["workspace"],
+        peak_function_name="Gaussian",
+        background_function_name="Linear",
+        wavelength=np.nan,
+    )
 
     # Fit
 
-    fit_result = fit_engine.fit_multiple_peaks(peak_tags=['Left', 'Right'], x_mins=fit_domain[0], x_maxs=fit_domain[1])
-    number_of_peakCollection = 2.
+    fit_result = fit_engine.fit_multiple_peaks(peak_tags=["Left", "Right"], x_mins=fit_domain[0], x_maxs=fit_domain[1])
+    number_of_peakCollection = 2.0
     # Test the fitted parameters: effective parameters
     # Effective parameter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
     # Read data
     sub_runs = fit_result.peakcollections[0].sub_runs
     fit_costs = fit_result.peakcollections[0].fitting_costs
     eff_param_values, eff_param_errors = fit_result.peakcollections[0].get_effective_params()
-    assert eff_param_values.size == 1, '1 sub run'
-    assert len(eff_param_values.dtype.names) == 8, '8 effective parameters'
-    '''
+    assert eff_param_values.size == 1, "1 sub run"
+    assert len(eff_param_values.dtype.names) == 8, "8 effective parameters"
+    """
     if abs(eff_param_values[2][0] - expected_intensity) < 1E-03:
         plt.plot(data_x, data_y, label='Test 2 Gaussian')
         plt.plot(model_x, model_y, label='Fitted Gaussian')
@@ -381,7 +419,7 @@ def test_2_gaussian_1_subrun(setup_1_subrun, fit_domain):
         plt.show()
         raise AssertionError('Peak intensity {} shall be equal to {}.'
                              ''.format(eff_param_values[2, 0], expected_intensity))
-    '''
+    """
 
     # Test the fitted parameters: native parameters
     native_params = PeakShape.GAUSSIAN.native_parameters
@@ -389,21 +427,32 @@ def test_2_gaussian_1_subrun(setup_1_subrun, fit_domain):
     sub_runs2 = fit_result.peakcollections[0].sub_runs
     fit_cost2 = fit_result.peakcollections[0].fitting_costs
     param_values, param_errors = fit_result.peakcollections[0].get_native_params()
-    parameters = setup_1_subrun['parameters'][0]
+    parameters = setup_1_subrun["parameters"][0]
     # Test
     assert sub_runs.size == 1 == sub_runs2.size
     np.testing.assert_equal(fit_cost2, fit_costs)
 
-    np.testing.assert_equal(eff_param_values['Center'], param_values['PeakCentre'])
-    np.testing.assert_allclose(eff_param_values['Center'], parameters['peak_center'],
-                               rtol=2e-2, err_msg='Peak center is not correct')
+    np.testing.assert_equal(eff_param_values["Center"], param_values["PeakCentre"])
+    np.testing.assert_allclose(
+        eff_param_values["Center"], parameters["peak_center"], rtol=2e-2, err_msg="Peak center is not correct"
+    )
 
     # Parameters verified
     assert_checks(fit_result, parameters, param_values, number_of_peakCollection)
 
 
-@pytest.mark.parametrize('target_values', [{'peak_height': [10, 0.012], 'peak_center': [75, 77], 'sigma': [0.15, 1.5],
-                                            'background_A0': [2, -0.301], 'background_A1': [0.007, 0.003]}])
+@pytest.mark.parametrize(
+    "target_values",
+    [
+        {
+            "peak_height": [10, 0.012],
+            "peak_center": [75, 77],
+            "sigma": [0.15, 1.5],
+            "background_A0": [2, -0.301],
+            "background_A1": [0.007, 0.003],
+        }
+    ],
+)
 def test_2_gaussian_3_subruns(target_values):
     """Testing fitting 2 Gaussian peaks among 3 sub runs.
 
@@ -420,34 +469,34 @@ def test_2_gaussian_3_subruns(target_values):
 
     """
     # Generate 3 sub runs
-    vec_x = np.arange(750).astype(float) * 0.02 + 70.
+    vec_x = np.arange(750).astype(float) * 0.02 + 70.0
 
     # Create dictionary for test data
     test_2g_dict = dict()
 
     # sub run 1
-    vec_y = generate_test_gaussian(vec_x, [75., 83], [3., 3.5], [10., 5])['values']
+    vec_y = generate_test_gaussian(vec_x, [75.0, 83], [3.0, 3.5], [10.0, 5])["values"]
     test_2g_dict[1] = vec_x, vec_y
 
     # sub run 2
-    vec_y = generate_test_gaussian(vec_x, [75., 80], [3., 3.5], [15., 5])['values']
+    vec_y = generate_test_gaussian(vec_x, [75.0, 80], [3.0, 3.5], [15.0, 5])["values"]
     test_2g_dict[2] = vec_x, vec_y
 
     # sub run 3
-    vec_y = generate_test_gaussian(vec_x, [75., 80], [3.1, 3.5], [0.2, 7.5])['values']
+    vec_y = generate_test_gaussian(vec_x, [75.0, 80], [3.1, 3.5], [0.2, 7.5])["values"]
     test_2g_dict[3] = vec_x, vec_y
 
     # Create a workspace based on this
-    test_hd_ws = generate_hydra_workspace_multiple_sub_runs('3 G 3 S', test_2g_dict)
+    test_hd_ws = generate_hydra_workspace_multiple_sub_runs("3 G 3 S", test_2g_dict)
 
     # Fit
-    fit_engine = PeakFitEngineFactory.getInstance(test_hd_ws, peak_function_name='Gaussian',
-                                                  background_function_name='Linear', wavelength=np.nan)
-    fit_result = fit_engine.fit_multiple_peaks(peak_tags=['Left', 'Right'],
-                                               x_mins=(72.5, 77.5), x_maxs=(77.5, 82.5))
+    fit_engine = PeakFitEngineFactory.getInstance(
+        test_hd_ws, peak_function_name="Gaussian", background_function_name="Linear", wavelength=np.nan
+    )
+    fit_result = fit_engine.fit_multiple_peaks(peak_tags=["Left", "Right"], x_mins=(72.5, 77.5), x_maxs=(77.5, 82.5))
 
     # were there returns
-    assert len(fit_result.peakcollections) == 2, 'Two PeakCollection'
+    assert len(fit_result.peakcollections) == 2, "Two PeakCollection"
     assert fit_result.fitted
     assert fit_result.difference
 
@@ -491,19 +540,19 @@ def test_2_gaussian_3_subruns(target_values):
 
     # Get effective peak parameters
     effective_param_values, effective_param_errors = fit_result.peakcollections[0].get_effective_params()
-    assert effective_param_values.size == 3, '3 subruns'
-    assert len(effective_param_values.dtype.names) == 8, '8 effective parameters'
+    assert effective_param_values.size == 3, "3 subruns"
+    assert len(effective_param_values.dtype.names) == 8, "8 effective parameters"
 
     # TODO it is odd that there are only two in the the setup function and 3 in the result
-    np.testing.assert_allclose(param_values_lp['Height'][:2], target_values['peak_height'], atol=20.)
-    np.testing.assert_allclose(param_values_lp['PeakCentre'][:2], target_values['peak_center'], rtol=50.)
-    np.testing.assert_allclose(param_values_lp['Sigma'][:2], target_values['sigma'], rtol=50.)
-    np.testing.assert_allclose(param_values_lp['A0'][:2], target_values['background_A0'], rtol=50.)
-    np.testing.assert_allclose(param_values_lp['A1'][:2], target_values['background_A1'], rtol=50., atol=1.)
+    np.testing.assert_allclose(param_values_lp["Height"][:2], target_values["peak_height"], atol=20.0)
+    np.testing.assert_allclose(param_values_lp["PeakCentre"][:2], target_values["peak_center"], rtol=50.0)
+    np.testing.assert_allclose(param_values_lp["Sigma"][:2], target_values["sigma"], rtol=50.0)
+    np.testing.assert_allclose(param_values_lp["A0"][:2], target_values["background_A0"], rtol=50.0)
+    np.testing.assert_allclose(param_values_lp["A1"][:2], target_values["background_A1"], rtol=50.0, atol=1.0)
 
     effective_param_values, effective_param_errors = fit_result.peakcollections[1].get_effective_params()
-    assert effective_param_values.size == 3, '3 subruns'
-    assert len(effective_param_values.dtype.names) == 8, '8 effective parameters'
+    assert effective_param_values.size == 3, "3 subruns"
+    assert len(effective_param_values.dtype.names) == 8, "8 effective parameters"
 
     # Plot
     # model_x, model_y = fit_engine.calculate_fitted_peaks(3, None)
@@ -516,8 +565,10 @@ def test_2_gaussian_3_subruns(target_values):
     # plt.show()
 
 
-@pytest.mark.parametrize('target_values', [{'peak_height': [10], 'peak_center': [75], 'sigma': [0.15],
-                                            'background_A0': [2], 'background_A1': [0.007]}])
+@pytest.mark.parametrize(
+    "target_values",
+    [{"peak_height": [10], "peak_center": [75], "sigma": [0.15], "background_A0": [2], "background_A1": [0.007]}],
+)
 def test_3_gaussian_3_subruns(target_values):
     """Test fitting 3 Gaussian peaks may or may not on a 3 sub runs
 
@@ -534,29 +585,30 @@ def test_3_gaussian_3_subruns(target_values):
     test_2g_dict = dict()
 
     # sub run 1
-    vec_x_0 = np.arange(500).astype(float) * 0.02 + 68.
-    vec_y_0 = generate_test_gaussian(vec_x_0, [75.], [3.], [10.])['values']
+    vec_x_0 = np.arange(500).astype(float) * 0.02 + 68.0
+    vec_y_0 = generate_test_gaussian(vec_x_0, [75.0], [3.0], [10.0])["values"]
     test_2g_dict[1] = vec_x_0, vec_y_0
 
     # sub run 2
-    vec_x_1 = np.arange(500).astype(float) * 0.02 + 72.
-    vec_y_1 = generate_test_gaussian(vec_x_1, [75., 80], [3., 3.5], [15., 5])['values']
+    vec_x_1 = np.arange(500).astype(float) * 0.02 + 72.0
+    vec_y_1 = generate_test_gaussian(vec_x_1, [75.0, 80], [3.0, 3.5], [15.0, 5])["values"]
     test_2g_dict[2] = vec_x_1, vec_y_1
 
     # sub run 3
-    vec_x_2 = np.arange(500).astype(float) * 0.02 + 78.
-    vec_y_2 = generate_test_gaussian(vec_x_2, [80., 85], [3.5, 3.7], [0.2, 7.5])['values']
+    vec_x_2 = np.arange(500).astype(float) * 0.02 + 78.0
+    vec_y_2 = generate_test_gaussian(vec_x_2, [80.0, 85], [3.5, 3.7], [0.2, 7.5])["values"]
     test_2g_dict[3] = vec_x_2, vec_y_2
 
     # Create a workspace based on this
-    test_hd_ws = generate_hydra_workspace_multiple_sub_runs('3 G 3 S', test_2g_dict)
+    test_hd_ws = generate_hydra_workspace_multiple_sub_runs("3 G 3 S", test_2g_dict)
 
     # Fit
-    fit_engine = PeakFitEngineFactory.getInstance(test_hd_ws, peak_function_name='Gaussian',
-                                                  background_function_name='Linear', wavelength=np.nan)
-    fit_result = fit_engine.fit_multiple_peaks(peak_tags=['Left', 'Middle', 'Right'],
-                                               x_mins=(72.5, 77.5, 82.5),
-                                               x_maxs=(77.5, 82.5, 87.5))
+    fit_engine = PeakFitEngineFactory.getInstance(
+        test_hd_ws, peak_function_name="Gaussian", background_function_name="Linear", wavelength=np.nan
+    )
+    fit_result = fit_engine.fit_multiple_peaks(
+        peak_tags=["Left", "Middle", "Right"], x_mins=(72.5, 77.5, 82.5), x_maxs=(77.5, 82.5, 87.5)
+    )
 
     # Verify fitting result
     # ['Height', 'PeakCentre', 'Sigma'],
@@ -568,20 +620,32 @@ def test_3_gaussian_3_subruns(target_values):
     param_values_lp, param_errors_lp = fit_result.peakcollections[0].get_native_params()
 
     # Parameters verified
-    np.testing.assert_allclose(param_values_lp['Height'][0], target_values['peak_center'][0], rtol=50.0)
-    np.testing.assert_allclose(param_values_lp['Sigma'][0], target_values['sigma'][0], rtol=50.0)
-    np.testing.assert_allclose(param_values_lp['A0'][0], target_values['background_A0'][0], rtol=50.0)
-    np.testing.assert_allclose(param_values_lp['A1'][0], target_values['background_A1'][0], rtol=50.0)
+    np.testing.assert_allclose(param_values_lp["Height"][0], target_values["peak_center"][0], rtol=50.0)
+    np.testing.assert_allclose(param_values_lp["Sigma"][0], target_values["sigma"][0], rtol=50.0)
+    np.testing.assert_allclose(param_values_lp["A0"][0], target_values["background_A0"][0], rtol=50.0)
+    np.testing.assert_allclose(param_values_lp["A1"][0], target_values["background_A1"][0], rtol=50.0)
 
-    assert np.isinf(fit_cost2_lp[2]), 'Sub run 3 does not have peak @ 75 (Peak-Left).  Chi2 shall be infinity but' \
-                                      ' not {}'.format(fit_cost2_lp[2])
+    assert np.isinf(fit_cost2_lp[2]), (
+        "Sub run 3 does not have peak @ 75 (Peak-Left).  Chi2 shall be infinity but not {}".format(fit_cost2_lp[2])
+    )
 
 
-@pytest.mark.parametrize("setup_1_subrun", [{'peak_profile_type': 'PseudoVoigt', 'min_x': 75., 'max_x': 85.,
-                                             'num_x': 500, 'peak_center': [80.], 'peak_range': [10. * 0.25],
-                                             'peak_intensities': [100.]}], indirect=True)
-@pytest.mark.parametrize('fit_domain',
-                         [(77.5, 82.5)])
+@pytest.mark.parametrize(
+    "setup_1_subrun",
+    [
+        {
+            "peak_profile_type": "PseudoVoigt",
+            "min_x": 75.0,
+            "max_x": 85.0,
+            "num_x": 500,
+            "peak_center": [80.0],
+            "peak_range": [10.0 * 0.25],
+            "peak_intensities": [100.0],
+        }
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize("fit_domain", [(77.5, 82.5)])
 def test_1_pv_1_subrun(setup_1_subrun, fit_domain):
     """
     Test fitting single Pseudo-voigt peak with background
@@ -591,26 +655,30 @@ def test_1_pv_1_subrun(setup_1_subrun, fit_domain):
     """
     # Generate test workspace and initialize fit engine
 
-    fit_engine = PeakFitEngineFactory.getInstance(setup_1_subrun['workspace'], peak_function_name='PseudoVoigt',
-                                                  background_function_name='Linear', wavelength=np.nan)
+    fit_engine = PeakFitEngineFactory.getInstance(
+        setup_1_subrun["workspace"],
+        peak_function_name="PseudoVoigt",
+        background_function_name="Linear",
+        wavelength=np.nan,
+    )
 
     # Fit
-    peak_tag = 'UnitTestPseudoVoigt'
+    peak_tag = "UnitTestPseudoVoigt"
 
     fit_result = fit_engine.fit_peaks(peak_tag=peak_tag, x_min=fit_domain[0], x_max=fit_domain[1])
-    number_of_peakCollection = 1.
+    number_of_peakCollection = 1.0
     # get back the peak collection
     peakcollection = fit_result.peakcollections[0]
     assert peakcollection.peak_tag == peak_tag
-    parameters = setup_1_subrun['parameters'][0]
+    parameters = setup_1_subrun["parameters"][0]
 
     # Test the fitted parameters
     sub_runs = peakcollection.sub_runs
     eff_param_values, eff_param_errors = peakcollection.get_effective_params()
     fit_costs = peakcollection.fitting_costs
 
-    assert eff_param_values.dtype.names[0] == 'Center'
-    np.testing.assert_almost_equal(eff_param_values['Center'], parameters['peak_center'], decimal=1)
+    assert eff_param_values.dtype.names[0] == "Center"
+    np.testing.assert_almost_equal(eff_param_values["Center"], parameters["peak_center"], decimal=1)
     print_peak_results_and_check_positive(eff_param_values, eff_param_errors)
 
     # Read data again for raw data
@@ -619,33 +687,33 @@ def test_1_pv_1_subrun(setup_1_subrun, fit_domain):
     sub_runs2 = peakcollection.sub_runs
     fit_cost2 = peakcollection.fitting_costs
     param_values, param_errors = peakcollection.get_native_params()
-    print('Ordered native parameters: {}'.format(native_params))
+    print("Ordered native parameters: {}".format(native_params))
 
     # Test
-    assert sub_runs.shape == (1, ) == sub_runs2.shape
+    assert sub_runs.shape == (1,) == sub_runs2.shape
     assert np.allclose(fit_cost2, fit_costs, 0.0000001)
 
     # Effective parameter list: ['Center', 'Height', 'Intensity', 'FWHM', 'Mixing', 'A0', 'A1']
     # Native parameters: ['Mixing', 'Intensity', 'PeakCentre', 'FWHM', 'A0', 'A1']
-    assert eff_param_values['Mixing'] == param_values['Mixing']  # mixing
-    assert eff_param_values['Center'] == param_values['PeakCentre']  # center
-    assert eff_param_values['Intensity'] == param_values['Intensity']  # intensity
+    assert eff_param_values["Mixing"] == param_values["Mixing"]  # mixing
+    assert eff_param_values["Center"] == param_values["PeakCentre"]  # center
+    assert eff_param_values["Intensity"] == param_values["Intensity"]  # intensity
 
-    assert_checks(fit_result, parameters, param_values, number_of_peakCollection, peak_profile_type='PseudoVoigt')
+    assert_checks(fit_result, parameters, param_values, number_of_peakCollection, peak_profile_type="PseudoVoigt")
 
     if fit_costs[0] > 1.0:
         # Plot
         model_x = fit_result.fitted.readX(0)
         model_y = fit_result.fitted.readY(0)
-        data_x, data_y = setup_1_subrun['workspace'].get_reduced_diffraction_data(1, None)
+        data_x, data_y = setup_1_subrun["workspace"].get_reduced_diffraction_data(1, None)
         assert data_x.shape == model_x.shape
         assert data_y.shape == model_y.shape
         plt.clf()
-        plt.plot(data_x, data_y, label='Test 2 Gaussian 3 sub runs')
-        plt.plot(model_x, model_y, label='Fitted 2 Gaussian 3 sub runs')
+        plt.plot(data_x, data_y, label="Test 2 Gaussian 3 sub runs")
+        plt.plot(model_x, model_y, label="Fitted 2 Gaussian 3 sub runs")
         plt.legend()
         # plt.show()
-        raise AssertionError('Fit cost (chi2 = {}) is too large (criteria = 1.)'.format(fit_costs[0]))
+        raise AssertionError("Fit cost (chi2 = {}) is too large (criteria = 1.)".format(fit_costs[0]))
 
 
 def test_calculate_effective_parameters_gaussian():
@@ -669,9 +737,10 @@ def test_calculate_effective_parameters_gaussian():
 
     # assert exp_fwhm == pytest.approx(fwhm, 1E-10), 'FWHM wrong'
     # assert exp_intensity == pytest.approx(intensity, 1E-10), 'Intensity wrong'
-    assert abs(exp_fwhm - fwhm) < 1E-10, 'FWHM: {} - {} = {} > 1E-10'.format(exp_fwhm, fwhm, exp_fwhm - fwhm)
-    assert abs(exp_intensity - intensity) < 1E-10, 'Intensity: {} - {} = {} > 1e-10' \
-                                                   ''.format(exp_intensity, intensity, exp_intensity - intensity)
+    assert abs(exp_fwhm - fwhm) < 1e-10, "FWHM: {} - {} = {} > 1E-10".format(exp_fwhm, fwhm, exp_fwhm - fwhm)
+    assert abs(exp_intensity - intensity) < 1e-10, "Intensity: {} - {} = {} > 1e-10".format(
+        exp_intensity, intensity, exp_intensity - intensity
+    )
 
     return
 
@@ -696,57 +765,72 @@ def test_calculate_effective_parameters_pv():
     test_height = PseudoVoigt.cal_height(intensity, fwhm, mixing)
 
     # Verify
-    assert abs(test_height - exp_height) < 1E-10, 'Peak height: {} - {} = {} > 1e-10' \
-                                                  ''.format(exp_height, test_height, exp_height - test_height)
+    assert abs(test_height - exp_height) < 1e-10, "Peak height: {} - {} = {} > 1e-10".format(
+        exp_height, test_height, exp_height - test_height
+    )
 
     return
 
 
 # Named tuple for peak information
-PeakInfo = namedtuple('PeakInfo', 'center left_bound right_bound tag')
+PeakInfo = namedtuple("PeakInfo", "center left_bound right_bound tag")
 
 
-@pytest.mark.parametrize('target_values', [{'Intensity': [0.03, 0.0], 'peak_center': [90, 96], 'FWHM': [0, 1],
-                                            'background_A0': [-0.04, 0.42], 'background_A1': [0.007, -0.003]}])
+@pytest.mark.parametrize(
+    "target_values",
+    [
+        {
+            "Intensity": [0.03, 0.0],
+            "peak_center": [90, 96],
+            "FWHM": [0, 1],
+            "background_A0": [-0.04, 0.42],
+            "background_A1": [0.007, -0.003],
+        }
+    ],
+)
 def test_pseudovoigt_HB2B_1060(target_values):
     """This is a test of Pseudovoigt peak fitting for HB2B 1060.
 
-     Data are from the real HB2B data previously reported problematic
+    Data are from the real HB2B data previously reported problematic
 
 
-     """
+    """
     # Define HiDRA project file name and skip test if it does not exist (on GitHub Actions)
 
-    project_file_name = 'tests/data/HB2B_1060_first3_subruns.h5'
+    project_file_name = "tests/data/HB2B_1060_first3_subruns.h5"
 
     if not os.path.exists(project_file_name):
-        pytest.skip('{} does not exist on GitHub Actions'.format(project_file_name))
+        pytest.skip("{} does not exist on GitHub Actions".format(project_file_name))
 
     # Create calibration control
     controller = pyrscore.PyRsCore()
 
     # Load project file to HidraWorkspace
-    project_name = 'HB2B_1060 Peaks'
-    hd_ws = controller.load_hidra_project(project_file_name, project_name=project_name, load_detector_counts=False,
-                                          load_diffraction=True)
+    project_name = "HB2B_1060 Peaks"
+    hd_ws = controller.load_hidra_project(
+        project_file_name, project_name=project_name, load_detector_counts=False, load_diffraction=True
+    )
 
-    peak_type = 'PseudoVoigt'
+    peak_type = "PseudoVoigt"
     # Set peak fitting engine
     # create a controller from factory
 
     try:
-        fit_engine = PeakFitEngineFactory.getInstance(hd_ws, peak_function_name=peak_type,
-                                                      background_function_name='Linear', wavelength=np.nan)
+        fit_engine = PeakFitEngineFactory.getInstance(
+            hd_ws, peak_function_name=peak_type, background_function_name="Linear", wavelength=np.nan
+        )
 
         # Fit peak @ left and right
-        peak_info_left = PeakInfo(91.7, 87., 93., 'Left Peak')
-        peak_info_right = PeakInfo(95.8, 93.5, 98.5, 'Right Peak')
+        peak_info_left = PeakInfo(91.7, 87.0, 93.0, "Left Peak")
+        peak_info_right = PeakInfo(95.8, 93.5, 98.5, "Right Peak")
 
-        fit_result = fit_engine.fit_multiple_peaks(peak_tags=[peak_info_left.tag, peak_info_right.tag],
-                                                   x_mins=[peak_info_left.left_bound, peak_info_right.left_bound],
-                                                   x_maxs=[peak_info_left.right_bound, peak_info_right.right_bound])
+        fit_result = fit_engine.fit_multiple_peaks(
+            peak_tags=[peak_info_left.tag, peak_info_right.tag],
+            x_mins=[peak_info_left.left_bound, peak_info_right.left_bound],
+            x_maxs=[peak_info_left.right_bound, peak_info_right.right_bound],
+        )
 
-        assert len(fit_result.peakcollections) == 2, 'two PeakCollection'
+        assert len(fit_result.peakcollections) == 2, "two PeakCollection"
         assert fit_result.fitted
         assert fit_result.difference
 
@@ -756,30 +840,31 @@ def test_pseudovoigt_HB2B_1060(target_values):
         # peak 'Right'
         param_values_rp, _ = fit_result.peakcollections[1].get_native_params()
 
-        assert param_values_lp.size == 3, '3 subruns'
-        assert len(param_values_lp.dtype.names) == 6, '6 native parameters'
+        assert param_values_lp.size == 3, "3 subruns"
+        assert len(param_values_lp.dtype.names) == 6, "6 native parameters"
 
-        assert param_values_rp.size == 3, '3 subruns'
-        assert len(param_values_rp.dtype.names) == 6, '6 native parameters'
+        assert param_values_rp.size == 3, "3 subruns"
+        assert len(param_values_rp.dtype.names) == 6, "6 native parameters"
 
-        np.testing.assert_allclose(param_values_lp['Intensity'], target_values['Intensity'][0], atol=0.9)
-        np.testing.assert_allclose(param_values_lp['PeakCentre'], target_values['peak_center'][0], atol=0.8)
-        np.testing.assert_allclose(param_values_lp['FWHM'], target_values['FWHM'][0], atol=1.)
-        np.testing.assert_allclose(param_values_lp['A0'], target_values['background_A0'][0], atol=1.)
-        np.testing.assert_allclose(param_values_lp['A1'], target_values['background_A1'][0], atol=1.)
+        np.testing.assert_allclose(param_values_lp["Intensity"], target_values["Intensity"][0], atol=0.9)
+        np.testing.assert_allclose(param_values_lp["PeakCentre"], target_values["peak_center"][0], atol=0.8)
+        np.testing.assert_allclose(param_values_lp["FWHM"], target_values["FWHM"][0], atol=1.0)
+        np.testing.assert_allclose(param_values_lp["A0"], target_values["background_A0"][0], atol=1.0)
+        np.testing.assert_allclose(param_values_lp["A1"], target_values["background_A1"][0], atol=1.0)
 
-        np.testing.assert_allclose(param_values_rp['Intensity'], target_values['Intensity'][1], atol=0.01)
-        np.testing.assert_allclose(param_values_rp['PeakCentre'], target_values['peak_center'][1], atol=1)
-        np.testing.assert_allclose(param_values_rp['FWHM'], target_values['FWHM'][1], atol=1.2)
-        np.testing.assert_allclose(param_values_rp['A0'], target_values['background_A0'][1], atol=1.)
-        np.testing.assert_allclose(param_values_rp['A1'], target_values['background_A1'][1], atol=1.)
+        np.testing.assert_allclose(param_values_rp["Intensity"], target_values["Intensity"][1], atol=0.01)
+        np.testing.assert_allclose(param_values_rp["PeakCentre"], target_values["peak_center"][1], atol=1)
+        np.testing.assert_allclose(param_values_rp["FWHM"], target_values["FWHM"][1], atol=1.2)
+        np.testing.assert_allclose(param_values_rp["A0"], target_values["background_A0"][1], atol=1.0)
+        np.testing.assert_allclose(param_values_rp["A1"], target_values["background_A1"][1], atol=1.0)
     except AttributeError:
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Init random number
     import random
+
     random.seed(1)
     # Test main
     pytest.main([__file__])

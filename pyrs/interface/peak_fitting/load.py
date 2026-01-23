@@ -7,7 +7,6 @@ from pyrs.projectfile import HidraProjectFile  # type: ignore
 
 
 class Load:
-
     def __init__(self, parent=None):
         self.parent = parent
 
@@ -25,9 +24,9 @@ class Load:
             self.parent.fit_result = None
             self.parent.create_plot_color_range()
         except (RuntimeError, TypeError) as run_err:
-            pop_message(self, 'Unable to load {}'.format(project_file),
-                        detailed_message=str(run_err),
-                        message_type='error')
+            pop_message(
+                self, "Unable to load {}".format(project_file), detailed_message=str(run_err), message_type="error"
+            )
 
         # Get and set the range of sub runs
         o_utility = Utilities(parent=self.parent)
@@ -43,7 +42,7 @@ class Load:
         self.parent.ui.graphicsView_plot2D.reset_viewer()
 
     def __load_multiple_file(self, project_files):
-        '''
+        """
         Load project files for peak fitting
 
         Parameters
@@ -55,11 +54,10 @@ class Load:
         -------
         _hidra_ws : HIDRAWORKSPACE
 
-        '''
-        _hidra_ws = self.parent._core.load_hidra_project(project_files[0],
-                                                         project_name=self.parent._project_name,
-                                                         load_detector_counts=False,
-                                                         load_diffraction=True)
+        """
+        _hidra_ws = self.parent._core.load_hidra_project(
+            project_files[0], project_name=self.parent._project_name, load_detector_counts=False, load_diffraction=True
+        )
 
         for project in project_files[1:]:
             _project = HidraProjectFile(project)
@@ -71,10 +69,11 @@ class Load:
     def __set_up_project_name(self, project_file=""):
         """Keep the basename and removed the nxs and h5 extenstions"""
         if type(project_file) is list:
-            self.parent._project_name = 'HB2B' + ''.join(['_{}'.format(run.split('.')[0].split('_')[-1])
-                                                          for run in project_file])
+            self.parent._project_name = "HB2B" + "".join(
+                ["_{}".format(run.split(".")[0].split("_")[-1]) for run in project_file]
+            )
         else:
-            self.parent._project_name = os.path.basename(project_file).split('.')[0]
+            self.parent._project_name = os.path.basename(project_file).split(".")[0]
 
     def __parse_working_files(self, project_file=""):
         """Keep the filepath and append runs being fitted"""
@@ -82,10 +81,10 @@ class Load:
             if len(project_file) == 1:
                 project_file = project_file[0]
             else:
-                project_file = project_file[0].split('HB2B')[0] + \
-                    ''.join(['HB2B_{}'.format(run.split('.')[0].split('_')[-1])
-                             for run in project_file])
-                if project_file[-3:] != '.h5':
-                    project_file += '.h5'
+                project_file = project_file[0].split("HB2B")[0] + "".join(
+                    ["HB2B_{}".format(run.split(".")[0].split("_")[-1]) for run in project_file]
+                )
+                if project_file[-3:] != ".h5":
+                    project_file += ".h5"
 
         return project_file

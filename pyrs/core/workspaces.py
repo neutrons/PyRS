@@ -17,7 +17,7 @@ class HidraWorkspace:
     - container for instrument information
     """
 
-    def __init__(self, name='hidradata'):
+    def __init__(self, name="hidradata"):
         """
         initialization
         """
@@ -72,7 +72,7 @@ class HidraWorkspace:
 
     @property
     def reduction_masks(self):
-        """ Reduction masks used for texture reduction
+        """Reduction masks used for texture reduction
 
         Returns
         -------
@@ -92,14 +92,14 @@ class HidraWorkspace:
         try:
             return self._instrument_geometry_shift._calibration_file
         except AttributeError:
-            return ''
+            return ""
 
     def _load_raw_counts(self, hidra_file):
-        """ Load raw detector counts from HIDRA file
+        """Load raw detector counts from HIDRA file
         :param hidra_file:
         :return:
         """
-        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
+        checkdatatypes.check_type("HIDRA project file", hidra_file, HidraProjectFile)
 
         for sub_run_i in self._sample_logs.subruns:
             counts_vec_i = hidra_file.read_raw_counts(sub_run_i)
@@ -109,20 +109,22 @@ class HidraWorkspace:
         return
 
     def _load_reduced_diffraction_data(self, hidra_file):
-        """ Load reduced diffraction data from HIDRA file
+        """Load reduced diffraction data from HIDRA file
         :param hidra_file: HidraProjectFile instance
         :return:
         """
         # Check inputs
-        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
+        checkdatatypes.check_type("HIDRA project file", hidra_file, HidraProjectFile)
 
         # get 2theta value
         try:
             vec_2theta = hidra_file.read_diffraction_2theta_array()
         except KeyError as key_err:
-            print('[INFO] Unable to load 2theta vector from HidraProject file due to {}.'
-                  'It is very likely that no reduced data is recorded.'
-                  ''.format(key_err))
+            print(
+                "[INFO] Unable to load 2theta vector from HidraProject file due to {}."
+                "It is very likely that no reduced data is recorded."
+                "".format(key_err)
+            )
             return
         # TRY-CATCH
 
@@ -143,48 +145,55 @@ class HidraWorkspace:
         # initialize data set for reduced diffraction patterns
         diff_mask_list = hidra_file.read_diffraction_masks()
         for mask_name in diff_mask_list:
-            if mask_name == 'main':
+            if mask_name == "main":
                 mask_name = None
-            self._diff_data_set[mask_name] = np.ndarray(shape=(num_spec, vec_2theta.shape[0]), dtype='float')
+            self._diff_data_set[mask_name] = np.ndarray(shape=(num_spec, vec_2theta.shape[0]), dtype="float")
         # END-FOR
 
         # Load data: all including masks / ROI
         for mask_name in diff_mask_list:
             # force to None
-            if mask_name == 'main':
+            if mask_name == "main":
                 mask_name = None
-            self._diff_data_set[mask_name] = hidra_file.read_diffraction_intensity_vector(mask_id=mask_name,
-                                                                                          sub_run=None)
+            self._diff_data_set[mask_name] = hidra_file.read_diffraction_intensity_vector(
+                mask_id=mask_name, sub_run=None
+            )
 
         # Load data: all including masks / ROI
         for mask_name in diff_mask_list:
             # force to None
-            if mask_name == 'main':
+            if mask_name == "main":
                 mask_name = None
-            self._var_data_set[mask_name] = hidra_file.read_diffraction_variance_vector(mask_id=mask_name,
-                                                                                        sub_run=None)
+            self._var_data_set[mask_name] = hidra_file.read_diffraction_variance_vector(
+                mask_id=mask_name, sub_run=None
+            )
 
             if self._var_data_set[mask_name] is None:
                 self._var_data_set[mask_name] = np.sqrt(self._diff_data_set[mask_name])
 
-        print('[INFO] Loaded diffraction data from {} includes : {}'
-              ''.format(self._project_file_name, self._diff_data_set.keys()))
+        print(
+            "[INFO] Loaded diffraction data from {} includes : {}".format(
+                self._project_file_name, self._diff_data_set.keys()
+            )
+        )
 
     def _append_reduced_diffraction_data(self, hidra_file):
-        """ Load reduced diffraction data from HIDRA file
+        """Load reduced diffraction data from HIDRA file
         :param hidra_file: HidraProjectFile instance
         :return:
         """
         # Check inputs
-        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
+        checkdatatypes.check_type("HIDRA project file", hidra_file, HidraProjectFile)
 
         # get 2theta value
         try:
             vec_2theta = hidra_file.read_diffraction_2theta_array()
         except KeyError as key_err:
-            print('[INFO] Unable to load 2theta vector from HidraProject file due to {}.'
-                  'It is very likely that no reduced data is recorded.'
-                  ''.format(key_err))
+            print(
+                "[INFO] Unable to load 2theta vector from HidraProject file due to {}."
+                "It is very likely that no reduced data is recorded."
+                "".format(key_err)
+            )
             return
         # TRY-CATCH
 
@@ -208,36 +217,41 @@ class HidraWorkspace:
         # Load data: all including masks / ROI
         for mask_name in diff_mask_list:
             # force to None
-            if mask_name == 'main':
+            if mask_name == "main":
                 mask_name = None
-            self._diff_data_set[mask_name] = np.append(self._diff_data_set[mask_name],
-                                                       hidra_file.read_diffraction_intensity_vector(mask_id=mask_name,
-                                                                                                    sub_run=None),
-                                                       axis=0)
+            self._diff_data_set[mask_name] = np.append(
+                self._diff_data_set[mask_name],
+                hidra_file.read_diffraction_intensity_vector(mask_id=mask_name, sub_run=None),
+                axis=0,
+            )
 
         # Load data: all including masks / ROI
         for mask_name in diff_mask_list:
             # force to None
-            if mask_name == 'main':
+            if mask_name == "main":
                 mask_name = None
-            self._var_data_set[mask_name] = np.append(self._var_data_set[mask_name],
-                                                      hidra_file.read_diffraction_variance_vector(mask_id=mask_name,
-                                                                                                  sub_run=None),
-                                                      axis=0)
+            self._var_data_set[mask_name] = np.append(
+                self._var_data_set[mask_name],
+                hidra_file.read_diffraction_variance_vector(mask_id=mask_name, sub_run=None),
+                axis=0,
+            )
 
             if self._var_data_set[mask_name] is None:
                 self._var_data_set[mask_name] = np.sqrt(self._diff_data_set[mask_name])
 
-        print('[INFO] Loaded diffraction data from {} includes : {}'
-              ''.format(self._project_file_name, self._diff_data_set.keys()))
+        print(
+            "[INFO] Loaded diffraction data from {} includes : {}".format(
+                self._project_file_name, self._diff_data_set.keys()
+            )
+        )
 
     def _load_instrument(self, hidra_file):
-        """ Load instrument setup from HIDRA file
+        """Load instrument setup from HIDRA file
         :param hidra_file: HIDRA project file instance
         :return:
         """
         # Check
-        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
+        checkdatatypes.check_type("HIDRA project file", hidra_file, HidraProjectFile)
 
         # Get values
         self._instrument_setup = hidra_file.read_instrument_geometry()
@@ -255,7 +269,7 @@ class HidraWorkspace:
 
         """
         # Check
-        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
+        checkdatatypes.check_type("HIDRA project file", hidra_file, HidraProjectFile)
 
         # Default mask: get value and set
         default_mask = hidra_file.read_default_masks()
@@ -269,25 +283,25 @@ class HidraWorkspace:
             self.set_detector_mask(mask_dict[mask_name], False, mask_name)
 
     def _load_sample_logs(self, hidra_file):
-        """ Load sample logs.
+        """Load sample logs.
         Note: this method can clear all the sample logs added previously. But it is not
             an issue in the real use cases.
         :param hidra_file:  HIDRA project file instance
         :return:
         """
-        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
+        checkdatatypes.check_type("HIDRA project file", hidra_file, HidraProjectFile)
 
         # overwrite the existing sample logs
         self._sample_logs = hidra_file.read_sample_logs()
 
     def _append_sample_logs(self, hidra_file):
-        """ Load sample logs.
+        """Load sample logs.
         Note: this method can clear all the sample logs added previously. But it is not
             an issue in the real use cases.
         :param hidra_file:  HIDRA project file instance
         :return:
         """
-        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
+        checkdatatypes.check_type("HIDRA project file", hidra_file, HidraProjectFile)
 
         # overwrite the existing sample logs
         temp_logs = hidra_file.read_sample_logs()
@@ -307,33 +321,35 @@ class HidraWorkspace:
         None
 
         """
-        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
+        checkdatatypes.check_type("HIDRA project file", hidra_file, HidraProjectFile)
 
         # reset the wave length (dictionary) from HIDRA project file
         self._wave_length = hidra_file.read_wavelengths()
 
     def get_detector_2theta(self, sub_run: int) -> float:
-        """ Get 2theta value from sample log
+        """Get 2theta value from sample log
         This is a special one
         :param sub_run: sub run number (integer)
         :return: float number as 2theta
         """
-        sub_run = to_int('Sub run number', sub_run, min_value=0)
+        sub_run = to_int("Sub run number", sub_run, min_value=0)
         try:
             two_theta = self._sample_logs[HidraConstants.TWO_THETA, sub_run]
         except KeyError as key_err:
-            raise RuntimeError('Unable to retrieve 2theta value ({}) from sub run {} due to missing key {}.'
-                               'Available sample logs are {}'
-                               .format(HidraConstants.TWO_THETA,
-                                       sub_run, key_err, self._sample_logs.keys()))
+            raise RuntimeError(
+                "Unable to retrieve 2theta value ({}) from sub run {} due to missing key {}."
+                "Available sample logs are {}".format(
+                    HidraConstants.TWO_THETA, sub_run, key_err, self._sample_logs.keys()
+                )
+            )
         return two_theta[0]  # convert from np array of length 1 to a scalar
 
     def get_l2(self, sub_run: int) -> float:
-        """ Get L2 for a specific sub run
+        """Get L2 for a specific sub run
         :param sub_run: sub run number (integer)
         :return: L2 or None (i.e., using default L2)
         """
-        sub_run = to_int('Sub run number', sub_run, min_value=0)
+        sub_run = to_int("Sub run number", sub_run, min_value=0)
 
         if HidraConstants.L2 in self._sample_logs:
             # L2 is a valid sample log: get L2
@@ -341,8 +357,11 @@ class HidraWorkspace:
                 # convert from np array of length 1 to a scalar
                 l2 = self._sample_logs[HidraConstants.L2, sub_run][0]
             except KeyError as key_err:
-                raise RuntimeError('Unable to retrieve L2 value for {} due to {}. Available sun runs are {}'
-                                   .format(sub_run, key_err, self._sample_logs[HidraConstants.L2]))
+                raise RuntimeError(
+                    "Unable to retrieve L2 value for {} due to {}. Available sun runs are {}".format(
+                        sub_run, key_err, self._sample_logs[HidraConstants.L2]
+                    )
+                )
         else:
             # L2 might be unchanged
             l2 = None
@@ -350,7 +369,7 @@ class HidraWorkspace:
         return l2
 
     def get_instrument_setup(self):
-        """ Get the handler to instrument setup
+        """Get the handler to instrument setup
         :return:
         """
 
@@ -369,10 +388,13 @@ class HidraWorkspace:
         np.ndarray
 
         """
-        sub_run = to_int('Sub run number', sub_run, min_value=0)  # consider 0 as a single sub run
+        sub_run = to_int("Sub run number", sub_run, min_value=0)  # consider 0 as a single sub run
         if sub_run not in self._raw_counts:
-            raise RuntimeError('Sub run {} does not exist in loaded raw counts. FYI loaded '
-                               'sub runs are {}'.format(sub_run, self._raw_counts.keys()))
+            raise RuntimeError(
+                "Sub run {} does not exist in loaded raw counts. FYI loaded sub runs are {}".format(
+                    sub_run, self._raw_counts.keys()
+                )
+            )
 
         return self._raw_counts[sub_run]
 
@@ -386,7 +408,7 @@ class HidraWorkspace:
 
         """
         if len(self._sample_logs.subruns) == 0:
-            raise RuntimeError('Sub run - spectrum map has not been built')
+            raise RuntimeError("Sub run - spectrum map has not been built")
 
         return self._sample_logs.subruns
 
@@ -415,7 +437,7 @@ class HidraWorkspace:
             # calibrated wave length
             if self._wave_length_calibrated_dict is None:
                 if throw_if_not_set:
-                    raise RuntimeError('There is no calibrated wave length in HidraWorkspace {}'.format(self._name))
+                    raise RuntimeError("There is no calibrated wave length in HidraWorkspace {}".format(self._name))
                 else:
                     wave_length_dict = None
             else:
@@ -424,8 +446,9 @@ class HidraWorkspace:
             # native wave length
             if self._wave_length_dict is None:
                 if throw_if_not_set:
-                    raise RuntimeError('There is no original/native wave length in HidraWorkspace {}'
-                                       ''.format(self._name))
+                    raise RuntimeError(
+                        "There is no original/native wave length in HidraWorkspace {}".format(self._name)
+                    )
                 else:
                     wave_length_dict = None
             else:
@@ -446,7 +469,7 @@ class HidraWorkspace:
         :return:
         """
         # Check input
-        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
+        checkdatatypes.check_type("HIDRA project file", hidra_file, HidraProjectFile)
         self._project_file_name = hidra_file.name
         self._project_file = hidra_file
 
@@ -480,7 +503,7 @@ class HidraWorkspace:
         :return:
         """
         # Check input
-        checkdatatypes.check_type('HIDRA project file', hidra_file, HidraProjectFile)
+        checkdatatypes.check_type("HIDRA project file", hidra_file, HidraProjectFile)
         self._project_file_name = hidra_file.name
         self._project_file = hidra_file
 
@@ -519,8 +542,11 @@ class HidraWorkspace:
 
         # User-specific mask
         if mask_id not in self._mask_dict:
-            raise RuntimeError('Mask ID {} does not exist in HidraWorkspace {}.  Available masks are '
-                               '{}'.format(mask_id, self._name, self._mask_dict.keys()))
+            raise RuntimeError(
+                "Mask ID {} does not exist in HidraWorkspace {}.  Available masks are {}".format(
+                    mask_id, self._name, self._mask_dict.keys()
+                )
+            )
 
         return self._mask_dict[mask_id]
 
@@ -553,7 +579,7 @@ class HidraWorkspace:
             # mask_id is 'main'
             pass
         else:
-            checkdatatypes.check_string_variable('Mask ID', mask_id)
+            checkdatatypes.check_string_variable("Mask ID", mask_id)
 
         # Vector 2theta
         matrix_2theta = self._2theta_matrix.copy()
@@ -561,16 +587,20 @@ class HidraWorkspace:
         try:
             intensity_matrix = self._diff_data_set[mask_id].copy()
         except KeyError:
-            raise RuntimeError('Mask ID {} does not exist in reduced diffraction pattern. '
-                               'The available masks are {}'
-                               ''.format(mask_id, self._diff_data_set.keys()))
+            raise RuntimeError(
+                "Mask ID {} does not exist in reduced diffraction pattern. The available masks are {}".format(
+                    mask_id, self._diff_data_set.keys()
+                )
+            )
 
         try:
             variance_matrix = self._var_data_set[mask_id].copy()
         except KeyError:
-            raise RuntimeError('Mask ID {} does not exist in reduced diffraction pattern. '
-                               'The available masks are {}'
-                               ''.format(mask_id, self._var_data_set.keys()))
+            raise RuntimeError(
+                "Mask ID {} does not exist in reduced diffraction pattern. The available masks are {}".format(
+                    mask_id, self._var_data_set.keys()
+                )
+            )
 
         return matrix_2theta, intensity_matrix, variance_matrix
 
@@ -589,7 +619,7 @@ class HidraWorkspace:
 
         """
         # Check inputs
-        sub_run = to_int('Sub run number', sub_run, min_value=1)
+        sub_run = to_int("Sub run number", sub_run, min_value=1)
         # Get spectrum index
         spec_index = self._sample_logs.get_subrun_indices(sub_run)[0]
         # Vector 2theta
@@ -597,10 +627,9 @@ class HidraWorkspace:
 
         return vec_2theta
 
-    def get_reduced_diffraction_data(self, sub_run: int,
-                                     mask_id: Optional[str] = None) -> Tuple[np.ndarray,
-                                                                             np.ndarray,
-                                                                             np.ndarray]:
+    def get_reduced_diffraction_data(
+        self, sub_run: int, mask_id: Optional[str] = None
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Get data set of a single diffraction pattern
 
         Parameters
@@ -617,12 +646,12 @@ class HidraWorkspace:
         """
         # Check inputs
         # sub run number might start from 0
-        sub_run = to_int('Sub run number', sub_run, min_value=0)
+        sub_run = to_int("Sub run number", sub_run, min_value=0)
         if mask_id is None:
             # mask_id = 'main'
             pass
         else:
-            checkdatatypes.check_string_variable('Mask ID', mask_id)
+            checkdatatypes.check_string_variable("Mask ID", mask_id)
 
         spec_index = self._sample_logs.get_subrun_indices(sub_run)[0]
 
@@ -633,15 +662,19 @@ class HidraWorkspace:
         try:
             vec_intensity = self._diff_data_set[mask_id][spec_index].copy()
         except KeyError:
-            raise RuntimeError('Mask ID {} does not exist in reduced diffraction pattern. '
-                               'The available masks are {}'
-                               ''.format(mask_id, self._diff_data_set.keys()))
+            raise RuntimeError(
+                "Mask ID {} does not exist in reduced diffraction pattern. The available masks are {}".format(
+                    mask_id, self._diff_data_set.keys()
+                )
+            )
         try:
             vec_variance = self._var_data_set[mask_id][spec_index].copy()
         except KeyError:
-            raise RuntimeError('Mask ID {} does not exist in reduced diffraction pattern. '
-                               'The available masks are {}'
-                               ''.format(mask_id, self._var_data_set.keys()))
+            raise RuntimeError(
+                "Mask ID {} does not exist in reduced diffraction pattern. The available masks are {}".format(
+                    mask_id, self._var_data_set.keys()
+                )
+            )
 
         return vec_2theta, vec_intensity, vec_variance
 
@@ -671,21 +704,21 @@ class HidraWorkspace:
             time-averaged sample log value for this sub run
 
         """
-        checkdatatypes.check_string_variable('Sample log name', sample_log_name,
-                                             list(self._sample_logs.keys()))
+        checkdatatypes.check_string_variable("Sample log name", sample_log_name, list(self._sample_logs.keys()))
 
         log_value = self._sample_logs[sample_log_name, sub_run]
 
         if isinstance(log_value, np.ndarray):
-            if log_value.shape == (1, ):  # only one log value
+            if log_value.shape == (1,):  # only one log value
                 log_value = log_value[0]
             else:
                 log_set = set(log_value)
                 if len(log_set) == 1:  # all the values are the same
                     log_value = log_set.pop()
                 else:
-                    msg = 'Single log {} (= {}) is a np array with multiple items' \
-                        '(shape = {})'.format(sample_log_name, log_value, log_value.shape)
+                    msg = "Single log {} (= {}) is a np array with multiple items(shape = {})".format(
+                        sample_log_name, log_value, log_value.shape
+                    )
                     raise AssertionError(msg)
 
         return log_value
@@ -709,12 +742,10 @@ class HidraWorkspace:
             sample log values ordered by sub run numbers with given sub runs or all sub runs
 
         """
-        if sample_log_name == HidraConstants.SUB_RUNS and \
-                sample_log_name not in self._sample_logs.keys():
+        if sample_log_name == HidraConstants.SUB_RUNS and sample_log_name not in self._sample_logs.keys():
             return self.get_sub_runs()
 
-        checkdatatypes.check_string_variable('Sample log name', sample_log_name,
-                                             list(self._sample_logs.keys()))
+        checkdatatypes.check_string_variable("Sample log name", sample_log_name, list(self._sample_logs.keys()))
 
         return self._sample_logs[sample_log_name, sub_runs]
 
@@ -722,7 +753,7 @@ class HidraWorkspace:
         return self._sample_logs.units(sample_log_name)
 
     def get_pointlist(self, subruns=None):
-        '''Get list PointList from the SampleLogs'''
+        """Get list PointList from the SampleLogs"""
         return self._sample_logs.get_pointlist(subruns)
 
     def get_spectrum_index(self, sub_run: int) -> Any:
@@ -731,26 +762,26 @@ class HidraWorkspace:
         :param sub_run: sub run number (integer)
         :return:
         """
-        sub_run = to_int('Sub run number', sub_run, min_value=0)
+        sub_run = to_int("Sub run number", sub_run, min_value=0)
 
         return self._sample_logs.get_subrun_indices(sub_run)[0]
 
     def get_sub_runs_from_spectrum(self, spectra):
-        """ Get sub runs corresponding to spectra (same as ws index)
+        """Get sub runs corresponding to spectra (same as ws index)
         :param spectra: list/vector/array of spectra (workspace indexes)
         :return:
         """
         if not (isinstance(spectra, list) or isinstance(spectra, np.ndarray)):
-            raise AssertionError('{} must be list or array'.format(type(spectra)))
+            raise AssertionError("{} must be list or array".format(type(spectra)))
 
         return self._sample_logs.subruns[spectra]
 
     def has_raw_data(self, sub_run: int) -> bool:
-        """ Check whether a raw file that has been loaded
+        """Check whether a raw file that has been loaded
         :param sub_run: sub run number (integer)
         :return:
         """
-        sub_run = to_int('Sub run', sub_run, min_value=1)
+        sub_run = to_int("Sub run", sub_run, min_value=1)
 
         return sub_run in self._raw_counts
 
@@ -761,7 +792,7 @@ class HidraWorkspace:
         :return:
         """
         # Check inputs
-        checkdatatypes.check_string_variable('Sample log name', sample_log_name)
+        checkdatatypes.check_string_variable("Sample log name", sample_log_name)
 
         has_log = sample_log_name in self._sample_logs
 
@@ -795,13 +826,13 @@ class HidraWorkspace:
         -------
 
         """
-        checkdatatypes.check_numpy_arrays('Detector mask', [mask_array], None, False)
+        checkdatatypes.check_numpy_arrays("Detector mask", [mask_array], None, False)
 
         # Convert mask to 1D array
         if len(mask_array.shape) == 2:
             # rule out unexpected shape
             if mask_array.shape[1] != 1:
-                raise RuntimeError('Mask array with shape {} is not acceptable'.format(mask_array.shape))
+                raise RuntimeError("Mask array with shape {} is not acceptable".format(mask_array.shape))
             # convert from (N, 1) to (N,)
             num_pixels = mask_array.shape[0]
             mask_array = mask_array.reshape((num_pixels,))
@@ -810,7 +841,7 @@ class HidraWorkspace:
         if is_default:
             self._default_mask = mask_array
         else:
-            checkdatatypes.check_string_variable('Mask ID', mask_id, allow_empty=False)
+            checkdatatypes.check_string_variable("Mask ID", mask_id, allow_empty=False)
             self._mask_dict[mask_id] = mask_array
 
     def set_raw_counts(self, sub_run_number, counts):
@@ -820,7 +851,7 @@ class HidraWorkspace:
         :param counts: ndarray of detector counts
         :return:
         """
-        checkdatatypes.check_numpy_arrays('Counts', [counts], dimension=None, check_same_shape=False)
+        checkdatatypes.check_numpy_arrays("Counts", [counts], dimension=None, check_same_shape=False)
 
         if len(counts.shape) == 2 and counts.shape[1] == 1:
             # 1D array in 2D format: set to 1D array
@@ -828,10 +859,14 @@ class HidraWorkspace:
 
         self._raw_counts[int(sub_run_number)] = counts
 
-    def set_reduced_diffraction_data(self, sub_run: int, mask_id: Optional[str],
-                                     two_theta_array: np.ndarray,
-                                     intensity_array: np.ndarray,
-                                     variances_array: Optional[np.ndarray] = None) -> None:
+    def set_reduced_diffraction_data(
+        self,
+        sub_run: int,
+        mask_id: Optional[str],
+        two_theta_array: np.ndarray,
+        intensity_array: np.ndarray,
+        variances_array: Optional[np.ndarray] = None,
+    ) -> None:
         """Set reduced diffraction data to workspace
 
         Parameters
@@ -854,29 +889,33 @@ class HidraWorkspace:
         """
         # Check status of reducer whether sub run number and spectrum are initialized
         if len(self._sample_logs.subruns) == 0:
-            raise RuntimeError('Sub run - spectrum map has not been set up yet!')
+            raise RuntimeError("Sub run - spectrum map has not been set up yet!")
 
         # Check inputs
         # sub run number valid or not
-        sub_run = to_int('Sub run number', sub_run, min_value=1)
+        sub_run = to_int("Sub run number", sub_run, min_value=1)
         if mask_id is not None:
-            checkdatatypes.check_string_variable('Mask ID', mask_id)
+            checkdatatypes.check_string_variable("Mask ID", mask_id)
         # two theta array and intensity array shall match on size
         if two_theta_array.shape != intensity_array.shape:
-            raise RuntimeError('Two theta array (bin centers) must have same dimension as intensity array. '
-                               'Now they are {} and {}'.format(two_theta_array.shape, intensity_array.shape))
+            raise RuntimeError(
+                "Two theta array (bin centers) must have same dimension as intensity array. "
+                "Now they are {} and {}".format(two_theta_array.shape, intensity_array.shape)
+            )
 
         # Set 2-theta 2D array
         if self._2theta_matrix is None or len(self._2theta_matrix.shape) != 2:
             # First time set up or legacy from input file: create the 2D array
             num_sub_runs = len(self._sample_logs.subruns)
-            self._2theta_matrix = np.ndarray(shape=(num_sub_runs, two_theta_array.shape[0]),
-                                             dtype=intensity_array.dtype)
+            self._2theta_matrix = np.ndarray(
+                shape=(num_sub_runs, two_theta_array.shape[0]), dtype=intensity_array.dtype
+            )
 
             # set the diffraction data (2D) array with new dimension
             num_sub_runs = len(self._sample_logs.subruns)
-            self._diff_data_set[mask_id] = np.ndarray(shape=(num_sub_runs, intensity_array.shape[0]),
-                                                      dtype=intensity_array.dtype)
+            self._diff_data_set[mask_id] = np.ndarray(
+                shape=(num_sub_runs, intensity_array.shape[0]), dtype=intensity_array.dtype
+            )
 
             if variances_array is None:
                 temp_intensity_array = intensity_array.copy()
@@ -888,22 +927,25 @@ class HidraWorkspace:
 
             # set the diffraction data (2D) array with new dimension
             num_sub_runs = len(self._sample_logs.subruns)
-            self._var_data_set[mask_id] = np.ndarray(shape=(num_sub_runs, variances_array.shape[0]),
-                                                     dtype=variances_array.dtype)
+            self._var_data_set[mask_id] = np.ndarray(
+                shape=(num_sub_runs, variances_array.shape[0]), dtype=variances_array.dtype
+            )
 
         elif mask_id not in self._diff_data_set:
             # A new mask: reset the diff_data_set again
             num_sub_runs = len(self._sample_logs.subruns)
-            self._diff_data_set[mask_id] = np.ndarray(shape=(num_sub_runs, intensity_array.shape[0]),
-                                                      dtype=intensity_array.dtype)
+            self._diff_data_set[mask_id] = np.ndarray(
+                shape=(num_sub_runs, intensity_array.shape[0]), dtype=intensity_array.dtype
+            )
 
             # set the diffraction data (2D) array with new dimension
             num_sub_runs = len(self._sample_logs.subruns)
             if variances_array is None:
-                raise RuntimeError('Did not expect None for variances')
+                raise RuntimeError("Did not expect None for variances")
             else:
-                self._var_data_set[mask_id] = np.ndarray(shape=(num_sub_runs, variances_array.shape[0]),
-                                                         dtype=variances_array.dtype)
+                self._var_data_set[mask_id] = np.ndarray(
+                    shape=(num_sub_runs, variances_array.shape[0]), dtype=variances_array.dtype
+                )
 
         # END-IF
 
@@ -911,15 +953,22 @@ class HidraWorkspace:
         spec_id = self._sample_logs.get_subrun_indices(sub_run)[0]
 
         # Another sanity check on the size of 2theta and intensity
-        if self._2theta_matrix.shape[1] != two_theta_array.shape[0] \
-                or self._diff_data_set[mask_id].shape[1] != intensity_array.shape[0]:
+        if (
+            self._2theta_matrix.shape[1] != two_theta_array.shape[0]
+            or self._diff_data_set[mask_id].shape[1] != intensity_array.shape[0]
+        ):
             # Need to check if previously set
-            raise RuntimeError('2theta vector are different between parent method set {} and '
-                               'reduction engine returned {} OR '
-                               'Histogram (shape: {}) to set does not match data diffraction data set defined in '
-                               'worksapce (shape: {})'.format(self._2theta_matrix.shape, two_theta_array.shape,
-                                                              intensity_array.shape[0],
-                                                              self._diff_data_set[mask_id].shape[1]))
+            raise RuntimeError(
+                "2theta vector are different between parent method set {} and "
+                "reduction engine returned {} OR "
+                "Histogram (shape: {}) to set does not match data diffraction data set defined in "
+                "worksapce (shape: {})".format(
+                    self._2theta_matrix.shape,
+                    two_theta_array.shape,
+                    intensity_array.shape[0],
+                    self._diff_data_set[mask_id].shape[1],
+                )
+            )
         # END-IF-ELSE
 
         # Set 2theta array
@@ -929,7 +978,7 @@ class HidraWorkspace:
         # Set variances
         self._var_data_set[mask_id][spec_id] = variances_array
 
-    def set_sample_log(self, log_name, sub_runs, log_value_array, units=''):
+    def set_sample_log(self, log_name, sub_runs, log_value_array, units=""):
         """Set sample log value for each sub run, i.e., average value in each sub run
 
         Parameters
@@ -948,8 +997,8 @@ class HidraWorkspace:
         None
         """
         # Check inputs
-        checkdatatypes.check_string_variable('Log name', log_name)
-        checkdatatypes.check_numpy_arrays('Sub runs and log values', [sub_runs, log_value_array], 1, True)
+        checkdatatypes.check_string_variable("Log name", log_name)
+        checkdatatypes.check_numpy_arrays("Sub runs and log values", [sub_runs, log_value_array], 1, True)
         if len(self._sample_logs) > 0:
             self._sample_logs.matching_subruns(sub_runs)
         else:
@@ -999,8 +1048,7 @@ class HidraWorkspace:
                 if sub_runs is None or sub_run_i in sub_runs:
                     hidra_project.append_raw_counts(sub_run_i, self._raw_counts[sub_run_i])
                 else:
-                    print('[WARNING] sub run {} is not exported to {}'
-                          ''.format(sub_run_i, hidra_project.name))
+                    print("[WARNING] sub run {} is not exported to {}".format(sub_run_i, hidra_project.name))
                 # END-IF-ELSE
             # END-FOR
 
@@ -1023,8 +1071,7 @@ class HidraWorkspace:
                 continue
 
             # Convert each sample log to a np array
-            sample_log_value = self.get_sample_log_values(sample_log_name=log_name,
-                                                          sub_runs=sub_runs)
+            sample_log_value = self.get_sample_log_values(sample_log_name=log_name, sub_runs=sub_runs)
             sample_log_units = self.get_sample_log_units(log_name)
 
             # Add log value to project file
@@ -1060,7 +1107,7 @@ class HidraWorkspace:
         None
         """
 
-        checkdatatypes.check_type('HIDRA project file', hidra_project, HidraProjectFile)
+        checkdatatypes.check_type("HIDRA project file", hidra_project, HidraProjectFile)
 
         # Add entry for sub runs (first)
         if sub_runs is None:
@@ -1074,9 +1121,9 @@ class HidraWorkspace:
             sub_runs_array = sub_runs
 
         if len(self._raw_counts.keys()) == len(sub_runs_array):
-            hidra_project.write_reduced_diffraction_data_set(self._2theta_matrix,
-                                                             self._diff_data_set,
-                                                             self._var_data_set)
+            hidra_project.write_reduced_diffraction_data_set(
+                self._2theta_matrix, self._diff_data_set, self._var_data_set
+            )
         else:
             if type(sub_runs) is list:
                 sub_runs = np.array(sub_runs)
@@ -1085,17 +1132,17 @@ class HidraWorkspace:
             _var_data_temp = {}
 
             for diff_key in list(self._diff_data_set.keys()):
-                if (diff_key is not None):
-                    if '_var' in diff_key:
+                if diff_key is not None:
+                    if "_var" in diff_key:
                         continue
 
                 # sub_runs - 1 is used to convert sub_run naming into a np index
                 _diff_data_temp[diff_key] = self._diff_data_set[diff_key][sub_runs_array - 1]
                 _var_data_temp[diff_key] = self._var_data_set[diff_key][sub_runs_array - 1]
 
-            hidra_project.write_reduced_diffraction_data_set(self._2theta_matrix[sub_runs_array - 1],
-                                                             _diff_data_temp,
-                                                             _var_data_temp)
+            hidra_project.write_reduced_diffraction_data_set(
+                self._2theta_matrix[sub_runs_array - 1], _diff_data_temp, _var_data_temp
+            )
 
     @property
     def sample_log_names(self):
@@ -1107,12 +1154,11 @@ class HidraWorkspace:
 
     @property
     def sample_logs_for_plot(self):
-        """ Get names of sample logs that can be plotted, i.e., the log values are integer or float
-        """
+        """Get names of sample logs that can be plotted, i.e., the log values are integer or float"""
         return sorted(self._sample_logs.plottable_logs)
 
     def set_wavelength(self, wave_length, calibrated):
-        """ Set wave length which could be either a float (uniform) or a dictionary
+        """Set wave length which could be either a float (uniform) or a dictionary
         :param wave_length:
         :param calibrated: Flag for calibrated wave length
         :return:
@@ -1132,12 +1178,11 @@ class HidraWorkspace:
             # already in the dictionary format: check the sub runs
             dict_keys = sorted(wave_length.keys())
             if dict_keys != sub_runs:
-                raise RuntimeError('Input wave length dictionary has different set of sub runs')
+                raise RuntimeError("Input wave length dictionary has different set of sub runs")
             wl_dict = wave_length
         else:
             # unsupported format
-            raise RuntimeError('Wave length {} in format {} is not supported.'
-                               ''.format(wave_length, type(wave_length)))
+            raise RuntimeError("Wave length {} in format {} is not supported.".format(wave_length, type(wave_length)))
 
         # Set to desired target
         if calibrated:

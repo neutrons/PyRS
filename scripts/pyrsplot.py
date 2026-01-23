@@ -7,8 +7,7 @@ import pyrs.interface.pyrs_main
 
 
 def main(argv=None):
-    """
-    """
+    """ """
     if argv is None:
         argv = sys.argv
     if QApplication.instance():
@@ -22,6 +21,6 @@ def main(argv=None):
     return _app
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Main application
     app = main()

@@ -17,6 +17,7 @@ class ManualReductionWindow(QMainWindow):
     """
     GUI window for user to fit peaks
     """
+
     def __init__(self, parent):
         """
         initialization
@@ -28,7 +29,7 @@ class ManualReductionWindow(QMainWindow):
         self._core = None
 
         # set up UI
-        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'manualreductionwindow.ui'))
+        ui_path = os.path.join(os.path.dirname(__file__), os.path.join("ui", "manualreductionwindow.ui"))
         self.ui = load_ui(ui_path, baseinstance=self)
         # promote some widgets
         self._promote_widgets()
@@ -138,7 +139,7 @@ class ManualReductionWindow(QMainWindow):
         self._event_handler.set_output_dir_widgets(state)
 
     def browse_calibration_file(self):
-        """ Browse and set up calibration file
+        """Browse and set up calibration file
         :return:
         """
         self._event_handler.browse_calibration_file()
@@ -178,7 +179,7 @@ class ManualReductionWindow(QMainWindow):
         self._event_handler.browse_mask_file()
 
     def plot_sub_runs(self):
-        """ Plot detector counts as 2D detector view view OR reduced data according to the tab that is current on
+        """Plot detector counts as 2D detector view view OR reduced data according to the tab that is current on
         :return:
         """
 

@@ -31,11 +31,11 @@ def are_equivalent_jsons(test_json_name, gold_json_name, atol):
 
     """
     # Load file 1
-    with open(test_json_name, 'r') as json1:
+    with open(test_json_name, "r") as json1:
         test_json_dict = json.load(json1)
 
     # Load file 2
-    with open(gold_json_name, 'r') as json2:
+    with open(gold_json_name, "r") as json2:
         gold_json_dict = json.load(json2)
 
     # Compare
@@ -80,26 +80,28 @@ def print_out_json_diff(json_file1_name, json_file2_name):
 
     """
     # Load file 1
-    with open(json_file1_name, 'r') as json1:
+    with open(json_file1_name, "r") as json1:
         json_dict1 = json.load(json1)
 
     # Load file 2
-    with open(json_file2_name, 'r') as json2:
+    with open(json_file2_name, "r") as json2:
         json_dict2 = json.load(json2)
 
     # Output difference
     if set(json_dict1.keys()) != set(json_dict2.keys()):
         # Compare keys
-        print('[JSON Keys are different]\n{}: {}\n{}: {}'
-              ''.format(json_file1_name, sorted(json_dict1.keys()),
-                        json_file2_name, sorted(json_dict2.keys())))
+        print(
+            "[JSON Keys are different]\n{}: {}\n{}: {}".format(
+                json_file1_name, sorted(json_dict1.keys()), json_file2_name, sorted(json_dict2.keys())
+            )
+        )
 
     else:
         # Compare values
         keys = sorted(json_dict1.keys())
-        print('[JSON Value are different]\nField\t{}\t{}'.format(json_file1_name, json_file2_name))
+        print("[JSON Value are different]\nField\t{}\t{}".format(json_file1_name, json_file2_name))
         for k in keys:
-            print('{}\t{}\t{}'.format(k, json_dict1[k], json_dict2[k]))
+            print("{}\t{}\t{}".format(k, json_dict1[k], json_dict2[k]))
 
     return
 
@@ -112,9 +114,9 @@ def test_wavelength():
 
     """
     # Define Fitting Routine
-    nexus_file = 'tests/data/calibration_tests/HB2B_3510.nxs.h5'
+    nexus_file = "tests/data/calibration_tests/HB2B_3510.nxs.h5"
 
-    goldfile = 'tests/data/calibration_tests/HB2B_mantid_calib_lambda.json'
+    goldfile = "tests/data/calibration_tests/HB2B_mantid_calib_lambda.json"
 
     t_start = time.time()
 
@@ -134,21 +136,21 @@ def test_wavelength():
     calibrator.print_calibration()
 
     # write out
-    if os.path.exists('HB2B_CAL_Test.json'):
-        os.remove('HB2B_CAL_Test.json')
-    file_name = os.path.join(os.getcwd(), 'HB2B_CAL_Test.json')
+    if os.path.exists("HB2B_CAL_Test.json"):
+        os.remove("HB2B_CAL_Test.json")
+    file_name = os.path.join(os.getcwd(), "HB2B_CAL_Test.json")
     calibrator.write_calibration(file_name)
 
     t_stop = time.time()
-    print('Total Time: {}'.format(t_stop - t_start))
+    print("Total Time: {}".format(t_stop - t_start))
 
     # Compare output file with gold file for test
-    if are_equivalent_jsons(goldfile, file_name, atol=5E-3):
+    if are_equivalent_jsons(goldfile, file_name, atol=5e-3):
         # Same: remove file generated in test
         os.remove(file_name)
     else:
-        print_out_json_diff(goldfile, 'HB2B_CAL_Test.json')
-        assert False, 'Test output {} is different from gold file {}'.format(file_name, goldfile)
+        print_out_json_diff(goldfile, "HB2B_CAL_Test.json")
+        assert False, "Test output {} is different from gold file {}".format(file_name, goldfile)
 
     return
 
@@ -161,9 +163,9 @@ def test_all_refinements():
 
     """
     # Define Fitting Routine
-    nexus_file = 'tests/data/calibration_tests/HB2B_3510.nxs.h5'
+    nexus_file = "tests/data/calibration_tests/HB2B_3510.nxs.h5"
 
-    goldfile = 'tests/data/calibration_tests/HB2B_mantid_calib.json'
+    goldfile = "tests/data/calibration_tests/HB2B_mantid_calib.json"
 
     t_start = time.time()
 
@@ -190,21 +192,21 @@ def test_all_refinements():
     calibrator.print_calibration()
 
     # write out
-    if os.path.exists('HB2B_CAL_Test.json'):
-        os.remove('HB2B_CAL_Test.json')
-    file_name = os.path.join(os.getcwd(), 'HB2B_CAL_Test.json')
+    if os.path.exists("HB2B_CAL_Test.json"):
+        os.remove("HB2B_CAL_Test.json")
+    file_name = os.path.join(os.getcwd(), "HB2B_CAL_Test.json")
     calibrator.write_calibration(file_name)
 
     t_stop = time.time()
-    print('Total Time: {}'.format(t_stop - t_start))
+    print("Total Time: {}".format(t_stop - t_start))
 
     # Compare output file with gold file for test
-    if are_equivalent_jsons(goldfile, file_name, atol=5E-3):
+    if are_equivalent_jsons(goldfile, file_name, atol=5e-3):
         # Same: remove file generated in test
         os.remove(file_name)
     else:
-        print_out_json_diff(goldfile, 'HB2B_CAL_Test.json')
-        assert False, 'Test output {} is different from gold file {}'.format(file_name, goldfile)
+        print_out_json_diff(goldfile, "HB2B_CAL_Test.json")
+        assert False, "Test output {} is different from gold file {}".format(file_name, goldfile)
 
     return
 
@@ -217,9 +219,9 @@ def test_load_print_calibration():
 
     """
     # Define Fitting Routine
-    nexus_file = 'tests/data/calibration_tests/HB2B_3510.nxs.h5'
+    nexus_file = "tests/data/calibration_tests/HB2B_3510.nxs.h5"
 
-    goldfile = 'tests/data/calibration_tests/HB2B_mantid_calib_lambda.json'
+    goldfile = "tests/data/calibration_tests/HB2B_mantid_calib_lambda.json"
 
     t_start = time.time()
 
@@ -233,24 +235,24 @@ def test_load_print_calibration():
     calibrator._caliberr[7] = 0.00770477092528105
 
     # write out
-    if os.path.exists('HB2B_CAL_Test.json'):
-        os.remove('HB2B_CAL_Test.json')
-    file_name = os.path.join(os.getcwd(), 'HB2B_CAL_Test.json')
+    if os.path.exists("HB2B_CAL_Test.json"):
+        os.remove("HB2B_CAL_Test.json")
+    file_name = os.path.join(os.getcwd(), "HB2B_CAL_Test.json")
     calibrator.write_calibration(file_name)
 
     t_stop = time.time()
-    print('Total Time: {}'.format(t_stop - t_start))
+    print("Total Time: {}".format(t_stop - t_start))
 
     # Compare output file with gold file for test
-    if are_equivalent_jsons(goldfile, file_name, atol=5E-3):
+    if are_equivalent_jsons(goldfile, file_name, atol=5e-3):
         # Same: remove file generated in test
         os.remove(file_name)
     else:
-        print_out_json_diff(goldfile, 'HB2B_CAL_Test.json')
-        assert False, 'Test output {} is different from gold file {}'.format(file_name, goldfile)
+        print_out_json_diff(goldfile, "HB2B_CAL_Test.json")
+        assert False, "Test output {} is different from gold file {}".format(file_name, goldfile)
 
     return
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     pytest.main([__file__])

@@ -7,10 +7,10 @@ from pathlib import Path
 from subprocess import check_output
 from typing import Union
 
-__all__ = ['get_ipts_dir', 'get_default_output_dir', 'get_input_project_file', 'get_nexus_file']
+__all__ = ["get_ipts_dir", "get_default_output_dir", "get_input_project_file", "get_nexus_file"]
 
 
-def save_mantid_nexus(workspace_name, file_name, title=''):
+def save_mantid_nexus(workspace_name, file_name, title=""):
     """
     save workspace to NeXus for Mantid to import
     :param workspace_name:
@@ -19,27 +19,26 @@ def save_mantid_nexus(workspace_name, file_name, title=''):
     :return:
     """
     # check input
-    checkdatatypes.check_file_name(file_name, check_exist=False,
-                                   check_writable=True, is_dir=False)
-    checkdatatypes.check_string_variable('Workspace title', title)
+    checkdatatypes.check_file_name(file_name, check_exist=False, check_writable=True, is_dir=False)
+    checkdatatypes.check_string_variable("Workspace title", title)
 
     # check workspace
-    checkdatatypes.check_string_variable('Workspace name', workspace_name)
+    checkdatatypes.check_string_variable("Workspace name", workspace_name)
     if mtd.doesExist(workspace_name):
-        SaveNexusProcessed(InputWorkspace=workspace_name,
-                           Filename=file_name,
-                           Title=title)
+        SaveNexusProcessed(InputWorkspace=workspace_name, Filename=file_name, Title=title)
     else:
-        raise RuntimeError('Workspace {0} does not exist in Analysis data service. Available '
-                           'workspaces are {1}.'
-                           ''.format(workspace_name, mtd.getObjectNames()))
+        raise RuntimeError(
+            "Workspace {0} does not exist in Analysis data service. Available workspaces are {1}.".format(
+                workspace_name, mtd.getObjectNames()
+            )
+        )
 
 
 def to_filepath(filename: Union[str, Path], check_exists: bool = True) -> Path:
-    '''Asserts that a file exists and is a file.
-    Raises an exception if anything is wrongither assumption is incorrect'''
+    """Asserts that a file exists and is a file.
+    Raises an exception if anything is wrongither assumption is incorrect"""
     if not filename:  # empty value
-        raise ValueError('Encountered empty filename')
+        raise ValueError("Encountered empty filename")
 
     filepath = Path(filename)
 
@@ -63,20 +62,20 @@ def get_temp_directory():
         return temp_dir
 
     # /tmp/ second
-    temp_dir = '/tmp/'
+    temp_dir = "/tmp/"
     if os.path.exists(temp_dir):
         return temp_dir
 
     # last solution: home directory
-    temp_dir = os.path.expanduser('~')
+    temp_dir = os.path.expanduser("~")
 
     return temp_dir
 
 
 def __run_finddata(runnumber):
-    '''This is a backup solution while the ...ORIG.nxs.h5 files are floating around'''
-    result = check_output(['finddata', 'hb2b', str(runnumber)]).decode('utf-8').strip()
-    if (not result) or (result == 'None'):
+    """This is a backup solution while the ...ORIG.nxs.h5 files are floating around"""
+    result = check_output(["finddata", "hb2b", str(runnumber)]).decode("utf-8").strip()
+    if (not result) or (result == "None"):
         raise RuntimeError('Failed to find HB2B_{} using "finddata"'.format(runnumber))
     return result
 
@@ -95,15 +94,15 @@ def get_ipts_dir(hint: Union[int, str, Path]) -> Path:
         IPTS path: example '/HFIR/HB2B/IPTS-22731/', None for not supported IPTS
     """
     filepath = Path(str(hint))
-    if filepath.exists() and filepath.parts[1] == 'HFIR':
+    if filepath.exists() and filepath.parts[1] == "HFIR":
         ipts = Path(*filepath.parts[:4])
     else:
         # try with GetIPTS
         try:
-            with amend_config(instrument='HB2B', facility='HFIR'):
-                ipts = Path(GetIPTS(RunNumber=hint, Instrument='HB2B'))
+            with amend_config(instrument="HB2B", facility="HFIR"):
+                ipts = Path(GetIPTS(RunNumber=hint, Instrument="HB2B"))
         except RuntimeError as e:
-            print('GetIPTS failed:', e)
+            print("GetIPTS failed:", e)
             # get the information from the nexus file
             nexusfile = get_nexus_file(hint)
             # take the first 3 directories
@@ -129,33 +128,33 @@ def get_default_output_dir(run_number):
     # this can generate an exception
     ipts_dir = get_ipts_dir(run_number)
 
-    return os.path.join(ipts_dir, 'shared', 'manualreduce')
+    return os.path.join(ipts_dir, "shared", "manualreduce")
 
 
-def get_input_project_file(run_number, preferredType='manual'):
+def get_input_project_file(run_number, preferredType="manual"):
     # lower preferredType
     preferredType = preferredType.lower()
 
     # this can generate an exception
-    shared_dir = os.path.join(get_ipts_dir(run_number), 'shared')
+    shared_dir = os.path.join(get_ipts_dir(run_number), "shared")
 
     if not os.path.exists(shared_dir):
         raise RuntimeError('Shared directory "{}" does not exist'.format(shared_dir))
 
     # generate places to look for
-    auto_dir = os.path.join(shared_dir, 'autoreduce')
-    manual_dir = os.path.join(shared_dir, 'manualreduce')
+    auto_dir = os.path.join(shared_dir, "autoreduce")
+    manual_dir = os.path.join(shared_dir, "manualreduce")
     err_msg = 'Failed to find project file for run "{}" in "{}"'.format(run_number, shared_dir)
 
     preferredType = preferredType.lower()
-    if preferredType.startswith('manual'):
+    if preferredType.startswith("manual"):
         if os.path.exists(manual_dir):
             return manual_dir
         elif os.path.exists(auto_dir):
             return auto_dir
         else:
             raise RuntimeError(err_msg)
-    elif preferredType.startswith('auto'):
+    elif preferredType.startswith("auto"):
         if os.path.exists(auto_dir):
             return auto_dir
         else:
@@ -166,10 +165,10 @@ def get_input_project_file(run_number, preferredType='manual'):
 
 def get_nexus_file(run_number):
     try:
-        with amend_config(instrument='HB2B', facility='HFIR'):
-            nexus_file = FileFinder.findRuns('HB2B{}'.format(run_number))[0]
+        with amend_config(instrument="HB2B", facility="HFIR"):
+            nexus_file = FileFinder.findRuns("HB2B{}".format(run_number))[0]
     except RuntimeError as e:
-        print('ArchiveSearch failed:', e)
+        print("ArchiveSearch failed:", e)
         nexus_file = __run_finddata(run_number)
 
     # return after `with` scope so cleanup is run

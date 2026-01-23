@@ -23,8 +23,7 @@ class HB2BReductionManager:
     """
 
     def __init__(self):
-        """ initialization
-        """
+        """initialization"""
         # workspace name or array vector
         self._curr_workspace = None
         self._session_dict = dict()  # [Project name/ID] = workspace / counts vector
@@ -43,7 +42,7 @@ class HB2BReductionManager:
         self._loaded_mask_dict = dict()
 
     def get_reduced_diffraction_data(self, session_name, sub_run=None, mask_id=None):
-        """ Get the reduce data
+        """Get the reduce data
 
         :param str session_name: name of the session for locating workspace
         :param int sub_run: sub-run index
@@ -52,7 +51,7 @@ class HB2BReductionManager:
         :return: 2-vectors: 2theta and intensity
         :rtype: numpy.ndarray
         """
-        checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
+        checkdatatypes.check_string_variable("Session name", session_name, list(self._session_dict.keys()))
         workspace = self._session_dict[session_name]
 
         data_set = workspace.get_reduced_diffraction_data(sub_run, mask_id)
@@ -66,7 +65,7 @@ class HB2BReductionManager:
         :return: return a list of sub-runs in the workspace
         :rtype: list
         """
-        checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
+        checkdatatypes.check_string_variable("Session name", session_name, list(self._session_dict.keys()))
         workspace = self._session_dict[session_name]
 
         return workspace.get_sub_runs()
@@ -108,13 +107,13 @@ class HB2BReductionManager:
         :rtype: numpy.ndarray
         """
 
-        checkdatatypes.check_string_variable('Session name', session_name, list(self._session_dict.keys()))
+        checkdatatypes.check_string_variable("Session name", session_name, list(self._session_dict.keys()))
         workspace = self._session_dict[session_name]
 
         return workspace.get_detector_2theta(sub_run)
 
     def get_detector_counts(self, session_name, sub_run: int):
-        """ Get the raw counts from detector of the specified sub run
+        """Get the raw counts from detector of the specified sub run
 
         :param str session_name: name of the session for locating workspace
         :param int sub_run: sub run number
@@ -122,7 +121,7 @@ class HB2BReductionManager:
         :rtype: numpy.ndarray
         """
 
-        sub_run = to_int('Sub run number', sub_run, min_value=0)
+        sub_run = to_int("Sub run number", sub_run, min_value=0)
         workspace = self._session_dict[session_name]
 
         return workspace.get_detector_counts(sub_run)
@@ -133,27 +132,30 @@ class HB2BReductionManager:
         """
 
         # Check inputs
-        checkdatatypes.check_string_variable('Reduction session name', session_name)
-        if session_name == '':
-            raise RuntimeError('Session name {} is empty'.format(session_name))
+        checkdatatypes.check_string_variable("Reduction session name", session_name)
+        if session_name == "":
+            raise RuntimeError("Session name {} is empty".format(session_name))
         elif session_name in self._session_dict:
-            print('[WARNING] Session {} is previously taken.  The HidraWorkspace associated '
-                  'will be replaced if new HidraWorkspace is not None ({})'
-                  ''.format(session_name, hidra_ws is None))
+            print(
+                "[WARNING] Session {} is previously taken.  The HidraWorkspace associated "
+                "will be replaced if new HidraWorkspace is not None ({})"
+                "".format(session_name, hidra_ws is None)
+            )
 
         if hidra_ws is None:
             # session is initialized without HidraWorkspace
             self._curr_workspace = workspaces.HidraWorkspace()
         else:
             # session starts with a HidraWorkspace
-            checkdatatypes.check_type('HidraWorkspace', hidra_ws, workspaces.HidraWorkspace)
+            checkdatatypes.check_type("HidraWorkspace", hidra_ws, workspaces.HidraWorkspace)
             self._curr_workspace = hidra_ws
 
         self._session_dict[session_name] = self._curr_workspace
 
-    def load_hidra_project(self, project_file_name, load_calibrated_instrument, load_detectors_counts,
-                           load_reduced_diffraction):
-        """ Load hidra project file
+    def load_hidra_project(
+        self, project_file_name, load_calibrated_instrument, load_detectors_counts, load_reduced_diffraction
+    ):
+        """Load hidra project file
 
         :param str project_file_name: filename for the Hidra project file
         :param bool load_calibrated_instrument:
@@ -162,11 +164,11 @@ class HB2BReductionManager:
         :return: HidraWorkspace instance
         """
         # check inputs
-        checkdatatypes.check_file_name(project_file_name, True, False, False, 'Project file to load')
+        checkdatatypes.check_file_name(project_file_name, True, False, False, "Project file to load")
 
         # Check
         if self._curr_workspace is None:
-            raise RuntimeError('Call init_session to create a ReductionWorkspace')
+            raise RuntimeError("Call init_session to create a ReductionWorkspace")
 
         # PyRS HDF5
         # Check permission of file to determine the RW mode of HidraProject file
@@ -180,16 +182,16 @@ class HB2BReductionManager:
         project_h5_file = HidraProjectFile(project_file_name, mode=file_mode)
 
         # Load
-        self._curr_workspace.load_hidra_project(project_h5_file,
-                                                load_raw_counts=load_detectors_counts,
-                                                load_reduced_diffraction=load_reduced_diffraction)
+        self._curr_workspace.load_hidra_project(
+            project_h5_file, load_raw_counts=load_detectors_counts, load_reduced_diffraction=load_reduced_diffraction
+        )
 
         # Close
         project_h5_file.close()
         return self._curr_workspace
 
     def load_mask_file(self, mask_file_name):
-        """ Load mask file to 1D array and auxiliary information
+        """Load mask file to 1D array and auxiliary information
 
         :param str mask_file_name: mask filename
         :return: two_theta, note, mask_id
@@ -199,7 +201,7 @@ class HB2BReductionManager:
         # register the masks
         self._loaded_mask_files.append(mask_file_name)
 
-        mask_id = os.path.basename(mask_file_name).split('.')[0] + '_{}'.format(hash(mask_file_name) % 100)
+        mask_id = os.path.basename(mask_file_name).split(".")[0] + "_{}".format(hash(mask_file_name) % 100)
         self._loaded_mask_dict[mask_id] = mask_vec, two_theta, mask_file_name
 
         return two_theta, note, mask_id
@@ -212,9 +214,9 @@ class HB2BReductionManager:
             - van_array (numpy.ndarray) - 1D array as vanadium counts
             - van_duration (numpy.ndarray) - duration of vanadium run (second)
         """
-        checkdatatypes.check_file_name(van_project_file, True, False, False, 'Vanadium project/NeXus file')
+        checkdatatypes.check_file_name(van_project_file, True, False, False, "Vanadium project/NeXus file")
 
-        if van_project_file.endswith('.nxs.h5'):
+        if van_project_file.endswith(".nxs.h5"):
             # Input is nexus file
             # reduce with PyRS/Python
             converter = NeXusConvertingApp(van_project_file, mask_file_name=None)
@@ -228,16 +230,14 @@ class HB2BReductionManager:
             project_h5_file = HidraProjectFile(van_project_file, mode=HidraProjectFileMode.READONLY)
 
             # Load
-            self._van_ws.load_hidra_project(project_h5_file,
-                                            load_raw_counts=True,
-                                            load_reduced_diffraction=False)
+            self._van_ws.load_hidra_project(project_h5_file, load_raw_counts=True, load_reduced_diffraction=False)
 
             # Close project file
             project_h5_file.close()
 
         # Process the vanadium counts
         sub_runs = self._van_ws.get_sub_runs()
-        assert len(sub_runs) == 1, 'There shall be more than 1 sub run in vanadium project file'
+        assert len(sub_runs) == 1, "There shall be more than 1 sub run in vanadium project file"
 
         # get vanadium data
         van_array = self._van_ws.get_detector_counts(sub_runs[0]).astype(np.float64)
@@ -255,14 +255,28 @@ class HB2BReductionManager:
         :return: a 1D array (0: mask, 1: keep)
         :rtype: numpy.ndarray
         """
-        checkdatatypes.check_string_variable('Mask ID', mask_id, list(self._loaded_mask_dict.keys()))
+        checkdatatypes.check_string_variable("Mask ID", mask_id, list(self._loaded_mask_dict.keys()))
 
         return self._loaded_mask_dict[mask_id][0]
 
-    def reduce_diffraction_data(self, session_name, apply_calibrated_geometry, num_bins, sub_run_list,
-                                mask, mask_id, vanadium_counts=None, van_duration=None, normalize_by_duration=True,
-                                eta_step=None, eta_min=None, eta_max=None, min_2theta=None, max_2theta=None,
-                                delta_2theta=None):
+    def reduce_diffraction_data(
+        self,
+        session_name,
+        apply_calibrated_geometry,
+        num_bins,
+        sub_run_list,
+        mask,
+        mask_id,
+        vanadium_counts=None,
+        van_duration=None,
+        normalize_by_duration=True,
+        eta_step=None,
+        eta_min=None,
+        eta_max=None,
+        min_2theta=None,
+        max_2theta=None,
+        delta_2theta=None,
+    ):
         """Reduce ALL sub runs in a workspace from detector counts to diffraction data
 
         :param session_name: Name for the reduction session
@@ -312,7 +326,7 @@ class HB2BReductionManager:
             mask_vec = self.get_mask_vector(mask)
         else:
             # user supplied an array for mask
-            checkdatatypes.check_numpy_arrays('Mask', [mask], dimension=1, check_same_shape=False)
+            checkdatatypes.check_numpy_arrays("Mask", [mask], dimension=1, check_same_shape=False)
             mask_vec = mask
 
         # Operate AND with default mask
@@ -327,16 +341,18 @@ class HB2BReductionManager:
         else:
             det_pos_shift = None
 
-        print('[DB...BAT] Det Position Shift: {}'.format(det_pos_shift))
+        print("[DB...BAT] Det Position Shift: {}".format(det_pos_shift))
 
         if sub_run_list is None:
             sub_run_list = workspace.get_sub_runs()
 
         # Determine whether normalization by time is supported
         if normalize_by_duration and not workspace.has_sample_log(HidraConstants.SUB_RUN_DURATION):
-            raise RuntimeError('Workspace {} does not have sample log {}.  Existing logs are {}'
-                               ''.format(workspace, HidraConstants.SUB_RUN_DURATION,
-                                         workspace.get_sample_log_names()))
+            raise RuntimeError(
+                "Workspace {} does not have sample log {}.  Existing logs are {}".format(
+                    workspace, HidraConstants.SUB_RUN_DURATION, workspace.get_sample_log_names()
+                )
+            )
 
         # Reset workspace's 2theta matrix and intensities
         workspace.reset_diffraction_data()
@@ -344,37 +360,44 @@ class HB2BReductionManager:
         for sub_run in sub_run_list:
             # get the duration
             if normalize_by_duration:
-                duration_i = workspace.get_sample_log_value(HidraConstants.SUB_RUN_DURATION,
-                                                            sub_run)
+                duration_i = workspace.get_sample_log_value(HidraConstants.SUB_RUN_DURATION, sub_run)
             else:
                 # not normalized
-                duration_i = 1.
+                duration_i = 1.0
 
             if eta_step is None:
                 # reduce sub run
-                self.reduce_sub_run_diffraction(workspace, sub_run, det_pos_shift,
-                                                mask_vec_tuple=(mask_id, mask_vec),
-                                                min_2theta=min_2theta,
-                                                max_2theta=max_2theta,
-                                                num_bins=num_bins,
-                                                delta_2theta=delta_2theta,
-                                                sub_run_duration=duration_i,
-                                                vanadium_counts=vanadium_counts,
-                                                van_duration=van_duration)
+                self.reduce_sub_run_diffraction(
+                    workspace,
+                    sub_run,
+                    det_pos_shift,
+                    mask_vec_tuple=(mask_id, mask_vec),
+                    min_2theta=min_2theta,
+                    max_2theta=max_2theta,
+                    num_bins=num_bins,
+                    delta_2theta=delta_2theta,
+                    sub_run_duration=duration_i,
+                    vanadium_counts=vanadium_counts,
+                    van_duration=van_duration,
+                )
             else:
                 # reduce sub run texture
-                self.reduce_sub_run_texture(workspace, sub_run, det_pos_shift,
-                                            mask_vec_tuple=(mask_id, mask_vec),
-                                            min_2theta=min_2theta,
-                                            max_2theta=max_2theta,
-                                            num_bins=num_bins,
-                                            sub_run_duration=duration_i,
-                                            vanadium_counts=vanadium_counts,
-                                            van_duration=van_duration,
-                                            eta_step=eta_step,
-                                            eta_min=eta_min,
-                                            eta_max=eta_max,
-                                            delta_2theta=delta_2theta)
+                self.reduce_sub_run_texture(
+                    workspace,
+                    sub_run,
+                    det_pos_shift,
+                    mask_vec_tuple=(mask_id, mask_vec),
+                    min_2theta=min_2theta,
+                    max_2theta=max_2theta,
+                    num_bins=num_bins,
+                    sub_run_duration=duration_i,
+                    vanadium_counts=vanadium_counts,
+                    van_duration=van_duration,
+                    eta_step=eta_step,
+                    eta_min=eta_min,
+                    eta_max=eta_max,
+                    delta_2theta=delta_2theta,
+                )
 
     def setup_reduction_engine(self, workspace, sub_run, geometry_calibration):
         """Setup reduction engine to reduce data (workspace or vector) to 2-theta ~ I
@@ -419,10 +442,20 @@ class HB2BReductionManager:
         return reduction_engine
 
     # NOTE: Refer to compare_reduction_engines_tst
-    def reduce_sub_run_diffraction(self, workspace, sub_run, geometry_calibration,
-                                   mask_vec_tuple, min_2theta=None, max_2theta=None, num_bins=1000,
-                                   sub_run_duration=None, vanadium_counts=None, van_duration=None,
-                                   delta_2theta=None):
+    def reduce_sub_run_diffraction(
+        self,
+        workspace,
+        sub_run,
+        geometry_calibration,
+        mask_vec_tuple,
+        min_2theta=None,
+        max_2theta=None,
+        num_bins=1000,
+        sub_run_duration=None,
+        vanadium_counts=None,
+        van_duration=None,
+        delta_2theta=None,
+    ):
         """Reduce import data (workspace or vector) to 2-theta ~ I
 
         The binning of 2theta is linear in range (min, max) with given resolution
@@ -470,10 +503,9 @@ class HB2BReductionManager:
         mask_id, mask_vec = mask_vec_tuple
 
         # Histogram
-        bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine,
-                                                                          (min_2theta, max_2theta),
-                                                                          num_bins, delta_2theta, mask_vec,
-                                                                          vanadium_counts)
+        bin_centers, hist, variances = self.convert_counts_to_diffraction(
+            reduction_engine, (min_2theta, max_2theta), num_bins, delta_2theta, mask_vec, vanadium_counts
+        )
 
         # record
         workspace.set_reduced_diffraction_data(sub_run, mask_id, bin_centers, hist, variances)
@@ -505,21 +537,33 @@ class HB2BReductionManager:
         else:
             eta_roi_start = eta_min
 
-        Upper = np.arange(eta_roi_start, eta_max - eta_step / 2., eta_step)
+        Upper = np.arange(eta_roi_start, eta_max - eta_step / 2.0, eta_step)
 
         if eta_min < 0:
-            Lower = np.arange(-1 * eta_step, eta_min + eta_step / 2., -1 * eta_step)
+            Lower = np.arange(-1 * eta_step, eta_min + eta_step / 2.0, -1 * eta_step)
         else:
             Lower = np.array([])
 
         return np.concatenate((Upper, Lower))
 
     # NOTE: Refer to compare_reduction_engines_tst
-    def reduce_sub_run_texture(self, workspace, sub_run, geometry_calibration,
-                               mask_vec_tuple, min_2theta=None, max_2theta=None, num_bins=1000,
-                               sub_run_duration=None, vanadium_counts=None, van_duration=None,
-                               eta_step=None, eta_min=None, eta_max=None, delta_2theta=None):
-
+    def reduce_sub_run_texture(
+        self,
+        workspace,
+        sub_run,
+        geometry_calibration,
+        mask_vec_tuple,
+        min_2theta=None,
+        max_2theta=None,
+        num_bins=1000,
+        sub_run_duration=None,
+        vanadium_counts=None,
+        van_duration=None,
+        eta_step=None,
+        eta_min=None,
+        eta_max=None,
+        delta_2theta=None,
+    ):
         """
         Reduce import data (workspace or vector) to 2-theta ~ I
 
@@ -578,33 +622,33 @@ class HB2BReductionManager:
         # Generate eta roi vector
         eta_roi_vec = self.generate_eta_roi_vector(eta_step, eta_min, eta_max)
 
-        for eta_cent in eta_roi_vec:            # define mask to isolate narrow eta wedge
+        for eta_cent in eta_roi_vec:  # define mask to isolate narrow eta wedge
             # here a value of zero means do not use
             eta_mask = np.ones_like(eta_vec)
-            eta_mask[eta_vec > (eta_cent + eta_step / 2.)] = 0
-            eta_mask[eta_vec < (eta_cent - eta_step / 2.)] = 0
+            eta_mask[eta_vec > (eta_cent + eta_step / 2.0)] = 0
+            eta_mask[eta_vec < (eta_cent - eta_step / 2.0)] = 0
 
             if mask_vec is not None:
                 eta_mask[mask_vec] = 0
 
             # Histogram data
-            bin_centers, hist, variances = self.convert_counts_to_diffraction(reduction_engine,
-                                                                              (min_2theta, max_2theta),
-                                                                              num_bins, delta_2theta, eta_mask,
-                                                                              vanadium_counts)
+            bin_centers, hist, variances = self.convert_counts_to_diffraction(
+                reduction_engine, (min_2theta, max_2theta), num_bins, delta_2theta, eta_mask, vanadium_counts
+            )
 
             if mask_id is None:
-                eta_mask_id = 'eta_{}'.format(eta_cent)
+                eta_mask_id = "eta_{}".format(eta_cent)
             else:
-                eta_mask_id = '{}_eta_{}'.format(mask_id, eta_cent)
+                eta_mask_id = "{}_eta_{}".format(mask_id, eta_cent)
 
             # record
             workspace.set_reduced_diffraction_data(sub_run, eta_mask_id, bin_centers, hist, variances)
 
         self._last_reduction_engine = reduction_engine
 
-    def convert_counts_to_diffraction(self, reduction_engine,
-                                      two_theta_range, num_bins, delta_2theta, mask_array, vanadium_array):
+    def convert_counts_to_diffraction(
+        self, reduction_engine, two_theta_range, num_bins, delta_2theta, mask_array, vanadium_array
+    ):
         """Histogram detector counts for a defined 2theta range
 
         :param object reduction_engine: object containing information about the instrument geometry
@@ -629,14 +673,14 @@ class HB2BReductionManager:
         # Get the 2theta values for all pixels
         pixel_2theta_array = reduction_engine.instrument.get_pixels_2theta(1)
 
-        bin_boundaries_2theta = self.generate_2theta_histogram_vector(min_2theta, max_2theta, num_bins,
-                                                                      pixel_2theta_array, mask_array, delta_2theta)
+        bin_boundaries_2theta = self.generate_2theta_histogram_vector(
+            min_2theta, max_2theta, num_bins, pixel_2theta_array, mask_array, delta_2theta
+        )
 
         # Histogram
-        data_set = reduction_engine.reduce_to_2theta_histogram(bin_boundaries_2theta,
-                                                               mask_array=mask_array,
-                                                               is_point_data=True,
-                                                               vanadium_counts_array=vanadium_array)
+        data_set = reduction_engine.reduce_to_2theta_histogram(
+            bin_boundaries_2theta, mask_array=mask_array, is_point_data=True, vanadium_counts_array=vanadium_array
+        )
         bin_centers = data_set[0]
         hist = data_set[1]
         variances = data_set[2]
@@ -644,10 +688,14 @@ class HB2BReductionManager:
         return bin_centers, hist, variances
 
     @staticmethod
-    def generate_2theta_histogram_vector(min_2theta: Optional[float], max_2theta: Optional[float],
-                                         num_bins: int,
-                                         pixel_2theta_array, mask_array,
-                                         step_2theta=None):
+    def generate_2theta_histogram_vector(
+        min_2theta: Optional[float],
+        max_2theta: Optional[float],
+        num_bins: int,
+        pixel_2theta_array,
+        mask_array,
+        step_2theta=None,
+    ):
         """Generate a 1-D array for histogram 2theta bins
 
         :param min_2theta: minimum 2theta to use for generating vector
@@ -666,10 +714,11 @@ class HB2BReductionManager:
         if min_2theta is None or max_2theta is None:
             # check inputs
             if mask_array is None:
-                checkdatatypes.check_numpy_arrays('Pixel 2theta angles', [pixel_2theta_array], 1, False)
+                checkdatatypes.check_numpy_arrays("Pixel 2theta angles", [pixel_2theta_array], 1, False)
             else:
-                checkdatatypes.check_numpy_arrays('Pixel 2theta position and mask array',
-                                                  [pixel_2theta_array, mask_array], 1, True)
+                checkdatatypes.check_numpy_arrays(
+                    "Pixel 2theta position and mask array", [pixel_2theta_array, mask_array], 1, True
+                )
                 # mask
                 pixel_2theta_array = pixel_2theta_array[np.where(mask_array == 1)]
 
@@ -681,30 +730,35 @@ class HB2BReductionManager:
                 max_2theta = np.max(pixel_2theta_array)
 
         if step_2theta is None:
-            step_2theta = (max_2theta - min_2theta) * 1. / num_bins
+            step_2theta = (max_2theta - min_2theta) * 1.0 / num_bins
         else:
             num_bins = np.ceil((max_2theta - min_2theta) / step_2theta) + 1
 
         # Check inputs
-        min_2theta = to_float('Minimum 2theta', min_2theta, 0.0, 140)
-        max_2theta = to_float('Maximum 2theta', max_2theta, 0.5, 180)
-        step_2theta = to_float('2theta bin size', step_2theta, 0, 180)
+        min_2theta = to_float("Minimum 2theta", min_2theta, 0.0, 140)
+        max_2theta = to_float("Maximum 2theta", max_2theta, 0.5, 180)
+        step_2theta = to_float("2theta bin size", step_2theta, 0, 180)
         if min_2theta >= max_2theta:
-            raise RuntimeError('2theta range ({}, {}) is invalid for generating histogram'
-                               ''.format(min_2theta, max_2theta))
+            raise RuntimeError(
+                "2theta range ({}, {}) is invalid for generating histogram".format(min_2theta, max_2theta)
+            )
 
         # Create 2theta: these are bin edges from (min - 1/2) to (max + 1/2) with num_bins bins
         # and (num_bins + 1) data points
         vec_2theta = np.arange(num_bins + 1).astype(float) * step_2theta + (min_2theta - step_2theta)
         if vec_2theta.shape[0] != num_bins + 1:
-            raise RuntimeError('Expected = {} vs {}\n2theta min max  = {}, {}\n2thetas: {}'
-                               ''.format(num_bins, vec_2theta.shape, min_2theta, max_2theta,
-                                         vec_2theta))
+            raise RuntimeError(
+                "Expected = {} vs {}\n2theta min max  = {}, {}\n2thetas: {}".format(
+                    num_bins, vec_2theta.shape, min_2theta, max_2theta, vec_2theta
+                )
+            )
 
         # Sanity check
-        assert vec_2theta.shape[0] == num_bins + 1, '2theta bins (boundary)\'size ({}) shall be exactly ' \
-                                                    '1 larger than specified num_bins ({})' \
-                                                    ''.format(vec_2theta.shape, num_bins)
+        assert vec_2theta.shape[0] == num_bins + 1, (
+            "2theta bins (boundary)'size ({}) shall be exactly 1 larger than specified num_bins ({})".format(
+                vec_2theta.shape, num_bins
+            )
+        )
 
         return vec_2theta
 
@@ -715,7 +769,7 @@ class HB2BReductionManager:
         :param str output_name: output filename
         :return:
         """
-        checkdatatypes.check_file_name(output_name, False, True, False, 'Output reduced file')
+        checkdatatypes.check_file_name(output_name, False, True, False, "Output reduced file")
 
         workspace = self._session_dict[session_name]
 

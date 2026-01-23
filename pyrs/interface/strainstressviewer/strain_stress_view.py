@@ -61,15 +61,13 @@ class FileLoad(QWidget):
         self.setLayout(layout)
 
     def openFileDialog(self):
-        fileNames, _ = QFileDialog.getOpenFileNames(self,
-                                                    self.name,
-                                                    "",
-                                                    self.fileType,
-                                                    options=QFileDialog.DontUseNativeDialog)
+        fileNames, _ = QFileDialog.getOpenFileNames(
+            self, self.name, "", self.fileType, options=QFileDialog.DontUseNativeDialog
+        )
         if fileNames:
             success = self.parent.controller.filesSelected(self.name, fileNames)
             if success:
-                self.lineEdit.setText(', '.join(os.path.basename(filename) for filename in fileNames))
+                self.lineEdit.setText(", ".join(os.path.basename(filename) for filename in fileNames))
             else:
                 self.lineEdit.setText(None)
             self.parent.update_plot()
@@ -114,8 +112,7 @@ class StressCase(QGroupBox):
         self.switch.dimChanged.connect(self.set_2D)
         layout.addWidget(self.switch)
         self.combo = QComboBox()
-        self.combo.addItems(["In-plane stress",
-                             "In-plane strain"])
+        self.combo.addItems(["In-plane stress", "In-plane strain"])
         self.combo.currentTextChanged.connect(self.stress_case_changed)
         layout.addWidget(self.combo)
         self.setLayout(layout)
@@ -201,7 +198,7 @@ class D0(QGroupBox):
         self.d0_grid.setColumnWidth(3, 60)
         self.d0_grid.verticalHeader().setVisible(False)
         self.d0_grid.horizontalHeader().setStretchLastSection(True)
-        self.d0_grid.setHorizontalHeaderLabels(['vx', 'vy', 'vz', "d₀", "Δd₀"])
+        self.d0_grid.setHorizontalHeaderLabels(["vx", "vy", "vz", "d₀", "Δd₀"])
         spinBoxDelegate = SpinBoxDelegate()
         self.d0_grid.setItemDelegateForColumn(3, spinBoxDelegate)
         self.d0_grid.setItemDelegateForColumn(4, spinBoxDelegate)
@@ -209,7 +206,7 @@ class D0(QGroupBox):
 
         self.setLayout(layout)
 
-        self.set_case('Constant')
+        self.set_case("Constant")
 
     def set_case(self, case):
         if case == "Constant":
@@ -242,11 +239,11 @@ class D0(QGroupBox):
             self.d0_grid.setRowCount(len(x))
 
             for n in range(len(x)):
-                x_item = QTableWidgetItem(f'{x[n]: 7.2f}')
+                x_item = QTableWidgetItem(f"{x[n]: 7.2f}")
                 x_item.setFlags(x_item.flags() ^ Qt.ItemIsEditable)
-                y_item = QTableWidgetItem(f'{y[n]: 7.2f}')
+                y_item = QTableWidgetItem(f"{y[n]: 7.2f}")
                 y_item.setFlags(y_item.flags() ^ Qt.ItemIsEditable)
-                z_item = QTableWidgetItem(f'{z[n]: 7.2f}')
+                z_item = QTableWidgetItem(f"{z[n]: 7.2f}")
                 z_item.setFlags(z_item.flags() ^ Qt.ItemIsEditable)
                 d0_item = QTableWidgetItem()
                 d0_item.setData(Qt.EditRole, float(d0[n]))
@@ -270,43 +267,50 @@ class D0(QGroupBox):
             return (d0, d0e, x, y, z)
 
     def save_d0_field(self):
-        filename, _ = QFileDialog.getSaveFileName(self,
-                                                  "Save d0 Grid",
-                                                  "",
-                                                  "CSV (*.csv);;All Files (*)")
+        filename, _ = QFileDialog.getSaveFileName(self, "Save d0 Grid", "", "CSV (*.csv);;All Files (*)")
         if filename:
             d0, d0e, x, y, z = self.get_d0_field()
-            np.savetxt(filename, np.array([x, y, z, d0, d0e]).T,
-                       fmt=['%.4g', '%.4g', '%.4g', '%.9g', '%.9g'],
-                       header="vx, vy, vz, d0, d0_error",
-                       delimiter=',')
+            np.savetxt(
+                filename,
+                np.array([x, y, z, d0, d0e]).T,
+                fmt=["%.4g", "%.4g", "%.4g", "%.9g", "%.9g"],
+                header="vx, vy, vz, d0, d0_error",
+                delimiter=",",
+            )
 
     def load_d0_field(self):
-        filename, _ = QFileDialog.getOpenFileName(self,
-                                                  "Load d0 Grid",
-                                                  "",
-                                                  "CSV (*.csv);;All Files (*)")
+        filename, _ = QFileDialog.getOpenFileName(self, "Load d0 Grid", "", "CSV (*.csv);;All Files (*)")
         if filename:
-            x, y, z, d0, d0e = np.loadtxt(filename, delimiter=',', unpack=True)
-            valid, x_clean, y_clean, z_clean, d0_clean, d0e_clean = self._parent.controller \
-                .validate_d0_grid_data(x, y, z, d0, d0e, float(self.d0.text()), float(self.d0e.text()))
+            x, y, z, d0, d0e = np.loadtxt(filename, delimiter=",", unpack=True)
+            valid, x_clean, y_clean, z_clean, d0_clean, d0e_clean = self._parent.controller.validate_d0_grid_data(
+                x, y, z, d0, d0e, float(self.d0.text()), float(self.d0e.text())
+            )
 
-            if (valid == 1):
+            if valid == 1:
                 # all or excesss d0 grid coords
                 self.set_d0_field(x_clean, y_clean, z_clean, d0_clean, d0e_clean)
-            elif (valid == -1):
+            elif valid == -1:
                 # no matching d0 grid coords
-                QMessageBox.information(self, 'Validation', "Grid was not loaded.\nNone of the coordinates in your \
+                QMessageBox.information(
+                    self,
+                    "Validation",
+                    "Grid was not loaded.\nNone of the coordinates in your \
                                         experimental data exist in the d0 grid provided. Choose a different d0 grid.",
-                                        QMessageBox.Ok | QMessageBox.Ok)
+                    QMessageBox.Ok | QMessageBox.Ok,
+                )
 
             else:
                 # some matching d0 grid coords
-                valid = QMessageBox.question(self, 'Validation', "Some of your coordinates in your experimental \
+                valid = QMessageBox.question(
+                    self,
+                    "Validation",
+                    "Some of your coordinates in your experimental \
                                              data do not exist in the d0 grid provided - do you wish to continue?",
-                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No,
+                )
 
-                if (valid == QMessageBox.Yes):
+                if valid == QMessageBox.Yes:
                     self.set_d0_field(x_clean, y_clean, z_clean, d0_clean, d0e_clean)
 
     def get_d0(self):
@@ -371,10 +375,9 @@ class StrainSliceViewer(SliceViewer):
         # Add aspect ratio button, use used nonOrthogonalClicked
         # signal, easier than creating a new one
         self.view.data_view.mpl_toolbar.nonOrthogonalClicked.disconnect()
-        self.view.data_view.mpl_toolbar.addAction(get_icon('mdi.aspect-ratio'),
-                                                  'aspect',
-                                                  self.view.data_view.mpl_toolbar.nonOrthogonalClicked).setToolTip(
-                                                      'Toggle aspect ratio')
+        self.view.data_view.mpl_toolbar.addAction(
+            get_icon("mdi.aspect-ratio"), "aspect", self.view.data_view.mpl_toolbar.nonOrthogonalClicked
+        ).setToolTip("Toggle aspect ratio")
         self.view.data_view.mpl_toolbar.nonOrthogonalClicked.connect(self.toggle_aspect)
 
         self.view.data_view.mpl_toolbar.peaksOverlayClicked.disconnect()
@@ -383,10 +386,11 @@ class StrainSliceViewer(SliceViewer):
     def new_plot_MDH(self, dimensions_transposing=False, dimensions_changing=False):
         """redefine this function so we can change the default plot interpolation"""
         if self.view is None:
-            print('view is none')
+            print("view is none")
         else:
-            self.view.data_view.plot_MDH(self.model.get_ws(), slicepoint=self.get_slicepoint(),
-                                         interpolation='bilinear')
+            self.view.data_view.plot_MDH(
+                self.model.get_ws(), slicepoint=self.get_slicepoint(), interpolation="bilinear"
+            )
             if self.overlay_visible:
                 self.update_overlay()
             if self.aspect_equal:
@@ -418,7 +422,7 @@ class StrainSliceViewer(SliceViewer):
         xy = []
         for n, (point, values) in enumerate(zip(slicepoint, (x, y, z))):
             if point is not None:
-                mask = np.isclose(values, point, atol=self.bin_widths[n]/2)
+                mask = np.isclose(values, point, atol=self.bin_widths[n] / 2)
             else:
                 xy.append(values)
 
@@ -428,7 +432,7 @@ class StrainSliceViewer(SliceViewer):
         if self.view.data_view.dimensions.transpose:
             X, Y = Y, X
 
-        self.scatter = self.view.data_view.canvas.figure.axes[0].scatter(X, Y, c='black')
+        self.scatter = self.view.data_view.canvas.figure.axes[0].scatter(X, Y, c="black")
         self.view.data_view.canvas.draw_idle()
 
     def set_new_field(self, field, bin_widths):
@@ -445,9 +449,9 @@ class StrainSliceViewer(SliceViewer):
 
     def update_aspect(self):
         if self.aspect_equal:
-            self.view.data_view.ax.set_aspect('equal')
+            self.view.data_view.ax.set_aspect("equal")
         else:
-            self.view.data_view.ax.set_aspect('auto')
+            self.view.data_view.ax.set_aspect("auto")
         self.view.data_view.canvas.draw_idle()
 
 
@@ -457,21 +461,13 @@ class PlotSelect(QGroupBox):
         layout = QFormLayout()
         layout.setFieldGrowthPolicy(0)
         self.plot_param = QComboBox()
-        self.plot_param.addItems(["dspacing-center",
-                                  "d-reference",
-                                  "Center",
-                                  "Height",
-                                  "FWHM",
-                                  "Mixing",
-                                  "Intensity",
-                                  "strain",
-                                  "stress"])
-        self.plot_param.setCurrentIndex(self.plot_param.findText('strain'))
+        self.plot_param.addItems(
+            ["dspacing-center", "d-reference", "Center", "Height", "FWHM", "Mixing", "Intensity", "strain", "stress"]
+        )
+        self.plot_param.setCurrentIndex(self.plot_param.findText("strain"))
         layout.addRow(QLabel("Plot"), self.plot_param)
         self.measure_dir = QComboBox()
-        self.measure_dir.addItems(["11",
-                                   "22",
-                                   "33"])
+        self.measure_dir.addItems(["11", "22", "33"])
         layout.addRow(QLabel("Measurement Direction "), self.measure_dir)
         self.setLayout(layout)
 
@@ -524,10 +520,12 @@ class CSVExport(QGroupBox):
 
     def save_CSV(self):
         self._parent.calculate_stress()
-        filename, _ = QFileDialog.getSaveFileName(self,
-                                                  "Export Grid Information",
-                                                  self._parent.model.get_default_csv_filename(),
-                                                  "CSV (*.csv);;All Files (*)")
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Grid Information",
+            self._parent.model.get_default_csv_filename(),
+            "CSV (*.csv);;All Files (*)",
+        )
         if not filename:
             return
         self._parent.controller.write_stress_to_csv(filename, self.detailed.isChecked())
@@ -566,15 +564,17 @@ class VizTabs(QTabWidget):
 
         self.setCornerWidget(QLabel("Visualization Pane    "), corner=Qt.TopLeftCorner)
 
-        self.plot_limits = {"dspacing-center": None,
-                            "d-reference": None,
-                            "Center": None,
-                            "Height": None,
-                            "FWHM": None,
-                            "Mixing": None,
-                            "Intensity": None,
-                            "strain": None,
-                            "stress": None}
+        self.plot_limits = {
+            "dspacing-center": None,
+            "d-reference": None,
+            "Center": None,
+            "Height": None,
+            "FWHM": None,
+            "Mixing": None,
+            "Intensity": None,
+            "strain": None,
+            "stress": None,
+        }
 
         self._param_name = None
 
@@ -588,9 +588,7 @@ class VizTabs(QTabWidget):
             try:
                 ws = field.to_md_histo_workspace()
             except Exception as e:
-                self._parent.show_failure_msg("Failed to generate field",
-                                              str(e),
-                                              traceback.format_exc())
+                self._parent.show_failure_msg("Failed to generate field", str(e), traceback.format_exc())
                 ws = None
                 self._param_name = None
         else:
@@ -607,15 +605,15 @@ class VizTabs(QTabWidget):
                 self.oneDViewer = FigureCanvas(fig)
 
                 # get scan direction
-                for d in ('x', 'y', 'z'):
+                for d in ("x", "y", "z"):
                     dim = getattr(field, d)
                     if not np.allclose(dim, dim[0], atol=0.1):
                         scan_dir = d
 
                 # create simple 1D plot
                 ax = fig.add_subplot(111)
-                ax.errorbar(getattr(field, scan_dir), field.values, field.errors, marker='o')
-                ax.set_xlabel(f'{scan_dir} (mm)')
+                ax.errorbar(getattr(field, scan_dir), field.values, field.errors, marker="o")
+                ax.set_xlabel(f"{scan_dir} (mm)")
 
                 self.plot_1d.addWidget(self.oneDViewer)
                 self.plot_1d.setCurrentIndex(1)
@@ -625,14 +623,15 @@ class VizTabs(QTabWidget):
                     if self.strainSliceViewer.view:
                         self.strainSliceViewer.set_new_workspace(ws)
                     else:
-                        print('View needs redefined')
+                        print("View needs redefined")
                         self.setup_view(ws)
 
                 else:
                     self.setup_view(ws)
 
-                self.strainSliceViewer.set_new_field(field,
-                                                     bin_widths=[ws.getDimension(n).getBinWidth() for n in range(3)])
+                self.strainSliceViewer.set_new_field(
+                    field, bin_widths=[ws.getDimension(n).getBinWidth() for n in range(3)]
+                )
 
                 self.update_color_limits(field)
 
@@ -658,7 +657,7 @@ class VizTabs(QTabWidget):
                 self.vtk3dviewer = None
 
     def setup_view(self, ws):
-        print('define strainSliceViewer')
+        print("define strainSliceViewer")
         self.strainSliceViewer = StrainSliceViewer(ws, parent=self)
         self.strainSliceViewer.view.data_view.colorbar.cmax.returnPressed.connect(self.update_clim)
         self.strainSliceViewer.view.data_view.colorbar.cmin.returnPressed.connect(self.update_clim)
@@ -671,8 +670,10 @@ class VizTabs(QTabWidget):
         self.message2.setText(text)
 
     def update_clim(self):
-        self.plot_limits[self._param_name] = [float(self.strainSliceViewer.view.data_view.colorbar.cmin.text()),
-                                              float(self.strainSliceViewer.view.data_view.colorbar.cmax.text())]
+        self.plot_limits[self._param_name] = [
+            float(self.strainSliceViewer.view.data_view.colorbar.cmin.text()),
+            float(self.strainSliceViewer.view.data_view.colorbar.cmax.text()),
+        ]
 
         self.update_color_limits(None)
 
@@ -685,8 +686,7 @@ class VizTabs(QTabWidget):
 
             self.strainSliceViewer.view.data_view.colorbar.cmin.setText(f"{cmin:.4f}")
             self.strainSliceViewer.view.data_view.colorbar.cmax.setText(f"{cmax:.4f}")
-            self.strainSliceViewer.view.data_view.colorbar.colorbar.mappable.set_clim(vmin=cmin,
-                                                                                      vmax=cmax)
+            self.strainSliceViewer.view.data_view.colorbar.colorbar.mappable.set_clim(vmin=cmin, vmax=cmax)
 
             self.strainSliceViewer.view.data_view.update_data_clim()
 
@@ -792,21 +792,21 @@ class StrainStressViewer(QMainWindow):
         self.setWindowTitle("PyRS Strain-Stress Viewer")
 
         mainMenu = self.menuBar()
-        fileMenu = mainMenu.addMenu('File')
-        self.saveAction = QAction('&Save state', self)
-        self.saveAction.setShortcut('Ctrl+S')
-        self.saveAction.setStatusTip('Save application state')
+        fileMenu = mainMenu.addMenu("File")
+        self.saveAction = QAction("&Save state", self)
+        self.saveAction.setShortcut("Ctrl+S")
+        self.saveAction.setStatusTip("Save application state")
         self.saveAction.triggered.connect(self.save)
         self.saveAction.setEnabled(False)
         fileMenu.addAction(self.saveAction)
-        self.loadAction = QAction('&Load state', self)
-        self.loadAction.setStatusTip('Load application state')
+        self.loadAction = QAction("&Load state", self)
+        self.loadAction.setStatusTip("Load application state")
         self.loadAction.triggered.connect(self.load)
         fileMenu.addAction(self.loadAction)
         fileMenu.addSeparator()
-        exitAction = QAction('&Exit', self)
-        exitAction.setShortcut('Ctrl+Q')
-        exitAction.setStatusTip('Exit application')
+        exitAction = QAction("&Exit", self)
+        exitAction.setShortcut("Ctrl+Q")
+        exitAction.setStatusTip("Exit application")
         exitAction.triggered.connect(self.close)
         fileMenu.addAction(exitAction)
 
@@ -878,34 +878,49 @@ class StrainStressViewer(QMainWindow):
         self.update_plot()
 
     def update_plot(self):
-        if self.plot_select.get_plot_param() == 'stress' or (self.plot_select.get_plot_param() == 'strain' and
-                                                             self.plot_select.get_direction() == "33" and
-                                                             self.stressCase.get_stress_case() == "In-plane stress"):
-            validated = self.controller.validate_stress_selection(self.stressCase.get_stress_case(),
-                                                                  self.mechanicalConstants.youngModulus.text(),
-                                                                  self.mechanicalConstants.poissonsRatio.text())
+        if self.plot_select.get_plot_param() == "stress" or (
+            self.plot_select.get_plot_param() == "strain"
+            and self.plot_select.get_direction() == "33"
+            and self.stressCase.get_stress_case() == "In-plane stress"
+        ):
+            validated = self.controller.validate_stress_selection(
+                self.stressCase.get_stress_case(),
+                self.mechanicalConstants.youngModulus.text(),
+                self.mechanicalConstants.poissonsRatio.text(),
+            )
         else:
-            validated = self.controller.validate_selection(self.plot_select.get_direction(),
-                                                           self.stressCase.get_stress_case() != 'diagonal')
+            validated = self.controller.validate_selection(
+                self.plot_select.get_direction(), self.stressCase.get_stress_case() != "diagonal"
+            )
 
         if validated is None:
-            if self.plot_select.get_plot_param() == 'stress' or (self.plot_select.get_plot_param() == 'strain' and
-                                                                 self.plot_select.get_direction() == "33" and
-                                                                 self.stressCase.get_stress_case()
-                                                                 == "In-plane stress"):
+            if self.plot_select.get_plot_param() == "stress" or (
+                self.plot_select.get_plot_param() == "strain"
+                and self.plot_select.get_direction() == "33"
+                and self.stressCase.get_stress_case() == "In-plane stress"
+            ):
                 self.calculate_stress()
 
-            self.viz_tab.set_ws(self.model.get_field(direction=self.plot_select.get_direction(),
-                                                     plot_param=self.plot_select.get_plot_param(),
-                                                     stress_case=self.stressCase.get_stress_case()),
-                                self.plot_select.get_plot_param())
+            self.viz_tab.set_ws(
+                self.model.get_field(
+                    direction=self.plot_select.get_direction(),
+                    plot_param=self.plot_select.get_plot_param(),
+                    stress_case=self.stressCase.get_stress_case(),
+                ),
+                self.plot_select.get_plot_param(),
+            )
         else:
             self.viz_tab.set_ws(None, None)
             self.viz_tab.set_message(validated)
 
-        if self.controller.validate_stress_selection(self.stressCase.get_stress_case(),
-                                                     self.mechanicalConstants.youngModulus.text(),
-                                                     self.mechanicalConstants.poissonsRatio.text()) is None:
+        if (
+            self.controller.validate_stress_selection(
+                self.stressCase.get_stress_case(),
+                self.mechanicalConstants.youngModulus.text(),
+                self.mechanicalConstants.poissonsRatio.text(),
+            )
+            is None
+        ):
             self.calculate_stress()
             self.enable_stress_output(True)
         else:
@@ -943,9 +958,9 @@ class StrainStressViewer(QMainWindow):
         self.fileLoading.file_load_e33.setDisabled(stressCase.lower() != "diagonal")
 
         for d in ("11", "22", "33"):
-            self.fileLoading.set_text_values(d,
-                                             ", ".join(os.path.basename(filename)
-                                                       for filename in self.model.get_filenames_for_direction(d)))
+            self.fileLoading.set_text_values(
+                d, ", ".join(os.path.basename(filename) for filename in self.model.get_filenames_for_direction(d))
+            )
         self.update_d0_from_model()
         self.update_plot()
 
@@ -959,10 +974,12 @@ class StrainStressViewer(QMainWindow):
         msgBox.exec()
 
     def calculate_stress(self):
-        self.controller.calculate_stress(self.stressCase.get_stress_case(),
-                                         self.mechanicalConstants.youngModulus.text(),
-                                         self.mechanicalConstants.poissonsRatio.text(),
-                                         self.d0.get_d0())
+        self.controller.calculate_stress(
+            self.stressCase.get_stress_case(),
+            self.mechanicalConstants.youngModulus.text(),
+            self.mechanicalConstants.poissonsRatio.text(),
+            self.d0.get_d0(),
+        )
         self.update_d0_from_model()
 
     def update_d0_from_model(self):
@@ -975,17 +992,11 @@ class StrainStressViewer(QMainWindow):
             self.d0.set_d0_field(d0.x, d0.y, d0.z, d0.values, d0.errors)
 
     def save(self):
-        filename, _ = QFileDialog.getSaveFileName(self,
-                                                  "Save Stress state",
-                                                  "",
-                                                  "JSON (*.json);;All Files (*)")
+        filename, _ = QFileDialog.getSaveFileName(self, "Save Stress state", "", "JSON (*.json);;All Files (*)")
         if filename:
             self.controller.save(filename)
 
     def load(self):
-        filename, _ = QFileDialog.getOpenFileName(self,
-                                                  "Load Stress state",
-                                                  "",
-                                                  "JSON (*.json);;All Files (*)")
+        filename, _ = QFileDialog.getOpenFileName(self, "Load Stress state", "", "JSON (*.json);;All Files (*)")
         if filename:
             self.controller.load(filename)

@@ -1,6 +1,7 @@
 import sys
 import vtk.qt
 from pyrs.core import pyrscore
+
 # https://stackoverflow.com/questions/51357630/vtk-rendering-not-working-as-expected-inside-pyqt
 vtk.qt.QVTKRWIBase = "QGLWidget"  # noqa: E402
 from qtpy.QtWidgets import QApplication  # type:ignore  # noqa: E402

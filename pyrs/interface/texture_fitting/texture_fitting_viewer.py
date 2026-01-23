@@ -21,7 +21,7 @@ import copy
 
 COLOR_FAILED_FITTING = QColor(247, 173, 13)  # orange
 SUCCESS = "success"
-MICROSTRAIN = u"\u00b5strain"
+MICROSTRAIN = "\u00b5strain"
 
 
 class FileLoad(QWidget):
@@ -60,11 +60,9 @@ class FileLoad(QWidget):
         self._parent.fit_summary.fit_table_operator.fit_result = None
 
     def openFileDialog(self):
-        self._parent._project_file, _ = QFileDialog.getOpenFileNames(self,
-                                                                     self.name,
-                                                                     "",
-                                                                     self.fileType,
-                                                                     options=QFileDialog.DontUseNativeDialog)
+        self._parent._project_file, _ = QFileDialog.getOpenFileNames(
+            self, self.name, "", self.fileType, options=QFileDialog.DontUseNativeDialog
+        )
 
         if self._parent._project_file:
             if type(self._parent._project_file) is list:
@@ -73,16 +71,15 @@ class FileLoad(QWidget):
             self.load_project_plot()
 
     def loadRunNumber(self):
-
         try:
-            project_dir = get_input_project_file(int(self.lineEdit.text()),
-                                                 preferredType=self._parent.fileLoading.run_location.currentText())
+            project_dir = get_input_project_file(
+                int(self.lineEdit.text()), preferredType=self._parent.fileLoading.run_location.currentText()
+            )
         except (FileNotFoundError, RuntimeError, ValueError) as run_err:
-            pop_message(self, f'Failed to find run {self.lineEdit.text()}',
-                        str(run_err), 'error')
+            pop_message(self, f"Failed to find run {self.lineEdit.text()}", str(run_err), "error")
             return
 
-        self._parent._project_file = os.path.join(project_dir, f'HB2B_{self.lineEdit.text()}.h5')
+        self._parent._project_file = os.path.join(project_dir, f"HB2B_{self.lineEdit.text()}.h5")
 
         self.load_project_plot()
 
@@ -172,22 +169,19 @@ class SetupViz(QWidget):
         layout.addWidget(self.scatter_bt, 0, 5)
 
         self.plot_paramX = QComboBox()
-        self.plot_paramX.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz",
-                                   "phi", "chi", "omega"])
+        self.plot_paramX.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz", "phi", "chi", "omega"])
         plot_labelX = QLabel("X-axis")
         plot_labelX.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         layout.addWidget(plot_labelX, 1, 0)
         layout.addWidget(self.plot_paramX, 1, 1)
         self.plot_paramY = QComboBox()
-        self.plot_paramY.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz",
-                                   "phi", "chi", "omega"])
+        self.plot_paramY.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz", "phi", "chi", "omega"])
         plot_labelY = QLabel("Y-axis")
         plot_labelY.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         layout.addWidget(plot_labelY, 1, 2)
         layout.addWidget(self.plot_paramY, 1, 3)
         self.plot_paramZ = QComboBox()
-        self.plot_paramZ.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz",
-                                   "phi", "chi", "omega"])
+        self.plot_paramZ.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz", "phi", "chi", "omega"])
         plot_labelZ = QLabel("Z-axis")
         plot_labelZ.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         layout.addWidget(plot_labelZ, 1, 4)
@@ -197,7 +191,7 @@ class SetupViz(QWidget):
         self.sub_runs_list = QLineEdit()
         self.sub_runs_list.setReadOnly(False)
         self.sub_runs_list.setFixedWidth(75)
-        example_label = QLabel('(ex: 1,2,3... or 3-5,8)')
+        example_label = QLabel("(ex: 1,2,3... or 3-5,8)")
         layout.addWidget(plot_label_sub, 2, 3)
         layout.addWidget(self.sub_runs_list, 2, 4)
         layout.addWidget(example_label, 2, 5)
@@ -232,15 +226,13 @@ class PlotSelect(QGroupBox):
         layout = QHBoxLayout()
         # layout.setFieldGrowthPolicy(0)
         self.plot_paramX = QComboBox()
-        self.plot_paramX.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz",
-                                   "phi", "chi", "omega"])
+        self.plot_paramX.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz", "phi", "chi", "omega"])
         plot_labelX = QLabel("X-axis")
         plot_labelX.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         layout.addWidget(plot_labelX)
         layout.addWidget(self.plot_paramX)
         self.plot_paramY = QComboBox()
-        self.plot_paramY.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz",
-                                   "phi", "chi", "omega"])
+        self.plot_paramY.addItems(["sub-runs", "vx", "vy", "vz", "sx", "sy", "sz", "phi", "chi", "omega"])
         plot_labelY = QLabel("Y-axis")
         plot_labelY.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         layout.addWidget(plot_labelY)
@@ -282,7 +274,7 @@ class PlotSelect(QGroupBox):
         if len(dict_keys) > 2:
             angles = []
             for key in list(dict_keys):
-                if '_var' not in key:
+                if "_var" not in key:
                     angles.append(key)
 
             self.out_of_plane.clear()
@@ -406,7 +398,7 @@ class FitSetupView(QGroupBox):
 
         self.fit_range_table = QTableWidget(self)
         self.fit_range_table.setColumnCount(4)
-        self.fit_range_table.setHorizontalHeaderLabels(['min 2theta', 'max 2theta', 'Peak Label',  'd0'])
+        self.fit_range_table.setHorizontalHeaderLabels(["min 2theta", "max 2theta", "Peak Label", "d0"])
         self.fit_range_table.resizeColumnsToContents()
 
         self.fit_range_table.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -426,7 +418,7 @@ class FitSetupView(QGroupBox):
         self.lineEdit = QLineEdit()
         self.lineEdit.setReadOnly(False)
         self.lineEdit.setFixedWidth(50)
-        example_label = QLabel('(ex: 1,2,3... or 3-5,8)')
+        example_label = QLabel("(ex: 1,2,3... or 3-5,8)")
         example_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
         self.sl = QSlider(Qt.Horizontal)
@@ -491,38 +483,40 @@ class FitSetupView(QGroupBox):
         self.setLayout(layout)
 
     def fill_peak_table(self, list_fit_peak_ranges, list_fit_peak_labels, list_fit_peak_d0):
-
         nbr_row = self.fit_range_table.rowCount()
         for _ in np.arange(nbr_row):
             self.fit_range_table.removeRow(0)
 
         for i_entry in range(len(list_fit_peak_ranges)):
             self.fit_range_table.insertRow(self.fit_range_table.rowCount())
-            self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 0,
-                                         QTableWidgetItem(str(list_fit_peak_ranges[i_entry][0])))
-            self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 1,
-                                         QTableWidgetItem(str(list_fit_peak_ranges[i_entry][1])))
-            self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 2,
-                                         QTableWidgetItem(str(list_fit_peak_labels[i_entry])))
-            self.fit_range_table.setItem(self.fit_range_table.rowCount() - 1, 3,
-                                         QTableWidgetItem(str(list_fit_peak_d0[i_entry])))
+            self.fit_range_table.setItem(
+                self.fit_range_table.rowCount() - 1, 0, QTableWidgetItem(str(list_fit_peak_ranges[i_entry][0]))
+            )
+            self.fit_range_table.setItem(
+                self.fit_range_table.rowCount() - 1, 1, QTableWidgetItem(str(list_fit_peak_ranges[i_entry][1]))
+            )
+            self.fit_range_table.setItem(
+                self.fit_range_table.rowCount() - 1, 2, QTableWidgetItem(str(list_fit_peak_labels[i_entry]))
+            )
+            self.fit_range_table.setItem(
+                self.fit_range_table.rowCount() - 1, 3, QTableWidgetItem(str(list_fit_peak_d0[i_entry]))
+            )
 
         return
 
     def save_peak_CSV(self):
-        output_folder = QFileDialog.getExistingDirectory(self,
-                                                         "Export Peak Information",
-                                                         options=QFileDialog.DontUseNativeDialog)
+        output_folder = QFileDialog.getExistingDirectory(
+            self, "Export Peak Information", options=QFileDialog.DontUseNativeDialog
+        )
         if not output_folder:
             return
 
         self._parent.controller.export_peak_data(output_folder)
 
     def save_pole_fig(self):
-
-        output_folder = QFileDialog.getExistingDirectory(self,
-                                                         "Export Experimental Polefigure Information",
-                                                         options=QFileDialog.DontUseNativeDialog)
+        output_folder = QFileDialog.getExistingDirectory(
+            self, "Export Experimental Polefigure Information", options=QFileDialog.DontUseNativeDialog
+        )
 
         if not output_folder:
             return
@@ -530,19 +524,23 @@ class FitSetupView(QGroupBox):
         self._parent.controller.export_polar_projection(output_folder, self.fit_range_table)
 
     def save_json(self):
-        filename, _ = QFileDialog.getSaveFileName(self,
-                                                  "Export Peak Fit Information",
-                                                  "JSON (*.json);;All Files (*)",
-                                                  options=QFileDialog.DontUseNativeDialog)
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Peak Fit Information",
+            "JSON (*.json);;All Files (*)",
+            options=QFileDialog.DontUseNativeDialog,
+        )
         if not filename:
             return
         self._parent.controller.save_fit_range(filename, self.fit_range_table)
 
     def load_json(self):
-        filename, _ = QFileDialog.getOpenFileName(self,
-                                                  "Export Peak Fit Information",
-                                                  "JSON (*.json);;All Files (*)",
-                                                  options=QFileDialog.DontUseNativeDialog)
+        filename, _ = QFileDialog.getOpenFileName(
+            self,
+            "Export Peak Fit Information",
+            "JSON (*.json);;All Files (*)",
+            options=QFileDialog.DontUseNativeDialog,
+        )
         if not filename:
             return
 
@@ -568,9 +566,9 @@ class FitSetupView(QGroupBox):
         plot_selct_params = []
         plot_3d_params = []
         for _param in self._parent.fit_summary.fit_table_operator.clean_param_names:
-            if (self._parent.plot_select.plot_paramY.findData(_param) == -1):
+            if self._parent.plot_select.plot_paramY.findData(_param) == -1:
                 plot_selct_params.append(_param)
-            if (self._parent.VizSetup.plot_paramZ.findData(_param) == -1):
+            if self._parent.VizSetup.plot_paramZ.findData(_param) == -1:
                 plot_3d_params.append(_param)
 
         self._parent.plot_select.plot_paramY.addItems(plot_selct_params)
@@ -582,10 +580,9 @@ class FitSetupView(QGroupBox):
         self._parent.VizSetup.plot_paramZ.addItems(plot_3d_params)
 
     def fit(self):
-
-        fit_results = self._parent.controller.fit_peaks(self.fit_range_table,
-                                                        self.peak_model.currentText(),
-                                                        self.peak_back.currentText())
+        fit_results = self._parent.controller.fit_peaks(
+            self.fit_range_table, self.peak_model.currentText(), self.peak_back.currentText()
+        )
 
         self._parent.fit_summary.fit_table_operator.set_fit_dict(fit_results)
         self._parent.fit_summary.fit_table_operator.initialize_fit_result_widgets()
@@ -622,9 +619,9 @@ class FitSummaryView(QGroupBox):
         self.oop_label.setVisible(False)
         self.out_of_plane.setVisible(False)
 
-        self.radioButton_fit_value = QRadioButton('Fit Param Values')
+        self.radioButton_fit_value = QRadioButton("Fit Param Values")
         self.radioButton_fit_value.setChecked(True)
-        self.radioButton_fit_error = QRadioButton('Fit Param Errors')
+        self.radioButton_fit_error = QRadioButton("Fit Param Errors")
         self.radioButton_fit_value.clicked.connect(self.btn_click)
         self.radioButton_fit_error.clicked.connect(self.btn_click)
 
@@ -660,7 +657,7 @@ class FitSummaryView(QGroupBox):
         if len(dict_keys) > 2:
             angles = []
             for key in list(dict_keys):
-                if '_var' not in key:
+                if "_var" not in key:
                     angles.append(key)
 
             self.out_of_plane.clear()
@@ -674,7 +671,6 @@ class FitSummaryView(QGroupBox):
 
 
 class FitTable:
-
     COL_SIZE = 100
     STATUS_COL_SIZE = 500  # last column
 
@@ -700,18 +696,17 @@ class FitTable:
 
     def populate_fit_result_table(self):
         _peak_selected = self._parent.spinBox_peak_index.value()
-        _peak_collection = self.fit_result.peakcollections[_peak_selected-1]  # peak 1 is at 0 index
+        _peak_collection = self.fit_result.peakcollections[_peak_selected - 1]  # peak 1 is at 0 index
 
         _value = self._get_value_to_display(peak_collection=_peak_collection)
         _chisq = _peak_collection.fitting_costs
         _status = _peak_collection.get_fit_status()
 
-        _d_spacing = self._get_d_spacing_to_display(peak_selected=_peak_selected,
-                                                    peak_collection=_peak_collection)
+        _d_spacing = self._get_d_spacing_to_display(peak_selected=_peak_selected, peak_collection=_peak_collection)
 
         _microstrain_mapping = self._get_microstrain_mapping_to_display(peak_collection=_peak_collection)
 
-        def set_item(value='', fitting_worked=True):
+        def set_item(value="", fitting_worked=True):
             _item = QTableWidgetItem(value)
             if not fitting_worked:
                 _item.setBackground(COLOR_FAILED_FITTING)
@@ -755,7 +750,9 @@ class FitTable:
             _global_col_index += 1
 
     def _get_d_spacing_to_display(self, peak_selected=1, peak_collection=None):
-        _d_reference = np.float32(str(self._parent._parent.fit_setup.fit_range_table.item(peak_selected-1, 3).text()))
+        _d_reference = np.float32(
+            str(self._parent._parent.fit_setup.fit_range_table.item(peak_selected - 1, 3).text())
+        )
 
         peak_collection.set_d_reference(values=_d_reference)
         values, error = peak_collection.get_dspacing_center()
@@ -765,7 +762,7 @@ class FitTable:
             return error
 
     def _get_microstrain_mapping_to_display(self, peak_collection=None):
-        values, error = peak_collection.get_strain(units='microstrain')
+        values, error = peak_collection.get_strain(units="microstrain")
         if self._parent.radioButton_fit_value.isChecked():
             return values
         else:
@@ -829,12 +826,12 @@ class FitTable:
         for _col_index, _col_value in enumerate(column_names):
             if (_col_index == 0) and (not plotting):
                 # _col_value = 'Sub-run #'
-                _col_value = 'Peak Center'
+                _col_value = "Peak Center"
             clean_column_names.append(_col_value)
 
         if self._parent.radioButton_fit_value.isChecked():
             # also add chisq
-            clean_column_names.append('chisq')
+            clean_column_names.append("chisq")
 
         # add d-spacing column
         clean_column_names.append("d spacing")
@@ -852,13 +849,12 @@ class FitTable:
 
     def select_first_row(self):
         _nbr_column = self.get_number_of_columns()
-        selection_first_row = QTableWidgetSelectionRange(0, 0, 0, _nbr_column-1)
+        selection_first_row = QTableWidgetSelectionRange(0, 0, 0, _nbr_column - 1)
         self._parent.tableView_fitSummary.setRangeSelected(selection_first_row, True)
 
 
 class TextureFittingViewer(QMainWindow):
     def __init__(self, fit_peak_model, fit_peak_ctrl, parent=None):
-
         self._model = fit_peak_model
         self._ctrl = fit_peak_ctrl
         self._project_file = None
@@ -868,29 +864,29 @@ class TextureFittingViewer(QMainWindow):
         self.setWindowTitle("PyRS Texture Fitting Window")
 
         mainMenu = self.menuBar()
-        fileMenu = mainMenu.addMenu('File')
-        self.saveAction = QAction('&Save', self)
-        self.saveAction.setShortcut('Ctrl+S')
-        self.saveAction.setStatusTip('Save project state')
+        fileMenu = mainMenu.addMenu("File")
+        self.saveAction = QAction("&Save", self)
+        self.saveAction.setShortcut("Ctrl+S")
+        self.saveAction.setStatusTip("Save project state")
         self.saveAction.triggered.connect(self.save)
         self.saveAction.setEnabled(False)
         fileMenu.addAction(self.saveAction)
 
-        self.saveAction = QAction('&Save as', self)
-        self.saveAction.setStatusTip('Save project state')
+        self.saveAction = QAction("&Save as", self)
+        self.saveAction.setStatusTip("Save project state")
         self.saveAction.triggered.connect(self.saveas)
         self.saveAction.setEnabled(False)
         fileMenu.addAction(self.saveAction)
 
-        self.loadAction = QAction('&Load state', self)
-        self.loadAction.setStatusTip('Load application state')
+        self.loadAction = QAction("&Load state", self)
+        self.loadAction.setStatusTip("Load application state")
         self.loadAction.triggered.connect(self.load)
         fileMenu.addAction(self.loadAction)
 
         fileMenu.addSeparator()
-        exitAction = QAction('&Exit', self)
-        exitAction.setShortcut('Ctrl+Q')
-        exitAction.setStatusTip('Exit application')
+        exitAction = QAction("&Exit", self)
+        exitAction.setShortcut("Ctrl+Q")
+        exitAction.setStatusTip("Exit application")
         exitAction.triggered.connect(self.close)
         fileMenu.addAction(exitAction)
 
@@ -985,23 +981,34 @@ class TextureFittingViewer(QMainWindow):
     def update_2D_param_summary(self):
         if self.model.ws is not None:
             if (self.plot_select.get_X != "") and (self.plot_select.get_Y != ""):
-                self._ctrl.plot_2D_params(self.param_window, self.plot_select.get_X, self.plot_select.get_Y,
-                                          self.plot_select.get_PeakNum, fit_object=self.fit_summary.fit_table_operator,
-                                          out_of_plane=self.plot_select.get_out_of_plan_angle)
+                self._ctrl.plot_2D_params(
+                    self.param_window,
+                    self.plot_select.get_X,
+                    self.plot_select.get_Y,
+                    self.plot_select.get_PeakNum,
+                    fit_object=self.fit_summary.fit_table_operator,
+                    out_of_plane=self.plot_select.get_out_of_plan_angle,
+                )
 
     def update_3D_param_summary(self):
         if self.model.ws is not None:
             if (self.VizSetup.get_X() != "") and (self.VizSetup.get_Y() != "") and (self.VizSetup.get_Z() != ""):
-                self._ctrl.plot_3D_params(self.compare_param_window, self.VizSetup,
-                                          self.VizSetup.get_X(), self.VizSetup.get_Y(), self.VizSetup.get_Z(),
-                                          self.plot_select.get_PeakNum,
-                                          fit_object=self.fit_summary.fit_table_operator,
-                                          out_of_plane=self.plot_select.get_out_of_plan_angle,
-                                          include_list=self.VizSetup.get_sub_run_list())
+                self._ctrl.plot_3D_params(
+                    self.compare_param_window,
+                    self.VizSetup,
+                    self.VizSetup.get_X(),
+                    self.VizSetup.get_Y(),
+                    self.VizSetup.get_Z(),
+                    self.plot_select.get_PeakNum,
+                    fit_object=self.fit_summary.fit_table_operator,
+                    out_of_plane=self.plot_select.get_out_of_plan_angle,
+                    include_list=self.VizSetup.get_sub_run_list(),
+                )
 
     def update_diffraction_data_plot(self):
-        self._ctrl.update_diffraction_view(self.fit_window, self.fit_summary,
-                                           self.model.sub_runs[self.fit_setup.sl.value()])
+        self._ctrl.update_diffraction_view(
+            self.fit_window, self.fit_summary, self.model.sub_runs[self.fit_setup.sl.value()]
+        )
 
     def sync_oop(self):
         self.fit_summary.out_of_plane.setCurrentIndex(self.plot_select.out_of_plane.currentIndex())
@@ -1026,29 +1033,27 @@ class TextureFittingViewer(QMainWindow):
         msgBox.exec()
 
     def update_peak_ranges_table(self, **kwargs):
-
         self.fit_setup.fit_range_table.blockSignals(True)
 
-        def __get_kwargs_value(key='', data_type='boolean'):
-            if data_type == 'boolean':
+        def __get_kwargs_value(key="", data_type="boolean"):
+            if data_type == "boolean":
                 _default = False
-            elif data_type == 'array':
+            elif data_type == "array":
                 _default = []
             return kwargs[key] if key in kwargs.keys() else _default
 
-        release = __get_kwargs_value('release', data_type='boolean')
+        release = __get_kwargs_value("release", data_type="boolean")
 
-        list_fit_peak_ranges = __get_kwargs_value('list_fit_peak_ranges',
-                                                  data_type='array')
-        list_fit_peak_labels = __get_kwargs_value('list_fit_peak_labels',
-                                                  data_type='array')
-        list_fit_peak_d0 = __get_kwargs_value('list_fit_peak_d0',
-                                              data_type='array')
+        list_fit_peak_ranges = __get_kwargs_value("list_fit_peak_ranges", data_type="array")
+        list_fit_peak_labels = __get_kwargs_value("list_fit_peak_labels", data_type="array")
+        list_fit_peak_d0 = __get_kwargs_value("list_fit_peak_d0", data_type="array")
 
         if release:
-            self.fit_setup.fill_peak_table(list_fit_peak_ranges=list_fit_peak_ranges,
-                                           list_fit_peak_labels=list_fit_peak_labels,
-                                           list_fit_peak_d0=list_fit_peak_d0)
+            self.fit_setup.fill_peak_table(
+                list_fit_peak_ranges=list_fit_peak_ranges,
+                list_fit_peak_labels=list_fit_peak_labels,
+                list_fit_peak_d0=list_fit_peak_d0,
+            )
 
         self.fit_setup.fit_range_table.blockSignals(False)
 
@@ -1057,21 +1062,14 @@ class TextureFittingViewer(QMainWindow):
 
     def save(self):
         if self._project_file is not None:
-            self.controller.save(self._project_file,
-                                 self._parent.fit_summary.fit_table_operator.fit_result)
+            self.controller.save(self._project_file, self._parent.fit_summary.fit_table_operator.fit_result)
 
     def saveas(self):
-        filename, _ = QFileDialog.getSaveFileName(self,
-                                                  "Save HidraWorkspace",
-                                                  "",
-                                                  "HDF5 (*.h5);;All Files (*)")
+        filename, _ = QFileDialog.getSaveFileName(self, "Save HidraWorkspace", "", "HDF5 (*.h5);;All Files (*)")
         if filename:
             self.controller.save(filename, self._parent.fit_summary.fit_table_operator.fit_result)
 
     def load(self):
-        filename, _ = QFileDialog.getOpenFileName(self,
-                                                  "Load Stress state",
-                                                  "",
-                                                  "JSON (*.json);;All Files (*)")
+        filename, _ = QFileDialog.getOpenFileName(self, "Load Stress state", "", "JSON (*.json);;All Files (*)")
         if filename:
             self.controller.load(filename)

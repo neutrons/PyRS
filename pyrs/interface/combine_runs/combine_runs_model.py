@@ -12,7 +12,7 @@ class CombineRunsModel(QObject):
         self._hidra_ws = None
 
     def combine_project_files(self, project_files):
-        self._hidra_ws = HidraWorkspace('Combined Project Files')
+        self._hidra_ws = HidraWorkspace("Combined Project Files")
         _project = HidraProjectFile(project_files[0])
         self._hidra_ws.load_hidra_project(_project, load_raw_counts=False, load_reduced_diffraction=True)
         _project.close()
@@ -23,9 +23,9 @@ class CombineRunsModel(QObject):
             _project.close()
 
     def export_project_files(self, fileout):
-        export_project = HidraProjectFile(fileout, 'w')
-        self._hidra_ws.save_experimental_data(export_project,
-                                              sub_runs=self._hidra_ws._sample_logs.subruns,
-                                              ignore_raw_counts=True)
+        export_project = HidraProjectFile(fileout, "w")
+        self._hidra_ws.save_experimental_data(
+            export_project, sub_runs=self._hidra_ws._sample_logs.subruns, ignore_raw_counts=True
+        )
         self._hidra_ws.save_reduced_diffraction_data(export_project)
         export_project.save()

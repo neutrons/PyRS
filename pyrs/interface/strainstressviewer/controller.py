@@ -15,13 +15,10 @@ class Controller:
             self._model.selectedPeak = name
 
     def calculate_stress(self, stress_case, youngModulus, poissonsRatio, d0):
-        self._model.calculate_stress(stress_case.replace(' ', '-'),
-                                     float(youngModulus),
-                                     float(poissonsRatio),
-                                     d0)
+        self._model.calculate_stress(stress_case.replace(" ", "-"), float(youngModulus), float(poissonsRatio), d0)
 
     def validate_selection(self, direction, twoD):
-        if twoD and direction == '33':
+        if twoD and direction == "33":
             return "Cannot plot peak parameter for unused 33 direction in 2D stress case"
 
         return self._model.validate_selection(direction)
@@ -29,12 +26,12 @@ class Controller:
     def validate_stress_selection(self, stress_case, youngModulus, poissonsRatio):
         errors = ""
 
-        directions = ('11', '22', '33') if stress_case == 'diagonal' else ('11', '22')
+        directions = ("11", "22", "33") if stress_case == "diagonal" else ("11", "22")
 
         for direction in directions:
             valid = self._model.validate_selection(direction)
             if valid:
-                errors += valid + '\n'
+                errors += valid + "\n"
 
         try:
             float(youngModulus)

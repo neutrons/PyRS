@@ -13,8 +13,7 @@ from qtpy.QtCore import Signal  # type:ignore
 
 
 class MplFitPlottingWidget(QWidget):
-    """ Specially implemented widget for showing data against fitted model along with residual (difference)
-    """
+    """Specially implemented widget for showing data against fitted model along with residual (difference)"""
 
     def __init__(self, parent):
         """
@@ -34,7 +33,7 @@ class MplFitPlottingWidget(QWidget):
         self._vBox.addWidget(self._myToolBar)
 
         # class variables
-        self._data_line_list = list()   # allow multiple
+        self._data_line_list = list()  # allow multiple
         self._model_line = None
         self._residual_line = None
 
@@ -54,9 +53,9 @@ class MplFitPlottingWidget(QWidget):
         self._left_line = None
         self._right_line = None
 
-        self._myCanvas.mpl_connect('button_press_event', self.button_clicked)
-        self._myCanvas.mpl_connect('button_release_event', self.button_released)
-        self._myCanvas.mpl_connect('motion_notify_event', self.mouse_moved)
+        self._myCanvas.mpl_connect("button_press_event", self.button_clicked)
+        self._myCanvas.mpl_connect("button_release_event", self.button_released)
+        self._myCanvas.mpl_connect("motion_notify_event", self.mouse_moved)
 
     def any_toolbar_button_clicked(self):
         if self._myToolBar.NAVIGATION_MODE_ZOOM == self._myToolBar._myMode:
@@ -68,17 +67,19 @@ class MplFitPlottingWidget(QWidget):
         return False
 
     def button_clicked(self, event):
-        if (self.any_toolbar_button_clicked()):
+        if self.any_toolbar_button_clicked():
             return
 
         self._button_pressed = True
         self._add_initial_point(x=event.xdata)
-        self.parent.update_peak_ranges_table(click=True,
-                                             list_fit_peak_labels=self.list_fit_peak_labels,
-                                             list_fit_peak_ranges=self.list_peak_ranges,
-                                             list_fit_peak_d0=self.list_fit_peak_d0,
-                                             list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
-                                             list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id)
+        self.parent.update_peak_ranges_table(
+            click=True,
+            list_fit_peak_labels=self.list_fit_peak_labels,
+            list_fit_peak_ranges=self.list_peak_ranges,
+            list_fit_peak_d0=self.list_fit_peak_d0,
+            list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
+            list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id,
+        )
 
     def button_released(self, event):
         if not self._button_pressed:
@@ -86,29 +87,32 @@ class MplFitPlottingWidget(QWidget):
 
         self._button_pressed = False
         self._validate_second_point(x=event.xdata)
-        self.parent.update_peak_ranges_table(release=True,
-                                             list_fit_peak_labels=self.list_fit_peak_labels,
-                                             list_fit_peak_ranges=self.list_peak_ranges,
-                                             list_fit_peak_d0=self.list_fit_peak_d0,
-                                             list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
-                                             list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id)
+        self.parent.update_peak_ranges_table(
+            release=True,
+            list_fit_peak_labels=self.list_fit_peak_labels,
+            list_fit_peak_ranges=self.list_peak_ranges,
+            list_fit_peak_d0=self.list_fit_peak_d0,
+            list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
+            list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id,
+        )
         self.parent.update_save_peak_range_widget()
 
     def mouse_moved(self, event):
         if self._button_pressed:
             self._change_second_point(x=event.xdata)
-        self.parent.update_peak_ranges_table(move=True,
-                                             list_fit_peak_labels=self.list_fit_peak_labels,
-                                             list_fit_peak_ranges=self.list_peak_ranges,
-                                             list_fit_peak_d0=self.list_fit_peak_d0,
-                                             list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
-                                             list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id)
+        self.parent.update_peak_ranges_table(
+            move=True,
+            list_fit_peak_labels=self.list_fit_peak_labels,
+            list_fit_peak_ranges=self.list_peak_ranges,
+            list_fit_peak_d0=self.list_fit_peak_d0,
+            list_fit_peak_ranges_matplotlib_id=self.list_peak_ranges_matplotlib_id,
+            list_fit_peak_labels_matplotlib_id=self.list_peak_labels_matplotlib_id,
+        )
 
     def _add_initial_point(self, x=np.nan):
-
         if not self.list_peak_ranges:
             self.list_peak_ranges = [[x, np.nan]]
-            self.list_fit_peak_labels = ['Peak0']
+            self.list_fit_peak_labels = ["Peak0"]
             self.list_fit_peak_d0 = [1]
             self._peak_label_index += 1
         else:
@@ -130,7 +134,6 @@ class MplFitPlottingWidget(QWidget):
         self.plot_data_with_fitting_ranges()
 
     def _validate_second_point(self, x=np.nan):
-
         _working_range = self.list_peak_ranges[self._working_with_range_index]
         if _working_range[0] == x:  # remove this range
             self.list_peak_ranges.remove([_working_range[0], np.nan])
@@ -188,7 +191,7 @@ class MplFitPlottingWidget(QWidget):
         return
 
     def evt_view_updated(self):
-        """ Handling the event when a 'draw()' is called from tool bar
+        """Handling the event when a 'draw()' is called from tool bar
         :return:
         """
         return
@@ -235,8 +238,8 @@ class MplFitPlottingWidget(QWidget):
         """
         return self._myCanvas.get_curr_x_range()
 
-    def plot_data(self, data_set, color=None, line_label='', peak_ranges=None):
-        """ plot experimental data
+    def plot_data(self, data_set, color=None, line_label="", peak_ranges=None):
+        """plot experimental data
         :param data_set:
         :param color:
         :param line_label:
@@ -250,12 +253,13 @@ class MplFitPlottingWidget(QWidget):
         self._line_label = line_label
         self._diff_data_set = data_set
 
-        data_line_id = self._myCanvas.add_plot_upper_axis(data_set, line_color=color, label=line_label,
-                                                          peak_ranges=peak_ranges)
+        data_line_id = self._myCanvas.add_plot_upper_axis(
+            data_set, line_color=color, label=line_label, peak_ranges=peak_ranges
+        )
 
         self._data_line_list.append(data_line_id)
 
-    def plot_diff_data(self, data_set, color=None, line_label=''):
+    def plot_diff_data(self, data_set, color=None, line_label=""):
         if color is None:
             color = self._get_next_color()
 
@@ -267,7 +271,6 @@ class MplFitPlottingWidget(QWidget):
         self._data_line_list.append(data_line_id)
 
     def plot_data_with_fitting_ranges(self):
-
         for _peak_label in self.list_peak_labels_matplotlib_id:
             _peak_label.remove()
 
@@ -282,7 +285,7 @@ class MplFitPlottingWidget(QWidget):
         x_max = data_set[0].max()
         yvec_min = data_set[1].min()
 
-        self._myCanvas.add_plot_upper_axis(data_set, line_color='black', label=line_label)
+        self._myCanvas.add_plot_upper_axis(data_set, line_color="black", label=line_label)
         self.list_peak_ranges_matplotlib_id = []
         self.list_peak_labels_matplotlib_id = []
         list_peak_labels = self.list_fit_peak_labels
@@ -291,13 +294,12 @@ class MplFitPlottingWidget(QWidget):
             x_right = np.nanmax(_range)
             x_left = np.nanmin(_range)
             if (x_right > x_min) and (x_left < x_max):
-                self._left_line = self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
-                self._right_line = self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
+                self._left_line = self._myCanvas._data_subplot.axvline(x_left, color="r", linestyle="--")
+                self._right_line = self._myCanvas._data_subplot.axvline(x_right, color="r", linestyle="--")
                 self.list_peak_ranges_matplotlib_id.append([self._left_line, self._right_line])
-                txt_id = self._myCanvas._data_subplot.text(x_left, yvec_min, list_peak_labels[_index],
-                                                           fontsize=16,
-                                                           rotation=90,
-                                                           rotation_mode='anchor')
+                txt_id = self._myCanvas._data_subplot.text(
+                    x_left, yvec_min, list_peak_labels[_index], fontsize=16, rotation=90, rotation_mode="anchor"
+                )
                 self.list_peak_labels_matplotlib_id.append(txt_id)
 
         self._myCanvas.draw()
@@ -324,13 +326,12 @@ class MplFitPlottingWidget(QWidget):
             x_right = np.nanmax(_range)
             x_left = np.nanmin(_range)
             if (x_right > x_min) and (x_left < x_max):
-                self._left_line = self._myCanvas._data_subplot.axvline(x_left, color='r', linestyle='--')
-                self._right_line = self._myCanvas._data_subplot.axvline(x_right, color='r', linestyle='--')
+                self._left_line = self._myCanvas._data_subplot.axvline(x_left, color="r", linestyle="--")
+                self._right_line = self._myCanvas._data_subplot.axvline(x_right, color="r", linestyle="--")
                 self.list_peak_ranges_matplotlib_id.append([self._left_line, self._right_line])
-                txt_id = self._myCanvas._data_subplot.text(x_left, yvec_min, list_peak_labels[_index],
-                                                           fontsize=16,
-                                                           rotation=90,
-                                                           rotation_mode='anchor')
+                txt_id = self._myCanvas._data_subplot.text(
+                    x_left, yvec_min, list_peak_labels[_index], fontsize=16, rotation=90, rotation_mode="anchor"
+                )
                 self.list_peak_labels_matplotlib_id.append(txt_id)
 
         self._myCanvas.draw()
@@ -358,22 +359,21 @@ class MplFitPlottingWidget(QWidget):
 
 
 class QtMplFitCanvas(FigureCanvas):
-    """ Canvas containing 2 vertical plots and 1 tool bar
-
-    """
+    """Canvas containing 2 vertical plots and 1 tool bar"""
 
     def __init__(self, parent):
-        """ initialization for a canvas with 2 sub plots
+        """initialization for a canvas with 2 sub plots
         :param parent:
         """
         # Instantiating matplotlib Figure. It is a requirement to initialize a figure canvas
         # self.fig = Figure()
-        self.fig, [self._data_subplot, self._residual_subplot] = subplots(2, 1, sharex=True,
-                                                                          gridspec_kw={'height_ratios': [3, 1]})
+        self.fig, [self._data_subplot, self._residual_subplot] = subplots(
+            2, 1, sharex=True, gridspec_kw={"height_ratios": [3, 1]}
+        )
 
         self._set_labels()
-        self.fig.patch.set_facecolor('white')
-        subplots_adjust(left=.1, bottom=.15, top=.9, right=.95)
+        self.fig.patch.set_facecolor("white")
+        subplots_adjust(left=0.1, bottom=0.15, top=0.9, right=0.95)
 
         # Initialize parent class and set parent
         super(QtMplFitCanvas, self).__init__(self.fig)
@@ -386,11 +386,11 @@ class QtMplFitCanvas(FigureCanvas):
         return
 
     def _set_labels(self):
-        self._data_subplot.set_ylabel('Intensity (ct.)')
-        self._residual_subplot.set_ylabel('diff (ct.)')
-        self._residual_subplot.set_xlabel(r'2$\theta$ (degree)')
+        self._data_subplot.set_ylabel("Intensity (ct.)")
+        self._residual_subplot.set_ylabel("diff (ct.)")
+        self._residual_subplot.set_xlabel(r"2$\theta$ (degree)")
 
-    def _setup_legend(self, location='best', font_size=10):
+    def _setup_legend(self, location="best", font_size=10):
         """Set up legend
         self.axes.legend(): Handler is a Line2D object. Lable maps to the line object
         :param location:
@@ -408,11 +408,12 @@ class QtMplFitCanvas(FigureCanvas):
             "center right",
             "lower center",
             "upper center",
-            "center"]
+            "center",
+        ]
 
         # Check legend location valid or not
         if location not in allowed_location_list:
-            location = 'best'
+            location = "best"
 
         # main axes on subplot
         handles, labels = self._data_subplot.get_legend_handles_labels()
@@ -431,14 +432,15 @@ class QtMplFitCanvas(FigureCanvas):
         self._residual_subplot.cla()
 
         if (peak_ranges is None) or (len(peak_ranges) == 0):
-            peak_ranges = [list((vec_x.min() - .1, vec_x.max() + .1))]
+            peak_ranges = [list((vec_x.min() - 0.1, vec_x.max() + 0.1))]
 
         for entry in peak_ranges:
             keep_vec = (vec_x > entry[0]) * (vec_x < entry[1])
-            plot_info = self._residual_subplot.plot(vec_x[keep_vec], vec_y[keep_vec], label=None,
-                                                    color='green', linestyle='-', linewidth=2)
+            plot_info = self._residual_subplot.plot(
+                vec_x[keep_vec], vec_y[keep_vec], label=None, color="green", linestyle="-", linewidth=2
+            )
 
-        self._data_subplot.set_aspect('auto')
+        self._data_subplot.set_aspect("auto")
 
         # Register
         line_id = self._line_index  # share the line ID counter with main axis
@@ -447,9 +449,9 @@ class QtMplFitCanvas(FigureCanvas):
             self._line_index += 1
         else:
             # returned tuple has more than 1 element, i.e., API changed
-            msg = 'Matplotlib API changed: the return from plot is a %d-tuple: %s.. \n' % (len(plot_info), plot_info)
+            msg = "Matplotlib API changed: the return from plot is a %d-tuple: %s.. \n" % (len(plot_info), plot_info)
             for i_r in range(len(plot_info)):
-                msg += 'r[%d] = %s\n' % (i_r, str(plot_info[i_r]))
+                msg += "r[%d] = %s\n" % (i_r, str(plot_info[i_r]))
             raise NotImplementedError(msg)
 
         # Flush/commit
@@ -458,9 +460,18 @@ class QtMplFitCanvas(FigureCanvas):
 
         return line_id
 
-    def add_plot_upper_axis(self, data_set, label, line_color, line_marker='.', marker_size=4,
-                            line_style='-', line_width=1, peak_ranges=None):
-        """ add a plot to the upper axis
+    def add_plot_upper_axis(
+        self,
+        data_set,
+        label,
+        line_color,
+        line_marker=".",
+        marker_size=4,
+        line_style="-",
+        line_width=1,
+        peak_ranges=None,
+    ):
+        """add a plot to the upper axis
         :param data_set:
         :param label:
         :param line_color:
@@ -474,15 +485,22 @@ class QtMplFitCanvas(FigureCanvas):
         vec_y = data_set[1]
 
         if (peak_ranges is None) or (len(peak_ranges) == 0):
-            peak_ranges = [list((vec_x.min() - .1, vec_x.max() + .1))]
+            peak_ranges = [list((vec_x.min() - 0.1, vec_x.max() + 0.1))]
 
         for entry in peak_ranges:
             keep_vec = (vec_x > entry[0]) * (vec_x < entry[1])
-            plot_info = self._data_subplot.plot(vec_x[keep_vec], vec_y[keep_vec], label=label, color=line_color,
-                                                marker=line_marker, markersize=marker_size,
-                                                linestyle=line_style, linewidth=line_width)
+            plot_info = self._data_subplot.plot(
+                vec_x[keep_vec],
+                vec_y[keep_vec],
+                label=label,
+                color=line_color,
+                marker=line_marker,
+                markersize=marker_size,
+                linestyle=line_style,
+                linewidth=line_width,
+            )
 
-        self._data_subplot.set_aspect('auto')
+        self._data_subplot.set_aspect("auto")
 
         # Register
         line_id = self._line_index  # share the line ID counter with main axis
@@ -491,9 +509,9 @@ class QtMplFitCanvas(FigureCanvas):
             self._line_index += 1
         else:
             # returned tuple has more than 1 element, i.e., API changed
-            msg = 'Matplotlib API changed: the return from plot is a %d-tuple: %s.. \n' % (len(plot_info), plot_info)
+            msg = "Matplotlib API changed: the return from plot is a %d-tuple: %s.. \n" % (len(plot_info), plot_info)
             for i_r in range(len(plot_info)):
-                msg += 'r[%d] = %s\n' % (i_r, str(plot_info[i_r]))
+                msg += "r[%d] = %s\n" % (i_r, str(plot_info[i_r]))
             raise NotImplementedError(msg)
 
         # Flush/commit
@@ -532,7 +550,7 @@ class QtMplFitCanvas(FigureCanvas):
         :return:
         """
         if x_min >= x_max:
-            raise RuntimeError('Set wrong range to X... min = {} >= max = {}'.format(x_min, x_max))
+            raise RuntimeError("Set wrong range to X... min = {} >= max = {}".format(x_min, x_max))
 
         if is_residual:
             self._residual_subplot.set_xlim([x_min, x_max])
@@ -544,13 +562,14 @@ class QtMplFitCanvas(FigureCanvas):
 
 
 class MyNavigationToolbar(NavigationToolbar2):
-    """ A customized navigation tool bar attached to canvas
+    """A customized navigation tool bar attached to canvas
     Note:
     * home, left, right: will not disable zoom/pan mode
     * zoom and pan: will turn on/off both's mode
     Other methods
     * drag_pan(self, event): event handling method for dragging canvas in pan-mode
     """
+
     NAVIGATION_MODE_NONE = 0
     NAVIGATION_MODE_PAN = 1
     NAVIGATION_MODE_ZOOM = 2
@@ -563,7 +582,7 @@ class MyNavigationToolbar(NavigationToolbar2):
     canvas_zoom_released = Signal(matplotlib.backend_bases.MouseEvent)
 
     def __init__(self, parent, canvas):
-        """ Initialization
+        """Initialization
         built-in methods
         - drag_zoom(self, event): triggered during holding the mouse and moving
         """
@@ -632,7 +651,7 @@ class MyNavigationToolbar(NavigationToolbar2):
             self._myMode = MyNavigationToolbar.NAVIGATION_MODE_PAN
 
     def zoom(self, *args):
-        """ Override zoom method from NavigationToolbar2
+        """Override zoom method from NavigationToolbar2
         Turn on/off zoom (zoom button)
         :param args:
         :return:
@@ -647,7 +666,7 @@ class MyNavigationToolbar(NavigationToolbar2):
             self._myMode = MyNavigationToolbar.NAVIGATION_MODE_ZOOM
 
     def release_zoom(self, event):
-        """ Override zoom release (mouse released from zooming) method
+        """Override zoom release (mouse released from zooming) method
         :param event:
         :return:
         """

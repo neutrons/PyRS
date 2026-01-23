@@ -9,6 +9,7 @@ class FitResultTable(NTableWidget.NTableWidget):
     """
     A table tailored to peak fit result
     """
+
     # # TODO - The setup of this table shall be flexible to the peak type
     # #        considering base/advanced peak parameter for fitted value, uncertainties or both A+/-E
     # TableSetupList = [('Index', 'int'),
@@ -22,8 +23,7 @@ class FitResultTable(NTableWidget.NTableWidget):
     TableSetupList: List[Tuple[str, str]] = list()
 
     def __init__(self, parent):
-        """ Initialization
-        """
+        """Initialization"""
         super(FitResultTable, self).__init__(parent)
 
         self._column_names = None
@@ -46,7 +46,7 @@ class FitResultTable(NTableWidget.NTableWidget):
             # sort
             sub_run_number_list.sort()
         else:
-            raise RuntimeError('Sub runs in {} are not supported'.format(type(sub_run_number_list)))
+            raise RuntimeError("Sub runs in {} are not supported".format(type(sub_run_number_list)))
 
         # clean the table
         if self.rowCount() > 0:
@@ -54,12 +54,12 @@ class FitResultTable(NTableWidget.NTableWidget):
 
         # append new rows
         for index in sub_run_number_list:
-            self.append_row([index, None, None, None, None, None, None, '', 'checkbox'])
+            self.append_row([index, None, None, None, None, None, None, "", "checkbox"])
 
         return
 
     def reset_table(self, peak_param_names):
-        """ Reset table. Parameters other than peak fitting will be handled by setup()
+        """Reset table. Parameters other than peak fitting will be handled by setup()
         :param peak_param_names: List of peak parameters names
         :return:
         """
@@ -84,16 +84,16 @@ class FitResultTable(NTableWidget.NTableWidget):
 
         # self.TableSetupList.append(('sub-run', 'int'))
         for param_name in peak_param_names:
-            self.TableSetupList.append((param_name, 'float'))
+            self.TableSetupList.append((param_name, "float"))
         # self.TableSetupList.append(('C.O.M', 'float'))
-        self.TableSetupList.append(('Profile', 'string'))
+        self.TableSetupList.append(("Profile", "string"))
 
         self._column_names = [item[0] for item in self.TableSetupList]
 
         # reset table
         self.init_setup(self.TableSetupList)
-        print('[DB...BAT] Init setup table columns: {}'.format(self.TableSetupList))
-        print('[DB...BAT] Init setup table columns: {}'.format(self._column_names))
+        print("[DB...BAT] Init setup table columns: {}".format(self.TableSetupList))
+        print("[DB...BAT] Init setup table columns: {}".format(self._column_names))
 
         # # Set up column width
         self.setColumnWidth(0, 60)
@@ -108,8 +108,7 @@ class FitResultTable(NTableWidget.NTableWidget):
 
         return
 
-    def set_fit_summary(self, row_number, ordered_param_list, param_dict, write_error=False,
-                        peak_profile='not set'):
+    def set_fit_summary(self, row_number, ordered_param_list, param_dict, write_error=False, peak_profile="not set"):
         """
 
         Parameters
@@ -139,7 +138,7 @@ class FitResultTable(NTableWidget.NTableWidget):
         for param_name in ordered_param_list:
             # Get numpy array of this parameter
             param_value_vec = param_dict[param_name]
-            assert isinstance(param_value_vec, numpy.ndarray), 'Parameter value must be given by array'
+            assert isinstance(param_value_vec, numpy.ndarray), "Parameter value must be given by array"
             # Get value
             value_i = param_dict[param_name][row_number]
             # value_i can be float or numpy array
@@ -162,8 +161,8 @@ class FitResultTable(NTableWidget.NTableWidget):
                     try:
                         self.update_cell_value(row_number, col_num, item_value)
                     except TypeError:
-                        print('Cell @ {}, {} of value {} cannot be updated'.format(row_number, col_num, item_value))
+                        print("Cell @ {}, {} of value {} cannot be updated".format(row_number, col_num, item_value))
         else:
             status, err_msg = self.append_row(row_value_list=this_value_list)
             if not status:
-                print('[ERROR] {}'.format(err_msg))
+                print("[ERROR] {}".format(err_msg))

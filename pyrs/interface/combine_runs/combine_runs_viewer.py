@@ -42,22 +42,18 @@ class FileLoad(QWidget):
         self.setLayout(layout)
 
     def openFileDialog(self):
-        self._parent._project_files, _ = QFileDialog.getOpenFileNames(self,
-                                                                      self.name,
-                                                                      "",
-                                                                      self.fileType,
-                                                                      options=QFileDialog.DontUseNativeDialog)
+        self._parent._project_files, _ = QFileDialog.getOpenFileNames(
+            self, self.name, "", self.fileType, options=QFileDialog.DontUseNativeDialog
+        )
 
         if self._parent._project_files is not None:
             self.load_project_files()
 
     def saveFileDialog(self):
         if self._parent._project_files is not None:
-            _export_project, _ = QFileDialog.getSaveFileName(self,
-                                                             'Save Combined Proeject File',
-                                                             "",
-                                                             self.fileType,
-                                                             options=QFileDialog.DontUseNativeDialog)
+            _export_project, _ = QFileDialog.getSaveFileName(
+                self, "Save Combined Proeject File", "", self.fileType, options=QFileDialog.DontUseNativeDialog
+            )
 
             self._parent.controller.export_combined_projectfile(_export_project)
 
@@ -73,8 +69,7 @@ class FileLoad(QWidget):
                 self.saveFileDialog()
 
         except (FileNotFoundError, RuntimeError, ValueError) as run_err:
-            pop_message(self, f'Failed to find run {self._parent._project_files}',
-                        str(run_err), 'error')
+            pop_message(self, f"Failed to find run {self._parent._project_files}", str(run_err), "error")
 
             self._parent._project_files = None
 
@@ -102,7 +97,6 @@ class FileLoading(QGroupBox):
 
 class CombineRunsViewer(QMainWindow):
     def __init__(self, combine_runs_model, combine_runs_ctrl, parent=None):
-
         self._model = combine_runs_model
         self._ctrl = combine_runs_ctrl
         self._run_number = None

@@ -5,46 +5,46 @@ from typing import Optional, Tuple
 
 
 class DataRetriever:
-
     def __init__(self, parent=None):
         self.parent = parent
         self.hidra_workspace = self.parent.hidra_workspace
 
-    def get_data(self, name: str = 'Sub-runs', peak_index: int = 0) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-
+    def get_data(self, name: str = "Sub-runs", peak_index: int = 0) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         try:
-            keep_list = np.array([entry is False
-                                  for entry in self.parent.fit_result.peakcollections[peak_index].get_exclude_list()])
+            keep_list = np.array(
+                [entry is False for entry in self.parent.fit_result.peakcollections[peak_index].get_exclude_list()]
+            )
         except AttributeError:
             keep_list = np.ones_like(self.hidra_workspace.get_sub_runs()) == 1
 
-        if name == 'Sub-runs':
+        if name == "Sub-runs":
             return (np.array(self.hidra_workspace.get_sub_runs())[keep_list], None)
 
         # do not have typing information for object
-        if name in LIST_AXIS_TO_PLOT['raw'].keys():  # type: ignore
+        if name in LIST_AXIS_TO_PLOT["raw"].keys():  # type: ignore
             return (self.hidra_workspace._sample_logs[name][keep_list], None)
 
-        if name == 'd-spacing':
+        if name == "d-spacing":
             peak_collection = self.parent.fit_result.peakcollections[peak_index]
             _d_reference = np.float32(str(self.parent.ui.peak_range_table.item(peak_index, 3).text()))
             peak_collection.set_d_reference(values=_d_reference)
             values, error = peak_collection.get_dspacing_center()
             return (values[keep_list], error[keep_list])
 
-        if name == 'microstrain':
+        if name == "microstrain":
             peak_collection = self.parent.fit_result.peakcollections[peak_index]
-            values, error = peak_collection.get_strain(units='microstrain')
+            values, error = peak_collection.get_strain(units="microstrain")
             return (values[keep_list], error[keep_list])
 
         # do not have typing information for object
-        if name in LIST_AXIS_TO_PLOT['fit'].keys():  # type: ignore
-            return self.get_fitted_value(peak=self.parent.fit_result.peakcollections[peak_index],
-                                         value_to_display=name)
+        if name in LIST_AXIS_TO_PLOT["fit"].keys():  # type: ignore
+            return self.get_fitted_value(
+                peak=self.parent.fit_result.peakcollections[peak_index], value_to_display=name
+            )
 
         raise RuntimeError('Do not know how to get values for "{}"'.format(name))
 
-    def get_fitted_value(self, peak=None, value_to_display='Center'):
+    def get_fitted_value(self, peak=None, value_to_display="Center"):
         """
         return the values and errors of the fitted parameters of the given peak
         :param peak:
