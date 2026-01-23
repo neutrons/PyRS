@@ -1685,7 +1685,7 @@ class StrainField(_StrainField):
             idx = self._winners.point_indexes[indices]  # type: ignore
             assert np.all(idx < len(peak_collection))
             values[indices], errors[indices] = values_i[idx], errors_i[idx]
-            keep[indices] = (peak_collection.exclude[idx] is True)
+            keep[indices] = peak_collection.exclude[idx] is True
 
         values[keep] = np.nan
 
