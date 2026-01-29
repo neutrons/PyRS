@@ -27,7 +27,6 @@ source = "versioningit"
 [tool.hatch.build.hooks.versioningit-onbuild]
 source-file = "pyrs/_version.py"
 build-file = "pyrs/_version.py"
-replacement = '"{next_version}"'
 
 [tool.hatch.build]
 artifacts = [
@@ -43,7 +42,6 @@ packages = ["pyrs", "scripts"]
 [tool.versioningit.vcs]
 method = "git"
 default-tag = "0.1.0"
-
 
 [tool.versioningit.next-version]
 method = "minor"
