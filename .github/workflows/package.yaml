@@ -26,7 +26,7 @@ jobs:
           fetch-depth: 0    # Fetch all history for accurate versioning
           fetch-tags: true  # Fetch tags to ensure versioning works correctly
 
-      - uses: prefix-dev/setup-pixi@v0.9.3
+      - uses: prefix-dev/setup-pixi@v0.9.4
         with:
           manifest-path: pyproject.toml
 
