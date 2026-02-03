@@ -1,12 +1,5 @@
 # Note: in colors, "white" is removed
-MplBasicColors = [
-    "black",
-    "red",
-    "blue",
-    "green",
-    "cyan",
-    "magenta",
-    "yellow"]
+MplBasicColors = ["black", "red", "blue", "green", "cyan", "magenta", "yellow"]
 
 MplLineMarkers = [
     ". (point         )",
@@ -32,6 +25,7 @@ MplLineMarkers = [
     "d (thin_diamond  )",
     "| (vline         )",
     "_ (hline         )",
-    "None (nothing    )"]
+    "None (nothing    )",
+]
 
-MplLineStyles = ['-', '--', '-.', ':', 'None', ' ', '']
+MplLineStyles = ["-", "--", "-.", ":", "None", " ", ""]

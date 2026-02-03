@@ -6,23 +6,29 @@ from pyrs.core import pyrscore
 from qtpy import QtCore, QtWidgets
 import functools
 import os
+
 # import json
 import pytest
-
-from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 
 wait = 200
 plot_wait = 100
 
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
-def test_texture_fitting_viewer(qtbot):
-
+@pytest.fixture(scope="session")
+def calibration_window(my_qtbot):
+    r"""
+    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
+    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
+    """
     model = DetectorCalibrationModel(pyrscore.PyRsCore())
     ctrl = DetectorCalibrationCrtl(model)
     window = DetectorCalibrationViewer(model, ctrl)
+    return window, my_qtbot
 
-    qtbot.addWidget(window)
+
+def test_detector_calibration(calibration_window):
+    window, qtbot = calibration_window
+
     window.show()
     qtbot.wait(wait)
 
@@ -43,21 +49,21 @@ def test_texture_fitting_viewer(qtbot):
     # # Browse e11 Data File ...
     # # wait until dialog is loaded then handle it, this is required
     # # because the dialog is modal
-    QtCore.QTimer.singleShot(300, functools.partial(handle_dialog,
-                                                    "tests/data/calibration_tests/HB2B_3510.nxs.h5"))
+    QtCore.QTimer.singleShot(300, functools.partial(handle_dialog, "tests/data/calibration_tests/HB2B_3510.nxs.h5"))
     qtbot.mouseClick(window.fileLoading.file_load_dilg.browse_button, QtCore.Qt.LeftButton)
 
     qtbot.wait(wait)
-    assert window._model.nexus_file.split('/')[-1] == 'HB2B_3510.nxs.h5'
+    assert window._model.nexus_file.split("/")[-1] == "HB2B_3510.nxs.h5"
     qtbot.wait(wait)
 
-    QtCore.QTimer.singleShot(300, functools.partial(handle_dialog,
-                                                    "tests/data/calibration_tests/test_ui_recipe_load.json"))
+    QtCore.QTimer.singleShot(
+        300, functools.partial(handle_dialog, "tests/data/calibration_tests/test_ui_recipe_load.json")
+    )
     qtbot.mouseClick(window.peak_lines_setup.load_info, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
 
     qtbot.wait(wait)
-    assert window._model.nexus_file.split('/')[-1] == 'HB2B_3510.nxs.h5'
+    assert window._model.nexus_file.split("/")[-1] == "HB2B_3510.nxs.h5"
     qtbot.wait(wait)
 
     qtbot.mouseClick(window.peak_lines_setup.fit, QtCore.Qt.LeftButton)
@@ -97,3 +103,5 @@ def test_texture_fitting_viewer(qtbot):
 
     window.param_window.plot_paramX.setCurrentIndex(1)
     qtbot.wait(wait)
+
+    window.hide()

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>271</width>
-    <height>182</height>
+    <height>192</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -83,7 +83,7 @@
      <x>0</x>
      <y>0</y>
      <width>271</width>
-     <height>20</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -97,6 +97,7 @@
      <string>Advanced</string>
     </property>
     <addaction name="actionCalibration"/>
+    <addaction name="actionCombine_Runs"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuAdvanced"/>
@@ -113,6 +114,11 @@
   <action name="actionCalibration">
    <property name="text">
     <string>Calibration</string>
+   </property>
+  </action>
+  <action name="actionCombine_Runs">
+   <property name="text">
+    <string>Combine Runs</string>
    </property>
   </action>
  </widget>

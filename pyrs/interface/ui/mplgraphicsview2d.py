@@ -7,15 +7,14 @@ from mantidqt.MPLwidgets import NavigationToolbar2QT as NavigationToolbar2
 
 
 class MplGraphicsView2D(QWidget):
-    """ A combined graphics view including matplotlib canvas and
+    """A combined graphics view including matplotlib canvas and
     a navigation tool bar
 
     Note: Merged with HFIR_Powder_Reduction.MplFigureCAnvas
     """
 
     def __init__(self, parent):
-        """ Initialization
-        """
+        """Initialization"""
         # Initialize parent
         super(MplGraphicsView2D, self).__init__(parent)
 
@@ -39,7 +38,7 @@ class MplGraphicsView2D(QWidget):
 
         return
 
-    def add_2d_plot(self, array2d, x_min, x_max, y_min, y_max, y_tick_label=None, plot_type='image'):
+    def add_2d_plot(self, array2d, x_min, x_max, y_min, y_max, y_tick_label=None, plot_type="image"):
         """
         Add a 2D image to canvas
         :param array2d: numpy 2D array
@@ -52,18 +51,18 @@ class MplGraphicsView2D(QWidget):
         """
         # obsoleted: self._myCanvas.addPlot2D(array2d, x_min, x_max, y_min, y_max, hold_prev_image, y_tick_label)
 
-        if plot_type == 'image':
+        if plot_type == "image":
             self._myCanvas.add_image_plot(array2d, x_min, x_max, y_min, y_max, yticklabels=y_tick_label)
-        elif plot_type == 'image file':
+        elif plot_type == "image file":
             self._myCanvas.add_image_file()
-        elif plot_type == 'scatter':
+        elif plot_type == "scatter":
             raise NotImplementedError('plot_type="scatter" has not been implemented')
         else:
             raise RuntimeError('Do not know how to add_2d_plot(..., plot_type="{}")'.format(plot_type))
 
         self._hasImage = True
 
-    def set_title(self, title, color='black'):
+    def set_title(self, title, color="black"):
         """
         set title to canvas
         :param title:
@@ -76,16 +75,15 @@ class MplGraphicsView2D(QWidget):
 
 
 class Qt4Mpl2DCanvas(FigureCanvas):
-    """  A customized Qt widget for matplotlib figure.
+    """A customized Qt widget for matplotlib figure.
     It can be used to replace GraphicsView of QtGui
     """
 
     def __init__(self, parent):
-        """  Initialization
-        """
+        """Initialization"""
         # Instantiating matplotlib Figure
         self.fig = Figure()
-        self.fig.patch.set_facecolor('white')
+        self.fig.patch.set_facecolor("white")
 
         # initialization
         super(Qt4Mpl2DCanvas, self).__init__(self.fig)
@@ -129,11 +127,11 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         @return:
         """
         # check
-        assert isinstance(array2d, np.ndarray), 'blabla'
-        assert len(array2d.shape) == 2, 'blabla'
+        assert isinstance(array2d, np.ndarray), "blabla"
+        assert len(array2d.shape) == 2, "blabla"
 
         # show image
-        self._imagePlot = self.axes.imshow(array2d, extent=[xmin, xmax, ymin, ymax], interpolation='none')
+        self._imagePlot = self.axes.imshow(array2d, extent=[xmin, xmax, ymin, ymax], interpolation="none")
 
         # set y ticks as an option:
         if yticklabels is not None:
@@ -142,8 +140,8 @@ class Qt4Mpl2DCanvas(FigureCanvas):
             self.axes.set_yticklabels(yticklabels)
 
         # explicitly set aspect ratio of the image
-        self.axes.set_aspect('equal')
-        self.axes.axis('off')
+        self.axes.set_aspect("equal")
+        self.axes.axis("off")
 
         self._flush()
 
@@ -157,8 +155,8 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         :return:
         """
         # check input
-        assert isinstance(title, str), 'Title must be a string but not a {0}.'.format(type(title))
-        assert isinstance(color, str), 'Color must be a string but not a {0}.'.format(type(color))
+        assert isinstance(title, str), "Title must be a string but not a {0}.".format(type(title))
+        assert isinstance(color, str), "Color must be a string but not a {0}.".format(type(color))
 
         self.setWindowTitle(title)
 
@@ -167,12 +165,12 @@ class Qt4Mpl2DCanvas(FigureCanvas):
         return
 
     def _flush(self):
-        """ A dirty hack to flush the image
-        """
+        """A dirty hack to flush the image"""
         w, h = self.get_width_height()
         self.resize(w + 1, h)
         self.resize(w, h)
 
         return
+
 
 # END-OF-CLASS (MplGraphicsView)

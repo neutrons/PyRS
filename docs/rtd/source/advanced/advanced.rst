@@ -81,7 +81,7 @@ The HIDRA project file utilizes an HDF5 file format with the following organizat
   - main_XANG
 
     - count vectors for each sub-run for a given out-of-plane angle (X)
-    
+
   - main_XANG_var
 
     - estimated error in counts for each sub-run for a given out-of-plane angle (X)

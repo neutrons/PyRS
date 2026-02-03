@@ -6,15 +6,14 @@ from mantidqt.MPLwidgets import NavigationToolbar2QT as NavigationToolbar2
 
 
 class MplGraphicsViewContourPlot(QWidget):
-    """ A combined graphics view including matplotlib canvas and
+    """A combined graphics view including matplotlib canvas and
     a navigation tool bar
 
     Note: Merged with HFIR_Powder_Reduction.MplFigureCAnvas
     """
 
     def __init__(self, parent):
-        """ Initialization
-        """
+        """Initialization"""
         # Initialize parent
         super(MplGraphicsViewContourPlot, self).__init__(parent)
 

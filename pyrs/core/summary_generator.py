@@ -1,28 +1,46 @@
 """
 This module generates reduction summary for user in plain text CSV file
 """
+
 from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS  # TODO get from the first peak collection
+import numpy as np
 
 # Default summary titles shown in the CSV file. This is a list of tuples ot enforce order
 # things to be found in the output file with
 # key = logname, value=name in csv
-HEADER_MAPPING = [('experiment_identifier', 'IPTS number'),
-                  ('run_number', 'Run'),
-                  ('run_title', 'Scan title'),
-                  ('sample_name', 'Sample name'),
-                  ('item_number', 'Item number'),  # BL11A:CS:ITEMS on powgen
-                  ('hkl', 'HKL phase'),
-                  ('StrainDirection', 'Strain direction'),  # was suggested to be "strain_dir"
-                  ('mono_setting', 'Monochromator Setting'),
-                  ('mono_wavelength', 'Monochromator wavelength'),
-                  ('cal_wavelength', 'Calibrated wavelength'),
-                  ('cal_file', 'Calibration file'),
-                  ('project', 'Hidra project file'),
-                  ('reduction', 'Manual vs auto reduction')]
+HEADER_MAPPING = [
+    ("experiment_identifier", "IPTS number"),
+    ("run_number", "Run"),
+    ("run_title", "Scan title"),
+    ("sample_name", "Sample name"),
+    ("item_number", "Item number"),  # HB2B:CS:ITEMS
+    ("hkl", "HKL phase"),
+    ("StrainDirection", "Strain direction"),  # was suggested to be "strain_dir"
+    ("mono_setting", "Monochromator Setting"),
+    ("mono_wavelength", "Monochromator wavelength"),
+    ("cal_wavelength", "Calibrated wavelength"),
+    ("cal_file", "Calibration file"),
+    ("project", "Hidra project file"),
+    ("reduction", "Manual vs auto reduction"),
+]
 
 # Default field for values - log_name:csv_name
-DEFAULT_BODY_TITLES = ['vx', 'vy', 'vz', 'sx', 'sy', 'sz', 'phi', 'chi', 'omega', '2theta', 'S1width',
-                       'S1height', 'S1distance', 'RadialDistance']
+DEFAULT_BODY_TITLES = [
+    "vx",
+    "vy",
+    "vz",
+    "sx",
+    "sy",
+    "sz",
+    "phi",
+    "chi",
+    "omega",
+    "2theta",
+    "S1width",
+    "S1height",
+    "S1distance",
+    "RadialDistance",
+]
 
 
 class SummaryGenerator:
@@ -47,7 +65,8 @@ class SummaryGenerator:
       effective peak parameters
 
     """
-    def __init__(self, filename, log_list=None, separator=','):
+
+    def __init__(self, filename, log_list=None, separator=","):
         """Initialization
 
         Parameters
@@ -68,9 +87,9 @@ class SummaryGenerator:
             self._sample_log_list = log_list
 
         if not filename:
-            raise RuntimeError('Failed to supply output filename')
+            raise RuntimeError("Failed to supply output filename")
         self._filename = str(filename)
-        if not self._filename.endswith('.csv'):
+        if not self._filename.endswith(".csv"):
             raise RuntimeError('Filename "{}" must end with ".csv"'.format(self._filename))
 
         self.separator = separator
@@ -86,13 +105,13 @@ class SummaryGenerator:
         self._present_logs = []
 
     def setHeaderInformation(self, headervalues):
-        '''This sets up the supplied information for the header without actually writing it'''
+        """This sets up the supplied information for the header without actually writing it"""
 
         for logname, _ in HEADER_MAPPING:
             if logname in headervalues.keys():
                 self._header_information[logname] = headervalues[logname]
 
-    def write_csv(self, sample_logs, peak_collections, tolerance=1E-10):
+    def write_csv(self, sample_logs, peak_collections, tolerance=1e-10):
         """Export the CSV file
 
         Parameters
@@ -104,17 +123,18 @@ class SummaryGenerator:
             relative tolerance of variance to treat a sample log as a constant value
             and bring into extended header
         """
+
         # verify the same number of subruns everywhere
         for peak_collection in peak_collections:
             subruns = peak_collection.sub_runs
             if not sample_logs.matching_subruns(subruns):
-                raise ValueError('Subruns from sample logs and peak {} do not match'.format(peak_collection.peak_tag))
+                raise ValueError("Subruns from sample logs and peak {} do not match".format(peak_collection.peak_tag))
 
         # determine what is constant and what is missing
         self._classify_logs(sample_logs, tolerance)
 
         # header has already been put together
-        with open(self._filename, 'w') as handle:
+        with open(self._filename, "w") as handle:
             self._write_header_information(handle, sample_logs)
             self._write_header_missing(handle)
             self._write_header_constants(handle, sample_logs)
@@ -122,8 +142,9 @@ class SummaryGenerator:
             self._write_data(handle, sample_logs, peak_collections)
 
     def _classify_logs(self, sample_logs, tolerance):
-        self._constant_logs = [logname for logname in sample_logs.constant_logs(tolerance)
-                               if logname in self._sample_log_list]
+        self._constant_logs = [
+            logname for logname in sample_logs.constant_logs(tolerance) if logname in self._sample_log_list
+        ]
         self._constant_logs.sort()  # keep the order stable for python3 tests
 
         # loop through all of the requested logs and classify as present or missing
@@ -134,14 +155,14 @@ class SummaryGenerator:
                 self._missing_logs.append(logname)
 
     def _write_header_information(self, handle, sample_logs):
-        '''Things that are supplied to SummaryGenerator.setHeaderInformation win out over what
-        is found in the sample_logs'''
+        """Things that are supplied to SummaryGenerator.setHeaderInformation win out over what
+        is found in the sample_logs"""
         # get the values that weren't specified from the logs
         for logname, _ in HEADER_MAPPING:
             # leave it alone if it was already set
             if logname not in self._header_information:
                 # try to get the value from the logs or set it to empty string
-                value = ''
+                value = ""
                 if logname in sample_logs:
                     value = sample_logs[logname][0]  # only use first value
                 try:  # for python 3
@@ -152,14 +173,14 @@ class SummaryGenerator:
 
             # fix up particular values
             if self._header_information[logname]:
-                if logname == 'run_number':
+                if logname == "run_number":
                     self._header_information[logname] = int(self._header_information[logname])
-                elif logname == 'experiment_identifier':
+                elif logname == "experiment_identifier":
                     try:  # for python 3
                         experiment_identifier = self._header_information[logname].decode()
                     except (UnicodeDecodeError, AttributeError):
                         experiment_identifier = self._header_information[logname]
-                    self._header_information[logname] = experiment_identifier.split('-')[-1]
+                    self._header_information[logname] = experiment_identifier.split("-")[-1]
 
         # write out the text
         for logname, label in HEADER_MAPPING:
@@ -169,62 +190,88 @@ class SummaryGenerator:
             except (UnicodeDecodeError, AttributeError):
                 pass
             if value:
-                line = ' = '.join((label, str(value)))
+                line = " = ".join((label, str(value)))
             else:
                 line = label
-            handle.write('# {}\n'.format(line))
+            handle.write("# {}\n".format(line))
 
     def _write_header_missing(self, handle):
-        '''Add to the header a list of all missing logs'''
+        """Add to the header a list of all missing logs"""
         if self._missing_logs:
-            handle.write('# missing: {}\n'.format(', '.join(self._missing_logs)))
+            handle.write("# missing: {}\n".format(", ".join(self._missing_logs)))
 
     def _write_header_constants(self, handle, sample_logs):
-        '''Write only the sample logs that are constants into the header. These do not appear in the body.
-        '''
+        """Write only the sample logs that are constants into the header. These do not appear in the body."""
         for name in self._constant_logs:
             try:  # for python 3
                 value = sample_logs[name].decode()
             except (UnicodeDecodeError, AttributeError):
                 value = sample_logs[name]
             try:
-                handle.write('# {} = {:.5g} +/- {:.2g}\n'.format(name, value.mean(),
-                                                                 value.std()))
+                handle.write("# {} = {:.5g} +/- {:.2g}\n".format(name, value.mean(), value.std()))
             except TypeError:
                 # strings don't have a "mean" or "std" so use the first value
                 # this is intended for strings
-                handle.write('# {} = {}\n'.format(name, value[0]))
+                handle.write("# {} = {}\n".format(name, value[0]))
 
     def _write_column_names(self, handle, peak_collections):
-        '''This writes the names of all of the columns'''
+        """This writes the names of all of the columns"""
         # the header line from the sample logs
-        column_names = [name for name in self._present_logs
-                        if name not in self._constant_logs]
+        column_names = [name for name in self._present_logs if name not in self._constant_logs]
 
         # the contribution from each peak
         for peak_collection in peak_collections:
             tag = peak_collection.peak_tag  # name of the peak
             # values first
-            column_names.append('{}_dspacing_center'.format(tag))
-            column_names.append('{}_strain'.format(tag))
+            column_names.append("{}_dspacing_center".format(tag))
+            column_names.append("{}_strain".format(tag))
             for param in EFFECTIVE_PEAK_PARAMETERS:
-                column_names.append('{}_{}'.format(tag, param))
+                column_names.append("{}_{}".format(tag, param))
             # errors after values
-            column_names.append('{}_dspacing_center_error'.format(tag))
-            column_names.append('{}_strain_error'.format(tag))
+            column_names.append("{}_dspacing_center_error".format(tag))
+            column_names.append("{}_strain_error".format(tag))
             for param in EFFECTIVE_PEAK_PARAMETERS:
-                column_names.append('{}_{}_error'.format(tag, param))
-            column_names.append('{}_chisq'.format(tag))
+                column_names.append("{}_{}_error".format(tag, param))
+            column_names.append("{}_chisq".format(tag))
 
         # subrun number goes in the very front
-        column_names.insert(0, 'sub-run')
+        column_names.insert(0, "sub-run")
 
-        handle.write(self.separator.join(column_names) + '\n')
+        handle.write(self.separator.join(column_names) + "\n")
+
+    def _parse_peak_collections(self, peak_collections):
+        """Parse peakcollection into a single nd.array"""
+
+        peaks = None
+        for peak_collection in peak_collections:
+            fit_cost = peak_collection.fitting_costs
+            dspacing_center, dspacing_center_error = peak_collection.get_dspacing_center()
+            strain, strain_error = peak_collection.get_strain(units="microstrain")
+            values, errors = peak_collection.get_effective_params()
+
+            exclude = peak_collection.exclude
+
+            peak = np.append(dspacing_center.reshape(-1, 1), strain.reshape(-1, 1), axis=1)
+            peak = np.append(peak, values.view(np.float32).reshape(values.shape + (-1,)), axis=1)
+            peak = np.append(peak, dspacing_center_error.reshape(-1, 1), axis=1)
+            peak = np.append(peak, strain_error.reshape(-1, 1), axis=1)
+            peak = np.append(peak, errors.view(np.float32).reshape(errors.shape + (-1,)), axis=1)
+            peak = np.append(peak, fit_cost.reshape(-1, 1), axis=1)
+
+            peak[exclude, :] = -1
+
+            if peaks is None:
+                peaks = np.copy(peak)
+            else:
+                peaks = np.append(peaks, peak, axis=1)
+
+        return peaks
 
     def _write_data(self, handle, sample_logs, peak_collections):
-        '''Write out the actual data fields, ignoring what is constant'''
-        log_names = [name for name in self._present_logs
-                     if name not in self._constant_logs]
+        """Write out the actual data fields, ignoring what is constant"""
+        log_names = [name for name in self._present_logs if name not in self._constant_logs]
+
+        peaks_data = self._parse_peak_collections(peak_collections)
 
         for subrun_index in range(len(sample_logs.subruns)):
             line = []
@@ -236,19 +283,7 @@ class SummaryGenerator:
             for name in log_names:
                 line.append(str(sample_logs[name][subrun_index]))  # get by index rather than subrun
 
-            for peak_collection in peak_collections:
-                fit_cost = peak_collection.fitting_costs
-                dspacing_center, dspacing_center_error = peak_collection.get_dspacing_center()
-                strain, strain_error = peak_collection.get_strain(units='microstrain')
-                values, errors = peak_collection.get_effective_params()
-                line.append(str(dspacing_center[subrun_index]))
-                line.append(str(strain[subrun_index]))
-                for value in values[subrun_index]:
-                    line.append(str(value))
-                line.append(str(dspacing_center_error[subrun_index]))
-                line.append(str(strain_error[subrun_index]))
-                for value in errors[subrun_index]:
-                    line.append(str(value))
-                line.append(str(fit_cost[subrun_index]))
+            if peaks_data is not None:
+                line += [str(entry) for entry in peaks_data[subrun_index, :].tolist()]
 
-            handle.write(self.separator.join(line) + '\n')
+            handle.write(self.separator.join(line) + "\n")

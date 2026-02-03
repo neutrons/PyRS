@@ -8,22 +8,21 @@ from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
 from qtpy.QtWidgets import QApplication  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 
-PeakInfo = namedtuple('PeakInfo', 'center left_bound right_bound tag')
+PeakInfo = namedtuple("PeakInfo", "center left_bound right_bound tag")
 
 
 class Fit:
-
     def __init__(self, parent=None):
         self.parent = parent
 
     def fit_multi_peaks(self):
-
         QApplication.setOverrideCursor(Qt.WaitCursor)
 
         _peak_range_list = [tuple(_range) for _range in self.parent._ui_graphicsView_fitSetup.list_peak_ranges]
         _peak_center_list = [np.mean([left, right]) for (left, right) in _peak_range_list]
         _peak_tag_list = ["peak{}".format(_index) for _index, _ in enumerate(_peak_center_list)]
         _peak_function_name = str(self.parent.ui.comboBox_peakType.currentText())
+        _peak_background_name = str(self.parent.ui.comboBox_backgroundType.currentText())
 
         _peak_xmin_list = [left for (left, _) in _peak_range_list]
         _peak_xmax_list = [right for (_, right) in _peak_range_list]
@@ -31,13 +30,12 @@ class Fit:
         # Fit peak
         hd_ws = self.parent.hidra_workspace
 
+        print(_peak_background_name)
         _wavelength = hd_ws.get_wavelength(True, True)
-        fit_engine = PeakFitEngineFactory.getInstance(hd_ws,
-                                                      _peak_function_name, 'Linear',
-                                                      wavelength=_wavelength)
-        fit_result = fit_engine.fit_multiple_peaks(_peak_tag_list,
-                                                   _peak_xmin_list,
-                                                   _peak_xmax_list)
+        fit_engine = PeakFitEngineFactory.getInstance(
+            hd_ws, _peak_function_name, _peak_background_name, wavelength=_wavelength
+        )
+        fit_result = fit_engine.fit_multiple_peaks(_peak_tag_list, _peak_xmin_list, _peak_xmax_list)
 
         self.parent.fit_result = fit_result
 

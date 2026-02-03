@@ -7,10 +7,9 @@ import numpy as np
 import os
 import pytest
 import json
-from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 import mantid
 
-mantid_version = mantid._version_str().split('.')
+mantid_version = mantid._version_str().split(".")
 
 old_mantid = True
 if (int(mantid_version[0]) > 5) or (int(mantid_version[0]) == 5 and int(mantid_version[1]) > 1):
@@ -20,7 +19,6 @@ wait = 100
 
 
 # This is a test of the model component of the strain/stress viewer
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
 def test_model(tmpdir, test_data_dir):
     model = Model()
 
@@ -30,75 +28,72 @@ def test_model(tmpdir, test_data_dir):
     assert model.e33 == []
     assert model._stress is None
 
-    assert model.validate_selection('11') == "e11 file hasn't been loaded"
-    assert model.validate_selection('22') == "e22 file hasn't been loaded"
-    assert model.validate_selection('33') == "e33 file hasn't been loaded"
+    assert model.validate_selection("11") == "e11 file hasn't been loaded"
+    assert model.validate_selection("22") == "e22 file hasn't been loaded"
+    assert model.validate_selection("33") == "e33 file hasn't been loaded"
 
     # load file without fitted peaks
-    model.e11 = os.path.join(test_data_dir, 'HB2B_1423.h5')
-    assert model.validate_selection('11') == "e11 contains no peaks, fit peaks first"
+    model.e11 = os.path.join(test_data_dir, "HB2B_1423.h5")
+    assert model.validate_selection("11") == "e11 contains no peaks, fit peaks first"
 
     # load file with fitted peaks
-    model.e11 = os.path.join(test_data_dir, 'HB2B_1320.h5')
+    model.e11 = os.path.join(test_data_dir, "HB2B_1320.h5")
     assert len(model.e11) == 1
-    assert model.e11[0].name == '11'
-    assert model.peakTags == ['peak0']
+    assert model.e11[0].name == "11"
+    assert model.peakTags == ["peak0"]
     assert len(model.e11_peaks) == 1
-    assert 'peak0' in model.e11_peaks[0]
+    assert "peak0" in model.e11_peaks[0]
 
     # select non-existing peak
-    model.selectedPeak = 'peak_label'
-    assert model.selectedPeak == 'peak_label'
-    assert model.validate_selection('11') == "Peak peak_label is not in e11"
+    model.selectedPeak = "peak_label"
+    assert model.selectedPeak == "peak_label"
+    assert model.validate_selection("11") == "Peak peak_label is not in e11"
 
     # select existing peak
-    model.selectedPeak = 'peak0'
-    assert model.selectedPeak == 'peak0'
+    model.selectedPeak = "peak0"
+    assert model.selectedPeak == "peak0"
 
-    assert model.validate_selection('11') is None
-    assert model.validate_selection('22') == "e22 file hasn't been loaded"
-    assert model.validate_selection('33') == "e33 file hasn't been loaded"
+    assert model.validate_selection("11") is None
+    assert model.validate_selection("22") == "e22 file hasn't been loaded"
+    assert model.validate_selection("33") == "e33 file hasn't been loaded"
 
     assert model.d0 is None
 
-    for plot_param in ("dspacing-center",
-                       "d-reference",
-                       "Center",
-                       "Height",
-                       "FWHM",
-                       "Mixing",
-                       "Intensity",
-                       "strain"):
-        e11_md = model.get_field('11', plot_param, 'stress_case').to_md_histo_workspace()
-        assert e11_md.name() == f'{plot_param}'
+    for plot_param in ("dspacing-center", "d-reference", "Center", "Height", "FWHM", "Mixing", "Intensity", "strain"):
+        e11_md = model.get_field("11", plot_param, "stress_case").to_md_histo_workspace()
+        assert e11_md.name() == f"{plot_param}"
         assert e11_md.getNumDims() == 3
         assert [e11_md.getDimension(n).getNBins() for n in range(3)] == [18, 6, 3]
-        assert model.get_field('22', plot_param, 'stress_case') is None
-        assert model.get_field('33', plot_param, 'stress_case') is None
+        assert model.get_field("22", plot_param, "stress_case") is None
+        assert model.get_field("33", plot_param, "stress_case") is None
 
     # Need to load ε22 so it should fail
     with pytest.raises(TypeError) as exception_info:
-        model.calculate_stress('in-plane-stress', 200, 0.3, (1.08, 0))
-    assert 'None is not a _StrainField object' in str(exception_info.value)
+        model.calculate_stress("in-plane-stress", 200, 0.3, (1.08, 0))
+    assert "None is not a _StrainField object" in str(exception_info.value)
 
-    model.e22 = os.path.join(test_data_dir, 'HB2B_1320.h5')
+    model.e22 = os.path.join(test_data_dir, "HB2B_1320.h5")
     assert len(model.e22) == 1
-    assert model.e22[0].name == '22'
+    assert model.e22[0].name == "22"
 
-    model.calculate_stress('in-plane-stress', 200, 0.3, None)
+    model.calculate_stress("in-plane-stress", 200, 0.3, None)
 
-    for direction in ('11', '22', '33'):
-        stress_md = model.get_field(direction, 'stress', 'In-plane stress').to_md_histo_workspace()
-        assert stress_md.name() == 'stress'
+    for direction in ("11", "22", "33"):
+        stress_md = model.get_field(direction, "stress", "In-plane stress").to_md_histo_workspace()
+        assert stress_md.name() == "stress"
         assert stress_md.getNumDims() == 3
         assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [18, 6, 3]
 
     # Stress should be all zero for in-plane stress case
-    assert np.count_nonzero(model.get_field('33', 'stress', 'In-plane stress')
-                            .to_md_histo_workspace().getSignalArray()) == 0
+    assert (
+        np.count_nonzero(model.get_field("33", "stress", "In-plane stress").to_md_histo_workspace().getSignalArray())
+        == 0
+    )
     # Strain should be all non-zero for in-plane stress case
-    assert np.count_nonzero(model.get_field('33', 'strain', 'In-plane stress')
-                            .to_md_histo_workspace().getSignalArray()) == 18*6*3
+    assert (
+        np.count_nonzero(model.get_field("33", "strain", "In-plane stress").to_md_histo_workspace().getSignalArray())
+        == 18 * 6 * 3
+    )
 
     # Check default csv filename
     assert model.get_default_csv_filename() == "HB2B_1320_1320_stress_grid_peak0.csv"
@@ -136,21 +131,23 @@ def test_model(tmpdir, test_data_dir):
     # Check writing with bad filename, should fail but should emit failure message
     model.write_stress_to_csv("/bin/false", False)
 
-    model.calculate_stress('in-plane-strain', 200, 0.3, (1.08, 0))
+    model.calculate_stress("in-plane-strain", 200, 0.3, (1.08, 0))
 
     assert model.d0.values[0] == 1.08
 
-    for direction in ('11', '22', '33'):
-        stress_md = model.get_field(direction, 'stress', 'In-plane strain').to_md_histo_workspace()
-        assert stress_md.name() == 'stress'
+    for direction in ("11", "22", "33"):
+        stress_md = model.get_field(direction, "stress", "In-plane strain").to_md_histo_workspace()
+        assert stress_md.name() == "stress"
         assert stress_md.getNumDims() == 3
         assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [18, 6, 3]
 
     # Stress should be all non-zero for in-plane strain case
-    assert np.count_nonzero(model.get_field('33', 'stress', 'In-plane strain')
-                            .to_md_histo_workspace().getSignalArray()) == 18*6*3
+    assert (
+        np.count_nonzero(model.get_field("33", "stress", "In-plane strain").to_md_histo_workspace().getSignalArray())
+        == 18 * 6 * 3
+    )
     # Strain shouldn't exist for for in-plane strain case
-    assert model.get_field('33', 'strain', 'In-plane strain') is None
+    assert model.get_field("33", "strain", "In-plane strain") is None
 
     # Check default csv filename
     assert model.get_default_csv_filename() == "HB2B_1320_1320_stress_grid_peak0.csv"
@@ -187,21 +184,23 @@ def test_model(tmpdir, test_data_dir):
     assert d0["d0_error"] == 0
     assert len(data) == 0
 
-    model.e33 = os.path.join(test_data_dir, 'HB2B_1320.h5')
+    model.e33 = os.path.join(test_data_dir, "HB2B_1320.h5")
     assert len(model.e33) == 1
-    assert model.e33[0].name == '33'
+    assert model.e33[0].name == "33"
 
-    model.calculate_stress('diagonal', 200, 0.3, (1, 0))
+    model.calculate_stress("diagonal", 200, 0.3, (1, 0))
 
-    for direction in ('11', '22', '33'):
-        stress_md = model.get_field(direction, 'stress', 'diagonal').to_md_histo_workspace()
-        assert stress_md.name() == 'stress'
+    for direction in ("11", "22", "33"):
+        stress_md = model.get_field(direction, "stress", "diagonal").to_md_histo_workspace()
+        assert stress_md.name() == "stress"
         assert stress_md.getNumDims() == 3
         assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [18, 6, 3]
 
     # Should be all non-zero for diagonal stress case
-    assert np.count_nonzero(model.get_field('33', 'stress', 'diagonal')
-                            .to_md_histo_workspace().getSignalArray()) == 18*6*3
+    assert (
+        np.count_nonzero(model.get_field("33", "stress", "diagonal").to_md_histo_workspace().getSignalArray())
+        == 18 * 6 * 3
+    )
 
     # Check default csv filename
     assert model.get_default_csv_filename() == "HB2B_1320_1320_1320_stress_grid_peak0.csv"
@@ -248,40 +247,40 @@ def test_model(tmpdir, test_data_dir):
     d0_grid = model.d0
 
     # Should not re-calculate stress
-    model.calculate_stress('diagonal', 200, 0.3, (1, 0))
+    model.calculate_stress("diagonal", 200, 0.3, (1, 0))
     assert model._stress is current_stress
     assert model._stress.strain11 is current_strain11
     np.testing.assert_equal(current_stress11_values, model._stress.stress11.values)
     np.testing.assert_equal(current_strain11_values, model._stress.strain11.values)
 
     # Should re-calculate stress with different young modulus, stress*2
-    model.calculate_stress('diagonal', 400, 0.3, (1, 0))
+    model.calculate_stress("diagonal", 400, 0.3, (1, 0))
     assert model._stress is current_stress
     assert model._stress.strain11 is current_strain11
-    np.testing.assert_allclose(current_stress11_values*2, model._stress.stress11.values)
+    np.testing.assert_allclose(current_stress11_values * 2, model._stress.stress11.values)
     np.testing.assert_equal(current_strain11_values, model._stress.strain11.values)
 
     # Should re-calculate stress with different poissons ratio
-    model.calculate_stress('diagonal', 200, 0.4, (1, 0))
+    model.calculate_stress("diagonal", 200, 0.4, (1, 0))
     assert model._stress is current_stress
     assert model._stress.strain11 is current_strain11
     assert not np.all(current_stress11_values == model._stress.stress11.values)
     np.testing.assert_equal(current_strain11_values, model._stress.strain11.values)
 
     # Should re-calculate strain and stress with new d, but should be the same StressField
-    model.calculate_stress('diagonal', 200, 0.3, (1.08, 0))
+    model.calculate_stress("diagonal", 200, 0.3, (1.08, 0))
     assert model._stress is current_stress
     assert model._stress.strain11 is current_strain11
     assert not np.all(current_stress11_values == model._stress.stress11.values)
     assert not np.all(current_strain11_values == model._stress.strain11.values)
 
     # Should re-calculate strain and stress with new d grid
-    model.calculate_stress('diagonal', 200, 0.3,
-                           (list(d0_grid.values),
-                            list(d0_grid.errors),
-                            list(d0_grid.x),
-                            list(d0_grid.y),
-                            list(d0_grid.z)))
+    model.calculate_stress(
+        "diagonal",
+        200,
+        0.3,
+        (list(d0_grid.values), list(d0_grid.errors), list(d0_grid.x), list(d0_grid.y), list(d0_grid.z)),
+    )
     assert model._stress is current_stress
     assert model._stress.strain11 is current_strain11
     np.testing.assert_equal(current_strain11_values, model._stress.strain11.values)
@@ -315,28 +314,27 @@ def test_model(tmpdir, test_data_dir):
     assert len(data) == 0
 
     # Should build new StressField
-    model.calculate_stress('in-plane-stress', 200, 0.3, (1, 0))
+    model.calculate_stress("in-plane-stress", 200, 0.3, (1, 0))
     assert model._stress is not current_stress
     assert model._stress.strain11 is current_strain11
     np.testing.assert_equal(current_strain11_values, model._stress.strain11.values)
 
     # Check message when 22 is loaded without 11
     model = Model()
-    model.e22 = os.path.join(test_data_dir, 'HB2B_1320.h5')
+    model.e22 = os.path.join(test_data_dir, "HB2B_1320.h5")
     assert model.e22 is not None
-    assert model.validate_selection('22') == "e11 is not loaded, the peak tags from this file will be used"
+    assert model.validate_selection("22") == "e11 is not loaded, the peak tags from this file will be used"
 
     # try loading a file that isn't a HidraProjectFile
-    model.e22 = os.path.join(test_data_dir, 'HB2B_938.nxs.h5')
+    model.e22 = os.path.join(test_data_dir, "HB2B_938.nxs.h5")
     assert model.e22 == []
 
     # Check set_workspace, this is what is called by the controller
     model.e11 == []
-    model.set_workspaces('11', os.path.join(test_data_dir, 'HB2B_1320.h5'))
+    model.set_workspaces("11", os.path.join(test_data_dir, "HB2B_1320.h5"))
     model.e11 is not None
 
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
 def test_model_multiple_files(tmpdir, test_data_dir):
     model = Model()
 
@@ -347,62 +345,55 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     assert model._stress is None
 
     # load 2 files with fitted peaks
-    model.e11 = [os.path.join(test_data_dir, name) for name in ('HB2B_1327.h5', 'HB2B_1328.h5')]
+    model.e11 = [os.path.join(test_data_dir, name) for name in ("HB2B_1327.h5", "HB2B_1328.h5")]
     assert len(model.e11) == 2
-    assert model.e11[0].name == '11'
-    assert model.e11[1].name == '11'
-    assert model.peakTags == ['peak0', 'peak1']
+    assert model.e11[0].name == "11"
+    assert model.e11[1].name == "11"
+    assert model.peakTags == ["peak0", "peak1"]
     assert len(model.e11_peaks) == 2
-    assert 'peak0' in model.e11_peaks[0]
-    assert 'peak0' in model.e11_peaks[1]
+    assert "peak0" in model.e11_peaks[0]
+    assert "peak0" in model.e11_peaks[1]
 
     # select non-existing peak
-    model.selectedPeak = 'peak_label'
-    assert model.selectedPeak == 'peak_label'
-    assert model.validate_selection('11') == "Peak peak_label is not in e11"
+    model.selectedPeak = "peak_label"
+    assert model.selectedPeak == "peak_label"
+    assert model.validate_selection("11") == "Peak peak_label is not in e11"
 
     # select existing peak
-    model.selectedPeak = 'peak0'
-    assert model.selectedPeak == 'peak0'
+    model.selectedPeak = "peak0"
+    assert model.selectedPeak == "peak0"
 
-    assert model.validate_selection('11') is None
-    assert model.validate_selection('22') == "e22 file hasn't been loaded"
-    assert model.validate_selection('33') == "e33 file hasn't been loaded"
+    assert model.validate_selection("11") is None
+    assert model.validate_selection("22") == "e22 file hasn't been loaded"
+    assert model.validate_selection("33") == "e33 file hasn't been loaded"
 
     assert model.d0 is None
 
-    for plot_param in ("dspacing-center",
-                       "d-reference",
-                       "Center",
-                       "Height",
-                       "FWHM",
-                       "Mixing",
-                       "Intensity",
-                       "strain"):
-        e11_md = model.get_field('11', plot_param, 'stress_case').to_md_histo_workspace()
-        assert e11_md.name() == f'{plot_param}'
+    for plot_param in ("dspacing-center", "d-reference", "Center", "Height", "FWHM", "Mixing", "Intensity", "strain"):
+        e11_md = model.get_field("11", plot_param, "stress_case").to_md_histo_workspace()
+        assert e11_md.name() == f"{plot_param}"
         assert e11_md.getNumDims() == 3
         assert [e11_md.getDimension(n).getNBins() for n in range(3)] == [18, 6, 3]
-        assert model.get_field('22', plot_param, 'stress_case') is None
-        assert model.get_field('33', plot_param, 'stress_case') is None
+        assert model.get_field("22", plot_param, "stress_case") is None
+        assert model.get_field("33", plot_param, "stress_case") is None
 
     # Need to load ε22 so it should fail
     with pytest.raises(TypeError) as exception_info:
-        model.calculate_stress('in-plane-stress', 200, 0.3, (1.05, 0))
-    assert 'None is not a _StrainField object' in str(exception_info.value)
+        model.calculate_stress("in-plane-stress", 200, 0.3, (1.05, 0))
+    assert "None is not a _StrainField object" in str(exception_info.value)
 
-    model.e22 = [os.path.join(test_data_dir, name) for name in ('HB2B_1327.h5', 'HB2B_1328.h5')]
+    model.e22 = [os.path.join(test_data_dir, name) for name in ("HB2B_1327.h5", "HB2B_1328.h5")]
     assert len(model.e22) == 2
-    assert model.e22[0].name == '22'
-    assert model.e22[1].name == '22'
+    assert model.e22[0].name == "22"
+    assert model.e22[1].name == "22"
 
-    model.calculate_stress('in-plane-stress', 200, 0.3, (1.05, 0))
+    model.calculate_stress("in-plane-stress", 200, 0.3, (1.05, 0))
 
     assert model.d0.values[0] == 1.05
 
-    for direction in ('11', '22', '33'):
-        stress_md = model.get_field(direction, 'stress', 'In-plane stress').to_md_histo_workspace()
-        assert stress_md.name() == 'stress'
+    for direction in ("11", "22", "33"):
+        stress_md = model.get_field(direction, "stress", "In-plane stress").to_md_histo_workspace()
+        assert stress_md.name() == "stress"
         assert stress_md.getNumDims() == 3
         assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [18, 6, 3]
 
@@ -410,8 +401,10 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     # assert np.count_nonzero(model.get_field('33', 'stress', 'In-plane stress')
     #                        .to_md_histo_workspace().getSignalArray()) == 0
     # Strain should be all non-zero for in-plane stress case
-    assert np.count_nonzero(model.get_field('33', 'strain', 'In-plane stress')
-                            .to_md_histo_workspace().getSignalArray()) == 18*6*3
+    assert (
+        np.count_nonzero(model.get_field("33", "strain", "In-plane stress").to_md_histo_workspace().getSignalArray())
+        == 18 * 6 * 3
+    )
 
     # Check default csv filename
     assert model.get_default_csv_filename() == "HB2B_1327_1328_1327_1328_stress_grid_peak0.csv"
@@ -450,11 +443,11 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     assert d0["d0_error"] == 0
     assert len(data) == 0
 
-    model.calculate_stress('in-plane-strain', 200, 0.3, (1.05, 0))
+    model.calculate_stress("in-plane-strain", 200, 0.3, (1.05, 0))
 
-    for direction in ('11', '22', '33'):
-        stress_md = model.get_field(direction, 'stress', 'In-plane strain').to_md_histo_workspace()
-        assert stress_md.name() == 'stress'
+    for direction in ("11", "22", "33"):
+        stress_md = model.get_field(direction, "stress", "In-plane strain").to_md_histo_workspace()
+        assert stress_md.name() == "stress"
         assert stress_md.getNumDims() == 3
         assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [18, 6, 3]
 
@@ -462,7 +455,7 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     # assert np.count_nonzero(model.get_field('33', 'stress', 'In-plane strain')
     #                        .to_md_histo_workspace().getSignalArray()) == 18*49*3
     # Strain shouldn't exist for for in-plane strain case
-    assert model.get_field('33', 'strain', 'In-plane strain') is None
+    assert model.get_field("33", "strain", "In-plane strain") is None
 
     # Check default csv filename
     assert model.get_default_csv_filename() == "HB2B_1327_1328_1327_1328_stress_grid_peak0.csv"
@@ -476,22 +469,24 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     model.write_stress_to_csv(str(filename), True)
     assert len(open(filename).readlines()) == 318
 
-    model.e33 = os.path.join(test_data_dir, 'HB2B_1327.h5')
+    model.e33 = os.path.join(test_data_dir, "HB2B_1327.h5")
     assert len(model.e33) == 1
-    assert model.e33[0].name == '33'
+    assert model.e33[0].name == "33"
     model._e33_strain.set_d_reference((1.05, 0))
 
-    model.calculate_stress('diagonal', 200, 0.3, (1.05, 0))
+    model.calculate_stress("diagonal", 200, 0.3, (1.05, 0))
 
-    for direction in ('11', '22', '33'):
-        stress_md = model.get_field(direction, 'stress', 'diagonal').to_md_histo_workspace()
-        assert stress_md.name() == 'stress'
+    for direction in ("11", "22", "33"):
+        stress_md = model.get_field(direction, "stress", "diagonal").to_md_histo_workspace()
+        assert stress_md.name() == "stress"
         assert stress_md.getNumDims() == 3
         assert [stress_md.getDimension(n).getNBins() for n in range(3)] == [18, 6, 3]
 
     # Should be all non-zero for diagonal stress case
-    assert np.count_nonzero(model.get_field('33', 'stress', 'diagonal')
-                            .to_md_histo_workspace().getSignalArray()) == 18*6*3
+    assert (
+        np.count_nonzero(model.get_field("33", "stress", "diagonal").to_md_histo_workspace().getSignalArray())
+        == 18 * 6 * 3
+    )
 
     # Check default csv filename
     assert model.get_default_csv_filename() == "HB2B_1327_1328_1327_1328_1327_stress_grid_peak0.csv"
@@ -506,20 +501,19 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     assert len(open(filename).readlines()) == 318
 
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
 def test_model_from_json(tmpdir, test_data_dir):
     model_json = dict()
-    model_json['stress_case'] = 'in-plane-stress'
-    model_json['filenames_11'] = [os.path.join(test_data_dir, 'HB2B_1320.h5')]
-    model_json['filenames_22'] = [os.path.join(test_data_dir, 'HB2B_1320.h5')]
-    model_json['filenames_33'] = []
-    model_json['peak_tag'] = 'peak0'
-    model_json['youngs_modulus'] = 200
-    model_json['poisson_ratio'] = 0.3
-    model_json['d0'] = None
+    model_json["stress_case"] = "in-plane-stress"
+    model_json["filenames_11"] = [os.path.join(test_data_dir, "HB2B_1320.h5")]
+    model_json["filenames_22"] = [os.path.join(test_data_dir, "HB2B_1320.h5")]
+    model_json["filenames_33"] = []
+    model_json["peak_tag"] = "peak0"
+    model_json["youngs_modulus"] = 200
+    model_json["poisson_ratio"] = 0.3
+    model_json["d0"] = None
 
     json_filename1 = tmpdir.join("model1.json")
-    with open(json_filename1, 'w') as f:
+    with open(json_filename1, "w") as f:
         json.dump(model_json, f)
 
     model = Model()
@@ -534,16 +528,15 @@ def test_model_from_json(tmpdir, test_data_dir):
     assert len(model.e22) == 1
     assert len(model.e33) == 0
     assert model.stress is not None
-    assert model.modelUpdated == ('in-plane-stress', 'peak0', 200, 0.3)
+    assert model.modelUpdated == ("in-plane-stress", "peak0", 200, 0.3)
     d0 = model.d0
     assert d0.values[0] == 1
     assert d0.errors[0] == 0
 
-    model_json['d0'] = {'d0': 1.0123,
-                        'd0_error': 0.000123}
+    model_json["d0"] = {"d0": 1.0123, "d0_error": 0.000123}
 
     json_filename2 = tmpdir.join("model2.json")
-    with open(json_filename2, 'w') as f:
+    with open(json_filename2, "w") as f:
         json.dump(model_json, f)
 
     model.from_json(json_filename2)
@@ -551,7 +544,7 @@ def test_model_from_json(tmpdir, test_data_dir):
     assert len(model.e22) == 1
     assert len(model.e33) == 0
     assert model.stress is not None
-    assert model.modelUpdated == ('in-plane-stress', 'peak0', 200, 0.3)
+    assert model.modelUpdated == ("in-plane-stress", "peak0", 200, 0.3)
     d0 = model.d0
     assert d0.values[0] == 1.0123
     assert d0.errors[0] == 0.000123
@@ -560,14 +553,16 @@ def test_model_from_json(tmpdir, test_data_dir):
     d0_values = d0.values
     d0_values[:4] = [1.01, 1.02, 1.03, 1.04]
 
-    model_json['d0'] = {"d0": list(d0_values),
-                        "d0_error": list(d0.errors),
-                        "vx": list(d0.x),
-                        "vy": list(d0.y),
-                        "vz": list(d0.z)}
+    model_json["d0"] = {
+        "d0": list(d0_values),
+        "d0_error": list(d0.errors),
+        "vx": list(d0.x),
+        "vy": list(d0.y),
+        "vz": list(d0.z),
+    }
 
     json_filename3 = tmpdir.join("model3.json")
-    with open(json_filename3, 'w') as f:
+    with open(json_filename3, "w") as f:
         json.dump(model_json, f)
 
     model.from_json(json_filename3)
@@ -575,22 +570,25 @@ def test_model_from_json(tmpdir, test_data_dir):
     assert len(model.e22) == 1
     assert len(model.e33) == 0
     assert model.stress is not None
-    assert model.modelUpdated == ('in-plane-stress', 'peak0', 200, 0.3)
+    assert model.modelUpdated == ("in-plane-stress", "peak0", 200, 0.3)
     d0 = model.d0
     assert list(d0.values[:5]) == [1.01, 1.02, 1.03, 1.04, 1.0123]
     assert d0.errors[0] == 0.000123
 
-    model_json['stress_case'] = 'diagonal'
-    model_json['filenames_11'] = [os.path.join(test_data_dir, 'HB2B_1327.h5'),
-                                  os.path.join(test_data_dir, 'HB2B_1328.h5')]
-    model_json['filenames_22'] = [os.path.join(test_data_dir, 'HB2B_1327.h5'),
-                                  os.path.join(test_data_dir, 'HB2B_1328.h5')]
-    model_json['filenames_33'] = [os.path.join(test_data_dir, 'HB2B_1327.h5')]
-    model_json['d0'] = {'d0': 1.0123,
-                        'd0_error': 0.000123}
+    model_json["stress_case"] = "diagonal"
+    model_json["filenames_11"] = [
+        os.path.join(test_data_dir, "HB2B_1327.h5"),
+        os.path.join(test_data_dir, "HB2B_1328.h5"),
+    ]
+    model_json["filenames_22"] = [
+        os.path.join(test_data_dir, "HB2B_1327.h5"),
+        os.path.join(test_data_dir, "HB2B_1328.h5"),
+    ]
+    model_json["filenames_33"] = [os.path.join(test_data_dir, "HB2B_1327.h5")]
+    model_json["d0"] = {"d0": 1.0123, "d0_error": 0.000123}
 
     json_filename4 = tmpdir.join("model4.json")
-    with open(json_filename4, 'w') as f:
+    with open(json_filename4, "w") as f:
         json.dump(model_json, f)
 
     model.from_json(json_filename4)
@@ -598,21 +596,29 @@ def test_model_from_json(tmpdir, test_data_dir):
     assert len(model.e22) == 2
     assert len(model.e33) == 1
     assert model.stress is not None
-    assert model.modelUpdated == ('diagonal', 'peak0', 200, 0.3)
+    assert model.modelUpdated == ("diagonal", "peak0", 200, 0.3)
     d0 = model.d0
     assert d0.values[0] == 1.0123
     assert d0.errors[0] == 0.000123
 
 
-# changes to SliceViewer from Mantid in the version 5.1 is needed for the stress/strain viewer to run
-@pytest.mark.skipif(ON_GITHUB_ACTIONS or old_mantid, reason='Need mantid version >= 5.1')
-def test_stress_strain_viewer(qtbot):
-
+@pytest.fixture(scope="session")
+def strain_stress_window(my_qtbot):
+    r"""
+    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
+    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
+    """
     model = Model()
     ctrl = Controller(model)
     window = StrainStressViewer(model, ctrl)
+    return window, my_qtbot
 
-    qtbot.addWidget(window)
+
+# changes to SliceViewer from Mantid in the version 5.1 is needed for the stress/strain viewer to run
+@pytest.mark.skipif(old_mantid, reason="Need mantid version >= 5.1")
+def test_stress_strain_viewer(strain_stress_window):
+    window, qtbot = strain_stress_window
+
     window.show()
     qtbot.wait(wait)
 
@@ -704,3 +710,5 @@ def test_stress_strain_viewer(qtbot):
         qtbot.wait(wait)
         # check that the sliceviewer widget is created
         assert window.viz_tab.strainSliceViewer is not None
+
+    window.hide()

@@ -30,40 +30,24 @@ Developer Quick Start
 
 If you've never used PyRS before, you can get started quickly by doing the following.
 
-1. Install basic dependencies: Conda, Python, and PyQt. Conda installation requires linux.
-2. Create a new Conda environment with additional dependencies:
+1. Install basic dependencies: Pixi, Python, and PyQt. Pixi installation requires linux.
+2. Create a new Pixi environment with additional dependencies:
 
-Installation using an anaconda environment
+Installation using a Pixi environment
 ------------------------------------------
-Anaconda environments are only supported on OSx (x86) and Linux using python 3.10
+Pixi environments are only supported on OSx (x86) and Linux using python 3.11
 
-1. Configure anaconda environment:
-
-.. code-block::
-
-  conda install -c conda-forge mamba
+1. Configure Pixi environment:
 
 .. code-block::
 
-  mamba env create --name pyrs --file environment.yml
+  pixi install
 
-2. Activate the conda environment
-
-.. code-block::
-
-  conda activate pyrs
-
-3. From the PyRS directory, run the setup script in developer mode
+2. Run PyRs with Pixi:
 
 .. code-block::
 
-  python setup.py build
-
-4. From the PyRS directory, start the user interface
-
-.. code-block::
-
-  PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
+  pixi run pyrs
 
 Running and developing PyRS
 ---------------------------
@@ -72,7 +56,7 @@ To start main window from analysis machine
 
 .. code-block::
 
-  PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
+  pixi run pyrs
 
 To develop
 
@@ -80,14 +64,14 @@ To run all of the tests
 
 .. code-block::
 
-  python -m pytest
+  pixi run test
 
 Running specific tests can be done `through standard ways`
 <https://docs.pytest.org/en/stable/usage.html>`_. For example
 
 .. code-block::
 
-   python -m pytest tests/unit
+   pixi run python -m pytest tests/unit
 
 will only run the unit tests
 

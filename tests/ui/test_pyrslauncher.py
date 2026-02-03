@@ -1,15 +1,22 @@
 from pyrs.interface.pyrs_main import PyRSLauncher
 from qtpy import QtCore
-from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 import pytest
 
 wait = 100
 
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
-def test_launcher(qtbot):
-    main_window = PyRSLauncher()
-    qtbot.addWidget(main_window)
+@pytest.fixture(scope="session")
+def main_window(my_qtbot):
+    r"""
+    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
+    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
+    """
+    window = PyRSLauncher()
+    return window, my_qtbot
+
+
+def test_launcher(main_window):
+    main_window, qtbot = main_window
     main_window.show()
     qtbot.wait(wait)
 
@@ -28,3 +35,6 @@ def test_launcher(qtbot):
     qtbot.wait(wait)
     assert main_window.peak_fit_window is not None
     assert main_window.peak_fit_window.isVisible()
+    main_window.peak_fit_window.close()
+    main_window.manual_reduction_window.close()
+    main_window.close()

@@ -1,6 +1,7 @@
 from qtpy.QtWidgets import QHBoxLayout, QVBoxLayout, QLabel, QWidget  # type:ignore
 from qtpy.QtWidgets import QLineEdit, QPushButton, QComboBox  # type:ignore
 from qtpy.QtWidgets import QGroupBox, QSplitter, QFileDialog  # type:ignore
+
 # from qtpy.QtWidgets import QStyledItemDelegate, QDoubleSpinBox  # type:ignore
 from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QSlider, QTabWidget  # type:ignore
 from qtpy.QtWidgets import QDialog, QDialogButtonBox
@@ -28,34 +29,33 @@ import json
 scale_factor = 1
 marker_size = 5 * scale_factor
 
-rcParams['axes.labelsize'] = 10 * scale_factor
-rcParams['xtick.labelsize'] = 9 * scale_factor
-rcParams['ytick.labelsize'] = 9 * scale_factor
-rcParams['lines.linewidth'] = 2 * scale_factor
-rcParams['axes.linewidth'] = 1.0 * scale_factor / 2.
-rcParams['xtick.major.size'] = 3.5 * scale_factor
-rcParams['xtick.minor.size'] = 2 * scale_factor
-rcParams['xtick.major.width'] = 0.8 * scale_factor / 2.
-rcParams['xtick.minor.width'] = 0.8 * scale_factor / 2.
-rcParams['ytick.major.size'] = 3.5 * scale_factor
-rcParams['ytick.minor.size'] = 2 * scale_factor
-rcParams['ytick.major.width'] = 0.8 * scale_factor / 2.
-rcParams['ytick.minor.width'] = 0.8 * scale_factor / 2.
+rcParams["axes.labelsize"] = 10 * scale_factor
+rcParams["xtick.labelsize"] = 9 * scale_factor
+rcParams["ytick.labelsize"] = 9 * scale_factor
+rcParams["lines.linewidth"] = 2 * scale_factor
+rcParams["axes.linewidth"] = 1.0 * scale_factor / 2.0
+rcParams["xtick.major.size"] = 3.5 * scale_factor
+rcParams["xtick.minor.size"] = 2 * scale_factor
+rcParams["xtick.major.width"] = 0.8 * scale_factor / 2.0
+rcParams["xtick.minor.width"] = 0.8 * scale_factor / 2.0
+rcParams["ytick.major.size"] = 3.5 * scale_factor
+rcParams["ytick.minor.size"] = 2 * scale_factor
+rcParams["ytick.major.width"] = 0.8 * scale_factor / 2.0
+rcParams["ytick.minor.width"] = 0.8 * scale_factor / 2.0
 rcParams["savefig.dpi"] = 200
 
 
 def save_json_file(self):
-    filename, _ = QFileDialog.getSaveFileName(self,
-                                              "Export Calibration",
-                                              "JSON (*.json)",
-                                              options=QFileDialog.DontUseNativeDialog)
+    filename, _ = QFileDialog.getSaveFileName(
+        self, "Export Calibration", "JSON (*.json)", options=QFileDialog.DontUseNativeDialog
+    )
 
     if not filename:
         return None
 
     head, tail = os.path.splitext(filename)
     if not tail:
-        filename = os.path.join('', head + '.json')
+        filename = os.path.join("", head + ".json")
 
     return filename
 
@@ -98,11 +98,9 @@ class FileLoad(QWidget):
         self._parent.fit_summary.fit_table_operator.fit_result = None
 
     def openCalibFileDialog(self):
-        self._parent._calibration_input, _ = QFileDialog.getOpenFileNames(self,
-                                                                          self.name,
-                                                                          "",
-                                                                          self.fileType,
-                                                                          options=QFileDialog.DontUseNativeDialog)
+        self._parent._calibration_input, _ = QFileDialog.getOpenFileNames(
+            self, self.name, "", self.fileType, options=QFileDialog.DontUseNativeDialog
+        )
 
         if self._parent._calibration_input:
             if type(self._parent._calibration_input) is list:
@@ -111,11 +109,9 @@ class FileLoad(QWidget):
             self._parent.calib_summary._cal_summary_table._initalize_calibration()
 
     def openFileDialog(self):
-        self._parent._nexus_file, _ = QFileDialog.getOpenFileNames(self,
-                                                                   self.name,
-                                                                   "",
-                                                                   self.fileType,
-                                                                   options=QFileDialog.DontUseNativeDialog)
+        self._parent._nexus_file, _ = QFileDialog.getOpenFileNames(
+            self, self.name, "", self.fileType, options=QFileDialog.DontUseNativeDialog
+        )
 
         if self._parent._nexus_file:
             if type(self._parent._nexus_file) is list:
@@ -124,12 +120,10 @@ class FileLoad(QWidget):
             self.load_nexus()
 
     def loadRunNumber(self):
-
         try:
             self._parent._nexus_file = get_nexus_file(int(self.lineEdit.text()))
         except (FileNotFoundError, RuntimeError, ValueError) as run_err:
-            pop_message(self, f'Failed to find run {self.lineEdit.text()}',
-                        str(run_err), 'error')
+            pop_message(self, f"Failed to find run {self.lineEdit.text()}", str(run_err), "error")
             return
 
         if self._parent._nexus_file:
@@ -140,9 +134,11 @@ class FileLoad(QWidget):
 
     def load_nexus(self):
         try:
-            self._parent.controller.load_nexus(self._parent._nexus_file,
-                                               self._parent.peak_lines_setup.tthbin_lineEdit.text(),
-                                               self._parent.peak_lines_setup.etabin_lineEdit.text())
+            self._parent.controller.load_nexus(
+                self._parent._nexus_file,
+                self._parent.peak_lines_setup.tthbin_lineEdit.text(),
+                self._parent.peak_lines_setup.etabin_lineEdit.text(),
+            )
 
             self._parent.compare_diff_data.sl.setMaximum(self._parent.model.sub_runs.size)
             self._parent.compare_diff_data.valueChanged()
@@ -151,8 +147,7 @@ class FileLoad(QWidget):
             self._parent.calib_summary._cal_summary_table.set_wavelength(0, self._parent.controller.get_wavelength())
 
         except (FileNotFoundError, RuntimeError, ValueError) as run_err:
-            pop_message(self, f'Failed to find run {self._parent._nexus_file}',
-                        str(run_err), 'error')
+            pop_message(self, f"Failed to find run {self._parent._nexus_file}", str(run_err), "error")
 
             self._parent._nexus_file = None
 
@@ -167,10 +162,10 @@ class FileLoading(QGroupBox):
         layout = QHBoxLayout()
 
         self.file_load_run_number = FileLoad(name="Run Number:", parent=parent)
-        self.file_load_dilg = FileLoad(name=None, parent=parent,
-                                       fileType="Nexus (*.nxs.h5)")
-        self.file_load_calib = FileLoad(name="Load Calibration", parent=parent,
-                                        fileType="json (*.json);;All Files (*)")
+        self.file_load_dilg = FileLoad(name=None, parent=parent, fileType="Nexus (*.nxs.h5)")
+        self.file_load_calib = FileLoad(
+            name="Load Calibration", parent=parent, fileType="json (*.json);;All Files (*)"
+        )
         layout.addWidget(self.file_load_run_number)
         layout.addWidget(self.file_load_dilg)
         layout.addWidget(self.file_load_calib)
@@ -208,9 +203,12 @@ class DiffractionWindow(QWidget):
         self.sl.valueChanged.connect(self.valueChanged)
 
     def valueChanged(self):
-        self._parent.controller.update_diff_view(self._parent.compare_diff_data.tabs.currentWidget(),
-                                                 self.tabs.currentIndex(), self.sl.value(),
-                                                 self._parent.peak_lines_setup.get_keep_list())
+        self._parent.controller.update_diff_view(
+            self._parent.compare_diff_data.tabs.currentWidget(),
+            self.tabs.currentIndex(),
+            self.sl.value(),
+            self._parent.peak_lines_setup.get_keep_list(),
+        )
 
 
 class VisualizeResults(QWidget):
@@ -222,14 +220,14 @@ class VisualizeResults(QWidget):
         # panel_layout = QVBoxLayout()
 
         self.plot_paramX = QComboBox()
-        self.plot_paramX.addItems(["iteration", 'shift x', 'shift y', 'distance',
-                                   'rot x', 'rot y', 'rot z', 'tth 0', 'wavelength'])
+        self.plot_paramX.addItems(
+            ["iteration", "shift x", "shift y", "distance", "rot x", "rot y", "rot z", "tth 0", "wavelength"]
+        )
 
         plot_labelX = QLabel("X-axis")
         plot_labelX.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.plot_paramY = QComboBox()
-        self.plot_paramY.addItems(['shift x', 'shift y', 'distance',
-                                   'rot x', 'rot y', 'rot z', 'tth 0', 'wavelength'])
+        self.plot_paramY.addItems(["shift x", "shift y", "distance", "rot x", "rot y", "rot z", "tth 0", "wavelength"])
 
         self.plot_paramX.currentIndexChanged.connect(self.change_plot)
         self.plot_paramY.currentIndexChanged.connect(self.change_plot)
@@ -249,11 +247,13 @@ class VisualizeResults(QWidget):
         self.setLayout(param_layout)
 
     def change_plot(self):
-        self._parent.controller.plot_2D_params(self.param_vew,
-                                               self.plot_paramX.currentIndex(),
-                                               self.plot_paramY.currentIndex(),
-                                               self.plot_paramX.currentText(),
-                                               self.plot_paramY.currentText())
+        self._parent.controller.plot_2D_params(
+            self.param_vew,
+            self.plot_paramX.currentIndex(),
+            self.plot_paramY.currentIndex(),
+            self.plot_paramX.currentText(),
+            self.plot_paramY.currentText(),
+        )
 
 
 class FixFigureCanvas(FigureCanvas):
@@ -277,7 +277,7 @@ class PlotView(QWidget):
         self.layout().addWidget(self.toolbar)
         self.two_dim = two_dim
         if two_dim:
-            self.ax.axis('off')
+            self.ax.axis("off")
         elif param_view:
             self.ax.set_xlabel("")
             self.ax.set_ylabel("")
@@ -288,9 +288,9 @@ class PlotView(QWidget):
         plt.tight_layout()
 
     def update_diff_view(self, sub_run):
-
-        self._parent.controller.update_diffraction_view(self.ax, self._parent, sub_run, self.two_dim,
-                                                        self._parent.peak_lines_setup.get_keep_list())
+        self._parent.controller.update_diffraction_view(
+            self.ax, self._parent, sub_run, self.two_dim, self._parent.peak_lines_setup.get_keep_list()
+        )
 
         plt.tight_layout()
         self.canvas.draw()
@@ -299,7 +299,6 @@ class PlotView(QWidget):
         return FixFigureCanvas(self.figure)
 
     def update_param_view(self, x_item, y_item, x_text, y_text):
-
         self._parent.controller.plot_2D_params(self.ax, x_item, y_item)
 
         self.ax.set_xlabel(x_text)
@@ -327,7 +326,7 @@ class PeakLinesSetupView(QGroupBox):
 
         self.calibrant_table = QTableWidget(self)
         self.calibrant_table.setColumnCount(2)
-        self.calibrant_table.setHorizontalHeaderLabels(['Calibrant', 'exclude'])
+        self.calibrant_table.setHorizontalHeaderLabels(["Calibrant", "exclude"])
         self.calibrant_table.resizeColumnsToContents()
 
         self.calibration_setup_layout.addWidget(self.calibrant_table)
@@ -338,25 +337,25 @@ class PeakLinesSetupView(QGroupBox):
         recipe_setup_layout = QGridLayout()
 
         self.recipe_combos = {}
-        recipe_setup_layout.addWidget(self.setup_label('Step'), 0, 0)
-        recipe_setup_layout.addWidget(self.setup_label('Routine', Qt.AlignCenter), 0, 1)
+        recipe_setup_layout.addWidget(self.setup_label("Step"), 0, 0)
+        recipe_setup_layout.addWidget(self.setup_label("Routine", Qt.AlignCenter), 0, 1)
 
         for i_row in range(8):
             self.recipe_combos[i_row] = self.setup_combo_box()
-            recipe_setup_layout.addWidget(self.setup_label('{}'.format(i_row + 1)), i_row + 1, 0)
+            recipe_setup_layout.addWidget(self.setup_label("{}".format(i_row + 1)), i_row + 1, 0)
             recipe_setup_layout.addWidget(self.recipe_combos[i_row], i_row + 1, 1, 1, 3)
 
-        tthbin_label = QLabel('2θ bin')
+        tthbin_label = QLabel("2θ bin")
         tthbin_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.tthbin_lineEdit = QLineEdit()
-        self.tthbin_lineEdit.setText('512')
+        self.tthbin_lineEdit.setText("512")
         self.tthbin_lineEdit.setReadOnly(False)
         self.tthbin_lineEdit.setFixedWidth(75)
 
-        etabin_label = QLabel('η bin')
+        etabin_label = QLabel("η bin")
         etabin_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.etabin_lineEdit = QLineEdit()
-        self.etabin_lineEdit.setText('3')
+        self.etabin_lineEdit.setText("3")
         self.etabin_lineEdit.setReadOnly(False)
         self.etabin_lineEdit.setFixedWidth(50)
 
@@ -391,8 +390,7 @@ class PeakLinesSetupView(QGroupBox):
         return
 
     def set_reduction_param(self):
-        self._parent.controller.set_reduction_param(self.tthbin_lineEdit.text(),
-                                                    self.etabin_lineEdit.text())
+        self._parent.controller.set_reduction_param(self.tthbin_lineEdit.text(), self.etabin_lineEdit.text())
 
     def setup_label(self, label_name, align=Qt.AlignRight):
         label = QLabel(label_name)
@@ -402,8 +400,21 @@ class PeakLinesSetupView(QGroupBox):
 
     def setup_combo_box(self):
         temp_combo_box = QComboBox(self)
-        temp_combo_box.addItems(['', 'wavelength', 'wavelength_tth0', 'rotations', 'geometry',
-                                 'shifts', 'shift x', 'shift y', 'distance', 'full', 'tth0'])
+        temp_combo_box.addItems(
+            [
+                "",
+                "wavelength",
+                "wavelength_tth0",
+                "rotations",
+                "geometry",
+                "shifts",
+                "shift x",
+                "shift y",
+                "distance",
+                "full",
+                "tth0",
+            ]
+        )
 
         return temp_combo_box
 
@@ -421,8 +432,8 @@ class PeakLinesSetupView(QGroupBox):
         rmse, deltatth = self._parent.controller.fit_diffraction_peaks(keep_list)
         self._parent.compare_diff_data.valueChanged()  # auto plot data after fitting
 
-        self._parent.calib_summary.rmse_lineEdit.setText('{0:3f}'.format(rmse))
-        self._parent.calib_summary.delta_tth_lineEdit.setText('{0:4f}'.format(deltatth))
+        self._parent.calib_summary.rmse_lineEdit.setText("{0:3f}".format(rmse))
+        self._parent.calib_summary.delta_tth_lineEdit.setText("{0:4f}".format(deltatth))
 
     def calibrate_detector(self):
         self.set_reduction_param()
@@ -432,26 +443,29 @@ class PeakLinesSetupView(QGroupBox):
         exclude_list = self.get_keep_list()
         fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
 
-        self.load_info.setEnabled(False)
-        self.export_recipe.setEnabled(False)
-        self.fit.setEnabled(False)
-        self.calibrate.setEnabled(False)
+        fit_recipe = [_recipe for _recipe in fit_recipe if _recipe != ""]
 
-        # do action
-        args = [fit_recipe, exclude_list]
-        self.worker = self.worker_pool.createWorker(target=self._parent.controller.calibrate_detector, args=(args))
-        self.worker.finished.connect(lambda: self.load_info.setEnabled(True))
-        self.worker.finished.connect(lambda: self.export_recipe.setEnabled(True))
-        self.worker.finished.connect(lambda: self.fit.setEnabled(True))
-        self.worker.finished.connect(lambda: self.calibrate.setEnabled(True))
-        self.worker.finished.connect(lambda: self.time_worker.stop())
-        self.worker.result.connect(self.parse_calibration_results)
+        if len(fit_recipe) > 0:
+            self.load_info.setEnabled(False)
+            self.export_recipe.setEnabled(False)
+            self.fit.setEnabled(False)
+            self.calibrate.setEnabled(False)
 
-        self.time_worker = self.worker_pool.createTimmerWorker()
-        self.time_worker.progress.connect(self.progress_update)
+            # do action
+            args = [fit_recipe, exclude_list]
+            self.worker = self.worker_pool.createWorker(target=self._parent.controller.calibrate_detector, args=(args))
+            self.worker.finished.connect(lambda: self.load_info.setEnabled(True))
+            self.worker.finished.connect(lambda: self.export_recipe.setEnabled(True))
+            self.worker.finished.connect(lambda: self.fit.setEnabled(True))
+            self.worker.finished.connect(lambda: self.calibrate.setEnabled(True))
+            self.worker.finished.connect(lambda: self.time_worker.stop())
+            self.worker.result.connect(self.parse_calibration_results)
 
-        self.worker_pool.submitWorker(self.worker)
-        self.worker_pool.submitWorker(self.time_worker)
+            self.time_worker = self.worker_pool.createTimmerWorker()
+            self.time_worker.progress.connect(self.progress_update)
+
+            self.worker_pool.submitWorker(self.worker)
+            self.worker_pool.submitWorker(self.time_worker)
 
     def progress_update(self):
         self._parent.param_window.change_plot()
@@ -461,17 +475,16 @@ class PeakLinesSetupView(QGroupBox):
         r_sum = self._parent.controller.r_sum
 
         if (rmse is not None) and (r_sum is not None):
-            self._parent.calib_summary.rmse_lineEdit.setText('{0:3f}'.format(rmse))
-            self._parent.calib_summary.delta_tth_lineEdit.setText('{0:4f}'.format(r_sum))
+            self._parent.calib_summary.rmse_lineEdit.setText("{0:3f}".format(rmse))
+            self._parent.calib_summary.delta_tth_lineEdit.setText("{0:4f}".format(r_sum))
 
     def parse_calibration_results(self, result):
-
         fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
 
         for i_steps in range(len(result[0])):
-            self._parent.calib_summary._cal_summary_table.set_calibration([result[0][i_steps]],
-                                                                          [result[1][i_steps]],
-                                                                          col_name=fit_recipe[i_steps])
+            self._parent.calib_summary._cal_summary_table.set_calibration(
+                [result[0][i_steps]], [result[1][i_steps]], col_name=fit_recipe[i_steps]
+            )
 
         r_sum = result[2]
         rmse = result[3]
@@ -479,8 +492,8 @@ class PeakLinesSetupView(QGroupBox):
         self._parent.compare_diff_data.valueChanged()  # auto plot data after fitting
         self._parent.param_window.change_plot()
 
-        self._parent.calib_summary.rmse_lineEdit.setText('{0:3f}'.format(rmse))
-        self._parent.calib_summary.delta_tth_lineEdit.setText('{0:4f}'.format(r_sum))
+        self._parent.calib_summary.rmse_lineEdit.setText("{0:3f}".format(rmse))
+        self._parent.calib_summary.delta_tth_lineEdit.setText("{0:4f}".format(r_sum))
 
     def setup_calibration_table(self, powders):
         self.calibrant_table.setRowCount(len(powders))
@@ -488,7 +501,7 @@ class PeakLinesSetupView(QGroupBox):
         for row, string in enumerate(powders):
             powder_item = QTableWidgetItem(string)
             powder_item.setText(string)
-            chkBoxItem = QTableWidgetItem('')
+            chkBoxItem = QTableWidgetItem("")
             chkBoxItem.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
             chkBoxItem.setCheckState(0)
             self.calibrant_table.setItem(row, 0, powder_item)
@@ -498,8 +511,9 @@ class PeakLinesSetupView(QGroupBox):
         self._parent.controller.set_calibration_params(self._parent.calib_summary._cal_summary_table.get_calibration())
 
     def set_refinement_params(self):
-        self._parent.controller.set_refinement_params(self._parent.calib_summary.method_combo_box.currentText(),
-                                                      self._parent.calib_summary.neval_lineEdit.text())
+        self._parent.controller.set_refinement_params(
+            self._parent.calib_summary.method_combo_box.currentText(), self._parent.calib_summary.neval_lineEdit.text()
+        )
 
     def save_json(self):
         filename = save_json_file(self)
@@ -511,80 +525,91 @@ class PeakLinesSetupView(QGroupBox):
 
         # write nexus file
         if self._parent._run_number is not None:
-            output_dict['run_number'] = self._parent._run_number
+            output_dict["run_number"] = self._parent._run_number
 
         if self._parent._nexus_file is not None:
-            output_dict['nexus_file'] = self._parent._nexus_file
+            output_dict["nexus_file"] = self._parent._nexus_file
 
         # write input calibration
         if self._parent._calibration_input is not None:
-            output_dict['input_calibration'] = self._parent._calibration_input
+            output_dict["input_calibration"] = self._parent._calibration_input
 
         # write exclude list
-        output_dict['keep'] = self.get_keep_list().tolist()
+        output_dict["keep"] = self.get_keep_list().tolist()
 
         # write routines
-        Method = ''
+        Method = ""
         for i_item in range(8):
-            if self.recipe_combos[i_item].currentText() != '':
-                recipe = '{},{}'.format(Method, self.recipe_combos[i_item].currentText())
+            if self.recipe_combos[i_item].currentText() != "":
+                recipe = "{},{}".format(Method, self.recipe_combos[i_item].currentText())
 
-        output_dict['recipe'] = recipe[1:]
+        output_dict["recipe"] = recipe[1:]
 
         # write tth bins
-        output_dict['tth_bin'] = self.tthbin_lineEdit.text()
+        output_dict["tth_bin"] = self.tthbin_lineEdit.text()
 
         # write eta bins
-        output_dict['eta_bin'] = self.etabin_lineEdit.text()
+        output_dict["eta_bin"] = self.etabin_lineEdit.text()
 
-        output_dict['method'] = self._parent.calib_summary.method_combo_box.currentText()
-        output_dict['neval'] = self._parent.calib_summary.neval_lineEdit.text()
+        output_dict["method"] = self._parent.calib_summary.method_combo_box.currentText()
+        output_dict["neval"] = self._parent.calib_summary.neval_lineEdit.text()
 
         with open(filename, "w") as outfile:
             outfile.write(json.dumps(output_dict, indent=4))
 
     def load_json(self):
-        filename, _ = QFileDialog.getOpenFileName(self,
-                                                  "Load Calibration Recipe",
-                                                  "JSON (*.json);;All Files (*)",
-                                                  options=QFileDialog.DontUseNativeDialog)
+        filename, _ = QFileDialog.getOpenFileName(
+            self, "Load Calibration Recipe", "JSON (*.json);;All Files (*)", options=QFileDialog.DontUseNativeDialog
+        )
         if not filename:
             return
 
-        with open(filename, 'r') as openfile:
+        with open(filename, "r") as openfile:
             # Reading from json file
             input_dict = json.load(openfile)
 
         # load new nexus data if data are not currently loaded
-        if self._parent._nexus_file != input_dict['nexus_file']:
-            self._parent._nexus_file = input_dict['nexus_file']
+        if self._parent._nexus_file != input_dict["nexus_file"]:
+            self._parent._nexus_file = input_dict["nexus_file"]
             self._parent.fileLoading.file_load_dilg.load_nexus()
 
-        methods = ['', 'wavelength', 'wavelength_tth0', 'rotations', 'geometry',
-                   'shifts', 'shift x', 'shift y', 'distance', 'full', 'tth0']
+        methods = [
+            "",
+            "wavelength",
+            "wavelength_tth0",
+            "rotations",
+            "geometry",
+            "shifts",
+            "shift x",
+            "shift y",
+            "distance",
+            "full",
+            "tth0",
+        ]
 
-        if 'recipe' in input_dict.keys():
-            for i_item, item in enumerate(input_dict['recipe'].split(',')):
+        if "recipe" in input_dict.keys():
+            for i_item, item in enumerate(input_dict["recipe"].split(",")):
                 self.recipe_combos[i_item].setCurrentIndex(methods.index(item))
 
         # load input calibration if specified
         if self._parent._nexus_file is not None:  # Error check to make sure nexus file is loaded
             for key in list(input_dict.keys()):
-                if key == 'input_calibration':
-                    self._parent._calibration_input = input_dict['input_calibration']
-                    self._parent.calib_summary._cal_summary_table.\
-                        _initalize_calibration(self._parent._calibration_input)
-                elif key == 'keep':
-                    for i_keep, keep in enumerate(input_dict['keep']):
+                if key == "input_calibration":
+                    self._parent._calibration_input = input_dict["input_calibration"]
+                    self._parent.calib_summary._cal_summary_table._initalize_calibration(
+                        self._parent._calibration_input
+                    )
+                elif key == "keep":
+                    for i_keep, keep in enumerate(input_dict["keep"]):
                         if keep is False:
                             self.calibrant_table.item(i_keep, 1).setCheckState(2)
-                elif key == 'tth_bin':
-                    self.tthbin_lineEdit.setText(input_dict['tth_bin'])
-                elif key == 'eta_bin':
-                    self.etabin_lineEdit.setText(input_dict['eta_bin'])
-                elif key == 'method':
+                elif key == "tth_bin":
+                    self.tthbin_lineEdit.setText(input_dict["tth_bin"])
+                elif key == "eta_bin":
+                    self.etabin_lineEdit.setText(input_dict["eta_bin"])
+                elif key == "method":
                     self._parent.calib_summary.set_method(input_dict[key])
-                elif key == 'neval':
+                elif key == "neval":
                     self._parent.calib_summary.neval_lineEdit.setText(str(input_dict[key]))
 
 
@@ -619,31 +644,31 @@ class CalibrationSummaryView(QGroupBox):
         calib_summary = QGroupBox()
         calib_layout = QGridLayout()
 
-        empty_label = QLabel('')
-        rmse_label = QLabel('RMSE')
+        empty_label = QLabel("")
+        rmse_label = QLabel("RMSE")
         rmse_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.rmse_lineEdit = QLineEdit()
-        self.rmse_lineEdit.setText('')
+        self.rmse_lineEdit.setText("")
         self.rmse_lineEdit.setReadOnly(True)
         self.rmse_lineEdit.setFixedWidth(200)
 
-        delta_tth_label = QLabel('Δ 2θ')
+        delta_tth_label = QLabel("Δ 2θ")
         delta_tth_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.delta_tth_lineEdit = QLineEdit()
-        self.delta_tth_lineEdit.setText('')
+        self.delta_tth_lineEdit.setText("")
         self.delta_tth_lineEdit.setReadOnly(True)
         self.delta_tth_lineEdit.setFixedWidth(200)
 
-        neval_label = QLabel('max nfev')
+        neval_label = QLabel("max nfev")
         neval_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.neval_lineEdit = QLineEdit()
-        self.neval_lineEdit.setText('300')
+        self.neval_lineEdit.setText("300")
         self.neval_lineEdit.setFixedWidth(200)
 
-        method_label = QLabel('refinement method')
+        method_label = QLabel("refinement method")
         method_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.method_combo_box = QComboBox(self)
-        self.method_combo_box.addItems(['trf', 'dogbox', 'lm'])
+        self.method_combo_box.addItems(["trf", "dogbox", "lm"])
 
         for i_row in range(3):
             calib_layout.addWidget(empty_label, i_row, 0)
@@ -670,11 +695,10 @@ class CalibrationSummaryView(QGroupBox):
         self.setLayout(_layout)
 
     def set_method(self, method):
-        methods = ['trf', 'dogbox', 'lm']
+        methods = ["trf", "dogbox", "lm"]
         self.method_combo_box.setCurrentIndex(methods.index(method))
 
     def export_calib(self):
-
         dlg = ExportCalibDialog()
         if dlg.exec():
             write_latest = True
@@ -701,12 +725,12 @@ class CalibrationSummaryTable(QTableWidget):
 
         self.setColumnCount(1)
 
-        self.labels = ['Shift_x', 'Shift_y', 'Shift_z', 'Rot_x', 'Rot_y', 'Rot_z', 'TTH_0', 'Lambda']
+        self.labels = ["Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda"]
 
         self.setRowCount(len(self.labels))
         self.setVerticalHeaderLabels(self.labels)
 
-        self.setHorizontalHeaderLabels(['Starting'])
+        self.setHorizontalHeaderLabels(["Starting"])
 
         for i_row in range(8):
             self.setItem(i_row, 0, QTableWidgetItem("0"))
@@ -716,7 +740,7 @@ class CalibrationSummaryTable(QTableWidget):
             json_input = self._parent._parent._calibration_input
 
         if json_input is not None:
-            with open(json_input, 'r') as openfile:
+            with open(json_input, "r") as openfile:
                 # Reading from json file
                 input_dict = json.load(openfile)
 
@@ -727,12 +751,11 @@ class CalibrationSummaryTable(QTableWidget):
                     pass
 
     def set_calibration(self, calibration_list, calibration_error_list, col_name=None):
-
         for i_calibration in range(len(calibration_list)):
             calibration = calibration_list[i_calibration]
             col_index = self._add_column()
             for i_lable in range(len(self.labels)):
-                self.setItem(i_lable, col_index, QTableWidgetItem('{0:3f}'.format(calibration[i_lable])))
+                self.setItem(i_lable, col_index, QTableWidgetItem("{0:3f}".format(calibration[i_lable])))
 
         if col_name is not None:
             self.setHorizontalHeaderItem(col_index, QTableWidgetItem(col_name))
@@ -756,7 +779,6 @@ class CalibrationSummaryTable(QTableWidget):
 
 class DetectorCalibrationViewer(QMainWindow):
     def __init__(self, detector_calib_model, detector_calib_ctrl, parent=None):
-
         self._model = detector_calib_model
         self._ctrl = detector_calib_ctrl
         self._nexus_file = None

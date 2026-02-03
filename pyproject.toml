@@ -9,6 +9,9 @@ readme = "README.rst"
 
 [project.scripts]
 pyrsplot = "scripts.pyrsplot:main"
+pyrs-calibration = "scripts.pyrs_calibration:main"
+pyrs-calibration-correlation = "scripts.pyrs_calibration_correlation:main"
+create-mask = "scripts.create_mask:main"
 
 ####################
 ### Build config ###
@@ -24,7 +27,6 @@ source = "versioningit"
 [tool.hatch.build.hooks.versioningit-onbuild]
 source-file = "pyrs/_version.py"
 build-file = "pyrs/_version.py"
-replacement = '"{next_version}"'
 
 [tool.hatch.build]
 artifacts = [
@@ -41,27 +43,40 @@ packages = ["pyrs", "scripts"]
 method = "git"
 default-tag = "0.1.0"
 
-
 [tool.versioningit.next-version]
 method = "minor"
 
 [tool.versioningit.format]
 distance = "{next_version}.dev{distance}"
-dirty = "{version}+d{build_date:%Y%m%d}"
-distance-dirty = "{next_version}.dev{distance}+d{build_date:%Y%m%d%H%M}"
+# Since pixi builds currently require the package version to be set statically in pyproject.toml,
+# and we solve that by temporarily changing pyproject.toml during build using the pixi tasks
+# sync-version and reset-toml, then we need to ignore uncommitted changes in order for the wheel
+# version to be consistent with the package version
+dirty = "{version}"
+distance-dirty = "{next_version}.dev{distance}"
 
 [tool.versioningit.write]
 file = "pyrs/_version.py"
 
 [tool.pixi.workspace]
-preview = [ "pixi-build",]
-channels = [ "conda-forge", "mantid", "https://prefix.dev/pixi-build-backends",]
-platforms = [ "linux-64",]
+preview = ["pixi-build"]
+channels = [
+  "conda-forge",
+  # Prefer ORNL-specific Mantid builds first so strict channel priority
+  # doesn't exclude needed mantidqt/mantidworkbench candidates.
+  "mantid-ornl/label/main",                 # ORNL-specific stable releases
+  "mantid-ornl/label/rc",                   # Fallback to RC if stable not available
+  "mantid-ornl/label/nightly",              # ORNL-specific nightly builds
+  "mantid/label/main",                      # Primary source for stable Mantid releases
+  "mantid/label/nightly",                   # Upstream nightly builds
+  "https://prefix.dev/pixi-build-backends",
+]
+platforms = ["linux-64"]
 
 [tool.pixi.dependencies]
 python = "*"
 pip = "*"
-mantidworkbench = ">=6.13.0,<6.14.0"
+mantidworkbench = ">=6.14.0,<6.15.0"
 qtpy = "*"
 pyqt = "*"
 uncertainties = "*"
@@ -80,7 +95,7 @@ hatchling = "*"
 versioningit = "*"
 
 [tool.pixi.package.run-dependencies]
-mantidworkbench = ">=6.13.0,<6.14.0"
+mantidworkbench = ">=6.14.0,<6.15.0"
 qtpy = "*"
 pyqt = "*"
 uncertainties = "*"
@@ -98,7 +113,6 @@ types-six = "*"
 pytest = "*"
 pytest-qt = "*"
 pytest-cov = "*"
-flake8 = "*"
 mypy = "*"
 
 [tool.pixi.feature.package.dependencies]
@@ -116,7 +130,6 @@ toml-cli = "*"
 
 [tool.pixi.feature.developer.dependencies]
 pre-commit = "*"
-flake8 = "*"
 mypy = "*"
 python-build = "*"
 
@@ -127,15 +140,61 @@ sphinxcontrib-mermaid = "*"
 types-pyyaml = "*"
 versioningit = "*"
 
+# ------------------------------- #
+# Development Environment Feature #
+# ------------------------------- #
+[tool.pixi.feature.dev.dependencies]
+python = "*"
+pip = "*"
+mantidworkbench = { version = ">=6.14.0", channel = "mantid/label/nightly" }
+mantid = { channel = "mantid/label/nightly" }
+mantidqt = { channel = "mantid/label/nightly" }
+uncertainties = "*"
+libarchive = "*"
+pandas = "*"
+types-six = "*"
+
+# ------------------------------- #
+# QA Environment Feature #
+# ------------------------------- #
+[tool.pixi.feature.qa.dependencies]
+python = "*"
+pip = "*"
+mantidworkbench = { version = ">=6.14.0,<6.15.0", channel = "mantid-ornl/label/rc" }
+mantid = { channel = "mantid-ornl/label/rc" }
+mantidqt = { channel = "mantid-ornl/label/rc" }
+uncertainties = "*"
+libarchive = "*"
+pandas = "*"
+types-six = "*"
+
+# ------------------------------- #
+# Production Environment Feature #
+# ------------------------------- #
+[tool.pixi.feature.prod.dependencies]
+python = "*"
+pip = "*"
+mantidworkbench = { version = ">=6.14.0,<6.15.0", channel = "mantid-ornl/label/main" }
+mantid = { channel = "mantid-ornl/label/main" }
+mantidqt = { channel = "mantid-ornl/label/main" }
+uncertainties = "*"
+libarchive = "*"
+pandas = "*"
+types-six = "*"
+
 [tool.pixi.package]
 name = "pyrs"
-version = "0.0.0"  # placeholder, overwritten by sync-version
+version = "0.0.0" # placeholder, overwritten by sync-version
 
 [tool.pixi.package.build]
-backend = { name = "pixi-build-python", version = "0.1.*" }
+backend = { name = "pixi-build-python", version = "*" }
 channels = [
   "conda-forge",
-  "mantid",
+  "mantid-ornl/label/main",                 # ORNL-specific stable releases
+  "mantid-ornl/label/rc",                   # Fallback to RC if stable not available
+  "mantid-ornl/label/nightly",              # ORNL-specific nightly builds
+  "mantid/label/main",                      # Primary source for stable Mantid releases
+  "mantid/label/nightly",                   # Upstream nightly builds
   "https://prefix.dev/pixi-build-backends",
   "https://prefix.dev/conda-forge",
 ]
@@ -144,9 +203,30 @@ channels = [
 default = { features = [
   "docs",
   "developer",
+  "dev",
   "package",
   "test",
 ], solve-group = "default" }
+# Production environment with stable Mantid versions
+prod = { features = ["test", "package", "docs", "prod"], solve-group = "prod" }
+# Development environment with nightly Mantid builds
+dev = { features = ["test", "package", "docs", "dev"], solve-group = "dev" }
+# QA environment with RC or prod packages
+qa = { features = ["test", "package", "docs", "qa"], solve-group = "qa" }
+
+# Environment-specific channel configurations
+[tool.pixi.feature.dev.activation.env]
+# Development environment can use nightly builds
+MANTID_CHANNEL_PRIORITY = "nightly"
+
+[tool.pixi.feature.qa.activation.env]
+# QA environment uses RC or prod packages
+MANTID_CHANNEL_PRIORITY = "rc_prod"
+
+[tool.pixi.feature.prod.activation.env]
+# Production environment uses only stable releases
+MANTID_CHANNEL_PRIORITY = "stable_only"
+
 
 # --------------- #
 # Pixi Tasks      #
@@ -154,14 +234,25 @@ default = { features = [
 [tool.pixi.tasks]
 # PyPi packaging tasks
 build-pypi = { cmd = "hatch build", description = "Build the package for PyPI" }
-publish-pypi = { cmd = "twine upload dist/*", description = "Publish the package to PyPI", depends-on = ["build-pypi"] }
-publish-pypi-test = { cmd = "twine upload --repository testpypi dist/*", description = "Publish the package to TestPyPI", depends-on = ["build-pypi"] }
+publish-pypi = { cmd = "twine upload dist/*", description = "Publish the package to PyPI", depends-on = [
+  "build-pypi",
+] }
+publish-pypi-test = { cmd = "twine upload --repository testpypi dist/*", description = "Publish the package to TestPyPI", depends-on = [
+  "build-pypi",
+] }
 clean-pypi = { cmd = "rm -rf dist", description = "Clean the PyPI build artifacts" }
 
 # Conda packaging tasks
 build-conda-command = { cmd = "pixi build", description = "Build the conda package command" }
-build-conda = { description = "Build the conda package", depends-on = ["backup-toml", "sync-version", "build-conda-command", "reset-toml"] }
-publish-conda = { cmd = "anaconda upload *.conda", description = "Publish the .conda package to anaconda.org", depends-on = ["build-conda"] }
+build-conda = { description = "Build the conda package", depends-on = [
+  "backup-toml",
+  "sync-version",
+  "build-conda-command",
+  "reset-toml",
+] }
+publish-conda = { cmd = "anaconda upload *.conda", description = "Publish the .conda package to anaconda.org", depends-on = [
+  "build-conda",
+] }
 clean-conda = { cmd = "rm -f *.conda", description = "Clean the local .conda build artifacts" }
 
 # Documentation tasks
@@ -174,17 +265,30 @@ docs-autobuild = { cmd = "sphinx-autobuild docs/source docs/_build --host 0.0.0.
 test = { cmd = "pytest --cov=pyrs --cov-report=xml --cov-report=term ./tests", description = "Run the tests with coverage" }
 test-import-framework = { cmd = "python -c 'import pyrs'; python -c 'import qtpy'; python -c 'import mantidqt'", description = "Test import of main dependencies" }
 
-lint-flake8 = { cmd = "flake8 pyrs scripts tests --count --max-line-length=119 --exclude pyrs/icons,scripts", description = "Run flake8 linter on the codebase" }
-
 # MISC
-clean-all = { description = "Clean all build artifacts", depends-on = ["clean-pypi", "clean-docs", "clean-conda"] }
+clean-all = { description = "Clean all build artifacts", depends-on = [
+  "clean-pypi",
+  "clean-docs",
+  "clean-conda",
+] }
 sync-version = { cmd = 'version=$(python -m versioningit); toml set tool.pixi.package.version "$version" --toml-path pyproject.toml', description = "Sync pyproject.toml version with Git version" }
 backup-toml = { cmd = "cp pyproject.toml pyproject.toml.bak", description = "Backup the pyproject.toml file" }
 reset-toml = { cmd = "cp pyproject.toml.bak pyproject.toml; rm pyproject.toml.bak", description = "Reset the pyproject.toml file to the original state" }
 
 # Application tasks
-pyrs = { cmd = "pyrsplot", description = "Start the pyrs application"}
+pyrs = { cmd = "pyrsplot", description = "Start the pyrs application" }
 
 [tool.mypy]
 ignore_missing_imports = true
 namespace_packages = true
+
+[tool.ruff]
+line-length = 119
+target-version = "py311"
+exclude = ["pyrs/icons", "scripts"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.format]
+line-ending = "lf"

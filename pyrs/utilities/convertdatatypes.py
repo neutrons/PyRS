@@ -1,13 +1,16 @@
 from typing import Any, Optional, Union
 
-__all__ = ['to_float', 'to_int']
+__all__ = ["to_float", "to_int"]
 
 
-def __check_range(name: str, value: Union[float, int],
-                  min_value: Optional[Union[float, int]] = None,
-                  max_value: Optional[Union[float, int]] = None,
-                  min_inclusive: bool = True,
-                  max_inclusive: bool = False) -> None:
+def __check_range(
+    name: str,
+    value: Union[float, int],
+    min_value: Optional[Union[float, int]] = None,
+    max_value: Optional[Union[float, int]] = None,
+    min_inclusive: bool = True,
+    max_inclusive: bool = False,
+) -> None:
     # verify valid range
     if min_value is not None and max_value is not None and min_value > max_value:
         raise ValueError('Invalid range ({}, {}) specified for "{}"'.format(min_value, max_value, name))
@@ -19,32 +22,36 @@ def __check_range(name: str, value: Union[float, int],
     if min_value is not None:
         if min_inclusive:
             if value < min_value:
-                errors.append('below minimum')
+                errors.append("below minimum")
         else:
             if value <= min_value:
-                errors.append('below minimum')
+                errors.append("below minimum")
 
     # check maximum
     if max_value is not None:
         if max_inclusive:
             if value > max_value:
-                errors.append('above maximum')
+                errors.append("above maximum")
         else:
             if value >= max_value:
-                errors.append('above maximum')
+                errors.append("above maximum")
 
     # having any error message indicates bad value
     if errors:
-        err_msg = 'Variable "{}" value={} not in range ({}, {}): {}'.format(name, value, min_value, max_value,
-                                                                            ' '.join(errors))
+        err_msg = 'Variable "{}" value={} not in range ({}, {}): {}'.format(
+            name, value, min_value, max_value, " ".join(errors)
+        )
         raise ValueError(err_msg)
 
 
-def to_int(name: str, value: Any,
-           min_value: Optional[int] = None,
-           max_value: Optional[int] = None,
-           min_inclusive: bool = True,
-           max_inclusive: bool = False) -> int:
+def to_int(
+    name: str,
+    value: Any,
+    min_value: Optional[int] = None,
+    max_value: Optional[int] = None,
+    min_inclusive: bool = True,
+    max_inclusive: bool = False,
+) -> int:
     # first convert the value to an integer or give a better exception
     try:
         value = int(value)
@@ -62,11 +69,14 @@ def to_int(name: str, value: Any,
     return value
 
 
-def to_float(name: str, value: Any,
-             min_value: Optional[float] = None,
-             max_value: Optional[float] = None,
-             min_inclusive: bool = True,
-             max_inclusive: bool = False) -> float:
+def to_float(
+    name: str,
+    value: Any,
+    min_value: Optional[float] = None,
+    max_value: Optional[float] = None,
+    min_inclusive: bool = True,
+    max_inclusive: bool = False,
+) -> float:
     # first convert the value to a float or give a better exception
     try:
         value = float(value)

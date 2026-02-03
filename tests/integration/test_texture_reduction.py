@@ -1,6 +1,7 @@
 """
 Integration test for PyRS to calculate powder pattern from detector counts
 """
+
 import numpy as np
 import h5py
 from pyrs.core.nexus_conversion import NeXusConvertingApp
@@ -8,7 +9,7 @@ from pyrs.core.powder_pattern import ReductionApp
 import pytest
 import os
 
-DATA_DIR = 'tests/data/'
+DATA_DIR = "tests/data/"
 
 
 def parse_gold_file(file_name):
@@ -26,34 +27,42 @@ def parse_gold_file(file_name):
     data_dict = dict()
 
     # Parse file
-    gold_file = h5py.File(file_name, 'r')
-    data_set_names = list(gold_file[u'reduced diffraction data'].keys())
+    gold_file = h5py.File(file_name, "r")
+    data_set_names = list(gold_file["reduced diffraction data"].keys())
     for name in data_set_names:
-        if ('_var' in name) or ('2theta' in name) or ('main' in name):
+        if ("_var" in name) or ("2theta" in name) or ("main" in name):
             pass
         else:
-            if isinstance(gold_file[u'reduced diffraction data'][name], h5py.Dataset):
-                data_dict[name] = [gold_file[u'reduced diffraction data']['2theta'][()][0, :],
-                                   gold_file[u'reduced diffraction data'][name][()][0, :]]
+            if isinstance(gold_file["reduced diffraction data"][name], h5py.Dataset):
+                data_dict[name] = [
+                    gold_file["reduced diffraction data"]["2theta"][()][0, :],
+                    gold_file["reduced diffraction data"][name][()][0, :],
+                ]
             else:
-                pytest.skip('project file not supplied')
+                pytest.skip("project file not supplied")
 
         # END-IF
     # END-FOR
 
-    if len(data_dict) == 1 and data_dict.keys()[0] == 'data':
+    if len(data_dict) == 1 and data_dict.keys()[0] == "data":
         # only 1 array with default name
-        return data_dict['data']
+        return data_dict["data"]
 
     return data_dict
 
 
-@pytest.mark.parametrize('nexusfile, mask_file_name, gold_file',
-                         [(DATA_DIR + 'HB2B_1118.nxs.h5', DATA_DIR + 'HB2B_Mask_12-18-19.xml',
-                           DATA_DIR + 'HB2B_1118_texture.h5'),
-                          ('/HFIR/HB2B/IPTS-22331/nexus/HB2B_1428.nxs.h5', DATA_DIR + 'HB2B_Mask_12-18-19.xml',
-                           DATA_DIR + 'HB2B_1428_texture.h5')],
-                         ids=['HB2B_1118_Texture', 'HB2B_1428_Texture'])
+@pytest.mark.parametrize(
+    "nexusfile, mask_file_name, gold_file",
+    [
+        (DATA_DIR + "HB2B_1118.nxs.h5", DATA_DIR + "HB2B_Mask_12-18-19.xml", DATA_DIR + "HB2B_1118_texture.h5"),
+        (
+            "/HFIR/HB2B/IPTS-22331/nexus/HB2B_1428.nxs.h5",
+            DATA_DIR + "HB2B_Mask_12-18-19.xml",
+            DATA_DIR + "HB2B_1428_texture.h5",
+        ),
+    ],
+    ids=["HB2B_1118_Texture", "HB2B_1428_Texture"],
+)
 def test_texture_reduction(nexusfile, mask_file_name, gold_file):
     """Test the powder pattern calculator (service) with HB2B-specific reduction routine
 
@@ -63,10 +72,10 @@ def test_texture_reduction(nexusfile, mask_file_name, gold_file):
     mask_file_name
     gold_file
     """
-    if not os.path.exists('/HFIR/HB2B/shared'):
-        pytest.skip('Unable to access HB2B archive')
+    if not os.path.exists("/HFIR/HB2B/shared"):
+        pytest.skip("Unable to access HB2B archive")
 
-    CALIBRATION_FILE = DATA_DIR + 'HB2B_calib_latest.json'
+    CALIBRATION_FILE = DATA_DIR + "HB2B_calib_latest.json"
     VANADIUM_FILE = "/HFIR/HB2B/IPTS-22731/nexus/HB2B_1115.nxs.h5"
 
     # load gold file
@@ -81,12 +90,14 @@ def test_texture_reduction(nexusfile, mask_file_name, gold_file):
     reducer.load_hidra_workspace(hidra_ws)
 
     # Reduce raw counts
-    reducer.reduce_data(instrument_file=None,
-                        calibration_file=CALIBRATION_FILE,
-                        mask=None,
-                        sub_runs=[],
-                        van_file=VANADIUM_FILE,
-                        eta_step=3.0)
+    reducer.reduce_data(
+        instrument_file=None,
+        calibration_file=CALIBRATION_FILE,
+        mask=None,
+        sub_runs=[],
+        van_file=VANADIUM_FILE,
+        eta_step=3.0,
+    )
 
     for sub_run_i in list(gold_data_dict.keys()):
         # Get gold data of pattern (i).
@@ -96,13 +107,13 @@ def test_texture_reduction(nexusfile, mask_file_name, gold_file):
         pattern = reducer.get_diffraction_data(1, sub_run_i)
 
         # validate correct two-theta reduction
-        np.testing.assert_allclose(pattern[0], gold_data_dict[sub_run_i][0], rtol=1E-8)
+        np.testing.assert_allclose(pattern[0], gold_data_dict[sub_run_i][0], rtol=1e-8)
 
         # remove NaN intensity arrays
-        pattern[1][np.where(np.isnan(pattern[1]))] = 0.
-        gold_data_i[1][np.where(np.isnan(gold_data_i[1]))] = 0.
+        pattern[1][np.where(np.isnan(pattern[1]))] = 0.0
+        gold_data_i[1][np.where(np.isnan(gold_data_i[1]))] = 0.0
 
         # validate correct intesnity reduction
-        np.testing.assert_allclose(pattern[1], gold_data_i[1], rtol=1E-8, equal_nan=True)
+        np.testing.assert_allclose(pattern[1], gold_data_i[1], rtol=1e-8, equal_nan=True)
 
     # END-FOR

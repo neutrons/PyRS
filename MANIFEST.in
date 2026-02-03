@@ -3,4 +3,3 @@ include pyrs/_version.py
 include README.md
 include pyrs/*
 recursive-include icons *.png *.svg *.ico
-

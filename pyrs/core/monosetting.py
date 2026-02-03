@@ -1,10 +1,11 @@
 from enum import Enum
 
-__all__ = ['MonoSetting']
+__all__ = ["MonoSetting"]
 
 
 class MonoSetting(Enum):
-    '''Hold the default values for the nominal wavelengths of the monochromator'''
+    """Hold the default values for the nominal wavelengths of the monochromator"""
+
     Si333 = 1.452
     Si511 = 1.452  # same as Si333
     Si422 = 1.540
@@ -14,26 +15,33 @@ class MonoSetting(Enum):
     Si220 = 2.667
 
     def __str__(self):
-        '''The label of the peak'''
+        """The label of the peak"""
         return self.name
 
     def __float__(self):
-        '''The nominal wavelength'''
+        """The nominal wavelength"""
         return self._value_
 
     @staticmethod
     def getFromIndex(index):
-        '''The ``MonoSetting`` log in the Nexus file holds an index into this ordered array'''
+        """The ``MonoSetting`` log in the Nexus file holds an index into this ordered array"""
         index = int(index)
-        settings = [MonoSetting.Si333, MonoSetting.Si511, MonoSetting.Si422, MonoSetting.Si331, MonoSetting.Si400,
-                    MonoSetting.Si311, MonoSetting.Si220]
+        settings = [
+            MonoSetting.Si333,
+            MonoSetting.Si511,
+            MonoSetting.Si422,
+            MonoSetting.Si331,
+            MonoSetting.Si400,
+            MonoSetting.Si311,
+            MonoSetting.Si220,
+        ]
         if index < 0 or index >= len(settings):
-            raise IndexError('Index must be between 0 and {} (supplied index={})'.format(len(settings) - 1, index))
+            raise IndexError("Index must be between 0 and {} (supplied index={})".format(len(settings) - 1, index))
         return settings[index]
 
     @staticmethod
     def getFromRotation(mrot):
-        '''The ``mrot`` (monochromator rotation) log in the NeXus file can be converted into a specific wavelength'''
+        """The ``mrot`` (monochromator rotation) log in the NeXus file can be converted into a specific wavelength"""
         mrot = mrot
         if -41.0 < mrot < -38.0:
             return MonoSetting.Si333
@@ -50,4 +58,4 @@ class MonoSetting(Enum):
         elif -200.0 < mrot < -177.0:
             return MonoSetting.Si220
         else:
-            raise ValueError('Unable to determine monosetting from the monochromator rotation angle {}'.format(mrot))
+            raise ValueError("Unable to determine monosetting from the monochromator rotation angle {}".format(mrot))

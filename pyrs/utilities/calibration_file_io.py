@@ -19,12 +19,12 @@ def check_calibration_dictionary(calib_dict):
 
     """
 
-    keys = ['Lambda', 'Rot_x', 'Rot_y', 'Rot_z', 'Shift_x', 'Shift_y', 'Shift_z', 'two_theta_0']
+    keys = ["Lambda", "Rot_x", "Rot_y", "Rot_z", "Shift_x", "Shift_y", "Shift_z", "two_theta_0"]
 
     for key in keys:
         if key not in calib_dict:
             calib_dict[key] = 0
-            calib_dict['error_{}'.format(key)] = -1
+            calib_dict["error_{}".format(key)] = -1
 
     return calib_dict
 
@@ -65,57 +65,62 @@ def read_calibration_json_file(calibration_file_name):
     """
 
     # Check input
-    checkdatatypes.check_file_name(calibration_file_name, True, False, False, 'Calibration JSON file')
+    checkdatatypes.check_file_name(calibration_file_name, True, False, False, "Calibration JSON file")
 
     # Parse JSON file
-    with open(calibration_file_name, 'r') as calib_file:
+    with open(calibration_file_name, "r") as calib_file:
         calib_dict = json.load(calib_file)
     if calib_dict is None:
-        raise RuntimeError('Failed to load JSON calibration file {}'.format(calibration_file_name))
+        raise RuntimeError("Failed to load JSON calibration file {}".format(calibration_file_name))
 
     # check for properly formated dictionary
     calib_dict = check_calibration_dictionary(calib_dict)
 
     # Convert dictionary to DENEXDetectorShift
     try:
-        shift = DENEXDetectorShift(shift_x=float(calib_dict['Shift_x']),
-                                   shift_y=float(calib_dict['Shift_y']),
-                                   shift_z=float(calib_dict['Shift_z']),
-                                   rotation_x=float(calib_dict['Rot_x']),
-                                   rotation_y=float(calib_dict['Rot_y']),
-                                   rotation_z=float(calib_dict['Rot_z']),
-                                   tth_0=float(calib_dict['two_theta_0']),
-                                   calibration_file=calibration_file_name)
+        shift = DENEXDetectorShift(
+            shift_x=float(calib_dict["Shift_x"]),
+            shift_y=float(calib_dict["Shift_y"]),
+            shift_z=float(calib_dict["Shift_z"]),
+            rotation_x=float(calib_dict["Rot_x"]),
+            rotation_y=float(calib_dict["Rot_y"]),
+            rotation_z=float(calib_dict["Rot_z"]),
+            tth_0=float(calib_dict["two_theta_0"]),
+            calibration_file=calibration_file_name,
+        )
 
     except KeyError as key_error:
-        raise RuntimeError('Missing key parameter from JSON file {}: {}'.format(calibration_file_name, key_error))
+        raise RuntimeError("Missing key parameter from JSON file {}: {}".format(calibration_file_name, key_error))
 
     # shift error
     try:
-        shift_error = DENEXDetectorShift(shift_x=float(calib_dict['error_Shift_x']),
-                                         shift_y=float(calib_dict['error_Shift_y']),
-                                         shift_z=float(calib_dict['error_Shift_z']),
-                                         rotation_x=float(calib_dict['error_Rot_x']),
-                                         rotation_y=float(calib_dict['error_Rot_y']),
-                                         rotation_z=float(calib_dict['error_Rot_z']),
-                                         tth_0=float(calib_dict['error_two_theta_0']))
+        shift_error = DENEXDetectorShift(
+            shift_x=float(calib_dict["error_Shift_x"]),
+            shift_y=float(calib_dict["error_Shift_y"]),
+            shift_z=float(calib_dict["error_Shift_z"]),
+            rotation_x=float(calib_dict["error_Rot_x"]),
+            rotation_y=float(calib_dict["error_Rot_y"]),
+            rotation_z=float(calib_dict["error_Rot_z"]),
+            tth_0=float(calib_dict["error_two_theta_0"]),
+        )
 
     except KeyError as key_error:
-        raise RuntimeError('Missing key parameter from JSON file {}: {}'.format(calibration_file_name, key_error))
+        raise RuntimeError("Missing key parameter from JSON file {}: {}".format(calibration_file_name, key_error))
 
     # Wave length
     try:
-        wave_length = calib_dict['Lambda']
-        wave_length_error = calib_dict['error_Lambda']
+        wave_length = calib_dict["Lambda"]
+        wave_length_error = calib_dict["error_Lambda"]
     except KeyError as key_error:
-        raise RuntimeError('Missing wave length related parameter from JSON file {}: {}'
-                           ''.format(calibration_file_name, key_error))
+        raise RuntimeError(
+            "Missing wave length related parameter from JSON file {}: {}".format(calibration_file_name, key_error)
+        )
 
     # Calibration status
     try:
-        status = calib_dict['Status']
+        status = calib_dict["Status"]
     except KeyError as key_error:
-        raise RuntimeError('Missing status parameter from JSON file {}: {}'.format(calibration_file_name, key_error))
+        raise RuntimeError("Missing status parameter from JSON file {}: {}".format(calibration_file_name, key_error))
 
     return shift, shift_error, wave_length, wave_length_error, status
 
@@ -130,12 +135,12 @@ def import_calibration_ascii_file(geometry_file_name):
     :param geometry_file_name:
     :return: calibration instance
     """
-    checkdatatypes.check_file_name(geometry_file_name, True, False, False, 'Geometry configuration file in ASCII')
+    checkdatatypes.check_file_name(geometry_file_name, True, False, False, "Geometry configuration file in ASCII")
 
     # init output
     calibration_setup = DENEXDetectorShift(0, 0, 0, 0, 0, 0)
 
-    calibration_file = open(geometry_file_name, 'r')
+    calibration_file = open(geometry_file_name, "r")
     geom_lines = calibration_file.readlines()
     calibration_file.close()
 
@@ -143,28 +148,29 @@ def import_calibration_ascii_file(geometry_file_name):
         line = line.strip()
 
         # skip empty or comment line
-        if line == '' or line.startswith('#'):
+        if line == "" or line.startswith("#"):
             continue
 
-        terms = line.replace('=', ' ').split()
+        terms = line.replace("=", " ").split()
         config_name = terms[0].strip().lower()
         config_value = float(terms[1].strip())
 
-        if config_name == 'cal::shift_x':
+        if config_name == "cal::shift_x":
             calibration_setup.center_shift_x = config_value
-        elif config_name == 'cal::shift_y':
+        elif config_name == "cal::shift_y":
             calibration_setup.center_shift_y = config_value
-        elif config_name == 'cal::arm':
+        elif config_name == "cal::arm":
             calibration_setup.arm_calibration = config_value
-        elif config_name == 'cal::rot_x':
+        elif config_name == "cal::rot_x":
             calibration_setup.rotation_x = config_value
-        elif config_name == 'cal::rot_y':
+        elif config_name == "cal::rot_y":
             calibration_setup.rotation_x = config_value
-        elif config_name == 'cal::rot_z':
+        elif config_name == "cal::rot_z":
             calibration_setup.rotation_z = config_value
         else:
             raise RuntimeError(
-                'Instrument geometry setup item {} is not recognized and supported.'.format(config_name))
+                "Instrument geometry setup item {} is not recognized and supported.".format(config_name)
+            )
 
     return calibration_setup
 
@@ -191,10 +197,9 @@ def import_instrument_setup(instrument_ascii_file):
         Instrument geometry setup for HB2B
 
     """
-    checkdatatypes.check_file_name(instrument_ascii_file, False, True, False,
-                                   'Instrument definition ASCII file')
+    checkdatatypes.check_file_name(instrument_ascii_file, False, True, False, "Instrument definition ASCII file")
 
-    instr_file = open(instrument_ascii_file, 'r')
+    instr_file = open(instrument_ascii_file, "r")
     setup_lines = instr_file.readlines()
     instr_file.close()
 
@@ -206,39 +211,42 @@ def import_instrument_setup(instrument_ascii_file):
         line = line.strip()
 
         # skip empty and comment
-        if line == '' or line.startswith('#'):
+        if line == "" or line.startswith("#"):
             continue
 
-        terms = line.replace('=', ' ').split()
+        terms = line.replace("=", " ").split()
         arg_name = terms[0].strip().lower()
         arg_value = terms[1]
 
-        if arg_name == 'arm':
+        if arg_name == "arm":
             arm_length = float(arg_value)
-        elif arg_name == 'rows':
+        elif arg_name == "rows":
             detector_rows = int(arg_value)
-        elif arg_name == 'columns':
+        elif arg_name == "columns":
             detector_columns = int(arg_value)
-        elif arg_name == 'pixel_size_x':
+        elif arg_name == "pixel_size_x":
             pixel_size_x = float(arg_value)
-        elif arg_name == 'pixel_size_y':
+        elif arg_name == "pixel_size_y":
             pixel_size_y = float(arg_value)
         else:
-            raise RuntimeError('Argument {} is not recognized'.format(arg_name))
+            raise RuntimeError("Argument {} is not recognized".format(arg_name))
     # END-FOR
 
-    instrument = DENEXDetectorGeometry(num_rows=detector_rows,
-                                       num_columns=detector_columns,
-                                       pixel_size_x=pixel_size_x,
-                                       pixel_size_y=pixel_size_y,
-                                       arm_length=arm_length,
-                                       calibrated=False)
+    instrument = DENEXDetectorGeometry(
+        num_rows=detector_rows,
+        num_columns=detector_columns,
+        pixel_size_x=pixel_size_x,
+        pixel_size_y=pixel_size_y,
+        arm_length=arm_length,
+        calibrated=False,
+    )
 
     return instrument
 
 
-def write_calibration_to_json(shifts, shifts_error, wave_length, wave_lenngth_error,
-                              calibration_status, file_name=None):
+def write_calibration_to_json(
+    shifts, shifts_error, wave_length, wave_lenngth_error, calibration_status, file_name=None
+):
     """Write geometry and wave length calibration to a JSON file
 
     Parameters
@@ -249,23 +257,23 @@ def write_calibration_to_json(shifts, shifts_error, wave_length, wave_lenngth_er
     None
     """
     # Check inputs
-    checkdatatypes.check_file_name(file_name, False, True, False, 'Output JSON calibration file')
+    checkdatatypes.check_file_name(file_name, False, True, False, "Output JSON calibration file")
     assert isinstance(shifts, DENEXDetectorShift)
     assert isinstance(shifts_error, DENEXDetectorShift)
 
     # Create calibration dictionary
     calibration_dict = shifts.convert_to_dict()
-    calibration_dict['Lambda'] = wave_length
+    calibration_dict["Lambda"] = wave_length
 
     calibration_dict.update(shifts_error.convert_error_to_dict())
-    calibration_dict['error_Lambda'] = wave_lenngth_error
+    calibration_dict["error_Lambda"] = wave_lenngth_error
 
-    calibration_dict.update({'Status': calibration_status})
+    calibration_dict.update({"Status": calibration_status})
 
     for item in list(calibration_dict.keys()):
         calibration_dict[item] = float(calibration_dict[item])
-    print('DICTIONARY:\n{}'.format(calibration_dict))
+    print("DICTIONARY:\n{}".format(calibration_dict))
 
-    with open(file_name, 'w') as outfile:
+    with open(file_name, "w") as outfile:
         json.dump(calibration_dict, outfile)
-    print('[INFO] Calibration file is written to {}'.format(file_name))
+    print("[INFO] Calibration file is written to {}".format(file_name))

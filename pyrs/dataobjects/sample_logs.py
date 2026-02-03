@@ -7,7 +7,7 @@ from typing import Optional, Union, List, NamedTuple, Tuple
 from pyrs.utilities.convertdatatypes import to_int
 from .constants import HidraConstants, DEFAULT_POINT_RESOLUTION  # type: ignore
 
-__all__ = ['SampleLogs', 'SubRuns']
+__all__ = ["SampleLogs", "SubRuns"]
 
 
 def _coerce_to_ndarray(value):
@@ -126,6 +126,22 @@ class SubRuns(Iterable):
         """
         return self._value.size == 0
 
+    def append(self, newruns):
+        """
+        Append subrun list with additional runs
+
+        Parameters
+        ----------
+        newruns : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
+        self._value = np.append(self._value, newruns.astype(int))
+
     def set(self, value):
         r"""
         Initialize the list of subruns
@@ -145,10 +161,11 @@ class SubRuns(Iterable):
         value = _coerce_to_ndarray(value)
         if not self.empty():
             if self.__ne__(value):
-                raise RuntimeError('Cannot change subruns when non-empty '
-                                   '(previous={}, new={})'.format(self._value, value))
+                raise RuntimeError(
+                    "Cannot change subruns when non-empty (previous={}, new={})".format(self._value, value)
+                )
         if not np.all(value[:-1] < value[1:]):
-            raise RuntimeError('subruns are not sorted in increasing order')
+            raise RuntimeError("subruns are not sorted in increasing order")
         self._value = value.astype(int)
 
     def raw_copy(self):
@@ -206,7 +223,7 @@ class SubRuns(Iterable):
                 return np.searchsorted(self._value, subruns)
 
         # fall-through is an error
-        raise IndexError('Failed to find subruns={} in {}'.format(subruns, self._value))
+        raise IndexError("Failed to find subruns={} in {}".format(subruns, self._value))
 
 
 class SampleLogs(MutableMapping):
@@ -295,7 +312,7 @@ class SampleLogs(MutableMapping):
 
         if key == self.SUBRUN_KEY:
             if subruns:  # Example: key == ('sub-runs', [0, 1, 2])  request the first three subrun numbers
-                raise RuntimeError('Cannot use __getitem__ to get subset of subruns')
+                raise RuntimeError("Cannot use __getitem__ to get subset of subruns")
             return self._subruns
         else:
             if (subruns is None) or self.matching_subruns(subruns):
@@ -325,8 +342,9 @@ class SampleLogs(MutableMapping):
         # does not include subruns
         return len(self._data)
 
-    def __setitem__(self, key: Union[str, Tuple[str, str]],
-                    value: Union[int, float, List[int], List[float], np.ndarray]) -> None:
+    def __setitem__(
+        self, key: Union[str, Tuple[str, str]], value: Union[int, float, List[int], List[float], np.ndarray]
+    ) -> None:
         r"""
         Initialize/update the subruns instance, or insert/update the value of a log entry
 
@@ -351,7 +369,7 @@ class SampleLogs(MutableMapping):
         """
         if isinstance(key, str):
             log_name = key
-            units = ''
+            units = ""
         else:
             log_name, units = key
         value = _coerce_to_ndarray(value)
@@ -359,19 +377,22 @@ class SampleLogs(MutableMapping):
             self.subruns = SubRuns(value)  # use full method
         else:
             if self._subruns.size == 0:
-                raise RuntimeError('Must set subruns first')
+                raise RuntimeError("Must set subruns first")
             elif isinstance(value, np.ndarray):
                 if value.size != self.subruns.size:
-                    raise ValueError('Number of values[{}] isn\'t the same as number of '
-                                     'subruns[{}]'.format(value.size, self.subruns.size))
+                    raise ValueError(
+                        "Number of values[{}] isn't the same as number of subruns[{}]".format(
+                            value.size, self.subruns.size
+                        )
+                    )
             else:
-                raise RuntimeError('Must set subruns first')
+                raise RuntimeError("Must set subruns first")
 
             self._data[log_name] = value
             self._units[log_name] = units
             # add this to the list of plottable parameters
             if isinstance(value, np.ndarray):
-                if value.dtype.kind in 'iuf':  # int, uint, float
+                if value.dtype.kind in "iuf":  # int, uint, float
                     self._plottable.add(key)
 
     def units(self, log_name: str) -> str:
@@ -386,7 +407,7 @@ class SampleLogs(MutableMapping):
         -------
         str
         """
-        return self._units.get(log_name, '')
+        return self._units.get(log_name, "")
 
     def plottable_logs(self):
         r"""
@@ -401,7 +422,7 @@ class SampleLogs(MutableMapping):
         """
         return list(self._plottable)
 
-    def constant_logs(self, atol=0.):
+    def constant_logs(self, atol=0.0):
         r"""
         List of log names for logs having a constant value
 
@@ -449,6 +470,18 @@ class SampleLogs(MutableMapping):
             input subruns are not sorted in increasing order
         """
         self._subruns.set(value)
+
+    def append_subruns(self, value):
+        r"""
+        Initialize the list of selected subruns
+
+        RuntimeError
+            Attempt to initialize a list that was initialized previously
+        RuntimeError
+            input subruns are not sorted in increasing order
+        """
+
+        self._subruns.append(value)
 
     def matching_subruns(self, subruns):
         r"""
@@ -498,7 +531,7 @@ class SampleLogs(MutableMapping):
         """
         return self._subruns.get_indices(subruns)
 
-    def get_pointlist(self, subruns=None) -> 'PointList':
+    def get_pointlist(self, subruns=None) -> "PointList":
         r"""
         Create a ~pyrs.dataobjects.sample_logs.PointList instance from the vx, vy, and vz logs
 
@@ -520,7 +553,7 @@ class SampleLogs(MutableMapping):
         ValueError
             One of more of logs vx, vy, or vz are missing in this sample logs
         """
-        VX, VY, VZ = 'vx', 'vy', 'vz'
+        VX, VY, VZ = "vx", "vy", "vz"
 
         # check the values exist
         missing = []
@@ -528,10 +561,10 @@ class SampleLogs(MutableMapping):
             if logname not in self:
                 missing.append(logname)
         if missing:
-            raise ValueError('Failed to find positions in logs. Missing {}'.format(', '.join(missing)))
+            raise ValueError("Failed to find positions in logs. Missing {}".format(", ".join(missing)))
 
         # Check the units are in mili meters
-        factor = 1000.0 if self._units.get(VX, 'mm') == 'm' else 1.0
+        factor = 1000.0 if self._units.get(VX, "mm") == "m" else 1.0
 
         # create a PointList on the fly
         # passing the subruns down allow for slicing/selecting
@@ -578,8 +611,8 @@ class DirectionExtents(_DirectionExtents):
             max_coord = np.max(coordinates)
             delta = (max_coord - min_coord) / (coordinates_floored_count - 1)
         extents_tuple = super(DirectionExtents, cls).__new__(cls, min_coord, max_coord, delta)  # type: ignore
-        super(DirectionExtents, cls).__setattr__(extents_tuple, '_numpoints', coordinates_floored_count)
-        super(DirectionExtents, cls).__setattr__(extents_tuple, '_resolution', resolution)
+        super(DirectionExtents, cls).__setattr__(extents_tuple, "_numpoints", coordinates_floored_count)
+        super(DirectionExtents, cls).__setattr__(extents_tuple, "_resolution", resolution)
         return extents_tuple
 
     @property
@@ -603,7 +636,7 @@ class DirectionExtents(_DirectionExtents):
         """
         return self._resolution  # same as number of center points
 
-    def to_createmd(self, input_units: str = 'mm', output_units: str = 'mm') -> str:
+    def to_createmd(self, input_units: str = "mm", output_units: str = "mm") -> str:
         r"""
         Minimum and maximum extents to be passed as argument Extent of Mantid algorithm
         `CreateMDWorkspace <https://docs.mantidproject.org/nightly/algorithms/CreateMDWorkspace-v1.html>`_.
@@ -624,17 +657,17 @@ class DirectionExtents(_DirectionExtents):
         -------
         str
         """
-        factors = {'mm_to_mm': 1., 'm_to_m': 1., 'm_to_mm': 1.e3, 'mm_to_m': 1.e-3}
-        f = factors[input_units + '_to_' + output_units]
-        pair_template = {'m': '{0: .6f},{1: .6f}', 'mm': '{0: .3f},{1: .3f}'}[output_units]
+        factors = {"mm_to_mm": 1.0, "m_to_m": 1.0, "m_to_mm": 1.0e3, "mm_to_m": 1.0e-3}
+        f = factors[input_units + "_to_" + output_units]
+        pair_template = {"m": "{0: .6f},{1: .6f}", "mm": "{0: .3f},{1: .3f}"}[output_units]
         pair = pair_template.format(f * self.min - f * self.delta / 2, f * self.max + f * self.delta / 2)
-        pair = pair.replace(' ', '')  # remove white-spaces
+        pair = pair.replace(" ", "")  # remove white-spaces
         # deal with corner case having zero with a negative sign
-        zero = {'m': '0.000000', 'mm': '0.000'}[output_units]  # different precision
-        pair = pair.replace('-' + zero, zero)
+        zero = {"m": "0.000000", "mm": "0.000"}[output_units]  # different precision
+        pair = pair.replace("-" + zero, zero)
         return pair
 
-    def to_binmd(self, input_units: str = 'mm', output_units: str = 'mm') -> str:
+    def to_binmd(self, input_units: str = "mm", output_units: str = "mm") -> str:
         r"""
         Binning parameters to be passed as one of the AlignedDimX arguments of Mantid algorithm
         `BinMD <>`_.
@@ -651,7 +684,7 @@ class DirectionExtents(_DirectionExtents):
         str
         """
         extents = self.to_createmd(input_units=input_units, output_units=output_units)
-        return f'{extents},{self.number_of_bins}'.replace(' ', '')
+        return f"{extents},{self.number_of_bins}".replace(" ", "")
 
 
 ExtentTriad = Tuple[DirectionExtents, DirectionExtents, DirectionExtents]  # a shortcut
@@ -663,13 +696,15 @@ class PointList:
 
     class _PointList(NamedTuple):
         r"""Data structure containing the list of coordinates. Units are in milimeters."""
+
         vx: List[float]  # coordinates stored in log name HidraConstants.SAMPLE_COORDINATE_NAMES[0]
         vy: List[float]  # coordinates stored in log name HidraConstants.SAMPLE_COORDINATE_NAMES[1]
         vz: List[float]  # coordinates stored in log name HidraConstants.SAMPLE_COORDINATE_NAMES[2]
 
     @staticmethod
-    def tolist(input_source: Union[SampleLogs, List[List[float]], Iterable]) \
-            -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def tolist(
+        input_source: Union[SampleLogs, List[List[float]], Iterable],
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         r"""
         Cast coordinate points of some input data structure into a list of numpy arrays.
 
@@ -686,17 +721,23 @@ class PointList:
             dimensions
         """
         if isinstance(input_source, list) or isinstance(input_source, tuple):
-            return (np.asarray(input_source[0], dtype=float),
-                    np.asarray(input_source[1], dtype=float),
-                    np.asarray(input_source[2], dtype=float))
+            return (
+                np.asarray(input_source[0], dtype=float),
+                np.asarray(input_source[1], dtype=float),
+                np.asarray(input_source[2], dtype=float),
+            )
         elif isinstance(input_source, SampleLogs):
-            return tuple([np.asarray(input_source[name]) for name  # type: ignore
-                          in HidraConstants.SAMPLE_COORDINATE_NAMES])
+            return tuple(
+                [
+                    np.asarray(input_source[name])
+                    for name in HidraConstants.SAMPLE_COORDINATE_NAMES  # type: ignore
+                ]
+            )
         elif isinstance(input_source, np.ndarray):
             if input_source.shape[0] != 3:
-                raise RuntimeError('Cannot unpack ndarray with shape {}'.format(input_source.shape))
+                raise RuntimeError("Cannot unpack ndarray with shape {}".format(input_source.shape))
             return (input_source[0], input_source[1], input_source[2])
-        raise RuntimeError(f'Could not convert {input_source} to a tuple of ndarray.')
+        raise RuntimeError(f"Could not convert {input_source} to a tuple of ndarray.")
 
     def __init__(self, input_source: Union[SampleLogs, List[List[float]], Iterable]) -> None:
         r"""
@@ -716,10 +757,10 @@ class PointList:
         coordinates = PointList.tolist(input_source)
 
         # A few validation on the coordinates before assignment to attributes
-        assert len(coordinates) == 3, 'One set of coordinates is required for each direction'
-        assert len(set([len(c) for c in coordinates])) == 1, 'Directions have different number of coordinates'
+        assert len(coordinates) == 3, "One set of coordinates is required for each direction"
+        assert len(set([len(c) for c in coordinates])) == 1, "Directions have different number of coordinates"
         for coordinates_along_axis in coordinates:  # coordinates must have
-            assert np.all(np.isfinite(coordinates_along_axis)), 'some coordinates do not have finite values'
+            assert np.all(np.isfinite(coordinates_along_axis)), "some coordinates do not have finite values"
 
         self._vx: np.ndarray = coordinates[0]
         self._vy: np.ndarray = coordinates[1]
@@ -742,7 +783,7 @@ class PointList:
 
     def __getitem__(self, item: Union[int, str]) -> Tuple[float, float, float]:
         r"""Enable self[0],... self[N] as well as making this class iterable over the 3D points."""
-        key = to_int('item', item, min_value=0, max_value=len(self) + 1)
+        key = to_int("item", item, min_value=0, max_value=len(self) + 1)
         return (self._vx[key], self._vy[key], self._vz[key])
 
     def __eq__(self, other) -> bool:
@@ -754,24 +795,27 @@ class PointList:
         if (len(self.vx) != len(other.vx)) or (len(self.vy) != len(other.vy)) or (len(self.vz) != len(other.vz)):
             return False
 
-        return np.allclose(self.vx, other.vx, atol=self.ATOL) and np.allclose(self.vy, other.vy, atol=self.ATOL) \
+        return (
+            np.allclose(self.vx, other.vx, atol=self.ATOL)
+            and np.allclose(self.vy, other.vy, atol=self.ATOL)
             and np.allclose(self.vz, other.vz, atol=self.ATOL)
+        )
 
     def sort(self) -> None:
         r"""Reorder the points in the list by increasing vz, then by increasing vy, and finally by
-         increasing vx"""
+        increasing vx"""
         coordinates = sorted([xyz.tolist() for xyz in self.coordinates])
         self._vx, self._vy, self._vz = np.array(coordinates).transpose()
 
     def argsort(self) -> np.ndarray:
         r"""Return the permutation that reorder the points in the list by increasing vz, then by increasing vy,
-         and finally by increasing vx"""
+        and finally by increasing vx"""
         enumerated_coordinates = [[i, x.tolist()] for i, x in enumerate(self.coordinates)]
         enumerated_coordinates_sorted = sorted(enumerated_coordinates, key=lambda a: a[1])
         permutation = [i for i, _ in enumerated_coordinates_sorted]
         return np.array(permutation)
 
-    def is_contained_in(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> bool:
+    def is_contained_in(self, other: "PointList", resolution: float = DEFAULT_POINT_RESOLUTION) -> bool:
         r"""
         For every point in the list, check that a point in the other list exist within
         a distance smaller than the resolution.
@@ -790,7 +834,7 @@ class PointList:
         distances, other_indexes = cKDTree(other.coordinates).query(self.coordinates, k=1)
         return bool(np.all(distances < resolution))
 
-    def is_equal_within_resolution(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> bool:
+    def is_equal_within_resolution(self, other: "PointList", resolution: float = DEFAULT_POINT_RESOLUTION) -> bool:
         r"""
         Check two lists are equal within resolution by checking that the other list is contained in the
         current list, and viceversa.
@@ -808,8 +852,9 @@ class PointList:
         -------
         bool
         """
-        return self.is_contained_in(other, resolution=resolution) \
-            and other.is_contained_in(self, resolution=resolution)
+        return self.is_contained_in(other, resolution=resolution) and other.is_contained_in(
+            self, resolution=resolution
+        )
 
     @property
     def coordinates(self) -> np.ndarray:
@@ -836,7 +881,7 @@ class PointList:
         np.ndarray
             1D array with shape (number of points,)
         """
-        int_to_attr = ('vx', 'vy', 'vz')
+        int_to_attr = ("vx", "vy", "vz")
         if isinstance(direction, int):
             direction = int_to_attr[direction]
         return getattr(self, direction)
@@ -891,7 +936,7 @@ class PointList:
                     return np.array(direction_vector)
         return None  # the list of points do not represent a linear scan
 
-    def aggregate(self, other: 'PointList') -> 'PointList':
+    def aggregate(self, other: "PointList") -> "PointList":
         r"""
         Bring the points from other list into the list of points. Because points are ordered,
         this operation is not commutative.
@@ -907,9 +952,13 @@ class PointList:
         -------
         ~pyrs.dataobjects.sample_logs.PointList
         """
-        return PointList((np.concatenate((self._vx, other._vx)),
-                          np.concatenate((self._vy, other._vy)),
-                          np.concatenate((self._vz, other._vz))))
+        return PointList(
+            (
+                np.concatenate((self._vx, other._vx)),
+                np.concatenate((self._vy, other._vy)),
+                np.concatenate((self._vz, other._vz)),
+            )
+        )
 
     def cluster(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> List[List]:
         r"""
@@ -933,7 +982,7 @@ class PointList:
         """
         # fclusterdata returns a vector T of length equal to the number of points. T[i] is the cluster number to
         # which point i belongs. Notice that cluster numbers begin at 1, not 0.
-        cluster_assignments = fclusterdata(self.coordinates, resolution, criterion='distance', method='single')
+        cluster_assignments = fclusterdata(self.coordinates, resolution, criterion="distance", method="single")
         # variable `clusters` is a list of lists, each list-item containing the point-list indexes for one cluster
         clusters: List[List] = [[] for _ in range(max(cluster_assignments))]
         for point_index, cluster_number in enumerate(cluster_assignments):
@@ -961,8 +1010,9 @@ class PointList:
             return True
         return False
 
-    def intersection_aggregated_indexes(self, other: 'PointList',
-                                        resolution: float = DEFAULT_POINT_RESOLUTION) -> List:
+    def intersection_aggregated_indexes(
+        self, other: "PointList", resolution: float = DEFAULT_POINT_RESOLUTION
+    ) -> List:
         r"""
         Bring the points from another list and find the indexes of the aggregated point list
         corresponding to the common points.
@@ -990,7 +1040,7 @@ class PointList:
             points_common_indexes.extend(point_indexes)
         return sorted(points_common_indexes)
 
-    def intersection(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
+    def intersection(self, other: "PointList", resolution: float = DEFAULT_POINT_RESOLUTION) -> "PointList":
         r"""
         Bring the points from another list and find the points common to both lists.
 
@@ -1012,9 +1062,9 @@ class PointList:
         common_points_coordinates = self.aggregate(other).coordinates[points_common_indexes]
         return PointList(common_points_coordinates.transpose())  # needed (3 x number_common_points) shaped array
 
-    def fuse_aggregated_indices(self, other: 'PointList',
-                                resolution: float = DEFAULT_POINT_RESOLUTION,
-                                single_value: bool = True) -> List:
+    def fuse_aggregated_indices(
+        self, other: "PointList", resolution: float = DEFAULT_POINT_RESOLUTION, single_value: bool = True
+    ) -> List:
         r"""
         Add the points from two lists and find the indexes of the aggregated point list
         corresponding to non redundant points.
@@ -1044,7 +1094,7 @@ class PointList:
         else:
             return sorted(clusters)
 
-    def fuse_with(self, other: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
+    def fuse_with(self, other: "PointList", resolution: float = DEFAULT_POINT_RESOLUTION) -> "PointList":
         r"""
         Add the points from two lists and discard redundant points.
 
@@ -1065,7 +1115,7 @@ class PointList:
         points_unique_coordinates = self.aggregate(other).coordinates[points_unique_indices]
         return PointList(points_unique_coordinates.transpose())  # needed (3 x number_common_points) shaped array
 
-    def sorted_indices(self, point_list: 'PointList', resolution: float = DEFAULT_POINT_RESOLUTION) -> np.ndarray:
+    def sorted_indices(self, point_list: "PointList", resolution: float = DEFAULT_POINT_RESOLUTION) -> np.ndarray:
         r"""
         Compare the order of the sample points against another point list with the same sample
         points (within resolution) but with different ordering of the points.
@@ -1101,13 +1151,13 @@ class PointList:
         np.ndarray
             Permutation of the indices of the point list in order to match the sample points of the input `point_list`
         """
-        assert len(self) == len(point_list), 'The two point lists do not contain same number of sample points'
+        assert len(self) == len(point_list), "The two point lists do not contain same number of sample points"
 
         if self.has_overlapping_points(resolution) or point_list.has_overlapping_points(resolution):
-            raise ValueError('Either of the point lists contains overlapping points')
+            raise ValueError("Either of the point lists contains overlapping points")
 
         if self.is_equal_within_resolution(point_list, resolution) is False:
-            raise ValueError('The two point lists are not the same, within resolution')
+            raise ValueError("The two point lists are not the same, within resolution")
 
         point_list_aggregated = self.aggregate(point_list)
         # Each cluster should contain two indices of the aggregated point list, the first index
@@ -1116,15 +1166,15 @@ class PointList:
         clusters = sorted(point_list_aggregated.cluster())
         # Each cluster should contain two indices of the aggregated list
         populations = [len(cluster) for cluster in clusters]
-        assert np.all(np.array(populations) == 2), 'No one-to-one correspondence between sample points'
+        assert np.all(np.array(populations) == 2), "No one-to-one correspondence between sample points"
         # `sample_points_count` is a shift taking us from indices of the aggregated point list to indices
         # of `point_list`
         sample_points_count = len(self)
         return np.array([cluster[1] - sample_points_count for cluster in clusters], dtype=int)
 
-    def calculate_pointlist_map(self,
-                                point_lists: List['PointList'],
-                                resolution: float = DEFAULT_POINT_RESOLUTION) -> Tuple['PointList', List[np.ndarray]]:
+    def calculate_pointlist_map(
+        self, point_lists: List["PointList"], resolution: float = DEFAULT_POINT_RESOLUTION
+    ) -> Tuple["PointList", List[np.ndarray]]:
         r"""
         Calculate a full list of a the PointList indices that should be clustered together. This
         assumes that all points within a PointList are outside of resolution. The indices returned
@@ -1203,7 +1253,7 @@ class PointList:
             # np.searchsorted(point_list_starts, [2, 4, 9], side='right') == [1, 2, 3] indicating that
             # aggregated point 2 corresponds to the first point list, point 4 corresponds to the second list, and
             # point 9 corresponds to the third list
-            pointlist_indexes = np.searchsorted(point_list_starts, cluster, side='right') - 1  # -1, number-->index
+            pointlist_indexes = np.searchsorted(point_list_starts, cluster, side="right") - 1  # -1, number-->index
 
             for pointlist_index, aggregate_index in zip(pointlist_indexes, cluster):
                 # TODO if we have two sample points within resolution in the same point list, then
@@ -1219,8 +1269,7 @@ class PointList:
 
         return PointList([x_array, y_array, z_array]), full_clusters
 
-    def get_indices(self, other: 'PointList',
-                    resolution: float = DEFAULT_POINT_RESOLUTION) -> np.ndarray:
+    def get_indices(self, other: "PointList", resolution: float = DEFAULT_POINT_RESOLUTION) -> np.ndarray:
         """
         Return an array that is parallel to the input for indices into self of the
         supplied other. Any position that isn't found should be filled
@@ -1244,7 +1293,7 @@ class PointList:
             indices = np.full(len(full_indices), self.MISSING_INDEX, dtype=int)
             for i, index in enumerate(full_indices):
                 indices[i] = index[1]
-            return indices[:len(self)]
+            return indices[: len(self)]
 
     def extents(self, resolution=DEFAULT_POINT_RESOLUTION) -> ExtentTriad:
         r"""
@@ -1265,9 +1314,11 @@ class PointList:
         list
             three-item list, where each item is an object of type ~pyrs.dataobjects.sample_logs.DirectionExtents.
         """
-        return DirectionExtents(self.vx, resolution=resolution), \
-            DirectionExtents(self.vy, resolution=resolution), \
-            DirectionExtents(self.vz, resolution=resolution)
+        return (
+            DirectionExtents(self.vx, resolution=resolution),
+            DirectionExtents(self.vy, resolution=resolution),
+            DirectionExtents(self.vz, resolution=resolution),
+        )
 
     def linspace(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> List[np.ndarray]:
         r"""
@@ -1309,7 +1360,7 @@ class PointList:
             A three item array, where each items is an array specifying the value of each
             coordinate (vx, vy, or vz) at the points of the regular grid
         """
-        epsilon = 1.e-09  # ensures extent.max is included in each slice
+        epsilon = 1.0e-09  # ensures extent.max is included in each slice
         slices = list()
         for extent in self.extents(resolution=resolution):
             if extent.numpoints == 1 and irreducible is True:
@@ -1317,7 +1368,7 @@ class PointList:
             slices.append(slice(extent.min, extent.max + epsilon, extent.delta))
         return np.mgrid[slices]
 
-    def grid_point_list(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> 'PointList':
+    def grid_point_list(self, resolution: float = DEFAULT_POINT_RESOLUTION) -> "PointList":
         r"""
         Using the extents of the list, create a new `PointList` filling the points of the regular grid
         constructed using the extents.
@@ -1363,9 +1414,9 @@ def aggregate_point_lists(*args: PointList) -> PointList:
     -------
     ~pyrs.dataobjects.sample_logs.PointList
     """
-    assert len(args) > 1, 'We need at least two PointList objects to aggregate'
+    assert len(args) > 1, "We need at least two PointList objects to aggregate"
     for arg in args:
-        assert isinstance(arg, PointList), 'one of the arguments to aggreage_point_list is not a PointList object'
+        assert isinstance(arg, PointList), "one of the arguments to aggreage_point_list is not a PointList object"
     aggregated_points = args[0]  # start with the point list of the first scalar field
     for point_list in args[1:]:
         aggregated_points = aggregated_points.aggregate(point_list)  # aggregate remaining lists, one by one

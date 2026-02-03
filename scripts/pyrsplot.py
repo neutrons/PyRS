@@ -1,14 +1,11 @@
 #!/usr/bin/python
 import sys
-import imp
-from qtpy import QtCore
-from qtpy.QtWidgets import QDialog, QApplication
+from qtpy.QtWidgets import QApplication
 import pyrs.interface.pyrs_main
 
 
 def main(argv=None):
-    """
-    """
+    """ """
     if argv is None:
         argv = sys.argv
     if QApplication.instance():
@@ -22,6 +19,6 @@ def main(argv=None):
     return _app
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Main application
     app = main()

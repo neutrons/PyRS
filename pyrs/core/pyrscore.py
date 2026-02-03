@@ -13,6 +13,7 @@ class PyRsCore:
     """
     PyRS core
     """
+
     def __init__(self):
         """
         initialization
@@ -26,7 +27,7 @@ class PyRsCore:
         self._last_pole_figure_calculator = None
 
         # strain and stress calculator
-        self._ss_calculator_dict = dict()   # [session name][strain/stress type: 1/2/3] = ss calculator
+        self._ss_calculator_dict = dict()  # [session name][strain/stress type: 1/2/3] = ss calculator
         self._curr_ss_session = None
         self._curr_ss_type = None
 
@@ -80,8 +81,9 @@ class PyRsCore:
         -------
 
         """
-        raise NotImplementedError('Project {} of solid angles {} need to be implemented soon!'
-                                  ''.format(project_name, solid_angles))
+        raise NotImplementedError(
+            "Project {} of solid angles {} need to be implemented soon!".format(project_name, solid_angles)
+        )
 
     @staticmethod
     def _get_strain_stress_type_key(is_plane_strain, is_plane_stress):
@@ -101,7 +103,7 @@ class PyRsCore:
     #  get_detector_ids(self, data_key) removed due to new workflow to calculate pole figure and API
 
     def get_diffraction_data(self, session_name, sub_run, mask):
-        """ get diffraction data of a certain session/wokspace
+        """get diffraction data of a certain session/wokspace
         :param session_name: name of session for workspace
         :param sub_run: sub run of the diffraction ata
         :param mask: String as mask ID for reduced diffraction data
@@ -120,40 +122,45 @@ class PyRsCore:
         :return:
         """
         assert self
-        print('[ERROR] Pole figure from {} at detector ID {}/{} is not implemented'
-              ''.format(data_key, detector_id, log_index))
+        print(
+            "[ERROR] Pole figure from {} at detector ID {}/{} is not implemented".format(
+                data_key, detector_id, log_index
+            )
+        )
         return None, None
 
     def get_pole_figure_values(self, data_key, detector_id_list, max_cost):
-        """ API method to get the (N, 3) array for pole figures
+        """API method to get the (N, 3) array for pole figures
         :param data_key:
         :param detector_id_list:
         :param max_cost:
         :return:
         """
         pole_figure_calculator = self._pole_figure_calculator_dict[data_key]
-        assert isinstance(pole_figure_calculator, polefigurecalculator.PoleFigureCalculator), \
-            'Pole figure calculator type mismatched. Input is of type {0} but expected as {1}.' \
-            ''.format(type(pole_figure_calculator), 'polefigurecalculator.PoleFigureCalculato')
+        assert isinstance(pole_figure_calculator, polefigurecalculator.PoleFigureCalculator), (
+            "Pole figure calculator type mismatched. Input is of type {0} but expected as {1}.".format(
+                type(pole_figure_calculator), "polefigurecalculator.PoleFigureCalculato"
+            )
+        )
 
         if detector_id_list is None:
             detector_id_list = pole_figure_calculator.get_detector_ids()
         else:
-            checkdatatypes.check_list('Detector ID list', detector_id_list)
+            checkdatatypes.check_list("Detector ID list", detector_id_list)
 
         # get all the pole figure vectors
         vec_alpha = None
         vec_beta = None
         vec_intensity = None
         for det_id in detector_id_list:
-            print('[DB...BAt] Get pole figure from detector {0}'.format(det_id))
+            print("[DB...BAt] Get pole figure from detector {0}".format(det_id))
             # get_pole_figure returned 2 tuple.  we need the second one as an array for alpha, beta, intensity
             sub_array = pole_figure_calculator.get_pole_figure_vectors(det_id, max_cost)[1]
             vec_alpha_i = sub_array[:, 0]
             vec_beta_i = sub_array[:, 1]
             vec_intensity_i = sub_array[:, 2]
 
-            print('Det {} # data points = {}'.format(det_id, len(sub_array)))
+            print("Det {} # data points = {}".format(det_id, len(sub_array)))
             # print ('alpha: {0}'.format(vec_alpha_i))
 
             if vec_alpha is None:
@@ -164,7 +171,7 @@ class PyRsCore:
                 vec_alpha = numpy.concatenate((vec_alpha, vec_alpha_i), axis=0)
                 vec_beta = numpy.concatenate((vec_beta, vec_beta_i), axis=0)
                 vec_intensity = numpy.concatenate((vec_intensity, vec_intensity_i), axis=0)
-            print('Updated alpha: size = {0}: {1}'.format(len(vec_alpha), vec_alpha))
+            print("Updated alpha: size = {0}: {1}".format(len(vec_alpha), vec_alpha))
 
         return vec_alpha, vec_beta, vec_intensity
 
@@ -189,15 +196,17 @@ class PyRsCore:
         self._reduction_service.init_session(project_name)
 
         # Load project
-        ws = self._reduction_service.load_hidra_project(project_file_name=hidra_h5_name,
-                                                        load_calibrated_instrument=False,
-                                                        load_detectors_counts=load_detector_counts,
-                                                        load_reduced_diffraction=load_diffraction)
+        ws = self._reduction_service.load_hidra_project(
+            project_file_name=hidra_h5_name,
+            load_calibrated_instrument=False,
+            load_detectors_counts=load_detector_counts,
+            load_reduced_diffraction=load_diffraction,
+        )
 
         return ws
 
     def save_diffraction_data(self, project_name, file_name):
-        """ Save (reduced) diffraction data to HiDRA project file
+        """Save (reduced) diffraction data to HiDRA project file
         :param project_name: HiDRA wokspace reference or name
         :param file_name:
         :return:
@@ -207,7 +216,7 @@ class PyRsCore:
         return
 
     def save_peak_fit_result(self, project_name, hidra_file_name, peak_tag, overwrite=True):
-        """ Save the result from peak fitting to HiDRA project file
+        """Save the result from peak fitting to HiDRA project file
         Parameters
         ----------
         project_name: str
@@ -255,12 +264,14 @@ class PyRsCore:
         :param file_type:
         :return:
         """
-        raise NotImplementedError('{}/{}/{}/{} need to be implemented'
-                                  ''.format(data_key, detectors, file_name, file_type))
+        raise NotImplementedError(
+            "{}/{}/{}/{} need to be implemented".format(data_key, detectors, file_name, file_type)
+        )
 
-    def reduce_diffraction_data(self, session_name, num_bins, pyrs_engine, mask_file_name=None,
-                                geometry_calibration=None, sub_run_list=None):
-        """ Reduce all sub runs in a workspace from detector counts to diffraction data
+    def reduce_diffraction_data(
+        self, session_name, num_bins, pyrs_engine, mask_file_name=None, geometry_calibration=None, sub_run_list=None
+    ):
+        """Reduce all sub runs in a workspace from detector counts to diffraction data
         :param session_name:
         :param num_bins:
         :param pyrs_engine:
@@ -273,7 +284,7 @@ class PyRsCore:
         if mask_file_name:
             mask_info = self._reduction_service.load_mask_file(mask_file_name)
             mask_id = mask_info[2]
-            print('L650 Mask ID = {}'.format(mask_id))
+            print("L650 Mask ID = {}".format(mask_id))
         else:
             mask_id = None
 
@@ -293,14 +304,17 @@ class PyRsCore:
             # Use what is loaded from file or set to workspace before
             apply_calibration = True
         else:
-            raise RuntimeError('Argument geometry_calibration of value {} and type {} is not supported'
-                               ''.format(geometry_calibration, type(geometry_calibration)))
+            raise RuntimeError(
+                "Argument geometry_calibration of value {} and type {} is not supported".format(
+                    geometry_calibration, type(geometry_calibration)
+                )
+            )
 
         # Reduce
         # TODO - Mask/MaskID shall be refactored
-        self._reduction_service.reduce_diffraction_data(session_name, apply_calibration,
-                                                        num_bins, pyrs_engine, sub_run_list,
-                                                        mask_id, mask_id)
+        self._reduction_service.reduce_diffraction_data(
+            session_name, apply_calibration, num_bins, pyrs_engine, sub_run_list, mask_id, mask_id
+        )
 
     @property
     def reduction_service(self):
@@ -311,22 +325,25 @@ class PyRsCore:
         return self._reduction_service
 
     def reset_strain_stress(self, is_plane_strain, is_plane_stress):
-        """ reset the strain and stress calculation due to change of type
+        """reset the strain and stress calculation due to change of type
 
         :param is_plane_strain:
         :param is_plane_stress:
         :return:
         """
         if self._curr_ss_session is None:
-            raise RuntimeError('Current session is not named.')
+            raise RuntimeError("Current session is not named.")
         elif self._curr_ss_session not in self._ss_calculator_dict:
-            print('[WARNING] Current strain/stress session does not exist.')
+            print("[WARNING] Current strain/stress session does not exist.")
             return
 
         ss_type_index = self._get_strain_stress_type_key(is_plane_strain, is_plane_stress)
         if ss_type_index == self._curr_ss_type:
-            raise RuntimeError('Same strain/stress type (plane strain = {}, plane stress = {}'
-                               ''.format(is_plane_strain, is_plane_stress))
+            raise RuntimeError(
+                "Same strain/stress type (plane strain = {}, plane stress = {}".format(
+                    is_plane_strain, is_plane_stress
+                )
+            )
 
         # rename the current strain stress name
         # saved_ss_name = self._curr_ss_session + '_{}_{}'.format(is_plane_strain, is_plane_stress)
@@ -358,19 +375,21 @@ class PyRsCore:
             # save
             file_util.save_mantid_nexus(matrix_name, file_name)
         except RuntimeError as run_err:
-            raise RuntimeError('Unable to write to NeXus because Mantid fit engine is not used.\nError info: {0}'
-                               ''.format(run_err))
+            raise RuntimeError(
+                "Unable to write to NeXus because Mantid fit engine is not used.\nError info: {0}".format(run_err)
+            )
 
         try:
             matrix_name = optimizer.get_center_of_mass_workspace_name()
             # save
             dir_name = os.path.dirname(file_name)
             base_name = os.path.basename(file_name)
-            file_name = os.path.join(dir_name, base_name.split('.')[0] + '_com.nxs')
+            file_name = os.path.join(dir_name, base_name.split(".")[0] + "_com.nxs")
             file_util.save_mantid_nexus(matrix_name, file_name)
         except RuntimeError as run_err:
-            raise RuntimeError('Unable to write COM to NeXus because Mantid fit engine is not used.\nError info: {0}'
-                               ''.format(run_err))
+            raise RuntimeError(
+                "Unable to write COM to NeXus because Mantid fit engine is not used.\nError info: {0}".format(run_err)
+            )
 
     def slice_data(self, even_nexus, splicer_id):
         """Event split a NeXus file
@@ -393,4 +412,4 @@ class PyRsCore:
 
         """
         # TODO - Implement method
-        raise NotImplementedError('Implement this ASAP')
+        raise NotImplementedError("Implement this ASAP")

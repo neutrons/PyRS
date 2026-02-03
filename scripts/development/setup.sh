@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# This script sets up automatically the upstream and origin remotes in a git cloned repo.  
+# This script sets up automatically the upstream and origin remotes in a git cloned repo.
 # Tries ssh and https (if ssh fails) connections by asking your host username.
 # Run this script once after cloning a repo.
 # Upstream remote -> original project (current origin when cloning)
 # Origin remote -> your fork (must be created beforehand)
-echo "Set up automatically the upstream and origin remote repos" 
+echo "Set up automatically the upstream and origin remote repos"
 
 # Start part to modify
 git_group=neutrons
@@ -22,7 +22,7 @@ then
 fi
 
 # Configure origin and upstream repo via SSH (preference) or HTTPS if SSH fails
-# SSH users make sure your system public key is registed in gitlab user settings > SSH Keys 
+# SSH users make sure your system public key is registed in gitlab user settings > SSH Keys
 # (e.g. ~/.ssh/id_rsa.pub)
 remote_origin=""
 remote_upstream=""

@@ -43,7 +43,7 @@ class Model(QObject):
 
     @e11.setter
     def e11(self, filename):
-        self._e11, self._e11_peaks = self.load_hidra_project_files(filename, '11')
+        self._e11, self._e11_peaks = self.load_hidra_project_files(filename, "11")
         self._peakTags = list(self._e11_peaks[0].keys()) if len(self._e11_peaks) > 0 else []
         self.propertyUpdated.emit("peakTags")
 
@@ -57,9 +57,9 @@ class Model(QObject):
 
     @e22.setter
     def e22(self, filename):
-        self._e22, self._e22_peaks = self.load_hidra_project_files(filename, '22')
-        if self._e22 and self.check_peak_for_direction('22'):
-            self.create_strain('22')
+        self._e22, self._e22_peaks = self.load_hidra_project_files(filename, "22")
+        if self._e22 and self.check_peak_for_direction("22"):
+            self.create_strain("22")
 
     @property
     def e22_peaks(self):
@@ -71,9 +71,9 @@ class Model(QObject):
 
     @e33.setter
     def e33(self, filename):
-        self._e33, self._e33_peaks = self.load_hidra_project_files(filename, '33')
-        if self._e33 and self.check_peak_for_direction('33'):
-            self.create_strain('33')
+        self._e33, self._e33_peaks = self.load_hidra_project_files(filename, "33")
+        if self._e33 and self.check_peak_for_direction("33"):
+            self.create_strain("33")
 
     @property
     def e33_peaks(self):
@@ -90,8 +90,8 @@ class Model(QObject):
     @selectedPeak.setter
     def selectedPeak(self, tag):
         self._selectedPeak = tag
-        for direction in ('11', '22', '33'):
-            if getattr(self, f'e{direction}') and self.check_peak_for_direction(f'{direction}'):
+        for direction in ("11", "22", "33"):
+            if getattr(self, f"e{direction}") and self.check_peak_for_direction(f"{direction}"):
                 self.create_strain(direction)
         self.propertyUpdated.emit("selectedPeak")
 
@@ -101,8 +101,7 @@ class Model(QObject):
             try:
                 return self.stress_facade.d_reference
             except Exception as e:
-                self.failureMsg.emit("Reference d spacings are different on different directions",
-                                     str(e), None)
+                self.failureMsg.emit("Reference d spacings are different on different directions", str(e), None)
                 return None, dict()
 
     @property
@@ -122,21 +121,24 @@ class Model(QObject):
         return self._stress_facade
 
     def create_strain(self, direction):
-        strain_list = [StrainField(hidraworkspace=ws, peak_collection=peak[self.selectedPeak])
-                       for ws, peak in zip(getattr(self, f'e{direction}'), getattr(self, f'e{direction}_peaks'))]
+        print(getattr(self, f"e{direction}"))
+        strain_list = [
+            StrainField(hidraworkspace=ws, peak_collection=peak[self.selectedPeak])
+            for ws, peak in zip(getattr(self, f"e{direction}"), getattr(self, f"e{direction}_peaks"))
+        ]
         if len(strain_list) == 1:
-            setattr(self, f'_e{direction}_strain', strain_list[0])
+            setattr(self, f"_e{direction}_strain", strain_list[0])
         else:
-            setattr(self, f'_e{direction}_strain', sum(strain_list[1:], strain_list[0]))
+            setattr(self, f"_e{direction}_strain", sum(strain_list[1:], strain_list[0]))
 
     def check_peak_for_direction(self, direction):
-        for peak in getattr(self, f'e{direction}_peaks'):
+        for peak in getattr(self, f"e{direction}_peaks"):
             if self.selectedPeak not in peak:
                 return False
         return True
 
     def validate_selection(self, direction):
-        if not getattr(self, f'e{direction}'):
+        if not getattr(self, f"e{direction}"):
             return f"e{direction} file hasn't been loaded"
 
         if not self.e11:
@@ -145,18 +147,18 @@ class Model(QObject):
         if not self.e11_peaks:
             return "e11 contains no peaks, fit peaks first"
 
-        if not self.check_peak_for_direction(f'{direction}'):
+        if not self.check_peak_for_direction(f"{direction}"):
             return f"Peak {self.selectedPeak} is not in e{direction}"
 
     def get_parameter_field(self, plot_param, direction):
-        if plot_param == 'strain':
-            return getattr(self, f'_e{direction}_strain')
-        elif plot_param == 'd-reference':
-            return getattr(self, f'_e{direction}_strain').get_d_reference()
+        if plot_param == "strain":
+            return getattr(self, f"_e{direction}_strain")
+        elif plot_param == "d-reference":
+            return getattr(self, f"_e{direction}_strain").get_d_reference()
         elif plot_param == "dspacing-center":
-            return getattr(self, f'_e{direction}_strain').get_dspacing_center()
+            return getattr(self, f"_e{direction}_strain").get_dspacing_center()
         else:
-            return getattr(self, f'_e{direction}_strain').get_effective_peak_parameter(plot_param)
+            return getattr(self, f"_e{direction}_strain").get_effective_peak_parameter(plot_param)
 
     def get_field(self, direction, plot_param, stress_case):
         try:
@@ -168,9 +170,11 @@ class Model(QObject):
             else:
                 return self.get_parameter_field(plot_param, direction)
         except Exception as e:
-            self.failureMsg.emit(f"Failed to generate field for parameter {plot_param} in direction {direction}",
-                                 str(e),
-                                 traceback.format_exc())
+            self.failureMsg.emit(
+                f"Failed to generate field for parameter {plot_param} in direction {direction}",
+                str(e),
+                traceback.format_exc(),
+            )
 
     def calculate_stress(self, stress_case, youngModulus, poissonsRatio, d0):
         build_stress = False
@@ -178,10 +182,14 @@ class Model(QObject):
             build_stress = True
 
         if build_stress:
-            self.stress = StressField(self._e11_strain,
-                                      self._e22_strain,
-                                      self._e33_strain if stress_case == "diagonal" else None,
-                                      youngModulus, poissonsRatio, stress_case)
+            self.stress = StressField(
+                self._e11_strain,
+                self._e22_strain,
+                self._e33_strain if stress_case == "diagonal" else None,
+                youngModulus,
+                poissonsRatio,
+                stress_case,
+            )
         else:
             if youngModulus != self._youngs_modulus:
                 self._stress.youngs_modulus = youngModulus
@@ -190,7 +198,7 @@ class Model(QObject):
 
         if d0 is not None and (self._d0 is None or self._d0 != d0):
             if len(d0) == 5:  # ScalarFieldSample case
-                self.stress_facade.d_reference = ScalarFieldSample('d0', *d0)
+                self.stress_facade.d_reference = ScalarFieldSample("d0", *d0)
             else:
                 self.stress_facade.d_reference = d0
 
@@ -206,35 +214,46 @@ class Model(QObject):
         stress = self.stress
 
         # convert to pandas df for joins
-        stress_stacked = np.column_stack((stress.x.round(n_decimals),
-                                          stress.y.round(n_decimals),
-                                          stress.z.round(n_decimals)))
+        stress_stacked = np.column_stack(
+            (stress.x.round(n_decimals), stress.y.round(n_decimals), stress.z.round(n_decimals))
+        )
 
-        grid_stacked = np.column_stack((x_grid.round(n_decimals),
-                                        y_grid.round(n_decimals),
-                                        z_grid.round(n_decimals),
-                                        d0_grid, d0e_grid))
+        grid_stacked = np.column_stack(
+            (x_grid.round(n_decimals), y_grid.round(n_decimals), z_grid.round(n_decimals), d0_grid, d0e_grid)
+        )
 
-        stress_df = pd.DataFrame(stress_stacked, columns=['x', 'y', 'z'])
-        grid_df = pd.DataFrame(grid_stacked, columns=['x', 'y', 'z', 'd0', 'd0e'])
+        stress_df = pd.DataFrame(stress_stacked, columns=["x", "y", "z"])
+        grid_df = pd.DataFrame(grid_stacked, columns=["x", "y", "z", "d0", "d0e"])
 
         # left join to show differences between dfs
         full_df = stress_df.merge(grid_df, on=["x", "y", "z"], how="left")
 
         # logic to find missing data after join
-        if not (full_df['d0'].isnull().values.any() or full_df['d0e'].isnull().values.any()):
+        if not (full_df["d0"].isnull().values.any() or full_df["d0e"].isnull().values.any()):
             full_df.loc[np.isnan(full_df["d0"]), "d0"] = default_d0
             full_df.loc[np.isnan(full_df["d0e"]), "d0e"] = default_d0e
-            return (1, full_df['x'].to_numpy(), full_df['y'].to_numpy(), full_df['z'].to_numpy(),
-                    full_df['d0'].to_numpy(), full_df['d0e'].to_numpy())
+            return (
+                1,
+                full_df["x"].to_numpy(),
+                full_df["y"].to_numpy(),
+                full_df["z"].to_numpy(),
+                full_df["d0"].to_numpy(),
+                full_df["d0e"].to_numpy(),
+            )
 
-        elif (full_df['d0'].isnull().values.all() or full_df['d0e'].isnull().values.all()):
+        elif full_df["d0"].isnull().values.all() or full_df["d0e"].isnull().values.all():
             return -1, None, None, None, None, None
         else:
             full_df.loc[np.isnan(full_df["d0"]), "d0"] = default_d0
             full_df.loc[np.isnan(full_df["d0e"]), "d0e"] = default_d0e
-            return (0, full_df['x'].to_numpy(), full_df['y'].to_numpy(), full_df['z'].to_numpy(),
-                    full_df['d0'].to_numpy(), full_df['d0e'].to_numpy())
+            return (
+                0,
+                full_df["x"].to_numpy(),
+                full_df["y"].to_numpy(),
+                full_df["z"].to_numpy(),
+                full_df["d0"].to_numpy(),
+                full_df["d0e"].to_numpy(),
+            )
 
     def write_stress_to_csv(self, filename, detailed):
         try:
@@ -244,20 +263,19 @@ class Model(QObject):
             else:
                 stress_csv.write_summary_csv()
         except Exception as e:
-            self.failureMsg.emit("Failed to write csv",
-                                 str(e),
-                                 traceback.format_exc())
+            self.failureMsg.emit("Failed to write csv", str(e), traceback.format_exc())
 
     def get_default_csv_filename(self):
-        runs = [[peak_collection.runnumber for peak_collection in getattr(self._stress, f'strain{d}').peak_collections]
-                for d in ('11', '22', '33')]
+        runs = [
+            [peak_collection.runnumber for peak_collection in getattr(self._stress, f"strain{d}").peak_collections]
+            for d in ("11", "22", "33")
+        ]
         runnumbers = []
         for runs in runs:
             for runnumber in runs:
                 if runnumber != -1:
                     runnumbers.append(str(runnumber))
-        return "HB2B_{}_stress_grid_{}.csv".format('_'.join(runnumbers),
-                                                   self.selectedPeak)
+        return "HB2B_{}_stress_grid_{}.csv".format("_".join(runnumbers), self.selectedPeak)
 
     def load_hidra_project_file(self, filename, direction):
         try:
@@ -269,9 +287,9 @@ class Model(QObject):
                 peaks[peak] = source_project.read_peak_parameters(peak)
             return ws, peaks
         except Exception as e:
-            self.failureMsg.emit(f"Failed to load {filename}. Check that this is a Hidra Project File",
-                                 str(e),
-                                 traceback.format_exc())
+            self.failureMsg.emit(
+                f"Failed to load {filename}. Check that this is a Hidra Project File", str(e), traceback.format_exc()
+            )
             return None, dict()
 
     def load_hidra_project_files(self, filenames, direction):
@@ -298,31 +316,30 @@ class Model(QObject):
     def to_json(self, filename):
         try:
             json_output = dict()
-            json_output['stress_case'] = self._stressCase
-            json_output['filenames_11'] = self.get_filenames_for_direction('11')
-            json_output['filenames_22'] = self.get_filenames_for_direction('22')
-            json_output['filenames_33'] = self.get_filenames_for_direction('33')
-            json_output['peak_tag'] = self.selectedPeak
-            json_output['youngs_modulus'] = self._youngs_modulus
-            json_output['poisson_ratio'] = self._poisson_ratio
+            json_output["stress_case"] = self._stressCase
+            json_output["filenames_11"] = self.get_filenames_for_direction("11")
+            json_output["filenames_22"] = self.get_filenames_for_direction("22")
+            json_output["filenames_33"] = self.get_filenames_for_direction("33")
+            json_output["peak_tag"] = self.selectedPeak
+            json_output["youngs_modulus"] = self._youngs_modulus
+            json_output["poisson_ratio"] = self._poisson_ratio
             if self._d0 is None:
-                json_output['d0'] = None
+                json_output["d0"] = None
             elif len(self._d0) == 5:  # ScalarFieldSample case
-                json_output['d0'] = {"d0": self._d0[0],
-                                     "d0_error": self._d0[1],
-                                     "vx": self._d0[2],
-                                     "vy": self._d0[3],
-                                     "vz": self._d0[4]}
+                json_output["d0"] = {
+                    "d0": self._d0[0],
+                    "d0_error": self._d0[1],
+                    "vx": self._d0[2],
+                    "vy": self._d0[3],
+                    "vz": self._d0[4],
+                }
             else:
-                json_output['d0'] = {"d0": self._d0[0],
-                                     "d0_error": self._d0[1]}
+                json_output["d0"] = {"d0": self._d0[0], "d0_error": self._d0[1]}
 
-            with open(filename, 'w') as f:
+            with open(filename, "w") as f:
                 json.dump(json_output, f)
         except Exception as e:
-            self.failureMsg.emit(f"Failed save json file to {filename}",
-                                 str(e),
-                                 traceback.format_exc())
+            self.failureMsg.emit(f"Failed save json file to {filename}", str(e), traceback.format_exc())
 
     def from_json(self, filename):
         with open(filename) as f:
@@ -330,27 +347,20 @@ class Model(QObject):
 
         self._selectedPeak = data["peak_tag"]
 
-        for direction in ('11', '22', '33'):
-            self.set_workspaces(f'e{direction}', data[f'filenames_{direction}'])
-            if getattr(self, f'e{direction}'):
+        for direction in ("11", "22", "33"):
+            self.set_workspaces(f"e{direction}", data[f"filenames_{direction}"])
+            if getattr(self, f"e{direction}"):
                 self.create_strain(direction)
 
         d0_data = data["d0"]
         if d0_data is None:
             d0 = None
         elif len(d0_data) == 2:
-            d0 = (d0_data['d0'], d0_data['d0_error'])
+            d0 = (d0_data["d0"], d0_data["d0_error"])
         else:
-            d0 = (d0_data['d0'],
-                  d0_data['d0_error'],
-                  d0_data['vx'],
-                  d0_data['vy'],
-                  d0_data['vz'])
+            d0 = (d0_data["d0"], d0_data["d0_error"], d0_data["vx"], d0_data["vy"], d0_data["vz"])
 
-        self.calculate_stress(data["stress_case"],
-                              data["youngs_modulus"],
-                              data["poisson_ratio"],
-                              d0)
+        self.calculate_stress(data["stress_case"], data["youngs_modulus"], data["poisson_ratio"], d0)
 
         self.propertyUpdated.emit("modelUpdated")
 

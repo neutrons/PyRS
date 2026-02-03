@@ -21,8 +21,8 @@ VERTICAL_SPLITTER_SHORT = """QSplitter::handle {image: url(':/fitting/vertical_s
 HORIZONTAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }"""
 HORIZONTAL_SPLITTER_SHORT = """QSplitter::handle {image: url(':/fitting/horizontal_splitter_short.png'); }"""
 
-D0 = u"d\u2080"
-ANGSTROMS = u"\u212B"
+D0 = "d\u2080"
+ANGSTROMS = "\u212b"
 
 
 class FitPeaksWindow(QMainWindow):
@@ -38,7 +38,7 @@ class FitPeaksWindow(QMainWindow):
         super(FitPeaksWindow, self).__init__(parent)
 
         # class variables
-        self.current_hidra_file_name = ''  # current loaded nxs (hidra file)
+        self.current_hidra_file_name = ""  # current loaded nxs (hidra file)
         self._core = fit_peak_core
         self._project_name = None
         self.hidra_workspace = None
@@ -56,7 +56,7 @@ class FitPeaksWindow(QMainWindow):
         self._advanced_fit_dialog = None
 
         # set up UI
-        ui_path = os.path.join(os.path.dirname(__file__), os.path.join('ui', 'peakfitwindow.ui'))
+        ui_path = os.path.join(os.path.dirname(__file__), os.path.join("ui", "peakfitwindow.ui"))
         self.ui = load_ui(ui_path, baseinstance=self)
 
         self.setup_ui()
@@ -65,18 +65,19 @@ class FitPeaksWindow(QMainWindow):
         """define the layout, widgets and signals"""
 
         # promote
-        self.ui.graphicsView_fitResult = qt_util.promote_widget(self, self.ui.graphicsView_fitResult_frame,
-                                                                GeneralDiffDataView)
-        self.ui.graphicsView_plot2D = qt_util.promote_widget(self, self.ui.graphicsView_2dPlot_frame,
-                                                             GeneralDiffDataView)
-        self.ui.tableView_fitSummary = qt_util.promote_widget(self, self.ui.tableView_fitSummary_frame,
-                                                              FitResultTable)
+        self.ui.graphicsView_fitResult = qt_util.promote_widget(
+            self, self.ui.graphicsView_fitResult_frame, GeneralDiffDataView
+        )
+        self.ui.graphicsView_plot2D = qt_util.promote_widget(
+            self, self.ui.graphicsView_2dPlot_frame, GeneralDiffDataView
+        )
+        self.ui.tableView_fitSummary = qt_util.promote_widget(self, self.ui.tableView_fitSummary_frame, FitResultTable)
         self._promote_peak_fit_setup()
         self._init_widgets()
         self.ui.graphicsView_plot2D.set_3Dview()
 
         # set up handling
-        self.ui.lineEdit_expNumber.setValidator(QtGui.QIntValidator(1, 999999))
+        self.ui.lineEdit_expNumber.setValidator(QtGui.QIntValidator(1, 2147483647))
         self.ui.pushButton_expNumberLoad.clicked.connect(self.load_run_number)
         self.ui.pushButton_browseHDF.clicked.connect(self.browse_hdf)
         self.ui.lineEdit_listSubRuns.returnPressed.connect(self.plot_diff_data)
@@ -160,12 +161,14 @@ class FitPeaksWindow(QMainWindow):
             pass
 
     def browse_hdf(self):
-        """ Browse Hidra project HDF file
-        """
+        """Browse Hidra project HDF file"""
         o_handler = EventHandler(parent=self)
         o_handler.browse_load_plot_hdf()
-        o_plot = Plot(parent=self)
-        o_plot.plot_1d()
+        try:
+            o_plot = Plot(parent=self)
+            o_plot.plot_1d()
+        except AttributeError:
+            pass
 
     def load_hidra_file(self):
         o_handler = EventHandler(parent=self)
@@ -315,7 +318,7 @@ class FitPeaksWindow(QMainWindow):
         for _col_index, _width in enumerate(peak_table_col_width):
             self.ui.peak_range_table.setColumnWidth(_col_index, _width)
 
-        peak_range_table_labels = ['x_left', 'x_right', 'Label', D0 + " (" + ANGSTROMS + ")"]
+        peak_range_table_labels = ["x_left", "x_right", "Label", D0 + " (" + ANGSTROMS + ")"]
         self.ui.peak_range_table.setHorizontalHeaderLabels(peak_range_table_labels)
 
     def do_save_fit(self):
@@ -323,21 +326,26 @@ class FitPeaksWindow(QMainWindow):
         save fit result
         :return:
         """
-        file_name = pyrs.interface.gui_helper.browse_file(self, 'Select file to save fit result',
-                                                          default_dir=self._core.working_dir,
-                                                          file_filter='HDF (*.hdf5);;CSV (*.csv)',
-                                                          file_list=False,
-                                                          save_file=True)
+        file_name = pyrs.interface.gui_helper.browse_file(
+            self,
+            "Select file to save fit result",
+            default_dir=self._core.working_dir,
+            file_filter="HDF (*.hdf5);;CSV (*.csv)",
+            file_list=False,
+            save_file=True,
+        )
 
-        if file_name.lower().endswith('hdf5') or file_name.lower().endswith('hdf') or file_name.lower().endswith('h5'):
+        if file_name.lower().endswith("hdf5") or file_name.lower().endswith("hdf") or file_name.lower().endswith("h5"):
             self.save_fit_result(out_file_name=file_name)
-        elif file_name.lower().endswith('csv') or file_name.endswith('dat'):
+        elif file_name.lower().endswith("csv") or file_name.endswith("dat"):
             self.export_fit_result(file_name)
         else:
-            pyrs.interface.gui_helper.pop_message(self,
-                                                  message='Input file {} has an unsupported posfix.'.format(file_name),
-                                                  detailed_message='Supported are hdf5, h5, hdf, csv and dat',
-                                                  message_type='error')
+            pyrs.interface.gui_helper.pop_message(
+                self,
+                message="Input file {} has an unsupported posfix.".format(file_name),
+                detailed_message="Supported are hdf5, h5, hdf, csv and dat",
+                message_type="error",
+            )
 
     def do_quit(self):
         """

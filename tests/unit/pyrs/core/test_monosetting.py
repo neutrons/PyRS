@@ -3,8 +3,17 @@ import pytest
 
 
 def test_monosetting_from_index():
-    for index, mono_exp in enumerate([MonoSetting.Si333, MonoSetting.Si511, MonoSetting.Si422, MonoSetting.Si331,
-                                      MonoSetting.Si400, MonoSetting.Si311, MonoSetting.Si220]):
+    for index, mono_exp in enumerate(
+        [
+            MonoSetting.Si333,
+            MonoSetting.Si511,
+            MonoSetting.Si422,
+            MonoSetting.Si331,
+            MonoSetting.Si400,
+            MonoSetting.Si311,
+            MonoSetting.Si220,
+        ]
+    ):
         mono_obs = MonoSetting.getFromIndex(index)
         assert mono_obs == mono_exp
 
@@ -24,9 +33,9 @@ def test_monosetting_from_rotation():
 
 
 def test_monosetting_conversions():
-    assert str(MonoSetting.Si422) == 'Si422'
+    assert str(MonoSetting.Si422) == "Si422"
     assert float(MonoSetting.Si422) == 1.540
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     pytest.main([__file__])

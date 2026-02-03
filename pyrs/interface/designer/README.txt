@@ -12,13 +12,13 @@ X gridsalignmentview.ui
 
 	- tableView_alignedParameters
          <widget class="ParamValueGridTable" name="tableView_alignedParameters"/>
-	
 
-	- tableView_alignedParameters 
+
+	- tableView_alignedParameters
 
 	- tableView_gridParamAnalysis
          <widget class="ParamValueMapAnalysisTable" name="tableView_gridParamAnalysis"/>
-	
+
 
 	- tableView_gridStatistic
          <widget class="GridsStatisticsTable" name="tableView_gridStatistic"/>
@@ -29,7 +29,7 @@ X gridsalignmentview.ui
 
 
         - tableView_mismatchedGrids
-	
+
          <widget class="MismatchedGridsTable" name="tableView_mismatchedGrids"/>
 
 	- tabWidget_alignedParams
@@ -40,28 +40,28 @@ X gridsalignmentview.ui
 	- tabWidget_alignedParams
 
 ? ManualSlicerTable.ui
-	
+
 	- tableWidget_segments
 
        <widget class="DataSlicerSegmentTable" name="tableWidget_segments">
-	
+
 
 ? peakfitplotcontrol.ui
 
 	- tableView_fitSetup
         <widget class="FitSetupPlotControlTable" name="tableView_fitSetup"/>
-	
+
 
 	- tableView_fitResult
         <widget class="FitResultPlotControlTable" name="tableView_fitResult"/>
-	
+
 
 X peakfitwindow.ui
 
 	- graphicsView_fitResult
 
      <widget class="GeneralDiffDataView" name="graphicsView_fitResult">
-	
+
 
 	- tableView_fitSummary
 
@@ -70,7 +70,7 @@ X peakfitwindow.ui
 	- graphicsView_contourView
 
      <widget class="DiffContourView" name="graphicsView_contourView"/>
-	
+
 
 X sscalvizwindow.ui
 
@@ -84,19 +84,19 @@ X strainstressview.ui
 	- tableView_strainStressTable
 
      <widget class="StrainStressValueTable" name="tableView_strainStressTable"/>
-	
+
 
 X texturecalculationwindow.ui
 
 	- graphicsView_fitSetup
 
      <widget class="PeakFitSetupView" name="graphicsView_fitSetup">
-	
+
 
 	- graphicsView_fitResult
 
      <widget class="GeneralDiffDataView" name="graphicsView_fitResult">
-	
+
 
 	- tableView_poleFigureParams
 
@@ -105,11 +105,10 @@ X texturecalculationwindow.ui
 	- graphicsView_contour
 
      <widget class="Diffraction2DPlot" name="graphicsView_contour"/>
-	
+
 
 - texturerereductionsetupwindow.ui
 
 	- graphicsView
 
 - workspaceview.ui
-

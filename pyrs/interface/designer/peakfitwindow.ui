@@ -398,11 +398,6 @@
                     <string>Gaussian</string>
                    </property>
                   </item>
-                  <item>
-                   <property name="text">
-                    <string>Voigt</string>
-                   </property>
-                  </item>
                  </widget>
                 </item>
                 <item>
@@ -410,11 +405,6 @@
                   <item>
                    <property name="text">
                     <string>Linear</string>
-                   </property>
-                  </item>
-                  <item>
-                   <property name="text">
-                    <string>Flat</string>
                    </property>
                   </item>
                   <item>
@@ -942,7 +932,7 @@
      <x>0</x>
      <y>0</y>
      <width>1536</width>
-     <height>23</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

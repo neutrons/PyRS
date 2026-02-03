@@ -1,8 +1,8 @@
-<!-- 
+<!--
 	task.md
 	Version 1.0
 	This is a GitLab Issue description template to be used as a unit of work for implementing a user story
-	
+
 	*Note: The title should be: Implement Story: <analysis technique> #<user story number>
 -->
 

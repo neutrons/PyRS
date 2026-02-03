@@ -1,6 +1,7 @@
 """
 Convert HB2B NeXus file to Hidra project file for further reduction
 """
+
 import h5py
 from mantid.api import Run
 from mantid.kernel import Logger, BoolTimeSeriesProperty, FloatFilteredTimeSeriesProperty, FloatTimeSeriesProperty
@@ -18,42 +19,82 @@ from pyrs.dataobjects import HidraConstants  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities import checkdatatypes
 
-SUBRUN_LOGNAME = 'scan_index'
+SUBRUN_LOGNAME = "scan_index"
 NUM_PIXEL_1D = 1024
 HIDRA_PIXEL_NUMBER = NUM_PIXEL_1D * NUM_PIXEL_1D
 PIXEL_SIZE = 0.3 / NUM_PIXEL_1D
 ARM_LENGTH = 0.985
 
-DEFAULT_KEEP_LOGS = ['experiment_identifier', 'run_number', 'run_title', 'file_notes', 'start_time', 'end_time',
-                     'SampleId', 'SampleName', 'SampleDescription', 'StrainDirection', 'hklPhase', 'Wavelength',
-                     'Filename', 'sub-run', 'duration', 'mrot', 'mtilt', 'mb220', 'mb511', 'ISD', 'ISR:X:Gap',
-                     'ISR:Y:Gap', 'DOX', 'DOY', 'DOR', 'omega', '2theta', 'phi', 'chi', 'sx', 'sy', 'sz',
-                     'vx', 'vy', 'vz', 'omegaSetpoint', '2thetaSetpoint', 'phiSetpoint', 'chiSetpoint', 'sxSetpoint',
-                     'sySetpoint', 'szSetpoint', 'scan_index', 'duration']
+DEFAULT_KEEP_LOGS = [
+    "experiment_identifier",
+    "run_number",
+    "run_title",
+    "file_notes",
+    "start_time",
+    "end_time",
+    "SampleId",
+    "SampleName",
+    "SampleDescription",
+    "StrainDirection",
+    "hklPhase",
+    "Wavelength",
+    "Filename",
+    "sub-run",
+    "duration",
+    "mrot",
+    "mtilt",
+    "mb220",
+    "mb511",
+    "ISD",
+    "ISR:X:Gap",
+    "ISR:Y:Gap",
+    "DOX",
+    "DOY",
+    "DOR",
+    "omega",
+    "2theta",
+    "phi",
+    "chi",
+    "sx",
+    "sy",
+    "sz",
+    "vx",
+    "vy",
+    "vz",
+    "omegaSetpoint",
+    "2thetaSetpoint",
+    "phiSetpoint",
+    "chiSetpoint",
+    "sxSetpoint",
+    "sySetpoint",
+    "szSetpoint",
+    "scan_index",
+    "duration",
+]
 
-SWEEPING_LOGS = ['HB2B:CS:Sweep:Control', 'HB2B:CS:Sweep:Device']
+SWEEPING_LOGS = ["HB2B:CS:Sweep:Control", "HB2B:CS:Sweep:Device"]
 
 
 def convert_pulses_to_datetime64(h5obj):
-    '''The h5object is the h5py handle to ``event_time_zero``. This only supports pulsetimes in seconds'''
-    if h5obj.attrs['units'].decode() != 'second':
-        raise RuntimeError('Do not understand time units "{}"'.format(h5obj.attrs['units']))
+    """The h5object is the h5py handle to ``event_time_zero``. This only supports pulsetimes in seconds"""
+    if h5obj.attrs["units"].decode() != "second":
+        raise RuntimeError('Do not understand time units "{}"'.format(h5obj.attrs["units"]))
 
     # the value is number of seconds as a float
     pulse_time = h5obj[()]
 
     # Convert deltas to times with units. This has to be done through
     # nanoseconds because numpy truncates things to integers during the conversion
-    pulse_time = pulse_time * 1.e9 * np.timedelta64(1, 'ns')
+    pulse_time = pulse_time * 1.0e9 * np.timedelta64(1, "ns")
 
     # get absolute offset and convert to absolute time
-    start_time = np.datetime64(h5obj.attrs['offset'][:-6]) + np.timedelta64(h5obj.attrs['offset'][-5:-3], 'h')
+    start_time = np.datetime64(h5obj.attrs["offset"][:-6]) + np.timedelta64(h5obj.attrs["offset"][-5:-3], "h")
 
     return pulse_time + start_time
 
 
 def calculate_sub_run_time_average(log_property, time_filter) -> float:
-    '''Determine the time average value of the supplied log'''
+    """Determine the time average value of the supplied log"""
 
     if log_property.size() == 1:  # single value property just copy
         time_average_value = log_property.value[0]
@@ -74,8 +115,9 @@ def calculate_sub_run_time_average(log_property, time_filter) -> float:
         elif isinstance(log_property, StringTimeSeriesProperty):
             filtered_tsp = StringFilteredTimeSeriesProperty(log_property, time_filter)
         else:
-            raise NotImplementedError('TSP log property {} of type {} is not supported'
-                                      ''.format(log_property.name, type(log_property)))
+            raise NotImplementedError(
+                "TSP log property {} of type {} is not supported".format(log_property.name, type(log_property))
+            )
 
         time_averaged_Run = Run()
         time_averaged_Run.addProperty(log_property.name, filtered_tsp, False)
@@ -100,14 +142,14 @@ def check_sweeping_motor(runObj) -> list:
         list of motor names for start time correction search
 
     """
-    motor_search = ['sx', 'sy', 'sz', '2theta', 'omega', 'chi', 'phi']
+    motor_search = ["sx", "sy", "sz", "2theta", "omega", "chi", "phi"]
 
     # Check if sweeping logs are stored in nexus file
-    if 'HB2B:CS:Sweep:Control' in runObj:
-        if runObj['HB2B:CS:Sweep:Control'][()] == 1:
-            motor_search.pop(motor_search.index(runObj['HB2B:CS:Sweep:Device'][()]))
-    elif '2theta' in runObj:    # Guess sweeping logs based on the number of entries
-        num_points = runObj['scan_index'].size() * 10
+    if "HB2B:CS:Sweep:Control" in runObj:
+        if runObj["HB2B:CS:Sweep:Control"][()] == 1:
+            motor_search.pop(motor_search.index(runObj["HB2B:CS:Sweep:Device"][()]))
+    elif "2theta" in runObj:  # Guess sweeping logs based on the number of entries
+        num_points = runObj["scan_index"].size() * 10
 
         for motor in motor_search:
             if runObj[motor].size() > num_points:
@@ -124,23 +166,24 @@ class Splitter:
     ----------
     runObj: ~mantid.
     """
+
     def __init__(self, runObj):
         self._log = Logger(__name__)
 
         # verify the scan index exists
         try:
-            if runObj['scan_index'].size() == 0:
+            if runObj["scan_index"].size() == 0:
                 raise RuntimeError('"scan_index" is empty')
         except KeyError as e:
             raise RuntimeError('"scan_index" does not exist') from e
 
         # Get the time and value from the run object
-        scan_index_times = runObj['scan_index'].times   # absolute times
-        scan_index_value = runObj['scan_index'].value
+        scan_index_times = runObj["scan_index"].times  # absolute times
+        scan_index_value = runObj["scan_index"].value
         # TODO add final time from pcharge logs + 1s with scan_index=0
 
         if np.unique(scan_index_value).size == 1:
-            raise RuntimeError('WARNING: only one scan_index value')  # TODO should be something else
+            raise RuntimeError("WARNING: only one scan_index value")  # TODO should be something else
 
         self.times = None
         self.subruns = None
@@ -151,9 +194,7 @@ class Splitter:
         self._createPropertyFilters()
 
     def __generate_sub_run_splitter(self, scan_index_times, scan_index_value) -> None:
-        """Generate event splitters according to sub runs
-
-        """
+        """Generate event splitters according to sub runs"""
         # Init
         sub_run_time_list = list()
         sub_run_value_list = list()
@@ -184,7 +225,7 @@ class Splitter:
         # Check the ending
         if curr_sub_run > 0:
             # In case the stop (scan_index = 0) is not recorded - add end time one day into the future
-            sub_run_time_list.append(sub_run_time_list[-1] + np.timedelta64(1, 'D'))
+            sub_run_time_list.append(sub_run_time_list[-1] + np.timedelta64(1, "D"))
 
         # Convert from list to array
         self.times = np.array(sub_run_time_list)
@@ -192,13 +233,16 @@ class Splitter:
 
         # Sanity check
         if self.times.shape[0] % 2 == 1 or self.times.shape[0] == 0:
-            raise RuntimeError('Algorithm error: Failed to parse\nTime: {}\nValue: {}.\n'
-                               'Current resulted time ({}) is incorrect as odd/even'
-                               ''.format(scan_index_times, scan_index_value, self.times))
+            raise RuntimeError(
+                "Algorithm error: Failed to parse\nTime: {}\nValue: {}.\n"
+                "Current resulted time ({}) is incorrect as odd/even"
+                "".format(scan_index_times, scan_index_value, self.times)
+            )
 
         if self.times.shape[0] != self.subruns.shape[0] * 2:
-            raise RuntimeError('Sub run number {} and sub run times {} do not match (as twice)'
-                               ''.format(self.subruns, self.times))
+            raise RuntimeError(
+                "Sub run number {} and sub run times {} do not match (as twice)".format(self.subruns, self.times)
+            )
 
     def __correct_starting_scan_index_time(self, runObj, abs_tolerance: float = 0.05) -> None:
         """Correct the DAS-issue for mis-record the first scan_index/sub run before the motor is in position
@@ -229,19 +273,19 @@ class Splitter:
         for log_name in motor_search:
             if log_name not in runObj:
                 continue  # log doesn't exist - not a good one to look at
-            if log_name + 'Setpoint' not in runObj:
+            if log_name + "Setpoint" not in runObj:
                 continue  # log doesn't have a setpoint - not a good one to look at
             if runObj[log_name].size() == 1:
                 continue  # there is only one value
 
             # get the observed values of the log
             observed = runObj[log_name].value
-            if observed.std() <= .5 * abs_tolerance:
+            if observed.std() <= 0.5 * abs_tolerance:
                 continue  # don't bother if the log is constant within half of the tolerance
 
             # look for the setpoint and find when the log first got there
             # only look at first setpoint
-            set_point = runObj[log_name + 'Setpoint'].value[0]
+            set_point = runObj[log_name + "Setpoint"].value[0]
             for log_time, value in zip(runObj[log_name].times, observed):
                 if abs(value - set_point) < abs_tolerance:
                     # pick the larger of what was found and the previous largest value
@@ -249,13 +293,16 @@ class Splitter:
                         start_time = log_time
                     break
 
-        self._log.debug('Shift from start_time {} to {}'.format(np.datetime_as_string(self.times[0]),
-                        np.datetime_as_string(start_time)))
+        self._log.debug(
+            "Shift from start_time {} to {}".format(
+                np.datetime_as_string(self.times[0]), np.datetime_as_string(start_time)
+            )
+        )
         self.times[0] = start_time
 
     @property
     def durations(self):
-        return (self.times[1::2] - self.times[::2]) / np.timedelta64(1, 's')
+        return (self.times[1::2] - self.times[::2]) / np.timedelta64(1, "s")
 
     @property
     def size(self) -> int:
@@ -271,7 +318,7 @@ class Splitter:
                 subrun_stop_time = self.times[2 * subrun_index + 1]
 
                 # create a Boolean time series property as the filter
-                time_filter = BoolTimeSeriesProperty('filter')
+                time_filter = BoolTimeSeriesProperty("filter")
                 time_filter.addValue(subrun_start_time, True)
                 time_filter.addValue(subrun_stop_time, False)
 
@@ -288,6 +335,7 @@ class NeXusConvertingApp:
     :param extra_logs: list of string with no default logs to keep in project file
     :type extra_logs: list, optional
     """
+
     def __init__(self, nexus_file_name=None, mask_file_name=None, extra_logs=list(), live_wsp=None):
         """Initialization
 
@@ -307,28 +355,30 @@ class NeXusConvertingApp:
 
         if nexus_file_name is not None:
             # validate NeXus file exists
-            checkdatatypes.check_file_name(nexus_file_name, True, False, False, 'NeXus file')
+            checkdatatypes.check_file_name(nexus_file_name, True, False, False, "NeXus file")
 
             self._nexus_name = nexus_file_name
             self._live_wsp = None
 
         if live_wsp is not None:
-            self._nexus_name = 'HB2B_{}.nxs.h5'.format(live_wsp.getRunNumber())
+            self._nexus_name = "HB2B_{}.nxs.h5".format(live_wsp.getRunNumber())
             self._live_wsp = live_wsp
 
         # validate mask file exists
         if mask_file_name is None:
             self._mask_file_name = None
         else:
-            checkdatatypes.check_file_name(mask_file_name, True, False, False, 'Mask file')
+            checkdatatypes.check_file_name(mask_file_name, True, False, False, "Mask file")
             self._mask_file_name = mask_file_name
-            if not mask_file_name.lower().endswith('.xml'):
-                raise NotImplementedError('Only Mantid mask in XML format is supported now.  File '
-                                          '{} with type {} is not supported yet.'
-                                          ''.format(mask_file_name, mask_file_name.split('.')[-1]))
+            if not mask_file_name.lower().endswith(".xml"):
+                raise NotImplementedError(
+                    "Only Mantid mask in XML format is supported now.  File "
+                    "{} with type {} is not supported yet."
+                    "".format(mask_file_name, mask_file_name.split(".")[-1])
+                )
 
         # workspaces
-        self._event_ws_name = os.path.basename(self._nexus_name).split('.')[0]
+        self._event_ws_name = os.path.basename(self._nexus_name).split(".")[0]
 
         logs_to_keep = list(extra_logs)
         logs_to_keep.extend(DEFAULT_KEEP_LOGS)
@@ -347,8 +397,7 @@ class NeXusConvertingApp:
         # Set a default instrument with this workspace
         # set up instrument
         # initialize instrument with hard coded values
-        instrument = DENEXDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D, PIXEL_SIZE, PIXEL_SIZE,
-                                           ARM_LENGTH, False)
+        instrument = DENEXDetectorGeometry(NUM_PIXEL_1D, NUM_PIXEL_1D, PIXEL_SIZE, PIXEL_SIZE, ARM_LENGTH, False)
 
         self._hidra_workspace.set_instrument_geometry(instrument)
 
@@ -360,26 +409,30 @@ class NeXusConvertingApp:
             DeleteWorkspace(Workspace=self._event_ws_name, EnableLogging=False)
 
     def __load_logs(self, logs_to_keep):
-        '''Use mantid to load the logs then set up the Splitters object'''
+        """Use mantid to load the logs then set up the Splitters object"""
         if self._live_wsp is not None:
             # setup workspace for event logs
-            self._event_wksp = CreateSampleWorkspace(OutputWorkspace='logs', WorkspaceType='Event', NumEvents=0,
-                                                     InstrumentName='hidra')
+            self._event_wksp = CreateSampleWorkspace(
+                OutputWorkspace="logs", WorkspaceType="Event", NumEvents=0, InstrumentName="hidra"
+            )
 
             # add sample logs to a seperate workspace
             CopyLogs(InputWorkspace=self._live_wsp, OutputWorkspace=self._event_wksp)
 
         else:
-            self._event_wksp = LoadEventNexus(Filename=self._nexus_name, OutputWorkspace=self._event_ws_name,
-                                              MetaDataOnly=True, LoadMonitors=False)
+            self._event_wksp = LoadEventNexus(
+                Filename=self._nexus_name, OutputWorkspace=self._event_ws_name, MetaDataOnly=True, LoadMonitors=False
+            )
 
         # remove unwanted sample logs
         RemoveLogs(self._event_wksp, KeepLogs=logs_to_keep)
 
         # raise an exception if there is only one scan index entry
         # this is an underlying assumption of the rest of the code
-        if self._event_wksp.run()['scan_index'].size() == 1 \
-                or np.unique(self._event_wksp.run()['scan_index'].value).size == 1:
+        if (
+            self._event_wksp.run()["scan_index"].size() == 1
+            or np.unique(self._event_wksp.run()["scan_index"].value).size == 1
+        ):
             self._splitter = None
         else:
             # object to be used for splitting times
@@ -387,19 +440,22 @@ class NeXusConvertingApp:
 
     def __load_mask(self, mask_file_name):
         # Check input
-        checkdatatypes.check_file_name(mask_file_name, True, False, False, 'Mask XML file')
+        checkdatatypes.check_file_name(mask_file_name, True, False, False, "Mask XML file")
         if self._event_wksp is None:
-            raise RuntimeError('Meta data only workspace {} does not exist'.format(self._event_ws_name))
+            raise RuntimeError("Meta data only workspace {} does not exist".format(self._event_ws_name))
 
         # Load mask XML to workspace
-        mask_ws_name = os.path.basename(mask_file_name.split('.')[0])
+        mask_ws_name = os.path.basename(mask_file_name.split(".")[0])
 
         try:
-            mask_ws = LoadMask(Instrument='hb2b', InputFile=mask_file_name,
-                               OutputWorkspace=mask_ws_name)
+            mask_ws = LoadMask(Instrument="hb2b", InputFile=mask_file_name, OutputWorkspace=mask_ws_name)
         except RuntimeError:  # second mask load added for old data measured prior to instrument rename
-            mask_ws = LoadMask(Instrument='nrsf2', InputFile=mask_file_name, RefWorkspace=self._event_wksp,
-                               OutputWorkspace=mask_ws_name)
+            mask_ws = LoadMask(
+                Instrument="nrsf2",
+                InputFile=mask_file_name,
+                RefWorkspace=self._event_wksp,
+                OutputWorkspace=mask_ws_name,
+            )
 
         # Extract mask out
         # get the Y array from mask workspace: shape = (1048576, 1)
@@ -427,37 +483,38 @@ class NeXusConvertingApp:
 
         # make sure filter is sorted
         if not np.all(subrun_event_index[:-1] <= subrun_event_index[1:]):
-            raise RuntimeError('Filter indices are not ordered: {}'.format(subrun_event_index))
+            raise RuntimeError("Filter indices are not ordered: {}".format(subrun_event_index))
 
         return subrun_event_index
 
     def get_events_time_wsp(self):
         # Load: this h5 will be opened all the time
 
-        start_time = self._live_wsp.getRun().getProperty('run_start').value
-        start_time = np.array(start_time, dtype='datetime64[ns]')
+        start_time = self._live_wsp.getRun().getProperty("run_start").value
+        start_time = np.array(start_time, dtype="datetime64[ns]")
 
         # Load: this h5 will be opened all the time
         event_id_array = np.zeros(self._live_wsp.getNumberEvents(), dtype=np.int32)
-        pulse_time_array = np.zeros(self._live_wsp.getNumberEvents(), dtype='datetime64[ns]')
+        pulse_time_array = np.zeros(self._live_wsp.getNumberEvents(), dtype="datetime64[ns]")
         event_0 = 0
 
         for i_hist in range(self._live_wsp.getNumberHistograms()):
             event_times = self._live_wsp.getSpectrum(i_hist).getPulseTimesAsNumpy()
             num_events = event_times.size
-            event_id_array[event_0:(event_0 + num_events)] = np.array([i_hist] * num_events, dtype=np.int32)
-            pulse_time_array[event_0:(event_0 + num_events)] = event_times
+            event_id_array[event_0 : (event_0 + num_events)] = np.array([i_hist] * num_events, dtype=np.int32)
+            pulse_time_array[event_0 : (event_0 + num_events)] = event_times
 
             event_0 += num_events
 
         if self._splitter:
-            sort_index = np.argsort((pulse_time_array - start_time) / np.timedelta64(1, 's'))
+            sort_index = np.argsort((pulse_time_array - start_time) / np.timedelta64(1, "s"))
             event_id_array = event_id_array[sort_index]
 
             pulse_time_array = pulse_time_array[sort_index]
             event_index_array = np.arange(event_id_array.size)
-            subrun_eventindex_array = self._generate_subrun_event_indices(pulse_time_array, event_index_array,
-                                                                          event_id_array.size)
+            subrun_eventindex_array = self._generate_subrun_event_indices(
+                pulse_time_array, event_index_array, event_id_array.size
+            )
 
             # reduce memory foot print
             del event_index_array
@@ -471,25 +528,29 @@ class NeXusConvertingApp:
 
     def get_events_time_nxs(self):
         # Load: this h5 will be opened all the time
-        with h5py.File(self._nexus_name, 'r') as nexus_h5:
-            bank1_events = nexus_h5['entry']['bank1_events']
+        with h5py.File(self._nexus_name, "r") as nexus_h5:
+            bank1_events = nexus_h5["entry"]["bank1_events"]
             # Check number of neutron events.  Raise exception if there is no neutron event
-            if bank1_events['total_counts'][()][0] < 0.1:
+            if bank1_events["total_counts"][()][0] < 0.1:
                 # no counts
-                raise RuntimeError('Run {} has no count.  Proper reduction requires the run to have count'
-                                   ''.format(self._nexus_name))
+                raise RuntimeError(
+                    "Run {} has no count.  Proper reduction requires the run to have count".format(self._nexus_name)
+                )
 
             # detector id for the events
-            event_id_array = bank1_events['event_id'][()]
+            event_id_array = bank1_events["event_id"][()]
 
             if self._splitter:
                 # get event index array: same size as pulse times
-                event_index_array = bank1_events['event_index'][()]
-                # get pulse times
-                pulse_time_array = convert_pulses_to_datetime64(bank1_events['event_time_zero'])
+                event_index_array = bank1_events["event_index"][()]
 
-                subrun_eventindex_array = self._generate_subrun_event_indices(pulse_time_array, event_index_array,
-                                                                              event_id_array.size)
+                # get pulse times
+                pulse_time_array = convert_pulses_to_datetime64(bank1_events["event_time_zero"])
+
+                subrun_eventindex_array = self._generate_subrun_event_indices(
+                    pulse_time_array, event_index_array, event_id_array.size
+                )
+
                 # reduce memory foot print
                 del pulse_time_array, event_index_array
 
@@ -499,7 +560,7 @@ class NeXusConvertingApp:
         return event_id_array, subrun_eventindex_array
 
     def split_events_sub_runs(self):
-        '''Filter the data by ``scan_index`` and set counts array in the hidra_workspace'''
+        """Filter the data by ``scan_index`` and set counts array in the hidra_workspace"""
 
         if self._live_wsp is not None:
             event_id_array, subrun_eventindex_array = self.get_events_time_wsp()
@@ -509,9 +570,11 @@ class NeXusConvertingApp:
         # split data
         subruns = list()
         if self._splitter:
-            for subrun, start_event_index, stop_event_index in zip(self._splitter.subruns.tolist(),
-                                                                   subrun_eventindex_array[::2].tolist(),
-                                                                   subrun_eventindex_array[1::2].tolist()):
+            for subrun, start_event_index, stop_event_index in zip(
+                self._splitter.subruns.tolist(),
+                subrun_eventindex_array[::2].tolist(),
+                subrun_eventindex_array[1::2].tolist(),
+            ):
                 subruns.append(subrun)
                 # get sub set of the events falling into this range
                 # and count the occurrence of each event ID (aka detector ID) as counts on each detector pixel
@@ -576,18 +639,18 @@ class NeXusConvertingApp:
             else:
                 duration = np.ndarray(shape=(log_array_size,), dtype=float)
                 try:
-                    duration[0] = run_obj.getPropertyAsSingleValue('duration')
+                    duration[0] = run_obj.getPropertyAsSingleValue("duration")
                 except RuntimeError:
                     duration[0] = 1
                 sample_log_dict[HidraConstants.SUB_RUN_DURATION] = duration
 
         # set the logs on the hidra workspace
         for log_name, log_value in sample_log_dict.items():
-            if log_name in ['scan_index', HidraConstants.SUB_RUNS]:
+            if log_name in ["scan_index", HidraConstants.SUB_RUNS]:
                 continue  # skip 'SUB_RUNS'
             # find the units of the log
             if log_name == HidraConstants.SUB_RUN_DURATION:
-                log_units = 'second'
+                log_units = "second"
             else:
                 log_units = run_obj.getProperty(log_name).units
             self._hidra_workspace.set_sample_log(log_name, subruns, log_value, units=log_units)
@@ -613,11 +676,10 @@ class NeXusConvertingApp:
         log_dtype = log_property.dtype()
         split_log = np.ndarray(shape=(log_array_size,), dtype=log_dtype)
 
-        if self._splitter and isinstance(log_property.value, np.ndarray) and str(log_dtype) in ['f', 'i']:
+        if self._splitter and isinstance(log_property.value, np.ndarray) and str(log_dtype) in ["f", "i"]:
             # Float or integer time series property: split and get time average
             for i_sb in range(log_array_size):
-                split_log[i_sb] = calculate_sub_run_time_average(log_property,
-                                                                 self._splitter.propertyFilters[i_sb])
+                split_log[i_sb] = calculate_sub_run_time_average(log_property, self._splitter.propertyFilters[i_sb])
 
         else:
             try:
@@ -650,7 +712,7 @@ class NeXusConvertingApp:
         """
 
         if use_mantid:
-            raise RuntimeError('use_mantid=True is no longer supported')
+            raise RuntimeError("use_mantid=True is no longer supported")
 
         # set counts to each sub run
         sub_runs = self.split_events_sub_runs()
@@ -663,11 +725,11 @@ class NeXusConvertingApp:
 
         # set the nominal wavelength from the nexus file
         runObj = self._event_wksp.run()
-        if runObj.hasProperty('MonoSetting'):
-            monosetting = MonoSetting.getFromIndex(runObj.getPropertyAsSingleValue('MonoSetting'))
+        if runObj.hasProperty("MonoSetting"):
+            monosetting = MonoSetting.getFromIndex(runObj.getPropertyAsSingleValue("MonoSetting"))
         else:
             # monosetting = MonoSetting.getFromRotation(runObj.getPropertyAsSingleValue('mrot'))
-            monosetting = MonoSetting.getFromRotation(self._hidra_workspace.get_sample_log_values('mrot', sub_runs=1))
+            monosetting = MonoSetting.getFromRotation(self._hidra_workspace.get_sample_log_values("mrot", sub_runs=1))
 
         self._hidra_workspace.set_wavelength(float(monosetting), calibrated=False)
 
@@ -680,8 +742,13 @@ class NeXusConvertingApp:
         :param str projectfile: output filename
         """
         projectfile = os.path.abspath(projectfile)  # confirm absolute path to make logs more readable
-        checkdatatypes.check_file_name(projectfile, check_exist=False, check_writable=True, is_dir=False,
-                                       description='Converted Hidra project file')
+        checkdatatypes.check_file_name(
+            projectfile,
+            check_exist=False,
+            check_writable=True,
+            is_dir=False,
+            description="Converted Hidra project file",
+        )
 
         # remove file if it already exists
         if os.path.exists(projectfile):

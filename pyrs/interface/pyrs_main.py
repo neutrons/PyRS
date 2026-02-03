@@ -6,6 +6,7 @@ from pyrs.interface.manual_reduction import manualreductionwindow
 
 try:
     import vtk.qt
+
     # https://stackoverflow.com/questions/51357630/vtk-rendering-not-working-as-expected-inside-pyqt
     vtk.qt.QVTKRWIBase = "QGLWidget"  # noqa: E402
 except ImportError:
@@ -23,6 +24,10 @@ from pyrs.interface.detector_calibration.detector_calibration_viewer import Dete
 from pyrs.interface.detector_calibration.detector_calibration_model import DetectorCalibrationModel  # noqa: E402
 from pyrs.interface.detector_calibration.detector_calibration_crtl import DetectorCalibrationCrtl  # noqa: E402
 
+from pyrs.interface.combine_runs.combine_runs_viewer import CombineRunsViewer  # noqa: E402
+from pyrs.interface.combine_runs.combine_runs_model import CombineRunsModel  # noqa: E402
+from pyrs.interface.combine_runs.combine_runs_crtl import CombineRunsCrtl  # noqa: E402
+
 
 class PyRSLauncher(QMainWindow):
     """
@@ -36,7 +41,7 @@ class PyRSLauncher(QMainWindow):
         super(PyRSLauncher, self).__init__(None)
 
         # set up UI
-        self.ui = load_ui('pyrsmain.ui', baseinstance=self)
+        self.ui = load_ui("pyrsmain.ui", baseinstance=self)
 
         # define
         self.ui.pushButton_manualReduction.clicked.connect(self.do_launch_manual_reduction)
@@ -46,12 +51,14 @@ class PyRSLauncher(QMainWindow):
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionCalibration.triggered.connect(self.do_launch_calibration_window)
+        self.ui.actionCombine_Runs.triggered.connect(self.do_launch_combeineruns)
 
         # child windows
         self.peak_fit_window = None
         self.manual_reduction_window = None
         self.strain_stress_window = None
         self.texture_fit_window = None
+        self.combine_run_window = None
 
     def do_launch_fit_texture_window(self):
         """
@@ -67,6 +74,17 @@ class PyRSLauncher(QMainWindow):
 
         # launch
         self.texture_fit_window.show()
+
+    def do_launch_combeineruns(self):
+        if self.combine_run_window is not None:
+            self.combine_run_window.close()
+
+        self.combine_runs_model = CombineRunsModel()
+        self.combine_runs_ctrl = CombineRunsCrtl(self.combine_runs_model)
+        self.combine_run_window = CombineRunsViewer(self.combine_runs_model, self.combine_runs_ctrl)
+
+        # launch
+        self.combine_run_window.show()
 
     def do_launch_calibration_window(self):
         """

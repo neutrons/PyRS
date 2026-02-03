@@ -4,7 +4,7 @@ PeakInformation CSV Output:
 | **ID** | **Complexity** |  **Est.** |  **Author** |
 | ------ | ---------------|-----------|-------------|
 | PEAK-CSV-OUT | Medium | TBD | Jeff Bunn / Chris Fancher |
-                                       
+
 
 As a neutron beamline user, I want to be able to output my data into a readily readable .csv format
 after I have fit the project file. This file shows all peakcollections in the project file.

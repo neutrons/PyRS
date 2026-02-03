@@ -21,43 +21,17 @@ pyRS saves data into a single hdf5 file to streamline data storage by storing me
 Installation
 ############
 
-Using a Conda Environment
+Using a Pixi Environment
 =========================
-Anaconda environments are only supported on Linux using python 3.6
 
-1. Configure anaconda environment:
-
-.. code-block::
-
-  conda config --add channels conda-forge --add channels mantid --add channels mantid/label/nightly
+1. Install:
 
 .. code-block::
 
-  conda install mamba
+  pixi install
 
+
+2. Run the application:
 .. code-block::
 
-  mamba create -n pyrs python=3.6 --file requirements.txt --file requirements_dev.txt
-
-
-2. Activate the conda environment
-
-.. code-block::
-
-  conda activate pyrs
-
-3. From the PyRS directory, run the setup script in developer mode
-
-.. code-block::
-
-  python setup.py build
-
-4. From the PyRS directory, start the user interface
-
-.. code-block::
-
-  PYTHONPATH=$PWD:$PYTHONPATH python scripts/pyrsplot
-
-.. caution::
-
-   Do not update this newly created environment as the primary environment as some dependencies might not be backwards compatible.
+  pixi run pyrs

@@ -7,7 +7,7 @@ class DetectorCalibrationCrtl:
         self._model = peak_fit_model
         self._fits = None
         self._fitted_patterns = {}
-        self._powders = np.array(['Ni', 'Fe', 'Mo'])
+        self._powders = np.array(["Ni", "Fe", "Mo"])
         self._sy = np.array([62, 12, -13])
 
     @property
@@ -20,12 +20,12 @@ class DetectorCalibrationCrtl:
 
     @staticmethod
     def validate_eta_tth(tth_bins, eta_bins):
-        if tth_bins == '':
+        if tth_bins == "":
             tth_bins = 512
         elif type(tth_bins) is str:
             tth_bins = int(tth_bins)
 
-        if eta_bins == '':
+        if eta_bins == "":
             eta_bins = 3
         elif type(eta_bins) is str:
             eta_bins = float(eta_bins)
@@ -77,12 +77,15 @@ class DetectorCalibrationCrtl:
                 if exclude_list[sub_run - 1]:
                     for i_mask, mask in enumerate(self._model.reduction_masks):
                         tth, int_vec, error_vec = self._model.get_reduced_diffraction_data(sub_run, mask)
-                        _ax.plot_diffraction(tth[1:], int_vec[1:],
-                                             r'2$\theta$ (degrees)',
-                                             'Intensity (ct.)',
-                                             line_label=mask,
-                                             color=MplBasicColors[i_mask],
-                                             keep_prev=i_mask != 0)
+                        _ax.plot_diffraction(
+                            tth[1:],
+                            int_vec[1:],
+                            r"2$\theta$ (degrees)",
+                            "Intensity (ct.)",
+                            line_label=mask,
+                            color=MplBasicColors[i_mask],
+                            keep_prev=i_mask != 0,
+                        )
 
                     fitted_ws = self._model.get_fitted_diffraction_data(sub_run)
 
@@ -91,12 +94,15 @@ class DetectorCalibrationCrtl:
                             for i_sub in range(len(self._model.reduction_masks)):
                                 xvec = fit_ws.readX(int(i_sub))[1:]
                                 yvec = fit_ws.readY(int(i_sub))[1:]
-                                _ax.plot_diffraction(xvec, yvec,
-                                                     r'2$\theta$ (degrees)',
-                                                     'Intensity (ct.)',
-                                                     color=MplBasicColors[i_sub],
-                                                     line_style='--',
-                                                     keep_prev=True)
+                                _ax.plot_diffraction(
+                                    xvec,
+                                    yvec,
+                                    r"2$\theta$ (degrees)",
+                                    "Intensity (ct.)",
+                                    color=MplBasicColors[i_sub],
+                                    line_style="--",
+                                    keep_prev=True,
+                                )
                 else:
                     _ax.set_no_null_plot()
 
@@ -105,6 +111,8 @@ class DetectorCalibrationCrtl:
                 pass
 
     def plot_2D_params(self, ax_obj, x_item, y_item, x_text, y_text):
+        # reset object viewer
+        ax_obj.reset_viewer()
 
         x_data, y_data = self._model.get_calibration_values(x_item, y_item)
 

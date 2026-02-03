@@ -1,18 +1,27 @@
 from qtpy import QtCore
 import os
 import pytest
-from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 import matplotlib
+
 matplotlib.use("Agg")
 from pyrs.interface.manual_reduction import manualreductionwindow  # noqa E402
+
 
 wait = 100
 
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
-def test_manual_reduction(qtbot, tmpdir):
+@pytest.fixture(scope="session")
+def manual_reduction_window(my_qtbot):
+    r"""
+    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
+    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
+    """
     window = manualreductionwindow.ManualReductionWindow(None)
-    qtbot.addWidget(window)
+    return window, my_qtbot
+
+
+def test_manual_reduction(tmpdir, manual_reduction_window):
+    window, qtbot = manual_reduction_window
     window.show()
     qtbot.wait(wait)
 
@@ -59,19 +68,19 @@ def test_manual_reduction(qtbot, tmpdir):
     assert os.path.isfile(tmpdir.join("HB2B_938.h5"))
 
     # plot the detector view
-    qtbot.mouseClick(window.ui.pushButton_plotDetView,  QtCore.Qt.LeftButton)
+    qtbot.mouseClick(window.ui.pushButton_plotDetView, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
 
     # change to Reduced Data view, I don't know how to do that with clicking
     window.ui.tabWidget_View.setCurrentIndex(1)
     qtbot.wait(wait)
     # plot the reduction data
-    qtbot.mouseClick(window.ui.pushButton_plotDetView,  QtCore.Qt.LeftButton)
+    qtbot.mouseClick(window.ui.pushButton_plotDetView, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
 
     # get the data from the plot canvas and check the data limits and label
     line = window.ui.graphicsView_1DPlot.canvas().get_axis().lines[0]
-    assert line.get_label() == 'sub-run: 1, 2theta = 90.00050354003906'
+    assert line.get_label() == "sub-run: 1, 2theta = 90.00050354003906"
     assert line.get_xdata().min() == pytest.approx(81.88955539289697)
     assert line.get_xdata().max() == pytest.approx(98.07327399000138)
     # first data point is a nan so exclude it
@@ -79,10 +88,8 @@ def test_manual_reduction(qtbot, tmpdir):
     assert line.get_ydata()[1::].max() == pytest.approx(580.4936170212766)
 
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
-def test_manual_reduction_subruns(qtbot, tmpdir):
-    window = manualreductionwindow.ManualReductionWindow(None)
-    qtbot.addWidget(window)
+def test_manual_reduction_subruns(tmpdir, manual_reduction_window):
+    window, qtbot = manual_reduction_window
     window.show()
     qtbot.wait(wait)
 
@@ -126,7 +133,7 @@ def test_manual_reduction_subruns(qtbot, tmpdir):
     assert window.ui.progressBar.value() == 100
 
     # plot the detector view
-    qtbot.mouseClick(window.ui.pushButton_plotDetView,  QtCore.Qt.LeftButton)
+    qtbot.mouseClick(window.ui.pushButton_plotDetView, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
 
     # change sub_run
@@ -142,3 +149,5 @@ def test_manual_reduction_subruns(qtbot, tmpdir):
     for _ in range(10):
         qtbot.keyClick(window.ui.comboBox_sub_runs, QtCore.Qt.Key_Up)
         qtbot.wait(wait)
+
+    window.hide()

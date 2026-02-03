@@ -16,14 +16,21 @@ wait = 200
 plot_wait = 100
 
 
-@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="UI tests segfault on GitHub Actions")
-def test_texture_fitting_viewer(qtbot):
-
+@pytest.fixture(scope="session")
+def texture_fitting_window(my_qtbot):
+    r"""
+    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
+    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
+    """
     model = TextureFittingModel(pyrscore.PyRsCore())
     ctrl = TextureFittingCrtl(model)
     window = TextureFittingViewer(model, ctrl)
+    return window, my_qtbot
 
-    qtbot.addWidget(window)
+
+def test_texture_fitting_viewer(texture_fitting_window):
+    window, qtbot = texture_fitting_window
+
     window.show()
     qtbot.wait(wait)
 
@@ -85,18 +92,20 @@ def test_texture_fitting_viewer(qtbot):
         qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(int(end_x), int(end_y)))
         qtbot.wait(wait)
 
-        np.testing.assert_allclose(float(window.fit_setup.fit_range_table.item(i_loop, 0).text()),
-                                   fit_ranges[i_loop][0], rtol=rtol)
+        np.testing.assert_allclose(
+            float(window.fit_setup.fit_range_table.item(i_loop, 0).text()), fit_ranges[i_loop][0], rtol=rtol
+        )
 
-        np.testing.assert_allclose(float(window.fit_setup.fit_range_table.item(i_loop, 1).text()),
-                                   fit_ranges[i_loop][1], rtol=rtol)
+        np.testing.assert_allclose(
+            float(window.fit_setup.fit_range_table.item(i_loop, 1).text()), fit_ranges[i_loop][1], rtol=rtol
+        )
 
     # load json with fitting range and test that data are loaded
     qtbot.wait(wait)
     QtCore.QTimer.singleShot(500, functools.partial(handle_dialog, "texture_fitting_test.json"))
     qtbot.mouseClick(window.fit_setup.save_fit_info, QtCore.Qt.LeftButton)
 
-    with open('texture_fitting_test.json') as f:
+    with open("texture_fitting_test.json") as f:
         data = json.load(f)
 
     assert len(data) == 2
@@ -116,11 +125,13 @@ def test_texture_fitting_viewer(qtbot):
 
     for i_loop in range(len(fit_ranges)):
         qtbot.wait(wait)
-        np.testing.assert_allclose(float(window.fit_setup.fit_range_table.item(i_loop, 0).text()),
-                                   fit_ranges[i_loop][0], rtol=1e-3)
+        np.testing.assert_allclose(
+            float(window.fit_setup.fit_range_table.item(i_loop, 0).text()), fit_ranges[i_loop][0], rtol=1e-3
+        )
 
-        np.testing.assert_allclose(float(window.fit_setup.fit_range_table.item(i_loop, 1).text()),
-                                   fit_ranges[i_loop][1], rtol=1e-3)
+        np.testing.assert_allclose(
+            float(window.fit_setup.fit_range_table.item(i_loop, 1).text()), fit_ranges[i_loop][1], rtol=1e-3
+        )
 
     # Test fitting data
     qtbot.wait(wait)
@@ -152,17 +163,24 @@ def test_texture_fitting_viewer(qtbot):
     qtbot.wait(wait)
     QtCore.QTimer.singleShot(500, functools.partial(handle_dialog, ""))
     qtbot.mouseClick(window.fit_setup.export_pole_figs, QtCore.Qt.LeftButton)
-    print(np.loadtxt('HB2B_1599_Peak_1.jul', skiprows=3))
+    print(np.loadtxt("HB2B_1599_Peak_1.jul", skiprows=3))
 
     # test that pole figure outputs are equivalent
-    np.testing.assert_allclose(np.loadtxt('tests/data/HB2B_1599_Peak_1.jul', skiprows=3),
-                               np.loadtxt('HB2B_1599_Peak_1.jul', skiprows=3), rtol=1e-3)
+    np.testing.assert_allclose(
+        np.loadtxt("tests/data/HB2B_1599_Peak_1.jul", skiprows=3),
+        np.loadtxt("HB2B_1599_Peak_1.jul", skiprows=3),
+        rtol=1e-3,
+    )
 
-    np.testing.assert_allclose(np.loadtxt('tests/data/HB2B_1599_Peak_2.jul', skiprows=3),
-                               np.loadtxt('HB2B_1599_Peak_2.jul', skiprows=3), rtol=1e-3)
+    np.testing.assert_allclose(
+        np.loadtxt("tests/data/HB2B_1599_Peak_2.jul", skiprows=3),
+        np.loadtxt("HB2B_1599_Peak_2.jul", skiprows=3),
+        rtol=1e-3,
+    )
 
     os.remove("HB2B_1599_Peak_2.jul")
     os.remove("HB2B_1599_Peak_1.jul")
 
     qtbot.keyClick(window.plot_select.out_of_plane, QtCore.Qt.Key_Down)
     # qtbot.wait(plot_wait)
+    window.hide()
