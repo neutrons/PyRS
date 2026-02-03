@@ -157,6 +157,7 @@ class DENEXDetectorShift:
         self._rotation_z = rotation_z  # in X-Y plane along Z axis, i.e., spin at detector center
 
         self._two_theta_0 = tth_0  # in rotation of detector arm about X
+        self.calibration_file = calibration_file
 
         self.calibration_file = calibration_file
 
