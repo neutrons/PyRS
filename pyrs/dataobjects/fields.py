@@ -133,7 +133,12 @@ class ScalarFieldSample:
         all_lengths = [len(values), len(errors), len(x), len(y), len(z)]
         assert len(set(all_lengths)) == 1, "input lists must all have the same lengths"
 
-        self._sample = unumpy.uarray(values, errors)
+        values_array = np.asarray(values, dtype=float)
+        errors_array = np.asarray(errors, dtype=float)
+        self._sample = np.array(
+            [uncertainties.core.Variable(value, error) for value, error in zip(values_array.flat, errors_array.flat)],
+            dtype=object,
+        ).reshape(values_array.shape)
         self._point_list = PointList([x, y, z])
         self._name = name
 

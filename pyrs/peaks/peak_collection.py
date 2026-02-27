@@ -434,9 +434,14 @@ class PeakCollection:
         conversion_factor = get_strain_conversion_factor(units)
 
         d_fitted = self._get_dspacing_center()
+        d_reference_values = unumpy.nominal_values(self._d_reference)
+        safe_d_reference = unumpy.uarray(
+            np.where(d_reference_values != 0.0, d_reference_values, np.nan),
+            unumpy.std_devs(self._d_reference),
+        )
 
         # multiplying by 1e6 converts to micro
-        strain = conversion_factor * (d_fitted - self._d_reference) / self._d_reference
+        strain = conversion_factor * (d_fitted - safe_d_reference) / safe_d_reference
 
         # unpack the values to return
         return unumpy.nominal_values(strain), unumpy.std_devs(strain)
@@ -471,9 +476,14 @@ class PeakCollection:
 
         except ZeroDivisionError:
             # replace zeros in the denominator with nan explicitly
+            sine_theta_values = unumpy.nominal_values(sine_theta)
+            safe_sine_theta = unumpy.uarray(
+                np.where(sine_theta_values != 0.0, sine_theta_values, np.nan),
+                unumpy.std_devs(sine_theta),
+            )
             dspacing_center = np.where(
-                unumpy.nominal_values(sine_theta) != 0.0,
-                unumpy.std_devs(0.5 * self._wavelength / sine_theta.clip(1e-9)),
+                sine_theta_values != 0.0,
+                unumpy.std_devs(0.5 * self._wavelength / safe_sine_theta),
                 np.nan,
             )
 
