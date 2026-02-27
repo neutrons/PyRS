@@ -33,9 +33,7 @@ def test_merged_projectfile_viewer(combine_projects_window):
 
         assert window.isVisible()
 
-        files_list = (
-            '"tests/data/HB2B_1327.h5", "tests/data/HB2B_1328.h5", "tests/data/HB2B_1331.h5", "tests/data/HB2B_1332.h5"'
-        )
+        files_list = '"tests/data/HB2B_1327.h5", "tests/data/HB2B_1328.h5", "tests/data/HB2B_1331.h5", "tests/data/HB2B_1332.h5"'
 
         # This is to handle modal dialogs
         def handle_dialog(text):
