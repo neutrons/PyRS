@@ -80,6 +80,18 @@ class HidraProjectFile:
         if self._io_mode == HidraProjectFileMode.OVERWRITE:
             self._init_project()
 
+    ######################################
+    ## Context-manager support methods: ##
+    ######################################
+    def __enter__(self) -> "HidraProjectFile":
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+        return False  # do not suppress exceptions
+
+    ######################################
+
     def _checkFileAccess(self):
         """Verify the file has the correct acces permissions and set the value of ``self._is_writable``"""
         # prepare the call to check the file permissions
@@ -484,12 +496,18 @@ class HidraProjectFile:
         if "2Theta" in masks:
             masks.remove("2Theta")
 
+        # Variance datasets are stored alongside intensity datasets with a '_var' suffix
+        # (e.g. 'main_var' alongside 'main').  They are not masks and must be excluded so
+        # that _load_reduced_diffraction_data does not treat them as intensity entries.
+        masks = [m for m in masks if not m.endswith("_var")]
+
         return masks
 
     def read_instrument_geometry(self):
         """
         Get instrument geometry parameters
         :return: an instance of instrument_geometry.InstrumentSetup
+            *** TODO: actually this returns an instance of `DENEXDetectorGeometry`! ***
         """
         # Get group
         geometry_group = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.GEOMETRY_SETUP]

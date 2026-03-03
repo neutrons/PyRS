@@ -302,6 +302,9 @@ pyrs = { cmd = "pyrsplot", description = "Start the pyrs application" }
 ignore_missing_imports = true
 namespace_packages = true
 
+[tool.pytest.ini_options]
+norecursedirs = ["tests/scripts/cis_tests"]
+
 [tool.ruff]
 line-length = 119
 target-version = "py311"
@@ -309,6 +312,10 @@ exclude = ["pyrs/icons", "scripts"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# WARNING: there are multiple `conftest.py` files!
+"**/conftest.py" = ["F401"]
 
 [tool.ruff.format]
 line-ending = "lf"

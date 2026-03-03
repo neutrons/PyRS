@@ -8,6 +8,7 @@ from pyrs.core.peak_profile_utility import (
     BackgroundFunction,
 )
 from pyrs.dataobjects import SubRuns  # type: ignore
+from pyrs.dataobjects.constants import HidraConstants
 from typing import Tuple, Union
 from uncertainties import unumpy
 from uncertainties import ufloat
@@ -242,6 +243,8 @@ class PeakCollection:
         d_reference_error: Union[float, np.ndarray] = 0.0,
         projectfilename: str = "",
         runnumber: int = -1,
+        *,
+        mask: str = HidraConstants.DEFAULT_MASK,
     ) -> None:
         """Initialization
 
@@ -257,6 +260,7 @@ class PeakCollection:
         """
         # Init variables from input
         self._tag = peak_tag
+        self._mask = mask
         self._filename: str = ""
         self.projectfilename = projectfilename  # use the setter
         self._runnumber: int = runnumber
@@ -298,6 +302,18 @@ class PeakCollection:
 
         """
         return self._tag
+
+    @property
+    def mask(self) -> str:
+        """Mask name
+
+        Returns
+        -------
+        str
+            Mask name
+
+        """
+        return self._mask
 
     @property
     def peak_profile(self) -> str:
@@ -373,7 +389,10 @@ class PeakCollection:
                 raise RuntimeError(msg)
         converted = np.zeros(parameters.size, get_parameter_dtype(self._peak_profile, self._background_type))
         for name in converted.dtype.names:
-            converted[name] = parameters[name]
+            # Only copy fields that exist in the input parameters
+            if name in supplied_names:
+                converted[name] = parameters[name]
+            # Fields not in input (e.g., A2 for Linear background) remain zero
 
         return converted
 
@@ -468,7 +487,7 @@ class PeakCollection:
             d_reference_errors,
         )
 
-        # multiplying by 1e6 converts to micro
+        # multiplying by 1.0e6 converts to micro
         strain = conversion_factor * (d_fitted - safe_d_reference) / safe_d_reference
 
         # unpack the values to return

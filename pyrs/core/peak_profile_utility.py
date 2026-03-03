@@ -43,8 +43,8 @@ class PeakShape(Enum):
 
 
 class BackgroundFunction(Enum):
-    LINEAR = "Linear"  # so far, one and only supported
-    QUADRATIC = "Quadratic"  # so far, one and only supported
+    LINEAR = "Linear"
+    QUADRATIC = "Quadratic"
 
     def __str__(self):
         return self.value
@@ -72,7 +72,7 @@ class BackgroundFunction(Enum):
 
 
 def get_parameter_dtype(peak_shape=None, background_function=None, effective=False):
-    """Convert the peak parameters into a dtype to ge used in numpy constructors
+    """Convert the peak parameters into a dtype to be used in numpy constructors
 
     ``np.zeros(NUM_SUBRUN, dtype=get_parameter_dtype('Gaussian'))``
     """
@@ -115,7 +115,7 @@ def get_effective_parameters_converter(peak_profile):
 
 
 class PeakParametersConverter:
-    """Virtual base class to convert peak parameters from native to effective"""
+    """Virtual base class to convert peak parameters from native to effective or vice versa"""
 
     def __init__(self, peak_shape):
         """Initialization"""
@@ -144,6 +144,25 @@ class PeakParametersConverter:
             (p', n) and (p', n) array for  parameter values and  fitting error respectively
             p' = number of effective parameters , n = number of sub runs
 
+        """
+        raise NotImplementedError("Virtual")
+
+    def calculate_native_parameters(self, eff_value_array, eff_error_array):
+        """Calculate native peak parameter values from effective parameters.
+
+        This is the inverse of calculate_effective_parameters.
+
+        Parameters
+        ----------
+        eff_value_array : numpy.ndarray
+            structured array with effective parameter values
+        eff_error_array : numpy.ndarray
+            structured array with effective parameter errors
+
+        Returns
+        -------
+        np.ndarray, np.ndarray
+            structured arrays for native parameter values and errors
         """
         raise NotImplementedError("Virtual")
 
@@ -237,6 +256,62 @@ class Gaussian(PeakParametersConverter):
             eff_error_array["A2"] = np.zeros_like(param_value_array["A1"]) + 0.01  # A2
 
         return eff_value_array, eff_error_array
+
+    def calculate_native_parameters(self, eff_value_array, eff_error_array):
+        """Inverse of calculate_effective_parameters for Gaussian.
+
+        Effective → Native mapping:
+            PeakCentre = Center
+            Height     = Height
+            Sigma      = FWHM / (2 * sqrt(2 * ln(2)))
+
+        Intensity is discarded (it was derived from Height and Sigma).
+
+        Error propagation:
+            σ(PeakCentre) = σ(Center)
+            σ(Height)     = σ(Height)
+            σ(Sigma)      = σ(FWHM) / (2 * sqrt(2 * ln(2)))
+        """
+        # Input validation
+        if eff_value_array.dtype != eff_error_array.dtype:
+            raise RuntimeError(
+                "dtype of values and errors do not match: {} and {}".format(
+                    eff_value_array.dtype, eff_error_array.dtype
+                )
+            )
+        if eff_value_array.size != eff_error_array.size:
+            raise RuntimeError(
+                "size of values and errors do not match: {} and {}".format(eff_value_array.size, eff_error_array.size)
+            )
+
+        # Determine background type
+        has_quadratic = np.any(np.abs(eff_value_array["A2"]) > 1e-20)
+        bg_func = BackgroundFunction.QUADRATIC if has_quadratic else BackgroundFunction.LINEAR
+
+        native_dtype = get_parameter_dtype(peak_shape=PeakShape.GAUSSIAN, background_function=bg_func)
+        native_values = np.zeros(eff_value_array.size, dtype=native_dtype)
+        native_errors = np.zeros(eff_value_array.size, dtype=native_dtype)
+
+        # Invert FWHM → Sigma
+        native_values["Sigma"] = self.cal_sigma(eff_value_array["FWHM"])
+        native_errors["Sigma"] = self.cal_sigma(eff_error_array["FWHM"])  # linear, same scale factor
+
+        # Direct mappings
+        native_values["Height"] = eff_value_array["Height"]
+        native_values["PeakCentre"] = eff_value_array["Center"]
+        native_errors["Height"] = eff_error_array["Height"]
+        native_errors["PeakCentre"] = eff_error_array["Center"]
+
+        # Background
+        native_values["A0"] = eff_value_array["A0"]
+        native_values["A1"] = eff_value_array["A1"]
+        native_errors["A0"] = eff_error_array["A0"]
+        native_errors["A1"] = eff_error_array["A1"]
+        if has_quadratic:
+            native_values["A2"] = eff_value_array["A2"]
+            native_errors["A2"] = eff_error_array["A2"]
+
+        return native_values, native_errors
 
     @staticmethod
     def cal_intensity(height, sigma):
@@ -441,6 +516,61 @@ class PseudoVoigt(PeakParametersConverter):
 
         return eff_value_array, eff_error_array
 
+    def calculate_native_parameters(self, eff_value_array, eff_error_array):
+        """Inverse of calculate_effective_parameters for PseudoVoigt.
+
+        Effective → Native mapping:
+            PeakCentre = Center
+            FWHM       = FWHM
+            Mixing     = Mixing
+            Intensity  = Intensity
+
+        Height is discarded (it was derived from Intensity, FWHM, Mixing).
+
+        Error propagation: all identity (direct copy).
+        """
+        # Input validation
+        if eff_value_array.dtype != eff_error_array.dtype:
+            raise RuntimeError(
+                "dtype of values and errors do not match: {} and {}".format(
+                    eff_value_array.dtype, eff_error_array.dtype
+                )
+            )
+        if eff_value_array.size != eff_error_array.size:
+            raise RuntimeError(
+                "size of values and errors do not match: {} and {}".format(eff_value_array.size, eff_error_array.size)
+            )
+
+        # Determine background type
+        has_quadratic = np.any(np.abs(eff_value_array["A2"]) > 1e-20)
+        bg_func = BackgroundFunction.QUADRATIC if has_quadratic else BackgroundFunction.LINEAR
+
+        native_dtype = get_parameter_dtype(peak_shape=PeakShape.PSEUDOVOIGT, background_function=bg_func)
+        native_values = np.zeros(eff_value_array.size, dtype=native_dtype)
+        native_errors = np.zeros(eff_value_array.size, dtype=native_dtype)
+
+        # All native PseudoVoigt params are direct from effective
+        native_values["Mixing"] = eff_value_array["Mixing"]
+        native_values["Intensity"] = eff_value_array["Intensity"]
+        native_values["PeakCentre"] = eff_value_array["Center"]
+        native_values["FWHM"] = eff_value_array["FWHM"]
+
+        native_errors["Mixing"] = eff_error_array["Mixing"]
+        native_errors["Intensity"] = eff_error_array["Intensity"]
+        native_errors["PeakCentre"] = eff_error_array["Center"]
+        native_errors["FWHM"] = eff_error_array["FWHM"]
+
+        # Background
+        native_values["A0"] = eff_value_array["A0"]
+        native_values["A1"] = eff_value_array["A1"]
+        native_errors["A0"] = eff_error_array["A0"]
+        native_errors["A1"] = eff_error_array["A1"]
+        if has_quadratic:
+            native_values["A2"] = eff_value_array["A2"]
+            native_errors["A2"] = eff_error_array["A2"]
+
+        return native_values, native_errors
+
     @staticmethod
     def cal_height(intensity, fwhm, mixing):
         """Calculate peak height from I(intensity), Gamma (fwhm) and eta (mixing)
@@ -494,7 +624,6 @@ class PseudoVoigt(PeakParametersConverter):
         mixing_factor = np.sqrt(np.pi * np.log(2)) - 1
         two_inv_pi = 2.0 / np.pi
 
-        # FIXME - all the terms shall get SQUARED!
         # Partial derivative to intensity
         # partial h()/partial I = 2. * (1 + (np.sqrt(np.pi * np.log(2)) - 1) * mixing) / (np.pi * fwhm)
         #                       = (2 / np.pi) * (1 + F1 * mixing) / fwhm
@@ -640,7 +769,9 @@ def gaussian(x, a, sigma, x0):
     :param x0:
     :return:
     """
-    return a * np.exp(-(((x - x0) / sigma) ** 2))
+    # THIS WAS corrected (11.02.2026) so that it matches the convention used in the rest of this module,
+    #   and throughout the Mantid codebase.
+    return a * np.exp(-0.5 * ((x - x0) / sigma) ** 2)
 
 
 def pseudo_voigt(x, intensity, fwhm, mixing, x0):
