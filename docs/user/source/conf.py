@@ -22,6 +22,10 @@
 # needs_sphinx = '1.0'
 import os
 import sys
+import warnings
+
+from unittest import mock
+
 
 project_dir = os.path.abspath(os.path.join(__file__, "..", "..", "..", ".."))
 sys.path.insert(0, project_dir)
@@ -37,11 +41,30 @@ extensions = [
     "sphinx.ext.mathjax",
 ]
 
-import mock  # noqa: E402
-
-MOCK_MODULES = ["mantid", "mantid.kernel", "mantid.simpleapi", "mantid.api", "h5py", "qtpy", "qtpy.uic"]
+MOCK_MODULES = [
+    "mantid",
+    "mantid.kernel",
+    "mantid.simpleapi",
+    "mantid.api",
+    "h5py",
+    "qtpy",
+    "qtpy.QtCore",
+    "qtpy.QtGui",
+    "qtpy.QtWidgets",
+    "qtpy.uic",
+    # Prevent `sphinx` from trying to import modules which start any GUI operations:
+    # - not ideal, but for the moment we skip the entire `pyrs.interface` tree.
+    "pyrs.interface",
+    # additional `h5py` consuming modules, used by `NXstress` / `nexusformat`:
+    "hdf5plugin",
+    "nexusformat",
+    "nexusformat.nexus",
+]
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
+
+# Filter specific Pydantic warnings about Mocks
+warnings.filterwarnings("ignore", message=".*Mock name.*is not a Python type.*")
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -76,7 +99,7 @@ release = "1.0.0"
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:

@@ -817,9 +817,11 @@ class FitCalibration:
         Parameters
         ----------
         file_name: str or None
-            output Json file name.  If None, write to /HFIR/HB2B/shared/CAL/
+        output Json file name.  If None, write to /HFIR/HB2B/shared/CAL/
+
         write_latest: bool
-            bool saying that the calibration should write HB2B_Cal_Latest
+        bool saying that the calibration should write HB2B_Cal_Latest
+
         Returns
         -------
         None

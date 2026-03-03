@@ -49,8 +49,10 @@ class HidraSetup:
     def get_wavelength(self, wave_length_tag):
         """Get wave length
         Get wave length for only calibrated
+
         :param wave_length_tag: str
-            user tag (as 111, 222) for wave length. None for single wave length
+         user tag (as 111, 222) for wave length. None for single wave length
+
         :return float: wave length in A
         """
         if wave_length_tag is not None:

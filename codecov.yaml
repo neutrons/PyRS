@@ -1,7 +1,7 @@
 # Configuration file for codecov reporting code coverage
 
 # Disable codecov comments in every PR
-comment: off
+comment: false
 
 # files to ignore
 ignore:
