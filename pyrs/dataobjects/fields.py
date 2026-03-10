@@ -97,6 +97,17 @@ POINT_MISSING_INDEX = -1  # indicates one single-scan index is not present in on
 SCAN_MISSING_INDEX = -1  # indicates one scan is not present in the current strain
 
 
+def _split_uncertainty_array(sample: Union[np.ndarray, float]) -> Tuple[np.ndarray, np.ndarray]:
+    """Extract nominal values and uncertainties without `unumpy.std_devs()` warnings on NaNs."""
+    sample_array = np.asarray(sample, dtype=object)
+    values = np.empty(sample_array.shape, dtype=float)
+    errors = np.empty(sample_array.shape, dtype=float)
+    for index, value in np.ndenumerate(sample_array):
+        values[index] = value.nominal_value if hasattr(value, "nominal_value") else value
+        errors[index] = value.std_dev if hasattr(value, "std_dev") else 0.0
+    return values, errors
+
+
 class ScalarFieldSample:
     r"""
     Evaluation of a scalar field on a discrete set of points in real space
@@ -133,7 +144,12 @@ class ScalarFieldSample:
         all_lengths = [len(values), len(errors), len(x), len(y), len(z)]
         assert len(set(all_lengths)) == 1, "input lists must all have the same lengths"
 
-        self._sample = unumpy.uarray(values, errors)
+        values_array = np.asarray(values, dtype=float)
+        errors_array = np.asarray(errors, dtype=float)
+        self._sample = np.array(
+            [uncertainties.core.Variable(value, error) for value, error in zip(values_array.flat, errors_array.flat)],
+            dtype=object,
+        ).reshape(values_array.shape)
         self._point_list = PointList([x, y, z])
         self._name = name
 
@@ -220,11 +236,13 @@ class ScalarFieldSample:
 
     @property
     def values(self) -> np.ndarray:
-        return unumpy.nominal_values(self.sample)
+        values, _ = _split_uncertainty_array(self.sample)
+        return values
 
     @property
     def errors(self) -> np.ndarray:
-        return unumpy.std_devs(self.sample)
+        _, errors = _split_uncertainty_array(self.sample)
+        return errors
 
     @property
     def sample(self) -> unumpy.uarray:
@@ -2025,8 +2043,12 @@ class StressField:
             Values and errors of the stress along the third direction
         """
         for stress, attr in zip((stress11, stress22, stress33), ("stress11", "stress22", "stress33")):
-            values, errors = unumpy.nominal_values(stress), unumpy.std_devs(stress)
+            values, errors = self._split_uncertainty_array(stress)
             setattr(self, attr, ScalarFieldSample("stress", values, errors, self.x, self.y, self.z))
+
+    @staticmethod
+    def _split_uncertainty_array(sample: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        return _split_uncertainty_array(sample)
 
     def _calc_stress_components(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         r"""
@@ -2131,7 +2153,7 @@ class StressField:
         """
         factor = self.poisson_ratio / (self.poisson_ratio - 1)
         strain33 = factor * (self._strain11.sample + self._strain22.sample)  # unumpy.array
-        values, errors = unumpy.nominal_values(strain33), unumpy.std_devs(strain33)  # units are microstrain
+        values, errors = self._split_uncertainty_array(strain33)  # units are microstrain
         peaks = PeakCollectionLite(str(StressType.IN_PLANE_STRESS), values, errors, strain_units="microstrain")
         return StrainField(peak_collection=peaks, point_list=PointList([self.x, self.y, self.z]))  # type: ignore
 

@@ -267,7 +267,19 @@ class Gaussian(PeakParametersConverter):
         Float/ndarray, Float/ndarray
             peak intensity and fitting error
         """
-        intensity_error = intensity * np.sqrt((sigma_error / sigma) ** 2 + (height_error / height) ** 2)
+        sigma_rel_error = np.divide(
+            sigma_error,
+            sigma,
+            out=np.zeros_like(sigma_error, dtype=float),
+            where=np.asarray(sigma) != 0,
+        )
+        height_rel_error = np.divide(
+            height_error,
+            height,
+            out=np.zeros_like(height_error, dtype=float),
+            where=np.asarray(height) != 0,
+        )
+        intensity_error = intensity * np.sqrt(sigma_rel_error**2 + height_rel_error**2)
 
         return intensity_error
 

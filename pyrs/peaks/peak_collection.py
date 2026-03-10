@@ -1,5 +1,6 @@
 import numpy as np
 from pathlib import Path
+import uncertainties
 from pyrs.core.peak_profile_utility import (
     get_parameter_dtype,
     get_effective_parameters_converter,
@@ -7,11 +8,34 @@ from pyrs.core.peak_profile_utility import (
     BackgroundFunction,
 )
 from pyrs.dataobjects import SubRuns  # type: ignore
-from typing import Optional, Tuple, Union
+from typing import Tuple, Union
 from uncertainties import unumpy
 from uncertainties import ufloat
 
 __all__ = ["PeakCollection", "PeakCollectionLite"]
+
+
+def _object_uarray(values: Union[float, np.ndarray], errors: Union[float, np.ndarray]) -> np.ndarray:
+    """Build an uncertainties array without NumPy vectorize warnings on NaN errors."""
+    nd_values = np.asarray(values, dtype=float)
+    nd_errors = np.asarray(errors, dtype=float)
+    try:
+        nd_values, nd_errors = np.broadcast_arrays(nd_values, nd_errors)
+    except ValueError as exc:
+        raise ValueError("values and errors must have the same shape") from exc
+    items = [uncertainties.core.Variable(value, error) for value, error in zip(nd_values.flat, nd_errors.flat)]
+    return np.array(items, dtype=object).reshape(nd_values.shape)
+
+
+def _split_uncertainty_array(sample: Union[np.ndarray, float]) -> Tuple[np.ndarray, np.ndarray]:
+    """Extract nominal values and uncertainties without `unumpy.std_devs()` warnings on NaNs."""
+    sample_array = np.asarray(sample, dtype=object)
+    values = np.empty(sample_array.shape, dtype=float)
+    errors = np.empty(sample_array.shape, dtype=float)
+    for index, value in np.ndenumerate(sample_array):
+        values[index] = value.nominal_value if hasattr(value, "nominal_value") else value
+        errors[index] = value.std_dev if hasattr(value, "std_dev") else 0.0
+    return values, errors
 
 
 def get_strain_conversion_factor(units: str = "strain") -> float:
@@ -58,7 +82,7 @@ def to_microstrain(strains):
 
 def _create_d_reference_array(
     values: Union[float, np.ndarray], errors: Union[float, np.ndarray], size: int
-) -> unumpy.uarray:
+) -> np.ndarray:
     """Convert the d-reference values to a :py:obj:`unumpy.uarray`
 
     Parameters
@@ -77,20 +101,22 @@ def _create_d_reference_array(
     # d-reference should be, at minimum, length one
     num_values = size if size else 1
 
-    if isinstance(values, np.ndarray) and values.size > 1:
-        msg = "Incompatible number of values for d-reference: {} should be 1 or {}".format(values.size, size)
-        assert values.size == size, msg
-        nd_values = values
-    else:
-        nd_values = np.array([values] * num_values)
+    nd_values = np.asarray(values, dtype=float)
+    msg = "Incompatible number of values for d-reference: {} should be 1 or {}".format(nd_values.size, size)
+    assert nd_values.size in (1, num_values), msg
+    nd_values = (
+        np.full(num_values, nd_values.item(), dtype=float) if nd_values.size == 1 else nd_values.reshape(num_values)
+    )
 
-    if isinstance(errors, np.ndarray):
-        nd_errors = errors
-    else:
-        nd_errors = np.array([errors] * num_values)
+    nd_errors = np.asarray(errors, dtype=float)
+    msg = "Incompatible number of errors for d-reference: {} should be 1 or {}".format(nd_errors.size, size)
+    assert nd_errors.size in (1, num_values), msg
+    nd_errors = (
+        np.full(num_values, nd_errors.item(), dtype=float) if nd_errors.size == 1 else nd_errors.reshape(num_values)
+    )
 
     # store value and uncertainties together
-    return unumpy.uarray(nd_values, nd_errors)
+    return _object_uarray(nd_values, nd_errors)
 
 
 class PeakCollectionLite:
@@ -113,10 +139,12 @@ class PeakCollectionLite:
         self._tag: str = peak_tag
 
         # We need to store strains in strain units, NOT in microstrains
-        self._strain = unumpy.uarray(strain, strain_error) / get_strain_conversion_factor(strain_units)
+        self._strain = _object_uarray(strain, strain_error) / get_strain_conversion_factor(strain_units)
 
         # must happen after the sub_run array is set
-        self._d_reference = unumpy.uarray(np.nan, np.nan)  # set this correctly in next call
+        self._d_reference = _create_d_reference_array(
+            np.nan, 0.0, self._strain.size
+        )  # set this correctly in next call
         self.set_d_reference(d_reference, d_reference_error)
 
     @property
@@ -164,7 +192,7 @@ class PeakCollectionLite:
             1D array for peak's reference position in dSpacing.  NaN for not being set.
 
         """
-        return unumpy.nominal_values(self._d_reference), unumpy.std_devs(self._d_reference)
+        return _split_uncertainty_array(self._d_reference)
 
     def get_strain(self, units: str = "strain") -> Tuple[np.ndarray, np.ndarray]:
         """get strain values and uncertainties in units of strain
@@ -186,7 +214,7 @@ class PeakCollectionLite:
         strain = conversion_factor * self._strain
 
         # unpack the values to return
-        return unumpy.nominal_values(strain), unumpy.std_devs(strain)
+        return _split_uncertainty_array(strain)
 
     @property
     def runnumber(self) -> int:
@@ -250,7 +278,7 @@ class PeakCollection:
         self._fit_status = None
 
         # must happen after the sub_run array is set
-        self._d_reference: Optional[unumpy.uarray]
+        self._d_reference: np.ndarray
         self.set_d_reference(d_reference, d_reference_error)
 
     def __len__(self):
@@ -407,7 +435,7 @@ class PeakCollection:
             1D array for peak's reference position in dSpacing.  NaN for not being set.
 
         """
-        return unumpy.nominal_values(self._d_reference), unumpy.std_devs(self._d_reference)
+        return _split_uncertainty_array(self._d_reference)
 
     def set_d_reference(
         self, values: Union[float, np.ndarray] = np.nan, errors: Union[float, np.ndarray] = 0.0
@@ -434,12 +462,17 @@ class PeakCollection:
         conversion_factor = get_strain_conversion_factor(units)
 
         d_fitted = self._get_dspacing_center()
+        d_reference_values, d_reference_errors = _split_uncertainty_array(self._d_reference)
+        safe_d_reference = unumpy.uarray(
+            np.where(d_reference_values != 0.0, d_reference_values, np.nan),
+            d_reference_errors,
+        )
 
         # multiplying by 1e6 converts to micro
-        strain = conversion_factor * (d_fitted - self._d_reference) / self._d_reference
+        strain = conversion_factor * (d_fitted - safe_d_reference) / safe_d_reference
 
         # unpack the values to return
-        return unumpy.nominal_values(strain), unumpy.std_devs(strain)
+        return _split_uncertainty_array(strain)
 
     def get_native_params(self):
         return self._params_value_array, self._params_error_array
@@ -471,9 +504,14 @@ class PeakCollection:
 
         except ZeroDivisionError:
             # replace zeros in the denominator with nan explicitly
+            sine_theta_values, sine_theta_errors = _split_uncertainty_array(sine_theta)
+            safe_sine_theta = unumpy.uarray(
+                np.where(sine_theta_values != 0.0, sine_theta_values, np.nan),
+                sine_theta_errors,
+            )
             dspacing_center = np.where(
-                unumpy.nominal_values(sine_theta) != 0.0,
-                unumpy.std_devs(0.5 * self._wavelength / sine_theta.clip(1e-9)),
+                sine_theta_values != 0.0,
+                unumpy.std_devs(0.5 * self._wavelength / safe_sine_theta),
                 np.nan,
             )
 
@@ -489,7 +527,7 @@ class PeakCollection:
             A two-item tuple containing the peak center and its uncertainty.
         """
         d_spacing = self._get_dspacing_center()
-        return unumpy.nominal_values(d_spacing), unumpy.std_devs(d_spacing)
+        return _split_uncertainty_array(d_spacing)
 
     def get_chisq(self) -> np.ndarray:
         if self._fit_cost_array is not None:

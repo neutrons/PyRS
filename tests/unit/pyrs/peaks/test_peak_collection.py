@@ -2,6 +2,7 @@ import numpy as np
 from pyrs.core.peak_profile_utility import PeakShape, BackgroundFunction, get_parameter_dtype
 from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
 import pytest
+import warnings
 
 
 def check_peak_shape_enum(peak_shape, num_native_params):
@@ -54,6 +55,35 @@ def test_peak_collection_init():
     d_ref, d_ref_err = d_peak_collection.get_d_reference()
     np.testing.assert_equal(d_ref, np.asarray((1.26,)))
     np.testing.assert_equal(d_ref_err, np.asarray((0.0,)))
+
+
+def test_peak_collection_lite_default_d_reference_does_not_warn():
+    peaks = PeakCollectionLite("test", strain=np.array([0.0]), strain_error=np.array([0.0]))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        d_ref, d_ref_err = peaks.get_d_reference()
+    np.testing.assert_equal(d_ref, np.asarray((np.nan,)))
+    np.testing.assert_equal(d_ref_err, np.asarray((0.0,)))
+
+
+def test_peak_collection_dspacing_center_with_unmeasured_point_does_not_warn():
+    peaks = PeakCollection("testing", "Gaussian", "Linear", wavelength=1.53229)
+    subruns = np.arange(2) + 1
+    chisq = np.array([42.0, 43.0])
+    raw_peaks_array = np.zeros(2, dtype=get_parameter_dtype("Gaussian", "Linear"))
+    raw_peaks_array["Height"] = [1.0, 0.0]
+    raw_peaks_array["Sigma"] = np.array([4.0, 5.0], dtype=float)
+    raw_peaks_array["PeakCentre"] = [90.0, 91.0]
+    raw_peaks_errors = np.zeros(2, dtype=get_parameter_dtype("Gaussian", "Linear"))
+    peaks.set_peak_fitting_values(subruns, raw_peaks_array, raw_peaks_errors, chisq)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        d_spacing, d_spacing_errors = peaks.get_dspacing_center()
+
+    np.testing.assert_allclose(d_spacing[0], 1.08, atol=0.01)
+    assert d_spacing[1] == pytest.approx(0.0)
+    assert np.isnan(d_spacing_errors[1])
 
 
 def check_peak_collection(
