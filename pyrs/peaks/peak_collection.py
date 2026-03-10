@@ -8,7 +8,7 @@ from pyrs.core.peak_profile_utility import (
     BackgroundFunction,
 )
 from pyrs.dataobjects import SubRuns  # type: ignore
-from typing import Optional, Tuple, Union
+from typing import Tuple, Union
 from uncertainties import unumpy
 from uncertainties import ufloat
 
@@ -278,7 +278,7 @@ class PeakCollection:
         self._fit_status = None
 
         # must happen after the sub_run array is set
-        self._d_reference: Optional[unumpy.uarray]
+        self._d_reference: np.ndarray
         self.set_d_reference(d_reference, d_reference_error)
 
     def __len__(self):
