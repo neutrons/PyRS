@@ -7,6 +7,7 @@ from numpy.testing import assert_allclose, assert_equal
 import os
 import pytest
 import random
+import warnings
 from uncertainties import unumpy
 
 # PyRs libraries
@@ -264,6 +265,13 @@ class TestScalarFieldSample:
     def test_errors(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
         np.testing.assert_equal(field.errors, TestScalarFieldSample.sample1.errors)
+
+    def test_values_and_errors_with_nan_uncertainties_do_not_warn(self):
+        sample = ScalarFieldSample("stress", [1.0, np.nan], [np.nan, np.nan], [0.0, 1.0], [0.0, 0.0], [0.0, 0.0])
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            assert_equal(sample.values, [1.0, np.nan])
+            assert_equal(sample.errors, [np.nan, np.nan])
 
     def test_sample(self):
         field = ScalarFieldSample(*TestScalarFieldSample.sample1)
