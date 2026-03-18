@@ -84,7 +84,6 @@ libarchive = "*"
 matplotlib = "*"
 numpy = "*"
 pandas = "*"
-types-six = "*"
 
 [tool.pixi.pypi-dependencies]
 # PyPI dependencies, including this package to allow local editable installs
@@ -118,8 +117,7 @@ mypy = "*"
 [tool.pixi.feature.package.dependencies]
 boa = "*"
 anaconda-client = "*"
-conda-build = "<24"
-conda-verify = "*"
+conda-build = "*"
 twine = "*"
 versioningit = "*"
 hatch = "*"
@@ -186,8 +184,9 @@ types-six = "*"
 name = "pyrs"
 version = "0.0.0" # placeholder, overwritten by sync-version
 
-[tool.pixi.package.build]
-backend = { name = "pixi-build-python", version = "*" }
+[tool.pixi.package.build.backend]
+name = "pixi-build-python"
+version = "*"
 channels = [
   "conda-forge",
   "mantid-ornl/label/main",                 # ORNL-specific stable releases
