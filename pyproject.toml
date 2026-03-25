@@ -130,6 +130,7 @@ toml-cli = "*"
 pre-commit = "*"
 mypy = "*"
 python-build = "*"
+pip-audit = "*"
 
 [tool.pixi.feature.docs.dependencies]
 sphinx = "*"
