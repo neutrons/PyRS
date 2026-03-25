@@ -118,7 +118,7 @@ jobs:
 
       - name: Build conda package
         run: |
-          pixi run conda-build
+          pixi run build-conda
           mkdir -p /tmp/local-channel/linux-64
           cp *.conda /tmp/local-channel/linux-64
 
