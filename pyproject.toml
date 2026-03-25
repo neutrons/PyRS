@@ -115,13 +115,17 @@ pytest-cov = "*"
 mypy = "*"
 
 [tool.pixi.feature.package.dependencies]
-boa = "*"
 anaconda-client = "*"
 conda-build = "*"
 twine = "*"
 versioningit = "*"
 hatch = "*"
 toml = "*"
+
+# fix for pip audit
+h11 = ">=0.16.0"
+py-lief = ">=0.17.2"
+requests = ">=2.33.0"
 
 [tool.pixi.feature.package.pypi-dependencies]
 toml-cli = "*"
