@@ -32,11 +32,14 @@ class HidraProjectFile:
     All the import/export information will be buffered in order to avoid exception during operation
 
     File structure:
+
     - experiment
         - scans (raw counts)
         - logs
+
     - instrument
         - calibration
+
     - reduced diffraction data
         - main
           - sub-run
@@ -757,9 +760,12 @@ class HidraProjectFile:
     def write_peak_parameters(self, fitted_peaks):
         """Set the peak fitting results to project file.
 
-         The tree structure for fitted peak in all sub runs is defined as
-        - peaks
-            - [peak-tag]
+        The tree structure for fitted peak in all sub runs is defined as
+
+          - peaks
+
+              - [peak-tag]
+
                 - attr/'peak profile'
                 - sub runs
                 - parameter values
@@ -890,13 +896,19 @@ class HidraProjectFile:
 
     def write_wavelength(self, wave_length: float):
         """Set the calibrated wave length
+
         Location:
+
           .../instrument/monochromator setting/ ... .../
+
         Note:
-        - same wave length to all sub runs
-        - only calibrated wave length in project file
-        - raw wave length comes from a table with setting
+
+          - same wave length to all sub runs
+          - only calibrated wave length in project file
+          - raw wave length comes from a table with setting
+
         :param wave_length: wave length in A
+
         :return: None
         """
         wave_length = to_float("Wave length", wave_length, min_value=0, max_value=1000)

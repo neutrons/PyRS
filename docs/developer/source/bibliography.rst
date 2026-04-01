@@ -1,6 +1,9 @@
 :Author: Chris Fancher
-:Data 05/12/2021
+:Date: 05/12/2021
 :Keywords: list of references
+
+::
+  DUPLICATE from `docs/user/source/bibliography.rst` to prevent an out-of-tree reference.
 
 Bibliography
 ============

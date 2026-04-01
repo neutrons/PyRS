@@ -1,10 +1,8 @@
-Ex
-
-PyRS User's Guide
-=================
+PyRS Developer's Guide
+======================
 
 Python Residual Stress analysis
----------------------------------
+-------------------------------
 
 pyRS is a Python software framework for the reduction, analysis and visualization neutron diffraction data for residual stress analysis.
 The pyRS software is tailored to meet the needs of the `High Intensity Diffractometer for Residual stress Analysis <https://neutrons.ornl.gov/nrsf2>`_ instrument at the `High Flux Isotope Reactor <https://neutrons.ornl.gov/hfir>`_.
@@ -15,13 +13,18 @@ Funded by the `Office of Energy Science <https://www.energy.gov/science/bes/basi
 .. toctree::
    :maxdepth: 2
 
-   introduction/introduction
-   basics/basics
-   example/example
-   math/mathmatical
+   design/project_file
+   design/nexus/IO_prototype
+
+.. toctree::
+   :maxdepth: 2
+   :caption: API Reference
+
    api/modules
-   advanced/advanced
    bibliography
+
+::
+   WARNING: `api/modules` is automatically generated, so it should not be edited by hand!
 
 Indices and tables
 ==================

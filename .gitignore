@@ -78,6 +78,8 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+#   ... ignore auto-generated Sphinx API docs
+docs/developer/source/api/modules.rst
 
 # PyBuilder
 target/
