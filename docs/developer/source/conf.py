@@ -389,11 +389,13 @@ def run_apidoc(_):
     # -o: output directory
     main(["-f", "-e", "-o", output_dir, module_dir])
 
+
 def remove_duplicate_from_index(app, what, name, obj, options, lines):
     # This identifies the "short" path causing the conflict
     # and tells Sphinx: "Don't index this one for cross-references"
     if name == "pyrs.projectfile.HidraProjectFile":
-        options['noindex'] = True
+        options["noindex"] = True
+
 
 def setup(app):
     # Keep your existing apidoc trigger
@@ -401,4 +403,3 @@ def setup(app):
 
     # Add this line to handle the duplicate indexing
     app.connect("autodoc-process-docstring", remove_duplicate_from_index)
-    
