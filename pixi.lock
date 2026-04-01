@@ -8245,7 +8245,7 @@ packages:
 - pypi: ./
   name: pyrs
   version: 1.9.0.dev20
-  sha256: 73946b131dcef33ce483fe8fd29b0d1ecb54185de2b367984971a7f80abf6be7
+  sha256: c05df128cdfc5deca37699901d69a944010855d7eea23ff2d671ec996502bcb2
   requires_python: '>=3.11'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/pyside6-6.10.2-py311hf27b23e_1.conda
   sha256: af32f0f281233d5822b389a38a7ff22652db45f794a9baa227a7c12e9223fa56

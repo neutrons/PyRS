@@ -129,6 +129,7 @@ hatch = "*"
 toml = "*"
 
 # fix for pip audit
+# cryptography = ">=46.0.6" ## TODO: not indexed yet: CVE-2026-34073 ##
 h11 = ">=0.16.0"
 py-lief = ">=0.17.2"
 requests = ">=2.33.0"
@@ -284,7 +285,7 @@ test = { cmd = "pytest --cov=pyrs --cov-report=xml --cov-report=term ./tests", d
 test-import-framework = { cmd = "python -c 'import pyrs'; python -c 'import qtpy'; python -c 'import mantidqt'", description = "Test import of main dependencies" }
 
 # MISC
-audit-deps = { cmd = "pip-audit --local -s osv --ignore-vuln CVE-2026-4539", description = "Audit the package dependencies for vulnerabilities" }
+audit-deps = { cmd = "pip-audit --local -s osv --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-34073", description = "Audit the package dependencies for vulnerabilities" }
 clean-all = { description = "Clean all build artifacts", depends-on = [
   "clean-pypi",
   "clean-docs",
