@@ -177,9 +177,9 @@ class TestHidraProjectFile:
             pf_write.append_raw_counts(sr, np.zeros(4))
 
         # populate the subruns log so load_hidra_project can read the spectrum map
-        # pf_write.write_sub_runs(np.arange(1, n_subruns + 1)) 
+        # pf_write.write_sub_runs(np.arange(1, n_subruns + 1))
         pf_write.append_experiment_log(HidraConstants.SUB_RUNS, np.arange(1, n_subruns + 1))
-        
+
         pf_write.write_reduced_diffraction_data_set(
             two_theta,
             {None: intensity},
