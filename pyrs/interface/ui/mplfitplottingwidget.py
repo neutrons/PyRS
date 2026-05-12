@@ -145,7 +145,7 @@ class MplFitPlottingWidget(QWidget):
             try:
                 right_peak.remove()
             except NotImplementedError:
-                pass            
+                pass
             self.list_peak_ranges_matplotlib_id.remove([left_peak, right_peak])
             _peak_label = self.list_fit_peak_labels[self._working_with_range_index]
             self.list_fit_peak_labels.remove(_peak_label)
