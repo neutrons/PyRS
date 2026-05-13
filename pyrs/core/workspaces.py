@@ -420,9 +420,9 @@ class HidraWorkspace:
         calibrated : bool
             whether the wave length is calibrated or raw
         throw_if_not_set : bool
-            throw an exception if wave length is not set to workspace
+            throw an exception if wave length is not set on the workspace
         sub_run : None or int
-            sub run number for the wave length associated with
+            sub run number for the wave length
 
         Returns
         -------
@@ -1189,6 +1189,73 @@ class HidraWorkspace:
             self._wave_length_calibrated_dict = wl_dict
         else:
             self._wave_length_dict = wl_dict
+
+    def set_sample_logs_from_object(self, sample_logs):
+        """Replace the current sample logs with the provided SampleLogs object.
+
+        Parameters
+        ----------
+        sample_logs : SampleLogs
+            Complete SampleLogs object to set
+
+        Returns
+        -------
+        None
+        """
+        self._sample_logs = sample_logs
+
+    def set_wavelength_from_value(self, wavelength):
+        """Set the universal wavelength (not per-subrun).
+
+        Parameters
+        ----------
+        wavelength : float
+            Wavelength value to set
+
+        Returns
+        -------
+        None
+        """
+        self._wave_length = wavelength
+
+    def set_reduced_diffraction_data_set(self, two_theta_matrix, diff_data_set, var_data_set):
+        """Set the full reduced diffraction data matrices directly.
+
+        Parameters
+        ----------
+        two_theta_matrix : np.ndarray
+            2D array, shape (n_subruns, n_2theta)
+        diff_data_set : dict
+            {mask_id: np.ndarray} intensity matrices
+        var_data_set : dict
+            {mask_id: np.ndarray} variance matrices
+
+        Returns
+        -------
+        None
+        """
+        self._2theta_matrix = np.copy(two_theta_matrix)
+        self._diff_data_set = {k: np.copy(v) for k, v in diff_data_set.items()}
+        self._var_data_set = {k: np.copy(v) for k, v in var_data_set.items()}
+
+    def set_masks_from_dict(self, default_mask, mask_dict):
+        """Set detector masks from explicit arrays.
+
+        Parameters
+        ----------
+        default_mask : np.ndarray or None
+            Default mask array, or None if no default
+        mask_dict : dict
+            {mask_name: mask_array}
+
+        Returns
+        -------
+        None
+        """
+        if default_mask is not None:
+            self.set_detector_mask(default_mask, True)
+        for name, arr in mask_dict.items():
+            self.set_detector_mask(arr, False, name)
 
     def reset_diffraction_data(self):
         """Reset the data structures to store the diffraction data set

@@ -145,6 +145,82 @@ class TestHidraProjectFile:
         # Clean
         os.remove("test_efficient.hdf")
 
+    def test_reduced_diffraction_masks_excludes_variance_datasets(self, tmpdir):
+        """read_diffraction_masks must not return variance datasets (those ending in '_var').
+
+        write_reduced_diffraction_data_set stores intensity data under 'main' (or a named
+        mask key) and variance data under 'main_var'.  Before the fix, read_diffraction_masks
+        returned both, causing _load_reduced_diffraction_data to load 'main_var' as a second
+        intensity mask and populate _diff_data_set with a spurious 'main_var' entry.
+
+        This test:
+        1. Writes a project file with one default-mask intensity + variance dataset.
+        2. Reads back the mask list and asserts '_var' keys are absent.
+        3. Loads the workspace and confirms _diff_data_set has exactly one key (None),
+           while _var_data_set also has exactly one key (None) with the correct variance values.
+        """
+        from pyrs.core.workspaces import HidraWorkspace
+
+        test_file = str(tmpdir.join("test_diffraction_masks.h5"))
+
+        n_subruns = 3
+        n_bins = 50
+        two_theta = np.tile(np.linspace(80.0, 95.0, n_bins), (n_subruns, 1))
+        intensity = np.random.default_rng(0).uniform(0.0, 1000.0, (n_subruns, n_bins))
+        variance = intensity * 0.01  # distinct from sqrt(intensity) so we can tell them apart
+
+        # --- write ---
+        pf_write = HidraProjectFile(test_file, HidraProjectFileMode.OVERWRITE)
+
+        # write_reduced_diffraction_data_set requires sub-run entries in the file
+        for sr in range(1, n_subruns + 1):
+            pf_write.append_raw_counts(sr, np.zeros(4))
+
+        # populate the subruns log so load_hidra_project can read the spectrum map
+        # pf_write.write_sub_runs(np.arange(1, n_subruns + 1))
+        pf_write.append_experiment_log(HidraConstants.SUB_RUNS, np.arange(1, n_subruns + 1))
+
+        pf_write.write_reduced_diffraction_data_set(
+            two_theta,
+            {None: intensity},
+            {None: variance},
+        )
+        pf_write.save(verbose=False)
+
+        # --- read masks ---
+        pf_read = HidraProjectFile(test_file, HidraProjectFileMode.READONLY)
+        masks = pf_read.read_diffraction_masks()
+
+        # Only the intensity mask ('main') should be visible -- no '_var' entries.
+        assert "main_var" not in masks, "read_diffraction_masks returned a variance dataset as a mask: {}".format(
+            masks
+        )
+        # The default mask is stored as 'main'; read_diffraction_masks should keep it.
+        assert "main" in masks, "Expected 'main' in masks, got: {}".format(masks)
+
+        # --- load into a workspace and verify both dicts ---
+        ws = HidraWorkspace("test")
+        ws.load_hidra_project(pf_read, load_raw_counts=False, load_reduced_diffraction=True)
+
+        # _diff_data_set must have exactly one key: None (the default mask)
+        assert set(ws._diff_data_set.keys()) == {None}, "Expected {{None}} in _diff_data_set, got: {}".format(
+            set(ws._diff_data_set.keys())
+        )
+        # _var_data_set must also have exactly one key: None
+        assert set(ws._var_data_set.keys()) == {None}, "Expected {{None}} in _var_data_set, got: {}".format(
+            set(ws._var_data_set.keys())
+        )
+
+        # Intensity values must round-trip exactly (stored as float64)
+        np.testing.assert_array_equal(ws._diff_data_set[None], intensity)
+
+        # Variance values must round-trip exactly and must NOT equal sqrt(intensity),
+        # confirming the stored variance was used rather than the fallback.
+        np.testing.assert_array_equal(ws._var_data_set[None], variance)
+        assert not np.allclose(ws._var_data_set[None], np.sqrt(intensity)), (
+            "Variance readback matches sqrt(intensity) -- the stored variance was not used"
+        )
+
     def test_wave_length_rw(self):
         """Test writing and reading for wave length
 
