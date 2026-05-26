@@ -159,7 +159,7 @@
         <item row="0" column="2">
          <widget class="QLineEdit" name="lineEdit_runNumber">
           <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Run number or NeXus file name.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Run number(s) or NeXus file path. Accepted formats:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Single integer: &lt;tt&gt;1234&lt;/tt&gt;&lt;/li&gt;&lt;li&gt;Inclusive range: &lt;tt&gt;1234-1240&lt;/tt&gt;&lt;/li&gt;&lt;li&gt;Comma-separated list: &lt;tt&gt;1234,1236,1238&lt;/tt&gt;&lt;/li&gt;&lt;li&gt;Combination: &lt;tt&gt;1234-1236,1240,1245-1247&lt;/tt&gt;&lt;/li&gt;&lt;/ul&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
          </widget>
         </item>

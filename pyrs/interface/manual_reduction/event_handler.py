@@ -1,7 +1,7 @@
 import os
 from qtpy.QtCore import Qt  # type: ignore
 from qtpy.QtWidgets import QApplication  # type: ignore
-from pyrs.interface.gui_helper import pop_message, browse_file, browse_dir, parse_combo_box
+from pyrs.interface.gui_helper import pop_message, browse_file, browse_dir, parse_combo_box, parse_integers
 from mantidqt.utils.asynchronous import BlockingAsyncTaskWithCallback
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController
 from pyrs.dataobjects.constants import HidraConstants  # type: ignore
@@ -26,13 +26,30 @@ class EventHandler:
         self._controller = ReductionController()
         self.__last_run_number = ""
 
-    def _current_runnumber(self):
-        run_number = str(self.ui.lineEdit_runNumber.text()).strip()
-        if len(run_number) == 0:
-            return None
-        elif run_number.isdigit():
-            return int(run_number)
+    def _current_run_numbers(self):
+        """Parse the run number field into a list of integers.
 
+        Returns None if the field is empty or contains a file path rather than
+        run number tokens.  Accepts single values (``1234``), inclusive ranges
+        (``1234-1240``), comma-separated values (``1234,1236``), and
+        combinations (``1234-1236,1240``).
+        """
+        text = str(self.ui.lineEdit_runNumber.text()).strip()
+        if not text:
+            return None
+        # File paths are handled separately in manual_reduce_run
+        if os.sep in text or text.endswith(".nxs.h5"):
+            return None
+        try:
+            return parse_integers(text)
+        except RuntimeError:
+            return None
+
+    def _current_runnumber(self):
+        """Return the first parsed run number as a single int, or None."""
+        run_numbers = self._current_run_numbers()
+        if run_numbers:
+            return run_numbers[0]
         return None
 
     def _set_sub_run_numbers(self, sub_runs):
@@ -205,45 +222,34 @@ class EventHandler:
         )
 
     def manual_reduce_run(self):
+        """Reduce one or more runs sequentially.
+
+        The run number field accepts a single integer, an inclusive range
+        (e.g. ``1234-1240``), a comma-separated list (e.g. ``1234,1236``),
+        or a combination (e.g. ``1234-1236,1240``).  A direct NeXus file path
+        is also accepted for single-run reduction.
         """
-
-        (simply) reduce a list of runs in same experiment in a batch
-
-        Returns
-        -------
-
-        """
-        # Files names: NeXus, (output) project, mask, calibration
-        run_number = self._current_runnumber()
-        if isinstance(run_number, int):
-            # use specify run number (integer)
-            nexus_file = get_nexus_file(run_number)
+        # Resolve input field to a list of NeXus file paths
+        run_numbers = self._current_run_numbers()
+        if run_numbers is not None:
+            nexus_files = [get_nexus_file(rn) for rn in run_numbers]
         else:
             nexus_file = str(self.ui.lineEdit_runNumber.text()).strip()
-
-            # quit if the input is not NeXus
             if not (os.path.exists(nexus_file) and nexus_file.endswith(".nxs.h5")):
                 return
-        # END-IF
+            nexus_files = [nexus_file]
 
         # Output HidraProject file
         project_file = str(self.ui.lineEdit_outputDirectory.text().strip())
         # mask file
-        mask_file = str(self.ui.lineEdit_maskFile.text().strip())
-        if mask_file == "":
-            mask_file = None
+        mask_file = str(self.ui.lineEdit_maskFile.text().strip()) or None
         # calibration file
-        calibration_file = str(self.ui.lineEdit_calibrationFile.text().strip())
-        if calibration_file == "":
-            calibration_file = None
+        calibration_file = str(self.ui.lineEdit_calibrationFile.text().strip()) or None
         # vanadium file
-        vanadium_file = str(self.ui.lineEdit_vanRunNumber.text().strip())
-        if vanadium_file == "":
-            vanadium_file = None
+        vanadium_file = str(self.ui.lineEdit_vanRunNumber.text().strip()) or None
 
-        # Start task
-        if True:
-            # single thread:
+        last_sub_runs = None
+        for nexus_file in nexus_files:
             try:
                 hidra_ws = self._controller.reduce_hidra_workflow(
                     nexus_file,
@@ -254,30 +260,14 @@ class EventHandler:
                     vanadium_file=vanadium_file,
                 )
             except RuntimeError as run_err:
-                pop_message(self.parent, "Failed to reduce {}", str(run_err), message_type="error")
-                return
+                pop_message(self.parent, "Failed to reduce {}".format(nexus_file), str(run_err), message_type="error")
+                continue
 
-            # Update table
             # TODO - Need to fill the table!
-            sub_runs = list(hidra_ws.get_sub_runs())
-            # for sub_run in sub_runs:
-            #     self.ui.rawDataTable.update_reduction_state(sub_run, True)
+            last_sub_runs = list(hidra_ws.get_sub_runs())
 
-            # Set the sub runs combo box
-            self._set_sub_run_numbers(sub_runs)
-
-        else:
-            task = BlockingAsyncTaskWithCallback(
-                self._controller.reduce_hidra_workflow,
-                args=(nexus_file, project_file, self.ui.progressBar),
-                kwargs={"mask": mask_file, "calibration": calibration_file},
-                blocking_cb=QApplication.processEvents,
-            )
-            # TODO - catch RuntimeError! ...
-            # FIXME - check output directory
-            task.start()
-
-        return
+        if last_sub_runs is not None:
+            self._set_sub_run_numbers(last_sub_runs)
 
     def save_project(self):
         self._controller.save_project()

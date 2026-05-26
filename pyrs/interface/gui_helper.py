@@ -185,10 +185,19 @@ def parse_rigorous_int_string(int_str):
 
 
 def parse_integers(int_list_string):
-    """parse a list of integers.  Note that the start is inclusive and the end is exclusive
-    example 1:4, 6:12, 8:12
-    :param int_list_string:
-    :return: list of int or range tuples
+    """Parse a string into a sorted, deduplicated list of integers.
+
+    Supports single values, inclusive dash-ranges, colon-ranges, and comma-separated
+    combinations.  Examples: ``"5"``, ``"1-4"``, ``"1,3,5"``, ``"1-3,7,10-12"``.
+
+    Parameters
+    ----------
+    int_list_string : str
+
+    Returns
+    -------
+    list of int
+        Sorted, deduplicated integers.  Ranges are fully inclusive on both ends.
     """
     checkdatatypes.check_string_variable("Integer list (string)", int_list_string)
 
@@ -209,7 +218,7 @@ def parse_integers(int_list_string):
                 int_list.append(parse_rigorous_int_string(int_range))
 
             elif column_counts == 1:
-                # given a range
+                # given a range (inclusive on both ends)
                 if "-" in int_range:
                     int_str_list = int_range.split("-")
                 else:
@@ -217,7 +226,7 @@ def parse_integers(int_list_string):
 
                 start_int = parse_rigorous_int_string(int_str_list[0])
                 end_int = parse_rigorous_int_string(int_str_list[1])
-                int_list.extend(range(start_int, end_int))
+                int_list.extend(range(start_int, end_int + 1))
 
             else:
                 # bad inputs
@@ -225,10 +234,8 @@ def parse_integers(int_list_string):
     except ValueError as val_err:
         raise RuntimeError('Unable to parse integer list "{}" due to {}'.format(int_list_string, val_err))
 
-    # remove additional integers
-    int_list = list(set(int_list))
-
-    int_list.sort()
+    # remove duplicates and sort
+    int_list = sorted(set(int_list))
 
     return int_list
 
