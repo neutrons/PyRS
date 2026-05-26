@@ -67,7 +67,8 @@ class ManualReductionWindow(QMainWindow):
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.progressBar.setVisible(False)
-        # event handling for combobox
+        # event handling for comboboxes
+        self.ui.comboBox_run_selector.currentIndexChanged.connect(self._event_handler.select_run)
         self.ui.comboBox_sub_runs.currentIndexChanged.connect(self.plot_sub_runs)
 
         # TODO - ASAP - Use these 2 buttons to enable/disable write access to configuration

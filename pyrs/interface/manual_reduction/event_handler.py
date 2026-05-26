@@ -53,20 +53,41 @@ class EventHandler:
         return None
 
     def _set_sub_run_numbers(self, sub_runs):
-        """Set sub run numbers to (1) Table and (2) Combo box
+        """Repopulate the sub-run combo box.
 
         Parameters
         ----------
-        sub_runs
-
-        Returns
-        -------
-
+        sub_runs : iterable of int
         """
         self.ui.comboBox_sub_runs.clear()
-
         for sub_run in sorted(sub_runs):
             self.ui.comboBox_sub_runs.addItem("{}".format(sub_run))
+
+    def _populate_run_selector(self):
+        """Refresh the run-selector combo box from all reduced workspaces.
+
+        Blocks signals while rebuilding so that switching items during the
+        repopulation does not trigger premature workspace switches.
+        """
+        combo = self.ui.comboBox_run_selector
+        current = combo.currentText()
+        combo.blockSignals(True)
+        combo.clear()
+        for label in self._controller.get_run_labels():
+            combo.addItem(label)
+        # Restore previous selection if it still exists, otherwise keep last
+        idx = combo.findText(current)
+        combo.setCurrentIndex(idx if idx >= 0 else combo.count() - 1)
+        combo.blockSignals(False)
+
+    def select_run(self):
+        """Switch the active workspace when the user picks a different run."""
+        label = self.ui.comboBox_run_selector.currentText()
+        if not label:
+            return
+        self._controller.set_active_run(label)
+        sub_runs = list(self._controller.get_sub_runs())
+        self._set_sub_run_numbers(sub_runs)
 
     def browse_calibration_file(self):
         calibration_file = browse_file(
@@ -265,6 +286,7 @@ class EventHandler:
 
             # TODO - Need to fill the table!
             last_sub_runs = list(hidra_ws.get_sub_runs())
+            self._populate_run_selector()
 
         if last_sub_runs is not None:
             self._set_sub_run_numbers(last_sub_runs)

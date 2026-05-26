@@ -199,6 +199,26 @@ class ReductionController:
         # TODO - Need to find out the scenario!
         raise NotImplementedError("Need use cases!")
 
+    def get_run_labels(self):
+        """Return sorted list of labels for all reduced runs.
+
+        Returns
+        -------
+        list of str
+        """
+        return sorted(self._hidra_ws_dict.keys())
+
+    def set_active_run(self, label):
+        """Switch the active workspace to a previously reduced run.
+
+        Parameters
+        ----------
+        label : str
+            Key as returned by :meth:`get_run_labels`
+        """
+        if label in self._hidra_ws_dict:
+            self._curr_hidra_ws = self._hidra_ws_dict[label]
+
     def reduce_hidra_workflow(
         self,
         nexus,
@@ -232,7 +252,8 @@ class ReductionController:
             nexus, output_dir, progressbar, instrument, calibration, mask, vanadium_file, project_file_name
         )
 
-        self._hidra_ws_dict[self._curr_hidra_ws.name] = self._curr_hidra_ws
+        run_label = os.path.splitext(os.path.basename(nexus))[0]
+        self._hidra_ws_dict[run_label] = self._curr_hidra_ws
 
         return self._curr_hidra_ws
 
