@@ -3109,6 +3109,7 @@ packages:
   - zstandard >=0.15
   - python
   license: BSD-3-Clause
+  license_family: BSD
   purls:
   - pkg:pypi/conda-package-handling?source=compressed-mapping
   size: 256182
@@ -3348,6 +3349,7 @@ packages:
   - typing_extensions >=4.6.0,<5.0.0
   - python
   license: Apache-2.0
+  license_family: APACHE
   purls:
   - pkg:pypi/cyclonedx-python-lib?source=hash-mapping
   size: 192858
@@ -3459,6 +3461,7 @@ packages:
   - python >=3.10
   - python
   license: Apache-2.0
+  license_family: APACHE
   purls:
   - pkg:pypi/distlib?source=compressed-mapping
   size: 303675
@@ -3616,6 +3619,7 @@ packages:
   - toolz >=0.12.1
   - typing_extensions >=4.0,<5
   license: GPL-3.0-only
+  license_family: GPL
   purls:
   - pkg:pypi/euphonic?source=hash-mapping
   size: 311609
@@ -3891,6 +3895,7 @@ packages:
   - python >=3.10
   - python
   license: LGPL-3.0-only
+  license_family: LGPL
   purls:
   - pkg:pypi/frozendict?source=compressed-mapping
   size: 34034
@@ -4916,6 +4921,7 @@ packages:
   - typing_extensions >=4.13.0
   - python
   license: BSD-3-Clause
+  license_family: BSD
   purls:
   - pkg:pypi/jupyter-client?source=compressed-mapping
   size: 117954
@@ -5700,6 +5706,7 @@ packages:
   - libsolv >=0.7.39,<0.8.0a0
   - yaml-cpp >=0.8.0,<0.9.0a0
   license: BSD-3-Clause
+  license_family: BSD
   purls: []
   size: 2808228
   timestamp: 1780948903590
@@ -5712,6 +5719,7 @@ packages:
   - libgcc >=14
   - libmamba >=2.8.1,<2.9.0a0
   license: BSD-3-Clause
+  license_family: BSD
   purls: []
   size: 20307
   timestamp: 1780948903590
@@ -5735,6 +5743,7 @@ packages:
   - fmt >=12.1.0,<12.2.0a0
   - spdlog >=1.17.0,<1.18.0a0
   license: BSD-3-Clause
+  license_family: BSD
   purls:
   - pkg:pypi/libmambapy?source=hash-mapping
   size: 963708
@@ -5759,6 +5768,7 @@ packages:
   - libmamba >=2.8.1,<2.9.0a0
   - fmt >=12.1.0,<12.2.0a0
   license: BSD-3-Clause
+  license_family: BSD
   purls:
   - pkg:pypi/libmambapy?source=hash-mapping
   size: 965857
@@ -10815,6 +10825,7 @@ packages:
   depends:
   - python >=3.10
   license: MIT
+  license_family: MIT
   purls:
   - pkg:pypi/wcwidth?source=compressed-mapping
   size: 133769
