@@ -182,6 +182,7 @@ pandas = "*"
 types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
+py-rattler = "==0.24.0"
 
 # ------------------------------- #
 # Production Environment Feature #
@@ -268,15 +269,31 @@ build-conda = { description = "Build the conda package", depends-on = [
   "build-conda-command",
   "reset-toml",
 ] }
+conda-build = { description = "Alias for build-conda (used by CI workflows)", depends-on = [
+  "build-conda",
+] }
 publish-conda = { cmd = "anaconda upload *.conda", description = "Publish the .conda package to anaconda.org", depends-on = [
   "build-conda",
 ] }
+conda-publish = { cmd = "anaconda upload *.conda", description = "Publish the .conda package to anaconda.org", depends-on = [
+  "conda-build",
+] }
+
+# Cleaning
+clean = { cmd = 'rm -rf .pytest_cache .ruff_cache **/*.egg-info **/dist **/__pycache__', description = "Clean up various caches and build artifacts" }
 clean-conda = { cmd = "rm -f *.conda", description = "Clean the local .conda build artifacts" }
+clean-docs = { cmd = "rm -rf docs/_build", description = "Clean up documentation build artifacts" }
+clean-all = { description = "Clean all artifacts", depends-on = [
+  "clean",
+  "clean-conda",
+  "clean-docs",
+  "clean-pypi",
+] }
+
 
 # Documentation tasks
 build-docs = { cmd = "sphinx-build -b html docs/user/source docs/_build/user", description = "Build the User documentation" }
 build-dev-docs = { cmd = "sphinx-build -b html docs/developer/source docs/_build/developer", description = "Build the Developer documentation" }
-clean-docs = { cmd = "rm -rf docs/_build", description = "Clean the documentation build artifacts" }
 docs-serve = { cmd = "python -m http.server 8000 -d docs/_build/user", description = "Serve User documentation locally on port 8000" }
 docs-autobuild = { cmd = "sphinx-autobuild docs/user/source docs/_build/user --host 0.0.0.0 --port 8000", description = "Auto-rebuild and serve User docs on changes" }
 
@@ -286,11 +303,7 @@ test-import-framework = { cmd = "python -c 'import pyrs'; python -c 'import qtpy
 
 # MISC
 audit-deps = { cmd = "pip-audit --local -s osv --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-34073", description = "Audit the package dependencies for vulnerabilities" }
-clean-all = { description = "Clean all build artifacts", depends-on = [
-  "clean-pypi",
-  "clean-docs",
-  "clean-conda",
-] }
+
 sync-version = { cmd = 'version=$(python -m versioningit); toml set tool.pixi.package.version "$version" --toml-path pyproject.toml', description = "Sync pyproject.toml version with Git version" }
 backup-toml = { cmd = "cp pyproject.toml pyproject.toml.bak", description = "Backup the pyproject.toml file" }
 reset-toml = { cmd = "cp pyproject.toml.bak pyproject.toml; rm pyproject.toml.bak", description = "Reset the pyproject.toml file to the original state" }

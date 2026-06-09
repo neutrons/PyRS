@@ -1,0 +1,91 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+# This workflow checks out code, builds an image, performs a container image
+# vulnerability scan with Anchore's Grype tool, and integrates the results with GitHub
+# Advanced Security code scanning feature.  For more information on the Anchore scan
+# action usage and parameters, see https://github.com/anchore/scan-action. For more
+# information on Anchore's container image scanning tool Grype, see
+# https://github.com/anchore/grype
+name: vulnerability scan
+
+on:
+  push:
+    branches: ["next", "main", "qa"]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: ["next"]
+  schedule:
+    - cron: '42 13 * * 3'
+
+env:
+  PKG_NAME: pyrs
+
+permissions:
+  contents: read
+
+jobs:
+  build-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v6
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.9.6
+        with:
+          manifest-path: pyproject.toml
+      - name: Build conda package
+        run: |
+          pixi run conda-build
+      - name: Upload conda package as artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: artifact-conda-package
+          path: ${{ env.PKG_NAME }}-*.conda
+
+  scan-package:
+    permissions:
+      contents: read # for actions/checkout to fetch code
+      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
+      # only required for a private repository by github/codeql-action/upload-sarif
+      # to get the Action run status
+      actions: read
+    needs: [build-package]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download conda package artifact
+        id: download
+        uses: actions/download-artifact@v8
+        with:
+          name: artifact-conda-package
+      - name: Move package into local repo
+        id: channel
+        run: |
+          LOCAL_CHANNEL="${{ runner.temp }}/local-channel/"
+          mkdir -p ${LOCAL_CHANNEL}/linux-64
+          cp ${{ steps.download.outputs.download-path }}/*.conda ${LOCAL_CHANNEL}/linux-64
+          ls ${LOCAL_CHANNEL}/linux-64
+          echo "dir=${LOCAL_CHANNEL}" >> "$GITHUB_OUTPUT"
+
+      - name: Install package
+        id: installed
+        uses: neutrons/conda-actions/pkg-install@v2
+        with:
+          package-name: ${{ env.PKG_NAME }}
+          local-channel: ${{ runner.temp }}/local-channel/
+          post-cleanup: none
+          extra-channels: mantid-ornl/label/rc neutrons mantid
+
+      - name: Check out grype config
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            .grype.yaml
+          sparse-checkout-cone-mode: false
+
+      - name: Run the Grype scan action
+        uses: neutrons/conda-actions/grype@v2
+        with:
+          path: ${{ steps.installed.outputs.install_dir }}

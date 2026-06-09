@@ -15,6 +15,7 @@ concurrency:
 env:
   PKG_NAME: pyrs
   MODULE_NAME: pyrs
+  CONDA_ORG: neutrons
 
 jobs:
   tests:
@@ -25,7 +26,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - uses: prefix-dev/setup-pixi@v0.9.4
+      - uses: prefix-dev/setup-pixi@v0.9.6
         with:
           manifest-path: pyproject.toml
 
@@ -71,10 +72,6 @@ jobs:
           fail_ci_if_error: false
           verbose: true
 
-      - name: Dependency check
-        run: |
-          pixi run audit-deps
-
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -83,7 +80,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - uses: prefix-dev/setup-pixi@v0.9.4
+      - uses: prefix-dev/setup-pixi@v0.9.6
         with:
           manifest-path: pyproject.toml
 
@@ -101,102 +98,32 @@ jobs:
           fetch-tags: true
 
       - name: Setup pixi
-        uses: prefix-dev/setup-pixi@v0.9.4
+        uses: prefix-dev/setup-pixi@v0.9.6
         with:
-          pixi-version: v0.62.2
           manifest-path: pyproject.toml
-          # Workaround: Dynamic versioning (versioningit) causes lock file version mismatch.
-          # We skip the editable package install and do it separately with pip.
-          # See: https://github.com/prefix-dev/pixi/pull/3092
-          run-install: false
-
-      - name: Install dependencies (skip local package)
-        run: pixi install --frozen --skip ${{ env.PKG_NAME }}
-
-      - name: Install local package
-        run: pixi run pip install --no-deps -e .
-
       - name: Build conda package
         run: |
-          pixi run build-conda
-          mkdir -p /tmp/local-channel/linux-64
-          cp *.conda /tmp/local-channel/linux-64
+          pixi run conda-build
+          mkdir -p ${{ runner.temp }}/local-channel/linux-64
+          cp *.conda ${{ runner.temp }}/local-channel/linux-64
 
-      - name: Install micromamba
-        run: |
-          set -euo pipefail
-          
-          MICROMAMBA_URL="https://github.com/mamba-org/micromamba/releases/latest/download/micromamba-linux-64"
-          MICROMAMBA_PATH="/tmp/micromamba"
-          MAX_RETRIES=3
-          RETRY_DELAY=5
-          
-          echo "Downloading micromamba from: $MICROMAMBA_URL"
-          
-          for attempt in $(seq 1 $MAX_RETRIES); do
-            echo "Download attempt $attempt of $MAX_RETRIES..."
-            if curl -fsSL --connect-timeout 30 --max-time 300 \
-                    --retry 2 --retry-delay 2 \
-                    "$MICROMAMBA_URL" -o "$MICROMAMBA_PATH"; then
-              break
-            else
-              if [ $attempt -lt $MAX_RETRIES ]; then
-                echo "Download failed, retrying in ${RETRY_DELAY}s..."
-                sleep $RETRY_DELAY
-              else
-                echo "ERROR: Failed to download micromamba after $MAX_RETRIES attempts"
-                exit 1
-              fi
-            fi
-          done
-          
-          # Verify download
-          if [ ! -f "$MICROMAMBA_PATH" ]; then
-            echo "ERROR: Micromamba file not found at $MICROMAMBA_PATH"
-            exit 1
-          fi
-          
-          FILE_SIZE=$(stat -c%s "$MICROMAMBA_PATH" 2>/dev/null || stat -f%z "$MICROMAMBA_PATH" 2>/dev/null || echo "0")
-          echo "Downloaded file size: $FILE_SIZE bytes"
-          
-          if [ "$FILE_SIZE" -lt 1000000 ]; then
-            echo "ERROR: Downloaded file appears too small (less than 1MB), likely corrupted"
-            echo "First 100 bytes of downloaded file:"
-            head -c 100 "$MICROMAMBA_PATH" | cat -v
-            exit 1
-          fi
-          
-          # Make executable
-          chmod +x "$MICROMAMBA_PATH"
-          
-          # Verify it's a valid ELF binary
-          if file "$MICROMAMBA_PATH" | grep -q "ELF 64-bit"; then
-            echo "✓ Micromamba binary verified as valid ELF 64-bit executable"
-          else
-            echo "ERROR: Downloaded file is not a valid ELF binary"
-            file "$MICROMAMBA_PATH"
-            exit 1
-          fi
-          
-          # Test execution
-          if "$MICROMAMBA_PATH" --version; then
-            echo "✓ Micromamba installed and verified successfully"
-          else
-            echo "ERROR: Micromamba failed to execute"
-            exit 1
-          fi
-          
-          # Add to PATH
-          echo "/tmp" >> "$GITHUB_PATH"
-
-      - name: Verify conda package
-        uses: neutrons/conda-actions/pkg-verify@main
+      - name: Install package
+        id: installed
+        uses: neutrons/conda-actions/pkg-install@v2
         with:
           package-name: ${{ env.PKG_NAME }}
+          local-channel: ${{ runner.temp }}/local-channel/
+          post-cleanup: none
+          extra-channels: mantid-ornl/label/rc neutrons mantid
+
+      - name: Verify conda package
+        uses: neutrons/conda-actions/pkg-verify@v2
+        with:
+          package-name: ${{ env.PKG_NAME }}
+          conda-env-name: ${{ steps.installed.outputs.conda_env }}
           module-name: ${{ env.MODULE_NAME }}
-          local-channel: /tmp/local-channel
-          python-version: 3.11
-          extra-channels: conda-forge mantid
+          extra-commands: |
+            python -c "import mantid"
 
       - name: Upload conda package as artifact
         uses: actions/upload-artifact@v7
@@ -207,53 +134,44 @@ jobs:
   publish:
     name: Upload package to anaconda
     runs-on: ubuntu-latest
-    needs: [lint, tests, conda-build]
+    needs: [conda-build, tests, typing]
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/next'
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          fetch-tags: true
 
       - name: Setup Pixi
-        uses: prefix-dev/setup-pixi@v0.9.4
+        uses: prefix-dev/setup-pixi@v0.9.6
         with:
-          pixi-version: v0.62.2
           manifest-path: pyproject.toml
-          # Workaround: Dynamic versioning (versioningit) causes lock file version mismatch.
-          # We skip the editable package install and do it separately with pip.
-          # See: https://github.com/prefix-dev/pixi/pull/3092
-          run-install: false
-
-      - name: Install dependencies (skip local package)
-        run: pixi install --frozen --skip ${{ env.PKG_NAME }}
-
+          activate-environment: true
       - name: Download conda package artifact
+        id: download
         uses: actions/download-artifact@v8
         with:
           name: artifact-conda-package
-
+      - name: List package directory
+        run: ls -l ${{ steps.download.outputs.download-path }}
       - name: Upload package to anaconda
-        uses: neutrons/conda-actions/publish@main
+        uses: neutrons/conda-actions/publish@v2
         with:
           anaconda-token: ${{ secrets.ANACONDA_TOKEN }}
-          organization: neutrons
-          package-path: ${{ env.PKG_NAME }}-*.conda
-
+          organization: ${{ env.CONDA_ORG }}
+          package-path: ${{ steps.download.outputs.download-path }}/${{ env.PKG_NAME }}-*.conda
       - name: Remove old packages
         if: github.ref == 'refs/heads/next'
-        uses: neutrons/conda-actions/pkg-remove@v1
+        uses: neutrons/conda-actions/pkg-remove@v2
         with:
           anaconda_token: ${{ secrets.ANACONDA_TOKEN }}
-          organization: neutrons
+          organization: ${{ env.CONDA_ORG }}
           package_name: ${{ env.PKG_NAME }}
           label: ${{ env.CONDA_LABEL }}
           keep: 5
 
+  # Trigger GitLab dev deploy pipeline
   deploy-dev:
     runs-on: ubuntu-latest
-    needs: publish
+    needs: [publish]
     if: github.ref == 'refs/heads/next'
     steps:
       - name: Get Environment Name
@@ -268,7 +186,7 @@ jobs:
         id: trigger
         with:
           url: https://code.ornl.gov
-          project_id: 18073
+          project_id: 20265
           ref_name: main
           token: ${{ secrets.GITLAB_DEPLOY_TOKEN }}
 
@@ -276,5 +194,5 @@ jobs:
         uses: peter-evans/commit-comment@v4
         with:
           body: |
-            GitLab pipeline for ${{ steps.env_name.outputs.name }} has been
-            submitted for this commit: ${{ steps.trigger.outputs.web_url }}
+            GitLab pipeline for ${{ steps.env_name.outputs.name }}
+            has been submitted: ${{ steps.trigger.outputs.web_url }}
