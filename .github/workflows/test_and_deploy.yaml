@@ -125,14 +125,14 @@ jobs:
       - name: Install micromamba
         run: |
           set -euo pipefail
-          
+
           MICROMAMBA_URL="https://github.com/mamba-org/micromamba/releases/latest/download/micromamba-linux-64"
           MICROMAMBA_PATH="/tmp/micromamba"
           MAX_RETRIES=3
           RETRY_DELAY=5
-          
+
           echo "Downloading micromamba from: $MICROMAMBA_URL"
-          
+
           for attempt in $(seq 1 $MAX_RETRIES); do
             echo "Download attempt $attempt of $MAX_RETRIES..."
             if curl -fsSL --connect-timeout 30 --max-time 300 \
@@ -149,26 +149,26 @@ jobs:
               fi
             fi
           done
-          
+
           # Verify download
           if [ ! -f "$MICROMAMBA_PATH" ]; then
             echo "ERROR: Micromamba file not found at $MICROMAMBA_PATH"
             exit 1
           fi
-          
+
           FILE_SIZE=$(stat -c%s "$MICROMAMBA_PATH" 2>/dev/null || stat -f%z "$MICROMAMBA_PATH" 2>/dev/null || echo "0")
           echo "Downloaded file size: $FILE_SIZE bytes"
-          
+
           if [ "$FILE_SIZE" -lt 1000000 ]; then
             echo "ERROR: Downloaded file appears too small (less than 1MB), likely corrupted"
             echo "First 100 bytes of downloaded file:"
             head -c 100 "$MICROMAMBA_PATH" | cat -v
             exit 1
           fi
-          
+
           # Make executable
           chmod +x "$MICROMAMBA_PATH"
-          
+
           # Verify it's a valid ELF binary
           if file "$MICROMAMBA_PATH" | grep -q "ELF 64-bit"; then
             echo "✓ Micromamba binary verified as valid ELF 64-bit executable"
@@ -177,7 +177,7 @@ jobs:
             file "$MICROMAMBA_PATH"
             exit 1
           fi
-          
+
           # Test execution
           if "$MICROMAMBA_PATH" --version; then
             echo "✓ Micromamba installed and verified successfully"
@@ -185,7 +185,7 @@ jobs:
             echo "ERROR: Micromamba failed to execute"
             exit 1
           fi
-          
+
           # Add to PATH
           echo "/tmp" >> "$GITHUB_PATH"
 
