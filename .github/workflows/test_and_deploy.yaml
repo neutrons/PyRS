@@ -122,6 +122,13 @@ jobs:
           mkdir -p /tmp/local-channel/linux-64
           cp *.conda /tmp/local-channel/linux-64
 
+      - name: Install micromamba
+        run: |
+          curl -qL https://github.com/mamba-org/micromamba/releases/latest/download/micromamba-linux-64 -o /tmp/micromamba
+          chmod +x /tmp/micromamba
+          /tmp/micromamba --version
+          echo "/tmp" >> $GITHUB_PATH
+
       - name: Verify conda package
         uses: neutrons/conda-actions/pkg-verify@main
         with:
