@@ -182,6 +182,7 @@ pandas = "*"
 types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
+py-rattler = "==0.24.0"
 
 # ------------------------------- #
 # Production Environment Feature #
