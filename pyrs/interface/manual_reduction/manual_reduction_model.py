@@ -18,6 +18,45 @@ from qtpy.QtCore import QObject, Signal  # type:ignore
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController
 
 
+def parse_run_numbers(text):
+    """Parse a run-number specification into an explicit list of run numbers.
+
+    Ranges use a dash and are **inclusive**; individual runs and ranges are
+    separated by commas. For example ``"938-940,945"`` yields ``[938, 939, 940,
+    945]``.
+
+    Args:
+        text: The run specification string.
+
+    Returns:
+        A list of integer run numbers, in the order given.
+
+    Raises:
+        ValueError: If a token is not an integer or a valid ``start-stop`` range.
+    """
+    runs = []
+    for token in text.replace(" ", "").split(","):
+        if token == "":
+            continue
+        if "-" in token:
+            start, stop = token.split("-")
+            runs.extend(range(int(start), int(stop) + 1))
+        else:
+            runs.append(int(token))
+    return runs
+
+
+def is_run_specification(text):
+    """Return True if ``text`` looks like a run-number spec rather than a file path.
+
+    A run spec contains only digits, dashes, commas and spaces, and has at least
+    one digit (e.g. ``"938"`` or ``"938-940,945"``); anything else (such as a
+    NeXus file path) is treated as a single file.
+    """
+    text = text.strip()
+    return bool(text) and set(text) <= set("0123456789-, ") and any(ch.isdigit() for ch in text)
+
+
 class ManualReductionModel(QObject):
     """Data and business logic for the manual-reduction window.
 
@@ -32,6 +71,9 @@ class ManualReductionModel(QObject):
     def __init__(self):
         super().__init__()
         self._controller = ReductionController()
+        # reduced workspaces from the most recent (possibly batch) reduction,
+        # keyed by display label so the view can switch between them
+        self._reduced = {}
 
     @property
     def working_dir(self):
@@ -95,6 +137,44 @@ class ManualReductionModel(QObject):
             vanadium_file=vanadium_file,
             project_file_name=project_file_name,
         )
+
+    def reduce_runs(self, jobs, output_dir, progressbar, mask=None, calibration=None, vanadium_file=None):
+        """Reduce one or more NeXus files and keep the results in memory.
+
+        Args:
+            jobs: List of ``(label, nexus_file)`` pairs to reduce in order.
+            output_dir: Output directory for the reduced project files.
+            progressbar: Qt progress-bar widget updated during reduction.
+            mask: Optional mask file path.
+            calibration: Optional calibration file path.
+            vanadium_file: Optional vanadium file path.
+
+        Returns:
+            The list of labels actually reduced (in input order). The first
+            label's workspace is left as the current workspace.
+        """
+        self._reduced = {}
+        labels = []
+        for label, nexus_file in jobs:
+            hidra_ws = self._controller.reduce_hidra_workflow(
+                nexus_file,
+                output_dir,
+                progressbar,
+                mask=mask,
+                calibration=calibration,
+                vanadium_file=vanadium_file,
+            )
+            self._reduced[label] = hidra_ws
+            labels.append(label)
+
+        if labels:
+            self.set_current_run(labels[0])
+
+        return labels
+
+    def set_current_run(self, label):
+        """Make the reduced workspace for ``label`` the current workspace."""
+        self._controller.set_current_workspace(self._reduced[label])
 
     def save_project(self):
         """Save the current workspace to its project file."""

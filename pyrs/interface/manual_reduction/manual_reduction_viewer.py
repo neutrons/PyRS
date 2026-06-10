@@ -16,6 +16,7 @@ from qtpy.QtCore import Qt  # type: ignore
 from qtpy.QtWidgets import QMainWindow, QVBoxLayout  # type: ignore
 
 from pyrs.interface.gui_helper import browse_dir, browse_file, parse_combo_box, pop_message
+from pyrs.interface.manual_reduction.manual_reduction_model import is_run_specification, parse_run_numbers
 from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
 from pyrs.utilities import get_default_output_dir, get_nexus_file, load_ui  # type: ignore
 
@@ -70,6 +71,7 @@ class ManualReductionViewer(QMainWindow):
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.progressBar.setVisible(False)
         self.ui.comboBox_sub_runs.currentIndexChanged.connect(self.plot_sub_runs)
+        self.ui.comboBox_runs.currentIndexChanged.connect(self.run_changed)
 
         # surface model failures without the model depending on any UI helper
         self._model.failureMsg.connect(self._on_failure)
@@ -247,25 +249,24 @@ class ManualReductionViewer(QMainWindow):
     # Reduction
     # ------------------------------------------------------------------
     def split_convert_save_nexus(self):
-        """Reduce (split sub runs, convert to powder pattern and save) manually."""
-        run_number = self._current_runnumber()
-        if isinstance(run_number, int):
-            nexus_file = get_nexus_file(run_number)
-        else:
-            nexus_file = str(self.ui.lineEdit_runNumber.text()).strip()
-            # quit if the input is not a NeXus file
-            if not (os.path.exists(nexus_file) and nexus_file.endswith(".nxs.h5")):
-                return
+        """Reduce (split sub runs, convert to powder pattern and save) manually.
+
+        The run-number box accepts either a single NeXus file path or a
+        run-number specification with dash ranges and/or comma-separated runs
+        (e.g. ``938-940,945``) for batch reduction of several files.
+        """
+        jobs = self._build_reduction_jobs()
+        if not jobs:
+            return
 
         output_dir = str(self.ui.lineEdit_outputDirectory.text().strip())
-
         mask_file = str(self.ui.lineEdit_maskFile.text().strip()) or None
         calibration_file = str(self.ui.lineEdit_calibrationFile.text().strip()) or None
         vanadium_file = str(self.ui.lineEdit_vanRunNumber.text().strip()) or None
 
         try:
-            sub_runs = self._ctrl.reduce(
-                nexus_file,
+            labels = self._ctrl.reduce(
+                jobs,
                 output_dir,
                 self.ui.progressBar,
                 mask=mask_file,
@@ -273,9 +274,53 @@ class ManualReductionViewer(QMainWindow):
                 vanadium_file=vanadium_file,
             )
         except RuntimeError as run_err:
-            pop_message(self, "Failed to reduce {}".format(nexus_file), str(run_err), message_type="error")
+            pop_message(self, "Failed to reduce {}".format(jobs[0][1]), str(run_err), message_type="error")
             return
 
+        self._populate_runs(labels)
+
+    def _build_reduction_jobs(self):
+        """Build the list of ``(label, nexus_file)`` to reduce from the input box.
+
+        A run-number specification (digits/dashes/commas) is expanded into one
+        job per run via :func:`get_nexus_file`; anything else is treated as a
+        single NeXus file path.
+        """
+        text = str(self.ui.lineEdit_runNumber.text()).strip()
+
+        if is_run_specification(text):
+            try:
+                run_numbers = parse_run_numbers(text)
+            except ValueError as parse_err:
+                pop_message(self, "Invalid run specification '{}'".format(text), str(parse_err), message_type="error")
+                return []
+            return [(str(run), get_nexus_file(run)) for run in run_numbers]
+
+        # otherwise treat the input as a single NeXus file path
+        nexus_file = text
+        if not (os.path.exists(nexus_file) and nexus_file.endswith(".nxs.h5")):
+            return []
+        label = os.path.basename(nexus_file).split(".")[0]
+        return [(label, nexus_file)]
+
+    def _populate_runs(self, labels):
+        """Fill the run-selector combo box and display the first reduced run."""
+        self.ui.comboBox_runs.blockSignals(True)
+        self.ui.comboBox_runs.clear()
+        for label in labels:
+            self.ui.comboBox_runs.addItem(label)
+        self.ui.comboBox_runs.setCurrentIndex(0 if labels else -1)
+        self.ui.comboBox_runs.blockSignals(False)
+
+        if labels:
+            self.run_changed()
+
+    def run_changed(self):
+        """Switch the viewed run: refresh the sub-run combo box and re-plot."""
+        label = str(self.ui.comboBox_runs.currentText())
+        if label == "":
+            return
+        sub_runs = self._ctrl.select_run(label)
         self._set_sub_run_numbers(sub_runs)
 
     def do_quit(self):

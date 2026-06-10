@@ -64,22 +64,23 @@ class ManualReductionCrtl:
 
         diff_view.plot_diffraction(pattern[0], pattern[1], "2theta", "intensity", line_label=info, keep_prev=False)
 
-    def reduce(self, nexus_file, output_dir, progressbar, mask=None, calibration=None, vanadium_file=None):
-        """Reduce a NeXus file to a Hidra project file.
+    def reduce(self, jobs, output_dir, progressbar, mask=None, calibration=None, vanadium_file=None):
+        """Reduce one or more NeXus files to Hidra project files.
 
         Args:
-            nexus_file: Path to the input NeXus file.
-            output_dir: Output directory for the reduced project file.
+            jobs: List of ``(label, nexus_file)`` pairs to reduce.
+            output_dir: Output directory for the reduced project files.
             progressbar: Qt progress-bar widget updated during reduction.
             mask: Optional mask file path.
             calibration: Optional calibration file path.
             vanadium_file: Optional vanadium file path.
 
         Returns:
-            The list of sub-runs in the reduced workspace.
+            The list of reduced run labels (input order). The first run's
+            workspace is left current.
         """
-        hidra_ws = self._model.reduce_hidra_workflow(
-            nexus_file,
+        return self._model.reduce_runs(
+            jobs,
             output_dir,
             progressbar,
             mask=mask,
@@ -87,4 +88,11 @@ class ManualReductionCrtl:
             vanadium_file=vanadium_file,
         )
 
-        return list(hidra_ws.get_sub_runs())
+    def select_run(self, label):
+        """Make the reduced run ``label`` current and return its sub-runs.
+
+        Returns:
+            The list of sub-runs in the selected run's workspace.
+        """
+        self._model.set_current_run(label)
+        return list(self._model.get_sub_runs())
