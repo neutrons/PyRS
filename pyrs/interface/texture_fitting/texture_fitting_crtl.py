@@ -1,9 +1,7 @@
 import numpy as np
 from scipy.interpolate import griddata
-import matplotlib.pyplot as plt
-from matplotlib import colormaps
 
-coolwarm = colormaps["coolwarm"]
+from pyrs.interface.utilities.plot_data_preparer import prepare_3d_plot_data
 
 
 class TextureFittingCrtl:
@@ -273,7 +271,6 @@ class TextureFittingCrtl:
             xlabel, ylabel, peak=int(peak_number), fit_object=fit_object, out_of_plane=out_of_plane
         )
 
-        print(xdata, ydata)
         if isinstance(ydata[0], np.ndarray):
             yerr = ydata[1]
             ydata = ydata[0]
@@ -325,11 +322,8 @@ class TextureFittingCrtl:
             if isinstance(zdata, list):
                 zdata = np.array(zdata)
 
-            plot_scatter = False
             colors = None
-
-            if (ydata.size == np.unique(ydata).size) or (xdata.size == np.unique(xdata).size):
-                plot_scatter = True
+            polar_plotted = False
 
             if VizSetup.polar_bt.isChecked():
                 polar_data = self.extract_polar_projection(peak_number=int(peak_number))
@@ -353,29 +347,17 @@ class TextureFittingCrtl:
                     z_label = r"Intensity"
 
                     plot_scatter = False
+                    polar_plotted = True
+
+            if not polar_plotted:
+                if VizSetup.contour_bt.isChecked():
+                    mode = "contour"
+                elif VizSetup.lines_bt.isChecked():
+                    mode = "lines"
                 else:
-                    plot_scatter = True
+                    mode = "scatter"
 
-            if (VizSetup.contour_bt.isChecked()) and (not plot_scatter):
-                vec_x, vec_y = np.meshgrid(np.unique(xdata), np.unique(ydata))
-                vec_z = griddata(((xdata, ydata)), zdata, (vec_x, vec_y), method="nearest")
-
-            elif (VizSetup.lines_bt.isChecked()) and (not plot_scatter):
-                vec_x, vec_y = np.meshgrid(np.unique(xdata), np.unique(ydata))
-                vec_z = griddata(((xdata, ydata)), zdata, (vec_x, vec_y), method="nearest")
-
-                norm = plt.Normalize(vec_z.min(), vec_z.max())
-                colors = coolwarm(norm(vec_z))
-
-            elif (VizSetup.scatter_bt.isChecked()) or (plot_scatter):
-                plot_scatter = True
-
-                norm = plt.Normalize(zdata.min(), zdata.max())
-                colors = coolwarm(norm(zdata))
-
-                vec_x = np.copy(xdata)
-                vec_y = np.copy(ydata)
-                vec_z = np.copy(zdata)
+                vec_x, vec_y, vec_z, colors, plot_scatter = prepare_3d_plot_data(xdata, ydata, zdata, mode=mode)
 
             ax_object.plot_3D_scatter(
                 vec_x, vec_y, vec_z, plot_scatter, colors=colors, x_label=x_label, y_label=y_label, z_label=z_label
