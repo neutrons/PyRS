@@ -4,7 +4,9 @@ from pyrs.core import pyrscore
 from pyrs.interface.peak_fitting.peak_fitting_viewer import PeakFittingViewer
 from pyrs.interface.peak_fitting.peak_fitting_model import PeakFittingModel
 from pyrs.interface.peak_fitting.peak_fitting_crtl import PeakFittingCrtl
-from pyrs.interface.manual_reduction import manualreductionwindow
+from pyrs.interface.manual_reduction.manual_reduction_viewer import ManualReductionViewer
+from pyrs.interface.manual_reduction.manual_reduction_model import ManualReductionModel
+from pyrs.interface.manual_reduction.manual_reduction_crtl import ManualReductionCrtl
 
 try:
     import vtk.qt
@@ -119,7 +121,11 @@ class PyRSLauncher(QMainWindow):
         :return:
         """
         if self.manual_reduction_window is None:
-            self.manual_reduction_window = manualreductionwindow.ManualReductionWindow(self)
+            self.manual_reduction_model = ManualReductionModel()
+            self.manual_reduction_ctrl = ManualReductionCrtl(self.manual_reduction_model)
+            self.manual_reduction_window = ManualReductionViewer(
+                self.manual_reduction_model, self.manual_reduction_ctrl, parent=self
+            )
 
         # show
         self.manual_reduction_window.show()
