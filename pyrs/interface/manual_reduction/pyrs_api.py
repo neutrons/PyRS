@@ -70,6 +70,17 @@ class ReductionController:
 
         return nexus_path
 
+    def set_current_workspace(self, hidra_ws):
+        """Set the HidraWorkspace that subsequent queries operate on.
+
+        Parameters
+        ----------
+        hidra_ws : pyrs.core.workspaces.HidraWorkspace
+            workspace to make current (e.g. when switching between reduced runs)
+
+        """
+        self._curr_hidra_ws = hidra_ws
+
     def get_sub_runs(self):
         """Get sub runs of the current loaded HidraWorkspace
 
