@@ -1,7 +1,9 @@
 from qtpy.QtWidgets import QMainWindow  # type:ignore
 from pyrs.utilities import load_ui  # type: ignore
 from pyrs.core import pyrscore
-from pyrs.interface.peak_fitting import fitpeakswindow
+from pyrs.interface.peak_fitting.peak_fitting_viewer import PeakFittingViewer
+from pyrs.interface.peak_fitting.peak_fitting_model import PeakFittingModel
+from pyrs.interface.peak_fitting.peak_fitting_crtl import PeakFittingCrtl
 from pyrs.interface.manual_reduction import manualreductionwindow
 
 try:
@@ -106,12 +108,9 @@ class PyRSLauncher(QMainWindow):
         launch peak fit window
         :return:
         """
-        # core
-        fit_peak_core = pyrscore.PyRsCore()
-
-        # set up interface object
-        # if self.peak_fit_window is None:
-        self.peak_fit_window = fitpeakswindow.FitPeaksWindow(self, fit_peak_core=fit_peak_core)
+        self.peak_fitting_model = PeakFittingModel(pyrscore.PyRsCore())
+        self.peak_fitting_ctrl = PeakFittingCrtl(self.peak_fitting_model)
+        self.peak_fit_window = PeakFittingViewer(self.peak_fitting_model, self.peak_fitting_ctrl, parent=self)
         self.peak_fit_window.show()
 
     def do_launch_manual_reduction(self):
