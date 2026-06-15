@@ -19,6 +19,7 @@ create-mask = "scripts.create_mask:main"
 
 [build-system]
 requires = ["hatchling", "versioningit"]
+build-backend = "hatchling.build"
 
 [tool.hatch.version]
 source = "versioningit"
