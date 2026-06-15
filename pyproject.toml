@@ -19,6 +19,7 @@ create-mask = "scripts.create_mask:main"
 
 [build-system]
 requires = ["hatchling", "versioningit"]
+build-backend = "hatchling.build"
 
 [tool.hatch.version]
 source = "versioningit"
@@ -206,7 +207,7 @@ version = "1.9.0.dev32" # placeholder, overwritten by sync-version
 
 [tool.pixi.package.build.backend]
 name = "pixi-build-python"
-version = "*"
+version = "==0.5.2"
 channels = [
   "conda-forge",
   "mantid-ornl/label/main",                 # ORNL-specific stable releases
@@ -262,7 +263,7 @@ publish-pypi-test = { cmd = "twine upload --repository testpypi dist/*", descrip
 clean-pypi = { cmd = "rm -rf dist", description = "Clean the PyPI build artifacts" }
 
 # Conda packaging tasks
-build-conda-command = { cmd = "pixi build", description = "Build the conda package command" }
+build-conda-command = { cmd = "pixi publish --target-dir .", description = "Build the conda package" }
 build-conda = { description = "Build the conda package", depends-on = [
   "backup-toml",
   "sync-version",
