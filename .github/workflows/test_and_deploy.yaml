@@ -8,8 +8,9 @@ on:
     tags: ["v*"]
 
 env:
-  PKG_NAME: examplepyapp
-  MODULE_NAME: packagenamepy
+  PKG_NAME: pyrs
+  MODULE_NAME: pyrs
+  CONDA_ORG: neutrons
 
 # cancel previous job if new commit is pushed
 concurrency:
