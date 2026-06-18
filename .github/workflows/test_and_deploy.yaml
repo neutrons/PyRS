@@ -7,88 +7,18 @@ on:
     branches: [next, qa, main]
     tags: ["v*"]
 
+env:
+  PKG_NAME: examplepyapp
+  MODULE_NAME: packagenamepy
+
 # cancel previous job if new commit is pushed
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  PKG_NAME: pyrs
-  MODULE_NAME: pyrs
-  CONDA_ORG: neutrons
-
 jobs:
   tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-
-      - uses: prefix-dev/setup-pixi@v0.9.6
-        with:
-          manifest-path: pyproject.toml
-
-      - name: Apt install deps
-        run: |
-          sudo apt update
-          sudo apt-get install xvfb freeglut3-dev libglu1-mesa
-
-      - name: Start xvfb daemon
-        run: |
-          /sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile \
-                               --background --exec /usr/bin/Xvfb -- :99 -ac -screen 0 1280x1024x16
-
-      - name: Mantid pre-requisites - create a properties file that turns off network access
-        run: |
-          mkdir ~/.mantid
-          echo "CheckMantidVersion.OnStartup=0" > ~/.mantid/Mantid.user.properties
-          echo "UpdateInstrumentDefinitions.OnStartup=0" >> ~/.mantid/Mantid.user.properties
-          echo "usagereports.enabled=0" >> ~/.mantid/Mantid.user.properties
-
-      - name: Test framework imports
-        run: pixi run test-import-framework
-
-      - name: run unit tests
-        run: |
-          echo "running unit tests"
-          xvfb-run --server-args="-screen 0 1280x1024x16" -a pixi run test
-
-      - name: List coverage files (debug)
-        run: |
-          echo "Coverage files generated:"
-          ls -la coverage.xml || echo "No coverage.xml found"
-          ls -la .coverage || echo "No .coverage found"
-
-      - name: upload coverage to codecov
-        uses: codecov/codecov-action@v6
-        if: github.actor != 'dependabot[bot]'
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
-          verbose: true
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-
-      - uses: prefix-dev/setup-pixi@v0.9.6
-        with:
-          manifest-path: pyproject.toml
-
-      - name: mypy
-        run: pixi run mypy pyrs scripts tests
-
-  conda-build:
-    name: Build conda package
+    name: Unit tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -101,29 +31,87 @@ jobs:
         uses: prefix-dev/setup-pixi@v0.9.6
         with:
           manifest-path: pyproject.toml
+          # Workaround: Dynamic versioning (versioningit) causes lock file version mismatch.
+          # We skip the editable package install and do it separately with pip.
+          # See: https://github.com/prefix-dev/pixi/pull/3092
+          run-install: false
+
+      - name: Install dependencies (skip local package)
+        run: pixi install --frozen --skip ${{ env.PKG_NAME }}
+
+      - name: Install local package
+        run: pixi run pip install --no-deps -e .
+
+      - name: Run unit tests
+        run: pixi run test
+
+      - name: Upload coverage to codecov
+        uses: codecov/codecov-action@v7
+        if: github.actor != 'dependabot[bot]'
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Dependency check
+        run: |
+          pixi run audit-deps
+
+  conda-build:
+    name: Build conda package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read          # for actions/checkout
+      security-events: write  # for github/codeql-action/upload-sarif to upload results
+      actions: read           # for upload-sarif to read run status (private repos)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.9.6
+        with:
+          manifest-path: pyproject.toml
+          # Workaround: Dynamic versioning (versioningit) causes lock file version mismatch.
+          # We skip the editable package install and do it separately with pip.
+          # See: https://github.com/prefix-dev/pixi/pull/3092
+          run-install: false
+
+      - name: Install dependencies (skip local package)
+        run: pixi install --frozen --skip ${{ env.PKG_NAME }}
+
+      - name: Install local package
+        run: pixi run pip install --no-deps -e .
+
       - name: Build conda package
         run: |
           pixi run conda-build
-          mkdir -p ${{ runner.temp }}/local-channel/linux-64
-          cp *.conda ${{ runner.temp }}/local-channel/linux-64
+          mkdir -p /tmp/local-channel/linux-64
+          cp *.conda /tmp/local-channel/linux-64
 
-      - name: Install package
-        id: installed
+      # pkg-verify requires a conda env that already has the package
+      # installed (and micromamba on PATH); pkg-install sets both up.
+      - name: Install built conda package
+        id: install
         uses: neutrons/conda-actions/pkg-install@v2
         with:
           package-name: ${{ env.PKG_NAME }}
-          local-channel: ${{ runner.temp }}/local-channel/
-          post-cleanup: none
-          extra-channels: mantid-ornl/label/rc neutrons mantid
+          local-channel: /tmp/local-channel
 
       - name: Verify conda package
         uses: neutrons/conda-actions/pkg-verify@v2
         with:
           package-name: ${{ env.PKG_NAME }}
-          conda-env-name: ${{ steps.installed.outputs.conda_env }}
           module-name: ${{ env.MODULE_NAME }}
-          extra-commands: |
-            python -c "import mantid"
+          conda-env-name: ${{ steps.install.outputs.conda_env }}
+
+      # Audit the dependencies of the conda package we just installed. SARIF
+      # results are uploaded to GitHub code scanning by the grype action.
+      - name: Scan installed environment with Grype
+        uses: neutrons/conda-actions/grype@v2
+        with:
+          path: ${{ steps.install.outputs.conda_install_dir }}
 
       - name: Upload conda package as artifact
         uses: actions/upload-artifact@v7
@@ -134,65 +122,84 @@ jobs:
   publish:
     name: Upload package to anaconda
     runs-on: ubuntu-latest
-    needs: [conda-build, tests, lint]
+    needs: [tests, conda-build]
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/next'
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Setup Pixi
         uses: prefix-dev/setup-pixi@v0.9.6
         with:
           manifest-path: pyproject.toml
-          activate-environment: true
+          # Workaround: Dynamic versioning (versioningit) causes lock file version mismatch.
+          # We skip the editable package install and do it separately with pip.
+          # See: https://github.com/prefix-dev/pixi/pull/3092
+          run-install: false
+
+      - name: Install dependencies (skip local package)
+        run: pixi install --frozen --skip ${{ env.PKG_NAME }}
+
       - name: Download conda package artifact
-        id: download
         uses: actions/download-artifact@v8
         with:
           name: artifact-conda-package
-      - name: List package directory
-        run: ls -l ${{ steps.download.outputs.download-path }}
+
       - name: Upload package to anaconda
         uses: neutrons/conda-actions/publish@v2
         with:
           anaconda-token: ${{ secrets.ANACONDA_TOKEN }}
-          organization: ${{ env.CONDA_ORG }}
-          package-path: ${{ steps.download.outputs.download-path }}/${{ env.PKG_NAME }}-*.conda
+          organization: neutrons
+          package-path: ${{ env.PKG_NAME }}-*.conda
+
       - name: Remove old packages
         if: github.ref == 'refs/heads/next'
         uses: neutrons/conda-actions/pkg-remove@v2
         with:
           anaconda_token: ${{ secrets.ANACONDA_TOKEN }}
-          organization: ${{ env.CONDA_ORG }}
+          organization: neutrons
           package_name: ${{ env.PKG_NAME }}
           label: ${{ env.CONDA_LABEL }}
           keep: 5
 
-  # Trigger GitLab dev deploy pipeline
-  deploy-dev:
+  pypi-publish:
+    name: Upload release to PyPI
     runs-on: ubuntu-latest
-    needs: [publish]
-    if: github.ref == 'refs/heads/next'
+    needs: tests
+    permissions:
+      # IMPORTANT: this permission is mandatory for trusted publishing
+      id-token: write
     steps:
-      - name: Get Environment Name
-        uses: neutrons/branch-mapper@main
-        id: env_name
+      - name: Checkout
+        uses: actions/checkout@v6
         with:
-          prefix: ${{ env.PKG_NAME }}
+          fetch-depth: 0
+          fetch-tags: true
 
-      - name: Trigger Dev Deploy
-        # use https://github.com/eic/trigger-gitlab-ci/pull/14 until merged
-        uses: eic/trigger-gitlab-ci@d984d8d53d871d2fdc1325639d94322da6e8747f
-        id: trigger
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.9.6
         with:
-          url: https://code.ornl.gov
-          project_id: 18073
-          ref_name: main
-          token: ${{ secrets.GITLAB_DEPLOY_TOKEN }}
+          manifest-path: pyproject.toml
+          # Workaround: Dynamic versioning (versioningit) causes lock file version mismatch.
+          # We skip the editable package install and do it separately with pip.
+          # See: https://github.com/prefix-dev/pixi/pull/3092
+          run-install: false
 
-      - name: Annotate commit
-        uses: peter-evans/commit-comment@v4
-        with:
-          body: |
-            GitLab pipeline for ${{ steps.env_name.outputs.name }}
-            has been submitted: ${{ steps.trigger.outputs.web_url }}
+      - name: Install dependencies (skip local package)
+        run: pixi install --frozen --skip ${{ env.PKG_NAME }}
+
+      - name: Install local package
+        run: pixi run pip install --no-deps -e .
+
+      - name: Build pypi package
+        run: |
+          # build the package
+          VERSION=$(pixi run -- versioningit .)
+          pixi run pypi-build
+      # publish your distributions here (need to setup on PyPI first)
+      - name: Publish package distributions to PyPI
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: pypa/gh-action-pypi-publish@release/v1
