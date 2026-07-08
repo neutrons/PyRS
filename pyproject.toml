@@ -2,7 +2,7 @@
 name = "pyrs"
 description = "Data reduction and visualization of neutron data measured at the HFIR HB2B instrument"
 dynamic = ["version"]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = { text = "MIT" }
 keywords = ["neutrons", "python"]
 readme = "README.rst"
@@ -76,9 +76,8 @@ platforms = ["linux-64"]
 [tool.pixi.dependencies]
 python = "*"
 pip = "*"
-mantidworkbench = ">=6.15.0,<6.16.0"
+mantidworkbench = ">=6.15.0"
 qtpy = "*"
-pyqt = "*"
 uncertainties = "*"
 libarchive = "*"
 matplotlib = "*"
@@ -99,9 +98,8 @@ hatchling = "*"
 versioningit = "*"
 
 [tool.pixi.package.run-dependencies]
-mantidworkbench = ">=6.15.0,<6.16.0"
+mantidworkbench = ">=6.15.0"
 qtpy = "*"
-pyqt = "*"
 uncertainties = "*"
 libarchive = "*"
 matplotlib = "*"
@@ -174,7 +172,7 @@ pydantic = ">=2.7.3,<3"
 [tool.pixi.feature.qa.dependencies]
 python = "*"
 pip = "*"
-mantidworkbench = { version = ">=6.15.0,<6.16.0", channel = "mantid-ornl/label/rc" }
+mantidworkbench = { version = ">=6.15.0", channel = "mantid-ornl/label/rc" }
 mantid = { channel = "mantid-ornl/label/rc" }
 mantidqt = { channel = "mantid-ornl/label/rc" }
 uncertainties = "*"
@@ -191,7 +189,7 @@ py-rattler = "==0.24.0"
 [tool.pixi.feature.prod.dependencies]
 python = "*"
 pip = "*"
-mantidworkbench = { version = ">=6.15.0,<6.16.0", channel = "mantid/label/main" }
+mantidworkbench = { version = ">=6.15.0", channel = "mantid/label/main" }
 mantid = { channel = "mantid/label/main" }
 mantidqt = { channel = "mantid/label/main" }
 uncertainties = "*"
