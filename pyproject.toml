@@ -2,7 +2,7 @@
 name = "pyrs"
 description = "Data reduction and visualization of neutron data measured at the HFIR HB2B instrument"
 dynamic = ["version"]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = { text = "MIT" }
 keywords = ["neutrons", "python"]
 readme = "README.rst"
@@ -76,9 +76,8 @@ platforms = ["linux-64"]
 [tool.pixi.dependencies]
 python = "*"
 pip = "*"
-mantidworkbench = ">=6.15.0,<6.16.0"
+mantidworkbench = ">=6.15.0"
 qtpy = "*"
-pyqt = "*"
 uncertainties = "*"
 libarchive = "*"
 matplotlib = "*"
@@ -99,9 +98,8 @@ hatchling = "*"
 versioningit = "*"
 
 [tool.pixi.package.run-dependencies]
-mantidworkbench = ">=6.15.0,<6.16.0"
+mantidworkbench = ">=6.15.0"
 qtpy = "*"
-pyqt = "*"
 uncertainties = "*"
 libarchive = "*"
 matplotlib = "*"
@@ -174,7 +172,7 @@ pydantic = ">=2.7.3,<3"
 [tool.pixi.feature.qa.dependencies]
 python = "*"
 pip = "*"
-mantidworkbench = { version = ">=6.15.0,<6.16.0", channel = "mantid-ornl/label/rc" }
+mantidworkbench = { version = ">=6.15.0", channel = "mantid-ornl/label/rc" }
 mantid = { channel = "mantid-ornl/label/rc" }
 mantidqt = { channel = "mantid-ornl/label/rc" }
 uncertainties = "*"
@@ -191,7 +189,7 @@ py-rattler = "==0.24.0"
 [tool.pixi.feature.prod.dependencies]
 python = "*"
 pip = "*"
-mantidworkbench = { version = ">=6.15.0,<6.16.0", channel = "mantid/label/main" }
+mantidworkbench = { version = ">=6.15.0", channel = "mantid/label/main" }
 mantid = { channel = "mantid/label/main" }
 mantidqt = { channel = "mantid/label/main" }
 uncertainties = "*"
@@ -207,15 +205,21 @@ version = "1.9.0.dev32" # placeholder, overwritten by sync-version
 
 [tool.pixi.package.build.backend]
 name = "pixi-build-python"
-version = "==0.5.2"
+# Unconstrained: pixi-build-python's build.dependencies (pixi-build-api-version)
+# track the protocol version of the pixi CLI itself, which advances independently
+# and isn't pinned by our CI setup (prefix-dev/setup-pixi installs "latest").
+# An exact pin (e.g. "==0.5.2", requiring pixi-build-api-version >=4,<5) breaks
+# as soon as the installed pixi CLI needs a newer protocol (e.g. >=5,<6, required
+# since pixi-build-python 0.6.0) -- no channel/version combination can satisfy
+# both an old exact pin and a newer pixi CLI at the same time.
+version = "*"
 channels = [
   "conda-forge",
-  "mantid-ornl/label/main",                 # ORNL-specific stable releases
-  "mantid-ornl/label/rc",                   # Fallback to RC if stable not available
-  "mantid-ornl/label/nightly",              # ORNL-specific nightly builds
-  "mantid/label/main",                      # Primary source for stable Mantid releases
-  "mantid/label/nightly",                   # Upstream nightly builds
-  "https://prefix.dev/pixi-build-backends",
+  "mantid-ornl/label/main",         # ORNL-specific stable releases
+  "mantid-ornl/label/rc",           # Fallback to RC if stable not available
+  "mantid-ornl/label/nightly",      # ORNL-specific nightly builds
+  "mantid/label/main",              # Primary source for stable Mantid releases
+  "mantid/label/nightly",           # Upstream nightly builds
   "https://prefix.dev/conda-forge",
 ]
 
@@ -299,7 +303,7 @@ docs-serve = { cmd = "python -m http.server 8000 -d docs/_build/user", descripti
 docs-autobuild = { cmd = "sphinx-autobuild docs/user/source docs/_build/user --host 0.0.0.0 --port 8000", description = "Auto-rebuild and serve User docs on changes" }
 
 # Testing tasks
-test = { cmd = "pytest --cov=pyrs --cov-report=xml --cov-report=term ./tests", description = "Run the tests with coverage" }
+test = { cmd = "python scripts/development/run_tests.py --cov=pyrs --cov-report=xml --cov-report=term ./tests", description = "Run the tests with coverage" }
 test-import-framework = { cmd = "python -c 'import pyrs'; python -c 'import qtpy'; python -c 'import mantidqt'", description = "Test import of main dependencies" }
 
 # MISC

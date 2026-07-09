@@ -421,7 +421,7 @@ class PeakLinesSetupView(QGroupBox):
     def get_keep_list(self):
         keep_list = []
         for i_row in range(self.calibrant_table.rowCount()):
-            keep_list.append(self.calibrant_table.item(i_row, 1).checkState() == 0)
+            keep_list.append(self.calibrant_table.item(i_row, 1).checkState() == Qt.CheckState.Unchecked)
 
         return np.array(keep_list)
 
@@ -503,7 +503,7 @@ class PeakLinesSetupView(QGroupBox):
             powder_item.setText(string)
             chkBoxItem = QTableWidgetItem("")
             chkBoxItem.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-            chkBoxItem.setCheckState(0)
+            chkBoxItem.setCheckState(Qt.CheckState.Unchecked)
             self.calibrant_table.setItem(row, 0, powder_item)
             self.calibrant_table.setItem(row, 1, chkBoxItem)
 
@@ -602,7 +602,7 @@ class PeakLinesSetupView(QGroupBox):
                 elif key == "keep":
                     for i_keep, keep in enumerate(input_dict["keep"]):
                         if keep is False:
-                            self.calibrant_table.item(i_keep, 1).setCheckState(2)
+                            self.calibrant_table.item(i_keep, 1).setCheckState(Qt.CheckState.Checked)
                 elif key == "tth_bin":
                     self.tthbin_lineEdit.setText(input_dict["tth_bin"])
                 elif key == "eta_bin":
