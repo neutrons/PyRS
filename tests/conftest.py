@@ -14,6 +14,27 @@ from pytestqt.exceptions import format_captured_exceptions, capture_exceptions
 ON_GITHUB_ACTIONS = bool(os.environ.get("GITHUB_ACTIONS", False))
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _clear_ads_at_session_end():
+    r"""
+    Clear Mantid's AnalysisDataService once the whole test session is done.
+
+    UI tests (e.g. the strain/stress viewer) open mantidqt SliceViewer widgets,
+    which register an ADS observer holding a reference back to their Qt view.
+    If a workspace/observer from any test is still alive when the interpreter
+    begins its own shutdown, that observer's C++ Qt object may already be
+    destroyed by the time Python's teardown reaches it, causing a use-after-free
+    segfault -- observed only under a real X server (CI's xvfb+xcb), not under
+    the offscreen platform used for local runs. Clearing the ADS here runs as a
+    normal pytest fixture teardown, well before interpreter shutdown, so any
+    lingering workspaces/observers are torn down in a safe, well-defined order.
+    """
+    yield
+    from mantid.api import AnalysisDataService as ADS
+
+    ADS.clear()
+
+
 @pytest.fixture(scope="session")
 def test_data_dir(request):
     # WARNING, there may be multiple `conftest.py`,

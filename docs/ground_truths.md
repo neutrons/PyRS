@@ -193,3 +193,42 @@ backward-compatible signals like `stateChanged`) or a direct getter call
 it directly against an enum member — normalize first. `grep -rn
 "== Qt\.\|!= Qt\.\|checkState() ==" pyrs/` is a reasonable sweep for this
 pattern after any further Qt-binding changes.
+
+## Segfault at interpreter shutdown after all tests pass (2026-07)
+
+Once the bugs above were fixed, CI's `tests` job still failed: pytest
+itself reported `354 passed, 33 skipped` with zero failures, but
+~40 seconds *after* that summary line the process crashed with
+`Segmentation fault (core dumped)` (exit code 139), so GitHub Actions
+still marked the job red.
+
+This lines up with a `RuntimeError: wrapped C/C++ object of type
+SliceViewerView has been deleted` seen locally in `mantidqt`'s own
+`AnalysisDataService` (ADS) observer cleanup code
+(`mantidqt/widgets/sliceviewer/models/adsobsever.py`), which fires
+whenever a workspace tied to an open SliceViewer gets deleted. Locally
+(under `QT_QPA_PLATFORM=offscreen`) this stays a caught, non-fatal
+`RuntimeError` printed to stderr; under CI's real X server
+(`xvfb-run` + the `xcb` platform), the same use-after-free apparently
+escalates into an actual native segfault — I could not reproduce the
+crash locally even after running the full suite twice, which means this
+fix could not be directly verified against the real failure, only
+against "no regressions in the passing 354 tests."
+
+**Fix applied** (see [tests/conftest.py](../tests/conftest.py)): added a
+session-scoped, `autouse=True` fixture (`_clear_ads_at_session_end`)
+that calls `AnalysisDataService.clear()` once, after the last test
+finishes. Pytest fixture teardown runs while the interpreter and all
+its objects are still fully alive, well before Python's own
+`atexit`/shutdown sequence — so any lingering SliceViewer-owned
+workspaces/observers get torn down in a normal, safe order instead of
+racing with native object destruction during interpreter exit.
+
+**Why this matters going forward:** if the `tests` job fails again with
+a `Segmentation fault` (exit code 139) *after* a passing pytest summary
+line, that's a process-teardown crash, not a test regression — check
+for stray Mantid workspaces/SliceViewer instances left open by whichever
+test ran last, rather than assuming a test itself is broken. This class
+of bug is inherently hard to verify locally under `offscreen`; matching
+CI's real display server (`xvfb-run` with the `xcb` platform, not
+`QT_QPA_PLATFORM=offscreen`) is likely required to reproduce it directly.
