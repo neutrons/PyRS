@@ -206,14 +206,18 @@ version = "1.9.0.dev32" # placeholder, overwritten by sync-version
 [tool.pixi.package.build.backend]
 name = "pixi-build-python"
 version = "==0.5.2"
+# Note: "https://prefix.dev/pixi-build-backends" is deliberately excluded here.
+# It's a rolling/nightly channel whose pixi-build-python builds are versioned
+# like "0.5.2.20260612.1208.0827e23" rather than a bare "0.5.2". Listed ahead
+# of conda-forge, it shadows conda-forge's real "==0.5.2" release under strict
+# channel priority and makes this exact pin permanently unsolvable.
 channels = [
   "conda-forge",
-  "mantid-ornl/label/main",                 # ORNL-specific stable releases
-  "mantid-ornl/label/rc",                   # Fallback to RC if stable not available
-  "mantid-ornl/label/nightly",              # ORNL-specific nightly builds
-  "mantid/label/main",                      # Primary source for stable Mantid releases
-  "mantid/label/nightly",                   # Upstream nightly builds
-  "https://prefix.dev/pixi-build-backends",
+  "mantid-ornl/label/main",         # ORNL-specific stable releases
+  "mantid-ornl/label/rc",           # Fallback to RC if stable not available
+  "mantid-ornl/label/nightly",      # ORNL-specific nightly builds
+  "mantid/label/main",              # Primary source for stable Mantid releases
+  "mantid/label/nightly",           # Upstream nightly builds
   "https://prefix.dev/conda-forge",
 ]
 
