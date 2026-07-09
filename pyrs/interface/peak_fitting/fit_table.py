@@ -35,7 +35,7 @@ class FitTable:
         _microstrain_mapping = self._get_microstrain_mapping_to_display(peak_collection=_peak_collection)
 
         def _update_exclude_list(_row, _col):
-            if self.parent.ui.tableView_fitSummary.item(_row, _col).checkState() == 0:
+            if self.parent.ui.tableView_fitSummary.item(_row, _col).checkState() == Qt.CheckState.Unchecked:
                 self.fit_result.peakcollections[_peak_selected - 1].set_exclude_subrun(_row, False)
             else:
                 self.fit_result.peakcollections[_peak_selected - 1].set_exclude_subrun(_row, True)

@@ -104,26 +104,37 @@ class ManualReductionViewer(QMainWindow):
     # ------------------------------------------------------------------
     # Default-file check-box state handlers
     # ------------------------------------------------------------------
+    @staticmethod
+    def _is_checked(state):
+        """Normalize a Qt.CheckState (from checkState()) or plain int (from the
+        stateChanged signal) to a bool. PyQt6's Qt.CheckState enum members don't
+        compare equal to a plain int, so `state == Qt.Unchecked` silently breaks
+        for one of these two call sites depending on which is passed."""
+        return bool(state.value if isinstance(state, Qt.CheckState) else state)
+
     def _mask_state(self, state):
         """Toggle the default HB2B mask XML file."""
-        if state != Qt.Unchecked:
+        checked = self._is_checked(state)
+        if checked:
             self.ui.lineEdit_maskFile.setText(self._model.get_default_mask_dir() + "HB2B_MASK_Latest.xml")
-        self.ui.lineEdit_maskFile.setEnabled(state == Qt.Unchecked)
-        self.ui.pushButton_browseMaskFile.setEnabled(state == Qt.Unchecked)
+        self.ui.lineEdit_maskFile.setEnabled(not checked)
+        self.ui.pushButton_browseMaskFile.setEnabled(not checked)
 
     def _calibration_state(self, state):
         """Toggle the default HB2B geometry calibration file."""
-        if state != Qt.Unchecked:
+        checked = self._is_checked(state)
+        if checked:
             self.ui.lineEdit_calibrationFile.setText(self._model.get_default_calibration_dir() + "HB2B_Latest.json")
-        self.ui.lineEdit_calibrationFile.setEnabled(state == Qt.Unchecked)
-        self.ui.pushButton_browseCalibrationFile.setEnabled(state == Qt.Unchecked)
+        self.ui.lineEdit_calibrationFile.setEnabled(not checked)
+        self.ui.pushButton_browseCalibrationFile.setEnabled(not checked)
 
     def _output_state(self, state):
         """Toggle the default output directory."""
-        if state != Qt.Unchecked:
+        checked = self._is_checked(state)
+        if checked:
             self.update_run_changed(self._current_runnumber())
-        self.ui.lineEdit_outputDirectory.setEnabled(state == Qt.Unchecked)
-        self.ui.pushButton_browseOutputDirectory.setEnabled(state == Qt.Unchecked)
+        self.ui.lineEdit_outputDirectory.setEnabled(not checked)
+        self.ui.pushButton_browseOutputDirectory.setEnabled(not checked)
 
     # ------------------------------------------------------------------
     # Browse dialogs

@@ -84,7 +84,7 @@ doesn't catch either class of bug because both are binding-specific
 (and PyQt6 doesn't provide a resource-compiler migration path — the
 `.qrc`-compiled-module pattern needs to be replaced, not ported).
 
-## `pixi-build-python` exact-version pin shadowed by the nightly backend channel (2026-07)
+## `pixi-build-python` exact-version pin breaks whenever the pixi CLI advances (2026-07)
 
 The `Build conda package` / `build-package` CI jobs failed with:
 
@@ -99,36 +99,97 @@ Error:   × could not initialize the build-backend
          └─ pixi-build-python 0.5.2 is excluded because due to strict channel priority not using this option from: 'https://prefix.dev/conda-forge/'
 ```
 
-`[tool.pixi.package.build.backend]` pins `pixi-build-python` to the
-exact version `==0.5.2` and lists `https://prefix.dev/pixi-build-backends`
-ahead of `https://prefix.dev/conda-forge` in its `channels`. That backend
-channel is a rolling/nightly feed — `pixi search -c
-https://prefix.dev/pixi-build-backends pixi-build-python` shows builds
-versioned like `0.5.2.20260612.1208.0827e23` (date+commit-hash suffixed),
-never a bare `0.5.2`. `conda-forge` (and its `prefix.dev` mirror), by
-contrast, publishes a real feedstock release with clean semver — `0.5.2`
-genuinely exists there (`pixi search -c conda-forge pixi-build-python`).
+**First hypothesis (wrong, kept here as a warning against a plausible dead
+end):** `[tool.pixi.package.build.backend].channels` listed
+`https://prefix.dev/pixi-build-backends` — a rolling/nightly feed whose
+`pixi-build-python` builds are versioned like
+`0.5.2.20260612.1208.0827e23`, never a bare `0.5.2` — ahead of
+`conda-forge`, which does publish a clean-semver `0.5.2`. It looked like
+strict channel priority was locking onto the nightly channel's
+non-matching versions and never falling through. Removing that channel
+entry solved cleanly locally (even from a fully cleared rattler cache,
+`pixi clean cache --yes`) — but pushing that fix alone did **not** fix
+CI; the exact same error recurred on the next run.
 
-Because `pixi-build-backends` is listed with higher priority and *does*
-provide a package named `pixi-build-python` (just never a version that
-equals `0.5.2`), pixi's strict channel priority locks the solve onto
-that channel's version family and never falls through to conda-forge's
-real `0.5.2` — making the exact pin permanently unsolvable regardless of
-what conda-forge has.
+**Actual root cause:** `prefix-dev/setup-pixi@v0.9.6` (used with no
+`pixi-version` input) installs whatever the *latest* pixi CLI release is
+at run time — it drifts forward on every CI run, unpinned. The pixi CLI
+and `pixi-build-python` communicate over a versioned protocol
+(`pixi-build-api-version`), and `pixi-build-python 0.5.2` only supports
+protocol `>=4,<5` — `0.6.0` and later require `>=5,<6`
+(`pixi search -c conda-forge "pixi-build-python==0.6.0"` shows the
+dependency bump). My local pixi was 0.70.2; CI's was 0.72.2 by the time
+this was diagnosed. Once the installed pixi CLI needs protocol 5, an
+exact pin to a protocol-4-only backend build is unsolvable in *any*
+channel, regardless of channel order — the "channel priority" wording in
+the error is a red herring surfaced by the solver's generic reporting,
+not the real constraint.
 
-**Fix applied** (see [pyproject.toml](../pyproject.toml)): removed
-`https://prefix.dev/pixi-build-backends` from
-`[tool.pixi.package.build.backend].channels`. It never carries a
-matching build for an exact-version pin against this package, so listing
-it only risks shadowing the real conda-forge release. Verified by
-clearing the entire local rattler cache (`pixi clean cache --yes`) and
-re-running `pixi run build-conda-command` from a cold state — it solves
-and builds successfully.
+Confirmed by running `pixi self-update` locally to match CI's 0.72.2
+exactly: the channel-only fix reproduced CI's exact failure locally for
+the first time (my earlier pixi 0.70.2 had solved fine either way,
+masking the real problem).
 
-**Why this matters going forward:** an exact-version pin (`==x.y.z`)
-against a package name that *also* exists in a higher-priority
-rolling/nightly channel is fragile under strict channel priority, even
-if the exact version is available somewhere lower in the list — the
-solver won't fall through. Either drop the nightly channel from that
-specific `channels` list, or relax the pin to something the nightly
-channel's naming scheme can actually match.
+**Fix applied** (see [pyproject.toml](../pyproject.toml)): changed
+`[tool.pixi.package.build.backend].version` from `"==0.5.2"` to `"*"`.
+Verified by clearing the rattler cache and rebuilding with pixi 0.72.2 —
+solves and builds successfully.
+
+**Why this matters going forward:** an exact pin on a build-backend tool
+that speaks a versioned protocol to its host CLI is only as stable as
+the host CLI's own version — and `setup-pixi` here has no `pixi-version`
+pin, so the host advances on every run. If this breaks again with a
+`pixi-build-api-version` mismatch, check whether the currently-installed
+pixi CLI (`pixi --version` in the failing job's log) needs a newer
+protocol than the pinned backend supports before touching channel
+config at all — `pixi search -c conda-forge "pixi-build-python==<pin>"`
+shows a build's exact `pixi-build-api-version` dependency, and comparing
+that across versions shows where the protocol bumped.
+
+## PyQt6 `Qt.CheckState` enum doesn't compare equal to a plain `int` (2026-07)
+
+A further fallout of the PyQt5→PyQt6 move (see above): PyQt6's
+`Qt.CheckState` is a strict enum that does not compare equal to a plain
+Python `int`, in either direction — `0 == Qt.CheckState.Unchecked` and
+`Qt.CheckState.Unchecked == 0` are both `False` (`int(Qt.CheckState.Unchecked)`
+also raises `TypeError`). PyQt5 allowed both directions transparently.
+
+This broke `_mask_state`/`_calibration_state`/`_output_state` in
+`manual_reduction_viewer.py`, which compare a `state` parameter that is
+polymorphic in origin: `Qt.CheckState` when called directly with
+`checkBox.checkState()` (in `__init__`), but a plain `int` when invoked
+via the `stateChanged` signal (`QCheckBox.stateChanged` still emits
+`int`, unlike the newer `checkStateChanged` signal). Comparing this
+mixed-type value against the bare `Qt.Unchecked` enum member meant the
+"is this checkbox checked" test was always wrong for whichever call path
+didn't match by luck — in practice the default-mask/calibration/output
+line edits stayed permanently disabled after the user toggled the
+checkbox, silently keeping the stale default file path. This surfaced as
+`tests/ui/test_manual_reduction.py` failures with a
+`FileNotFoundError: /HFIR/HB2B/shared/CALIBRATION` (an ORNL-only network
+path that doesn't exist in CI) instead of using the test's intended
+`tests/data/...` file, because the qtbot-driven text entry silently
+no-opped on the disabled, still-defaulted line edit.
+
+The same bare-int-vs-enum bug also existed in
+`fit_table.py`'s `_update_exclude_list` (`checkState() == 0`), separate
+from the `setCheckState()` strict-typing bug fixed earlier in the same
+file.
+
+**Fix applied**: added a small `_is_checked(state)` normalizer in
+`manual_reduction_viewer.py` that unwraps `.value` when `state` is a
+`Qt.CheckState` and returns `bool(...)`, so the same comparison works
+regardless of which call path supplied it. Changed the `fit_table.py`
+comparison to `Qt.CheckState.Unchecked` (both sides now the enum type,
+comparable). Also fixed `QFormLayout.setFieldGrowthPolicy(0)` in
+`strain_stress_view.py` — same strict-enum-typing class of bug as
+`setCheckState`, just a different enum
+(`QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow`).
+
+**Why this matters going forward:** when a value can arrive as *either*
+a raw Qt signal payload (often a plain `int`/`bool` for
+backward-compatible signals like `stateChanged`) or a direct getter call
+(often the strict PyQt6 enum type, e.g. `checkState()`), don't compare
+it directly against an enum member — normalize first. `grep -rn
+"== Qt\.\|!= Qt\.\|checkState() ==" pyrs/` is a reasonable sweep for this
+pattern after any further Qt-binding changes.

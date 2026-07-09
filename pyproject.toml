@@ -205,12 +205,14 @@ version = "1.9.0.dev32" # placeholder, overwritten by sync-version
 
 [tool.pixi.package.build.backend]
 name = "pixi-build-python"
-version = "==0.5.2"
-# Note: "https://prefix.dev/pixi-build-backends" is deliberately excluded here.
-# It's a rolling/nightly channel whose pixi-build-python builds are versioned
-# like "0.5.2.20260612.1208.0827e23" rather than a bare "0.5.2". Listed ahead
-# of conda-forge, it shadows conda-forge's real "==0.5.2" release under strict
-# channel priority and makes this exact pin permanently unsolvable.
+# Unconstrained: pixi-build-python's build.dependencies (pixi-build-api-version)
+# track the protocol version of the pixi CLI itself, which advances independently
+# and isn't pinned by our CI setup (prefix-dev/setup-pixi installs "latest").
+# An exact pin (e.g. "==0.5.2", requiring pixi-build-api-version >=4,<5) breaks
+# as soon as the installed pixi CLI needs a newer protocol (e.g. >=5,<6, required
+# since pixi-build-python 0.6.0) -- no channel/version combination can satisfy
+# both an old exact pin and a newer pixi CLI at the same time.
+version = "*"
 channels = [
   "conda-forge",
   "mantid-ornl/label/main",         # ORNL-specific stable releases
