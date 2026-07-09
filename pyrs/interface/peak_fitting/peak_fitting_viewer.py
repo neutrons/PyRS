@@ -20,8 +20,8 @@ from qtpy.QtCore import Qt  # type: ignore
 from qtpy.QtGui import QCursor  # type:ignore
 from qtpy.QtWidgets import QApplication, QMainWindow, QMenu, QTableWidgetItem, QVBoxLayout  # type:ignore
 
+import pyrs.icons
 import pyrs.interface.gui_helper
-from pyrs.icons import icons_rc5 as icons_rc  # noqa: F401
 from pyrs.interface.gui_helper import browse_dir, browse_file, parse_integers, pop_message
 from pyrs.interface.peak_fitting.fit_table import FitTable
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
@@ -31,10 +31,14 @@ from pyrs.interface.ui.rstables import FitResultTable
 from pyrs.utilities import get_input_project_file  # type: ignore
 from pyrs.utilities import load_ui  # type: ignore
 
-VERTICAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/vertical_splitter.png'); }"""
-VERTICAL_SPLITTER_SHORT = """QSplitter::handle {image: url(':/fitting/vertical_splitter_short.png'); }"""
-HORIZONTAL_SPLITTER = """QSplitter::handle {image: url(':/fitting/horizontal_splitter.png'); }"""
-HORIZONTAL_SPLITTER_SHORT = """QSplitter::handle {image: url(':/fitting/horizontal_splitter_short.png'); }"""
+# Splitter/icon images are loaded from disk rather than a compiled Qt resource
+# module, since pyrcc-generated modules hard-code a single PyQt major version.
+ICON_DIR = os.path.dirname(pyrs.icons.__file__).replace(os.sep, "/")
+
+VERTICAL_SPLITTER = f"""QSplitter::handle {{image: url('{ICON_DIR}/vertical_splitter.png'); }}"""
+VERTICAL_SPLITTER_SHORT = f"""QSplitter::handle {{image: url('{ICON_DIR}/vertical_splitter_short.png'); }}"""
+HORIZONTAL_SPLITTER = f"""QSplitter::handle {{image: url('{ICON_DIR}/horizontal_splitter.png'); }}"""
+HORIZONTAL_SPLITTER_SHORT = f"""QSplitter::handle {{image: url('{ICON_DIR}/horizontal_splitter_short.png'); }}"""
 
 D0 = "d₀"
 ANGSTROMS = "Å"
@@ -663,7 +667,7 @@ class PeakFittingViewer(QMainWindow):
         self.setStyleSheet("QStatusBar{padding-left:8px;color:green;}")
 
         # warning icon
-        self.ui.listsubruns_warning_icon.setPixmap(QtGui.QPixmap(":/fitting/warning_icon.png"))
+        self.ui.listsubruns_warning_icon.setPixmap(QtGui.QPixmap(f"{ICON_DIR}/warning_icon.png"))
 
         # width of peak region table
         peak_table_col_width = [100, 100, 150, 200]

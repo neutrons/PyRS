@@ -1,4 +1,5 @@
 import numpy as np
+from qtpy.QtCore import Qt  # type:ignore
 from qtpy.QtWidgets import QTableWidgetItem, QTableWidgetSelectionRange  # type:ignore
 from qtpy.QtGui import QColor  # type:ignore
 
@@ -47,7 +48,7 @@ class FitTable:
             if value == "checkbox":
                 # case to add checkbox
                 _item = QTableWidgetItem("")
-                _item.setCheckState(checked)
+                _item.setCheckState(Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
 
             else:
                 _item = QTableWidgetItem(value)
