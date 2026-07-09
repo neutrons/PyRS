@@ -303,7 +303,7 @@ docs-serve = { cmd = "python -m http.server 8000 -d docs/_build/user", descripti
 docs-autobuild = { cmd = "sphinx-autobuild docs/user/source docs/_build/user --host 0.0.0.0 --port 8000", description = "Auto-rebuild and serve User docs on changes" }
 
 # Testing tasks
-test = { cmd = "pytest --cov=pyrs --cov-report=xml --cov-report=term ./tests", description = "Run the tests with coverage" }
+test = { cmd = "python scripts/development/run_tests.py --cov=pyrs --cov-report=xml --cov-report=term ./tests", description = "Run the tests with coverage" }
 test-import-framework = { cmd = "python -c 'import pyrs'; python -c 'import qtpy'; python -c 'import mantidqt'", description = "Test import of main dependencies" }
 
 # MISC

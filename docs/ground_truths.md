@@ -215,20 +215,95 @@ crash locally even after running the full suite twice, which means this
 fix could not be directly verified against the real failure, only
 against "no regressions in the passing 354 tests."
 
-**Fix applied** (see [tests/conftest.py](../tests/conftest.py)): added a
-session-scoped, `autouse=True` fixture (`_clear_ads_at_session_end`)
-that calls `AnalysisDataService.clear()` once, after the last test
-finishes. Pytest fixture teardown runs while the interpreter and all
-its objects are still fully alive, well before Python's own
-`atexit`/shutdown sequence — so any lingering SliceViewer-owned
-workspaces/observers get torn down in a normal, safe order instead of
-racing with native object destruction during interpreter exit.
+**First fix attempt (insufficient on its own):** added a session-scoped,
+`autouse=True` fixture (`_clear_ads_at_session_end` in
+[tests/conftest.py](../tests/conftest.py)) that calls
+`AnalysisDataService.clear()` once, after the last test finishes, on the
+theory that lingering SliceViewer-owned workspaces/observers were racing
+with native object destruction at interpreter shutdown. Pushed alone,
+the exact same segfault recurred on the next CI run — so ADS state
+wasn't the (or wasn't the only) cause. Kept anyway as reasonable hygiene
+since it's harmless, but it is not the fix that made CI green.
+
+**Actual fix:** don't try to identify the exact native cleanup path that
+crashes — instead, stop the interpreter from reaching it at all. Added
+[scripts/development/run_tests.py](../scripts/development/run_tests.py),
+a tiny wrapper that calls `pytest.main()` directly (rather than going
+through the `pytest` CLI entry point), then explicitly flushes
+stdout/stderr and calls `os._exit(code)`. `pytest.main()` only returns
+once every hook — including pytest-cov's report writing and the
+terminal reporter's final "N passed" summary — has already run, so
+nothing is lost; `os._exit()` then skips the crashing native teardown
+that would otherwise follow. The `[tool.pixi.tasks.test]` command in
+`pyproject.toml` now runs this wrapper instead of `pytest` directly.
+
+Two dead ends worth recording so they aren't retried:
+- A `pytest_sessionfinish` hook with `os._exit()` (even `trylast=True`)
+  fires *before* the terminal reporter's own "N passed" summary and
+  pytest-cov's coverage table are printed — those apparently happen in
+  an even-later stage of pytest's shutdown sequence, not inside
+  `pytest_sessionfinish` itself. Using this hook silently truncated all
+  of pytest's own reporting from the log, even though the exit code was
+  still correct. Only calling `pytest.main()` directly and exiting
+  *after it returns* is late enough.
+- `os._exit()` does not flush Python's buffered stdout/stderr (unlike
+  `sys.exit()`/normal interpreter shutdown) — an explicit
+  `sys.stdout.flush(); sys.stderr.flush()` immediately before it is
+  required or the whole report vanishes from a non-tty (i.e. CI log)
+  destination.
 
 **Why this matters going forward:** if the `tests` job fails again with
 a `Segmentation fault` (exit code 139) *after* a passing pytest summary
-line, that's a process-teardown crash, not a test regression — check
-for stray Mantid workspaces/SliceViewer instances left open by whichever
-test ran last, rather than assuming a test itself is broken. This class
-of bug is inherently hard to verify locally under `offscreen`; matching
-CI's real display server (`xvfb-run` with the `xcb` platform, not
-`QT_QPA_PLATFORM=offscreen`) is likely required to reproduce it directly.
+line, that's a process-teardown crash, not a test regression. This
+class of bug is inherently hard to verify locally under `offscreen`;
+matching CI's real display server (`xvfb-run` with the `xcb` platform,
+not `QT_QPA_PLATFORM=offscreen`) is likely required to reproduce it
+directly — I was not able to reproduce this specific segfault locally
+even once. When a fix like this can't be verified against the actual
+failure, verify what you *can*: no regressions in the full local suite,
+and (critically, since this is the actual defect the two dead ends
+above introduced) that the summary output and coverage report are still
+present in the log after the change.
+
+## `tests/ui/test_calibration_ui.py` wrote/deleted files in the repo root, not a tmpdir (2026-07)
+
+While iterating on the segfault fix above, running the full suite
+locally (required, since the crash could only be reproduced/investigated
+by running everything pytest runs in CI) revealed a separate, pre-existing
+bug: `test_detector_calibration` in `test_calibration_ui.py` typed the
+bare relative filenames `"HB2B_test_export.json"` and `"HB2B_CAL.json"`
+into a save/load `QFileDialog`, then did `os.remove("HB2B_test_export.json")`
+/ `os.remove("HB2B_CAL.json")` at the end — all relative to the current
+working directory, i.e. the repo root when pytest is invoked from there
+(exactly how both CI and a local dev shell run it).
+
+This test had been silently doing this on every run; it just never
+mattered in CI, which always starts from a clean checkout with no
+same-named files to collide with. Locally, though, a developer working
+in this exact repo root had files genuinely named `HB2B_CAL.json` and
+`HB2B_test_export.json` sitting there (visible as untracked files in
+`git status`, presumably outputs from manually running
+`pixel_calibration.py`/`reduce_HB2B.py` from the repo root). Running the
+test suite locally overwrote those files with the test's own output and
+then deleted them via the test's cleanup step — untracked files have no
+git history, so they were not recoverable.
+
+**Fix applied**: the test now takes pytest's built-in `tmp_path` fixture
+and builds the export/calibration paths as `tmp_path / "HB2B_..."`
+instead of bare relative filenames, so it writes only inside a
+pytest-managed temp directory that pytest itself cleans up — it can no
+longer collide with anything in a developer's working directory
+regardless of what they happen to have sitting there. The explicit
+`os.remove(...)` calls were removed (no longer needed).
+
+**Why this matters going forward:** a test that writes to a literal
+relative path is writing to whatever the current working directory
+happens to be when it's invoked — which is the repo root for both CI
+and a typical local `pixi run test` — not a private, disposable
+location. Prefer pytest's `tmp_path`/`tmpdir` fixtures for anything a
+test writes to disk, even "cleaned up" output, since "clean up after
+yourself" only works if you're the only thing that could have been
+using that name. `grep -rn '"\.\./\|\.\(json\|csv\|h5\|xml\)"' tests/`
+(and manually check for bare relative filenames passed to file dialogs,
+`open()`, `os.remove()`, etc.) is a reasonable sweep for this pattern in
+other UI tests.
