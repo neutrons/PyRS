@@ -45,9 +45,9 @@ def test_detector_calibration(calibration_window, tmp_path):
         qtbot.wait(wait)
         qtbot.keyClick(lineEdit, QtCore.Qt.Key_Enter)
 
-    # # Browse e11 Data File ...
-    # # wait until dialog is loaded then handle it, this is required
-    # # because the dialog is modal
+    # Browse e11 Data File ...
+    # wait until dialog is loaded then handle it, this is required
+    # because the dialog is modal
     QtCore.QTimer.singleShot(300, functools.partial(handle_dialog, "tests/data/calibration_tests/HB2B_3510.nxs.h5"))
     qtbot.mouseClick(window.fileLoading.file_load_dilg.browse_button, QtCore.Qt.LeftButton)
 
@@ -76,9 +76,7 @@ def test_detector_calibration(calibration_window, tmp_path):
         print(window.peak_lines_setup.calibrate.isEnabled())
         qtbot.wait(wait)
 
-    # Write export/calibration files under pytest's tmp_path rather than the
-    # current working directory, so this test can never clobber same-named
-    # files a developer happens to have sitting in the repo root.
+    # Write export/calibration files under pytest's tmp_path
     export_recipe_path = str(tmp_path / "HB2B_test_export.json")
     calib_path = str(tmp_path / "HB2B_CAL.json")
 
