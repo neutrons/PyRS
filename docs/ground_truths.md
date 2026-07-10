@@ -237,7 +237,7 @@ nothing is lost; `os._exit()` then skips the crashing native teardown
 that would otherwise follow. The `[tool.pixi.tasks.test]` command in
 `pyproject.toml` now runs this wrapper instead of `pytest` directly.
 
-Two dead ends worth recording so they aren't retried:
+Dead ends worth recording so they aren't retried:
 - A `pytest_sessionfinish` hook with `os._exit()` (even `trylast=True`)
   fires *before* the terminal reporter's own "N passed" summary and
   pytest-cov's coverage table are printed — those apparently happen in
@@ -251,19 +251,34 @@ Two dead ends worth recording so they aren't retried:
   `sys.stdout.flush(); sys.stderr.flush()` immediately before it is
   required or the whole report vanishes from a non-tty (i.e. CI log)
   destination.
+- `mantid.utils.logging.log_to_python()` (routing Mantid's C++ logging
+  through Python's `logging` module instead of its native Poco console
+  channel, on the theory that a native-channel log call during
+  interpreter shutdown was the crash trigger) does **not** prevent the
+  crash. Tried two ways: as a session-wide `autouse` fixture, and scoped
+  narrowly to just `test_stress_strain_viewer` (the only test that
+  exercises `SliceViewer`, matching the crash's traceback) with a
+  proper backup/restore of the channel afterward, mirroring
+  `mantid.utils.logging.capture_logs()`'s pattern. Neither prevented the
+  crash — in fact this is the only way I ever reproduced the segfault
+  locally at all (2 of 3 local full-suite runs crashed with some form of
+  `log_to_python()` active, versus 0 of 4 without it). Small sample, but
+  the direction is consistently unhelpful; abandoned in favor of the
+  `os._exit()` wrapper, which is the only thing confirmed to pass real
+  CI (twice).
 
 **Why this matters going forward:** if the `tests` job fails again with
 a `Segmentation fault` (exit code 139) *after* a passing pytest summary
 line, that's a process-teardown crash, not a test regression. This
-class of bug is inherently hard to verify locally under `offscreen`;
-matching CI's real display server (`xvfb-run` with the `xcb` platform,
-not `QT_QPA_PLATFORM=offscreen`) is likely required to reproduce it
-directly — I was not able to reproduce this specific segfault locally
-even once. When a fix like this can't be verified against the actual
-failure, verify what you *can*: no regressions in the full local suite,
-and (critically, since this is the actual defect the two dead ends
-above introduced) that the summary output and coverage report are still
-present in the log after the change.
+class of bug is hard to verify locally under `offscreen` — most local
+runs never reproduce it at all; matching CI's real display server
+(`xvfb-run` with the `xcb` platform, not `QT_QPA_PLATFORM=offscreen`)
+is likely required to reproduce it reliably. When a fix like this can't
+be verified against the actual failure, verify what you *can*: no
+regressions in the full local suite, and (critically, since this is the
+actual defect the first two dead ends above introduced) that the
+summary output and coverage report are still present in the log after
+the change.
 
 ## `tests/ui/test_calibration_ui.py` wrote/deleted files in the repo root, not a tmpdir (2026-07)
 
