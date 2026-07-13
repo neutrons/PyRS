@@ -48,3 +48,28 @@ def test_is_run_specification_rejects_paths_and_empty():
     assert not is_run_specification("tests/data/HB2B_938.nxs.h5")
     assert not is_run_specification("")
     assert not is_run_specification("   ")
+
+
+# The following moved from tests/integration/test_batch_reduction.py — they test the
+# same two functions and need no HFIR access, so they don't belong in an integration
+# suite gated on archive availability. See plans/test-framework.md.
+
+
+def test_parse_run_numbers_range():
+    """A dash range is expanded to inclusive list."""
+    assert parse_run_numbers("1017-1019") == [1017, 1018, 1019]
+
+
+def test_parse_run_numbers_comma_and_range():
+    """Mixed comma and range parses correctly."""
+    assert parse_run_numbers("1017,1019-1021") == [1017, 1019, 1020, 1021]
+
+
+def test_is_run_specification_run_numbers():
+    assert is_run_specification("1017")
+    assert is_run_specification("1017-1019")
+    assert is_run_specification("1017, 1019")
+
+
+def test_is_run_specification_rejects_path():
+    assert not is_run_specification("/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5")

@@ -788,6 +788,7 @@ PeakInfo = namedtuple("PeakInfo", "center left_bound right_bound tag")
         }
     ],
 )
+@pytest.mark.integration
 def test_pseudovoigt_HB2B_1060(target_values):
     """This is a test of Pseudovoigt peak fitting for HB2B 1060.
 

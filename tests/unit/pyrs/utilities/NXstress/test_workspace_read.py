@@ -27,37 +27,12 @@ import pytest
 
 
 @pytest.fixture
-def roundtrip_nxstress(load_HidraWorkspace, createPeakCollection, tmp_path):
+def roundtrip_nxstress(minimal_HidraWorkspace, createPeakCollection, tmp_path):
     """Fixture that writes and reads back a workspace with peaks"""
 
-    # Load a workspace with instrument geometry
-    ws_original = load_HidraWorkspace(
-        file_name="HB2B_1017_w_mask.h5", name="test_workspace", load_raw_counts=True, load_reduced_diffraction=True
+    ws_original = minimal_HidraWorkspace(
+        with_instrument=True, with_masks=True, with_raw_counts=True, with_reduced_diffraction=True
     )
-
-    # Set up instrument geometry if not present
-    if ws_original._instrument_setup is None:
-        from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
-
-        geometry = DENEXDetectorGeometry(
-            num_rows=512,
-            num_columns=512,
-            pixel_size_x=0.001,  # 1 mm in meters
-            pixel_size_y=0.001,  # 1 mm in meters
-            arm_length=2.0,  # 2 meters
-            calibrated=True,
-        )
-        ws_original.set_instrument_geometry(geometry)
-
-        # Set detector shift for calibrated geometry
-        shift = DENEXDetectorShift(
-            shift_x=0.01, shift_y=0.02, shift_z=0.03, rotation_x=1.0, rotation_y=2.0, rotation_z=3.0, tth_0=0.5
-        )
-        ws_original.set_detector_shift(shift)
-
-    # Set wavelength if not present (test data may lack monochromator settings)
-    if ws_original.get_wavelength(calibrated=True, throw_if_not_set=False) is None:
-        ws_original.set_wavelength(1.486, calibrated=True)
 
     # Create 2 PeakCollection objects
     subruns = ws_original._sample_logs.subruns.raw_copy()
@@ -250,20 +225,9 @@ class TestWorkspaceRoundtrip:
 class TestReadErrors:
     """Test error handling in read operations"""
 
-    def test_read_nonexistent_entry(self, load_HidraWorkspace, tmp_path):
+    def test_read_nonexistent_entry(self, minimal_HidraWorkspace, tmp_path):
         """Attempt to read non-existent entry → KeyError"""
-        ws = load_HidraWorkspace(
-            file_name="HB2B_1017.h5", name="test_workspace", load_raw_counts=False, load_reduced_diffraction=True
-        )
-
-        # Set up instrument geometry if not present
-        if ws._instrument_setup is None:
-            from pyrs.core.instrument_geometry import DENEXDetectorGeometry
-
-            geometry = DENEXDetectorGeometry(
-                num_rows=512, num_columns=512, pixel_size_x=0.001, pixel_size_y=0.001, arm_length=2.0, calibrated=False
-            )
-            ws.set_instrument_geometry(geometry)
+        ws = minimal_HidraWorkspace(with_instrument=True)
 
         nxstress_file = tmp_path / "test_nonexistent.nxs"
         with NXstress(nxstress_file, mode="w") as nxs:
@@ -273,21 +237,10 @@ class TestReadErrors:
             with NXstress(nxstress_file, mode="r") as nxs:
                 nxs.read(entry_number=99)
 
-    def test_read_outside_context_manager(self, load_HidraWorkspace, tmp_path):
+    def test_read_outside_context_manager(self, minimal_HidraWorkspace, tmp_path):
         """Call read() outside context manager → RuntimeError"""
-        # First create a valid NXstress file
-        ws = load_HidraWorkspace(
-            file_name="HB2B_1017.h5", name="test_workspace", load_raw_counts=False, load_reduced_diffraction=True
-        )
-
-        # Set up instrument geometry if not present
-        if ws._instrument_setup is None:
-            from pyrs.core.instrument_geometry import DENEXDetectorGeometry
-
-            geometry = DENEXDetectorGeometry(
-                num_rows=512, num_columns=512, pixel_size_x=0.001, pixel_size_y=0.001, arm_length=2.0, calibrated=False
-            )
-            ws.set_instrument_geometry(geometry)
+        # Build a valid NXstress file
+        ws = minimal_HidraWorkspace(with_instrument=True)
 
         nxstress_file = tmp_path / "test_outside_context.nxs"
         with NXstress(nxstress_file, mode="w") as nxs:

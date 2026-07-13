@@ -10,6 +10,8 @@ from pyrs.dataobjects.constants import HidraConstants
 from pyrs.peaks import PeakCollection  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 
+pytestmark = pytest.mark.integration
+
 
 def assert_allclose_structured_numpy_arrays(expected, calculated):
     if expected.dtype.names != calculated.dtype.names:

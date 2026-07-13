@@ -9,6 +9,8 @@ from pyrs.core.powder_pattern import ReductionApp
 import pytest
 import os
 
+pytestmark = pytest.mark.integration
+
 DATA_DIR = "tests/data/"
 
 

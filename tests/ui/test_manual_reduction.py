@@ -6,6 +6,7 @@ import matplotlib
 matplotlib.use("Agg")
 from pyrs.interface.manual_reduction import manualreductionwindow  # noqa E402
 
+pytestmark = [pytest.mark.gui, pytest.mark.integration]
 
 wait = 100
 

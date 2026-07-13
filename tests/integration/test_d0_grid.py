@@ -1,9 +1,12 @@
 import numpy as np
+import pytest
 
 from pyrs.dataobjects.fields import StressField
 from pyrs.dataobjects.fields import StrainField
 
 from pyrs.interface.strainstressviewer.model import Model
+
+pytestmark = pytest.mark.integration
 
 d0_default = 1.0828
 d0e_default = 0

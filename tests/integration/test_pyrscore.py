@@ -3,6 +3,8 @@ import os
 from pyrs.core import pyrscore
 import pytest
 
+pytestmark = pytest.mark.integration
+
 
 def broken_test_pole_figure_calculation():
     """

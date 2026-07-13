@@ -419,13 +419,8 @@ class HidraProjectFile:
             2D array for possibly various 2theta vector for each
 
         """
-        if HidraConstants.TWO_THETA not in self._project_h5[HidraConstants.REDUCED_DATA]:
-            # FIXME - This is a patch for 'legacy' data.  It will be removed after codes are stable
-            tth_key = "2Theta"
-        else:
-            tth_key = HidraConstants.TWO_THETA
 
-        two_theta_vec = self._project_h5[HidraConstants.REDUCED_DATA][tth_key][()]
+        two_theta_vec = self._project_h5[HidraConstants.REDUCED_DATA][HidraConstants.TWO_THETA][()]
 
         return two_theta_vec
 
@@ -506,14 +501,9 @@ class HidraProjectFile:
         """
         masks = list(self._project_h5[HidraConstants.REDUCED_DATA].keys())
 
-        # Clean up data entry '2theta' (or '2Theta')
+        # Clean up TWO_THETA from the data entry
         if HidraConstants.TWO_THETA in masks:
             masks.remove(HidraConstants.TWO_THETA)
-
-        # FIXME - Remove when Hidra-16_Log.h5 is fixed with correction entry name as '2theta'
-        # (aka HidraConstants.TWO_THETA)
-        if "2Theta" in masks:
-            masks.remove("2Theta")
 
         # Variance datasets are stored alongside intensity datasets with a '_var' suffix
         # (e.g. 'main_var' alongside 'main').  They are not masks and must be excluded so

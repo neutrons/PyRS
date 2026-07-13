@@ -15,6 +15,8 @@ from collections import namedtuple
 import os
 import shutil
 
+pytestmark = pytest.mark.integration
+
 
 # Named tuple for peak information
 PeakInfo = namedtuple("PeakInfo", "center left_bound right_bound tag")
