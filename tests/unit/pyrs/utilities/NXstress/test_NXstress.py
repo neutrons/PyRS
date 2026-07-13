@@ -31,15 +31,6 @@ import pytest
 
 
 class TestNXstress:
-    # instrument, input data, reduced data, no mask
-    PROJECT_FILE_A = "HB2B_1017.h5"
-
-    # instrument, mask, reduced data, but no input data
-    PROJECT_FILE_B = "HB2B_1628.h5"
-
-    # instrument, mask (from '1628'), input data, reduced data
-    PROJECT_FILE_C = "HB2B_1017_w_mask.h5"
-
     @pytest.fixture(autouse=True)
     def setUp(self, load_HidraWorkspace, createPeakCollection):
         """
@@ -77,16 +68,10 @@ class TestNXstress:
     def test_NXstress_context_manager(
         self,
         tmp_path: Path,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
         createPeakCollection: Callable[..., PeakCollection],
     ):
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_C,
-            name="test_workspace",
-            # raw-counts load => instrument load
-            load_raw_counts=True,
-            load_reduced_diffraction=True,
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -111,18 +96,12 @@ class TestNXstress:
 
     def test_NXentry_fields(
         self,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         # Verify that all required datasets, and attributes are present
         #   on the `NXentry`
 
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_C,
-            name="test_workspace",
-            # raw-counts load => instrument load
-            load_raw_counts=True,
-            load_reduced_diffraction=True,
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
 
         required_datasets = ("definition", "start_time", "end_time", "processing_type")
 
@@ -132,18 +111,12 @@ class TestNXstress:
             assert key in entry
 
     def test_NXentry_subgroups(
-        self, load_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
     ):
         # Verify that all required subgroups are present
         #   on the `NXentry`
 
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_C,
-            name="test_workspace",
-            # raw-counts load => instrument load
-            load_raw_counts=True,
-            load_reduced_diffraction=True,
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -171,18 +144,12 @@ class TestNXstress:
             assert isinstance(entry[key], NXclass_)
 
     def test_NXentry_input_data(
-        self, load_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
     ):
         # Verify that an optional `input_data` `NXdata` group will be created on the `NXentry`
         #   when detector-counts data is attached to the source workspace.
 
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_C,
-            name="test_workspace",
-            # raw-counts load => instrument load
-            load_raw_counts=True,
-            load_reduced_diffraction=True,
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -204,7 +171,7 @@ class TestNXstress:
         assert isinstance(entry[key], NXclass_)
 
     def test_NXentry_input_data_optional(
-        self, load_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
     ):
         # When no input data is attached to the source workspace:
         #   verify that an empty (i.e. no scan-points) `input_data` `NXdata` group is created on the `NXentry`.
@@ -212,15 +179,7 @@ class TestNXstress:
         # Notes:
         # -- A successful instrument load is required; this is keyed to detector-counts data load.
         #    So we need to fudge the workspace after the load in order to _remove_ the attached input data.
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_C,
-            name="test_workspace",
-            # raw-counts load => instrument load
-            load_raw_counts=True,
-            load_reduced_diffraction=True,
-        )
-        # remove the input data:
-        ws._raw_counts = dict()
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=False)
 
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
@@ -246,16 +205,10 @@ class TestNXstress:
     def test_NXentry_multiple(
         self,
         tmp_path: Path,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
         createPeakCollection: Callable[..., PeakCollection],
     ):
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_C,
-            name="test_workspace",
-            # raw-counts load => instrument load
-            load_raw_counts=True,
-            load_reduced_diffraction=True,
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -297,15 +250,9 @@ class TestNXstress:
 
     def test__Instrument_fields_and_subgroups(
         self,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_A,
-            name="test_workspace",
-            # raw-counts load => instrument load
-            load_raw_counts=True,
-            load_reduced_diffraction=True,
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True, with_raw_counts=True)
 
         required_fields = ("name",)
         required_subgroups = (
@@ -327,15 +274,9 @@ class TestNXstress:
 
     def test__Masks_fields_and_subgroups(
         self,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_A,
-            name="test_workspace",
-            # raw-counts load => instrument load
-            load_raw_counts=True,
-            load_reduced_diffraction=True,
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True, with_raw_counts=True)
 
         required_fields = ("names",)
         required_subgroups = (("detector", NXcollection), ("solid_angle", NXcollection))
@@ -350,11 +291,9 @@ class TestNXstress:
 
     def test__Sample_fields_and_subgroups(
         self,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_B, name="test_workspace", load_raw_counts=False, load_reduced_diffraction=True
-        )
+        ws = minimal_HidraWorkspace(with_instrument=False)
 
         required_fields = (
             "name",
@@ -375,11 +314,9 @@ class TestNXstress:
             assert isinstance(sample[key], NXclass_)
 
     def test__Fit_fields_and_subgroups(
-        self, load_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
     ):
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_B, name="test_workspace", load_raw_counts=False, load_reduced_diffraction=True
-        )
+        ws = minimal_HidraWorkspace(with_instrument=False)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -414,13 +351,11 @@ class TestNXstress:
     def test_write_without_context_manager(
         self,
         tmp_path: Path,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify RuntimeError when write() is called without context manager"""
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_C, name="test_workspace", load_raw_counts=True, load_reduced_diffraction=True
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -443,13 +378,11 @@ class TestNXstress:
 
     def test_NXentry_init_fallback_timestamps(
         self,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify NXstress._init succeeds when timestamps are not valid ISO-8601"""
         # Load workspace and deliberately corrupt the timestamps
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_C, name="test_workspace", load_raw_counts=True, load_reduced_diffraction=True
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
 
         # Corrupt the timestamps to trigger the fallback path
         bad_timestamps = [b"not-valid-iso8601" for _ in ws._sample_logs.subruns]
@@ -463,12 +396,10 @@ class TestNXstress:
         assert "end_time" in entry
 
     def test_validateWorkspaceAndPeaksData_valid(
-        self, load_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
     ):
         """Verify _validateWorkspaceAndPeaksData completes without error for valid data"""
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_C, name="test_workspace", load_raw_counts=True, load_reduced_diffraction=True
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -488,24 +419,20 @@ class TestNXstress:
 
     def test_NXentry_definition_value(
         self,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify entry['definition'] is 'NXstress' and processing_type is 'd-spacing'"""
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_C, name="test_workspace", load_raw_counts=True, load_reduced_diffraction=True
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
 
         entry = NXstress._init(ws)
         assert entry["definition"] == "NXstress"
         assert entry["processing_type"] == "d-spacing"
 
     def test__PeakParameters_fields_and_subgroups(
-        self, load_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
     ):
         # Load a workspace in order to get a realistic <scan point> axis.
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_B, name="test_workspace", load_raw_counts=False, load_reduced_diffraction=True
-        )
+        ws = minimal_HidraWorkspace(with_instrument=False)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -546,12 +473,10 @@ class TestNXstress:
         )
 
     def test__BackgroundParameters_fields_and_subgroups(
-        self, load_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
     ):
         # Load a workspace in order to get a realistic <scan point> axis.
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_B, name="test_workspace", load_raw_counts=False, load_reduced_diffraction=True
-        )
+        ws = minimal_HidraWorkspace(with_instrument=False)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -585,11 +510,9 @@ class TestNXstress:
             assert key in background_parameters
 
     def test__Diffractogram_fields_and_subgroups(
-        self, load_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
     ):
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_B, name="test_workspace", load_raw_counts=False, load_reduced_diffraction=True
-        )
+        ws = minimal_HidraWorkspace(with_instrument=False)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -629,12 +552,10 @@ class TestNXstress:
     def test__Peaks_fields_and_subgroups(
         self,
         tmp_path: Path,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
         createPeakCollection: Callable[..., PeakCollection],
     ):
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_B, name="test_workspace", load_raw_counts=False, load_reduced_diffraction=True
-        )
+        ws = minimal_HidraWorkspace(with_instrument=False)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -708,11 +629,9 @@ class TestNXstress:
 
     def test__InputData_fields_and_subgroups(
         self,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_A, name="test_workspace", load_raw_counts=True, load_reduced_diffraction=True
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True, with_raw_counts=True)
 
         required_attributes = ("axes", "signal")
         required_fields = ("scan_point", "detector_counts")
@@ -731,17 +650,11 @@ class TestNXstress:
 
     def test__InputData_omitted(
         self,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         # When input-data is not attached to the source workspace,
         #   the structure of the input-data group should still be filled in.
-        ws = load_HidraWorkspace(
-            # PROJECT_B doesn't include any raw-counts data.
-            file_name=self.PROJECT_FILE_B,
-            name="test_workspace",
-            load_raw_counts=False,
-            load_reduced_diffraction=True,
-        )
+        ws = minimal_HidraWorkspace(with_instrument=False, with_raw_counts=False)
 
         required_attributes = ("axes", "signal")
         required_fields = ("scan_point", "detector_counts")

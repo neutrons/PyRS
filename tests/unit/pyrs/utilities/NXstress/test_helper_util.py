@@ -1,8 +1,9 @@
 # ruff: noqa: F841
 from pathlib import Path
 
-from pyrs.projectfile.file_object import HidraProjectFile
+import pytest
 
+from pyrs.projectfile.file_object import HidraProjectFile
 
 PROJECT_FILE = "HB2B_1628.h5"
 
@@ -19,6 +20,7 @@ def test_createPeakCollection(createPeakCollection):
     )
 
 
+@pytest.mark.integration
 def test_load_HidraWorkspace(load_HidraWorkspace):
     ws = load_HidraWorkspace(
         file_name=PROJECT_FILE, name="test_workspace", load_raw_counts=False, load_reduced_diffraction=True
@@ -26,6 +28,7 @@ def test_load_HidraWorkspace(load_HidraWorkspace):
     assert ws.name == "test_workspace"
 
 
+@pytest.mark.integration
 def test_HidraProjectFile_context_manager(test_data_dir):
     project_file_path = Path(test_data_dir) / PROJECT_FILE
     with HidraProjectFile(project_file_path) as project_file:

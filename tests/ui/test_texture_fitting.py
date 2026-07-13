@@ -12,6 +12,8 @@ import pytest
 
 from tests.conftest import ON_GITHUB_ACTIONS  # set to True when running on build servers
 
+pytestmark = [pytest.mark.gui, pytest.mark.integration]
+
 wait = 200
 plot_wait = 100
 
