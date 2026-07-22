@@ -569,15 +569,7 @@ class PyHB2BReduction:
         """
         return self._instrument.get_eta_values(dimension=1)
 
-    def reduce_to_2theta_histogram(
-        self,
-        two_theta_bins,
-        mask_array,
-        is_point_data=True,
-        vanadium_counts_array=None,
-        sub_run_duration=None,
-        van_duration=None,
-    ):
+    def reduce_to_2theta_histogram(self, two_theta_bins, mask_array, is_point_data=True, vanadium_counts_array=None):
         """Reduce the previously added detector raw counts to 2theta histogram (i.e., diffraction pattern)
 
         :param numpy.ndarray two_theta_bins: 2theta bin boundaries
@@ -585,12 +577,6 @@ class PyHB2BReduction:
         :param bool is_point_data: Flag whether the output is point data (numbers of X and Y are same)
         :param vanadium_counts_array: Vanadium counts array for normalization and efficiency calibration
         :type vanadium_counts_array: numpy.ndarray, optional
-        :param sub_run_duration: sample sub run duration in seconds, used with van_duration to
-            scale the vanadium normalization by their relative counting time
-        :type sub_run_duration: float, optional
-        :param van_duration: vanadium run duration in seconds, used with sub_run_duration to
-            scale the vanadium normalization by their relative counting time
-        :type van_duration: float, optional
         :return: two_theta_bins, intensity_vector, variances_vector
         :rtype: numpy.ndarray
         """
@@ -627,13 +613,7 @@ class PyHB2BReduction:
 
         # use numpy.histogram
         two_theta_bins, intensity_vector, variances_vector = self.histogram_by_numpy(
-            pixel_2theta_array,
-            counts_array,
-            two_theta_bins,
-            is_point_data,
-            vanadium_counts_array,
-            sub_run_duration,
-            van_duration,
+            pixel_2theta_array, counts_array, two_theta_bins, is_point_data, vanadium_counts_array
         )
 
         # Record
@@ -671,15 +651,7 @@ class PyHB2BReduction:
         return
 
     @staticmethod
-    def histogram_by_numpy(
-        pixel_2theta_array,
-        pixel_count_array,
-        two_theta_bins,
-        is_point_data,
-        vanadium_counts,
-        sub_run_duration=None,
-        van_duration=None,
-    ):
+    def histogram_by_numpy(pixel_2theta_array, pixel_count_array, two_theta_bins, is_point_data, vanadium_counts):
         """Histogram a data set (X, Y) by numpy histogram algorithm
 
         Assumption:
@@ -691,12 +663,6 @@ class PyHB2BReduction:
         :param bool is_point_data: Output shall be point data; otherwise, histogram data
         :param None or numpy.ndarray vanadium_counts: Vanadium counts for normalization and efficiency calibration.
             It is allowed to be None
-        :param sub_run_duration: sample sub run duration in seconds. If both this and van_duration are
-            given, the vanadium-normalized intensity is additionally scaled by van_duration / sub_run_duration
-            so the result accounts for the sample and vanadium runs having different counting times.
-        :type sub_run_duration: float, optional
-        :param van_duration: vanadium run duration in seconds. See sub_run_duration.
-        :type van_duration: float, optional
         :return: bins, data_hist, data_var
         :rtype: numpy.ndarray
         """
@@ -761,17 +727,6 @@ class PyHB2BReduction:
 
             # normalize data
             normalized_data = data_array * (van_array_max / van_array)
-
-            # Scale by the relative counting time of the sample and vanadium runs. The ratio above
-            # (van_array_max / van_array) is a pure shape/efficiency correction that is invariant to a
-            # uniform rescaling of the vanadium counts, so the duration ratio must be applied explicitly.
-            if (sub_run_duration is not None) and (van_duration is not None):
-                if sub_run_duration <= 0 or van_duration <= 0:
-                    raise RuntimeError(
-                        "Sub run duration ({}) and vanadium duration ({}) must both be positive "
-                        "to normalize by their ratio".format(sub_run_duration, van_duration)
-                    )
-                normalized_data = normalized_data * (van_duration / sub_run_duration)
 
             data_hist = unp.nominal_values(normalized_data)
             data_var = unp.std_devs(normalized_data)
