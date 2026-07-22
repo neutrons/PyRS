@@ -267,7 +267,7 @@ class ResidualStressInstrument:
         rot_y_matrix = self._cal_rotation_matrix_y(rot_y_rad)
         rot_z_matrix = self._cal_rotation_matrix_z(rot_z_rad)
 
-        rotation_matrix = rot_x_matrix @ rot_y_matrix @ rot_z_matrix
+        rotation_matrix = rot_x_matrix * rot_y_matrix * rot_z_matrix
 
         return rotation_matrix
 
