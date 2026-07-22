@@ -33,6 +33,10 @@ class ReductionApp:
         self._hydra_file_name = None
         self._sub_runs = None
 
+        # provenance of the most recent reduce_data() call, written out by save_diffraction_data()
+        self._calibration_file = None
+        self._van_file = None
+
         return
 
     def get_diffraction_data(self, sub_run, mask_id=None):
@@ -159,6 +163,10 @@ class ReductionApp:
             # sort array to make sure the sub-run data are written into project files in increasing order
             self._sub_runs = sorted(sub_runs)
 
+        # Record provenance for save_diffraction_data() to write out
+        self._calibration_file = calibration_file
+        self._van_file = van_file
+
         # instrument file
         if instrument_file is not None:
             print("instrument file: {}".format(instrument_file))
@@ -174,6 +182,7 @@ class ReductionApp:
         if calibration_file is not None:
             if calibration_file.lower().endswith(".json"):
                 calib_values = calibration_file_io.read_calibration_json_file(calibration_file_name=calibration_file)
+                calibration_file_io.check_calibration_status(calib_values[4])
                 geometry_calibration = calib_values[0]
                 wave_length = calib_values[2]
                 self._hydra_ws.set_wavelength(wave_length, True)
@@ -186,12 +195,11 @@ class ReductionApp:
         # Vanadium
         if van_file is not None:
             # vanadium file is given
-            van_array, van_duration = self._reduction_manager.load_vanadium(van_file)
+            van_array = self._reduction_manager.load_vanadium(van_file)
 
         else:
             # no vanadium
             van_array = None
-            van_duration = None
 
         self._reduction_manager.reduce_diffraction_data(
             self._session,
@@ -204,7 +212,6 @@ class ReductionApp:
             mask=mask,
             mask_id=mask_id,
             vanadium_counts=van_array,
-            van_duration=van_duration,
             eta_step=eta_step,
             eta_min=eta_min,
             eta_max=eta_max,
@@ -263,6 +270,9 @@ class ReductionApp:
 
         # Calibrated wave length shall be written
         self._hydra_ws.save_wavelength(out_file)
+
+        # Record which calibration and vanadium run (if any) produced this reduction
+        out_file.write_reduction_provenance(calibration_file=self._calibration_file, vanadium_run=self._van_file)
 
         # Write & close
         self._hydra_ws.save_reduced_diffraction_data(out_file, sub_runs=self._sub_runs)

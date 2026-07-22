@@ -307,3 +307,303 @@ using that name. `grep -rn '"\.\./\|\.\(json\|csv\|h5\|xml\)"' tests/`
 (and manually check for bare relative filenames passed to file dialogs,
 `open()`, `os.remove()`, etc.) is a reasonable sweep for this pattern in
 other UI tests.
+
+## Uncalibrated (`Status: -1`) calibration JSON silently applied during reduction (2026-07)
+
+`read_calibration_json_file()` in
+[pyrs/utilities/calibration_file_io.py](../pyrs/utilities/calibration_file_io.py)
+returns a 5-tuple `(shift, shift_error, wave_length, wave_length_error,
+status)`, where `status` is the exit code of the
+`scipy.optimize.least_squares` call performed during calibration
+refinement (`self._calibstatus = out[2]` in
+`pyrs/calibration/mantid_peakfit_calibration.py`, `out.status` from
+`FitDetector`). That field is initialized to `-1` in `__init__` before
+any refinement has run, and negative values in general mean the
+optimizer never converged. `ReductionApp.reduce_data()` in
+[pyrs/core/powder_pattern.py](../pyrs/core/powder_pattern.py) unpacked
+this 5-tuple but only ever used `calib_values[0]` (shift) and
+`calib_values[2]` (wavelength) — it ignored `status` entirely, so a JSON
+calibration file that was never successfully refined (e.g. a stale
+template still carrying the `-1` sentinel, or one saved after a
+non-converging fit) was applied to reduction exactly like a good one,
+producing plausible-looking but systematically shifted diffraction
+patterns with no diagnostic indication.
+
+**Fix applied**: added `check_calibration_status(status)` to
+`calibration_file_io.py`, which raises `RuntimeError` when `status < 0`.
+`reduce_data()` now calls it immediately after
+`read_calibration_json_file()` returns and before any of the returned
+values are used, so an unconverged/never-refined calibration aborts
+reduction instead of being silently applied. Regression coverage:
+`tests/unit/pyrs/utilities/test_calibration_file_io.py::test_check_calibration_status_negative_status_raises`
+(the guard in isolation) and
+`tests/integration/test_reduction.py::test_reduce_data_with_unconverged_calibration_status_raises`
+(exercises the real `ReductionApp.reduce_data()` call site against
+`tests/data/HB2B_1017.h5` with a corrupted-status copy of
+`tests/data/HB2B_CAL_Si333.json`).
+
+**Why this matters going forward:** `read_calibration_json_file()` has a
+single production caller (`powder_pattern.py`);
+`import_calibration_ascii_file()` (the other calibration loader, used
+for the non-JSON branch of the same `if`) has no `Status` field/concept
+at all, so it needed no change. If another caller of
+`read_calibration_json_file()` is added later, it must also call
+`check_calibration_status()` on the returned status before applying the
+shift/wavelength — `grep -rn "read_calibration_json_file" pyrs/` is the
+sweep to check this hasn't been bypassed.
+
+**Known gap (not yet fixed):** `check_calibration_status()` only rejects
+negative status codes. `status == 0` is scipy's "maximum number of
+function evaluations exceeded" code — the optimizer ran but did **not**
+converge — which is the same class of "never successfully refined"
+problem this fix targets, just not the specific `-1` sentinel that
+motivated it. A calibration JSON saved after a non-converging fit with
+`Status: 0` is currently still applied silently. If this needs closing,
+change the guard's condition and confirm with whoever owns the
+calibration refinement code whether `status == 0` should always be
+rejected outright or only warned on.
+
+## Combined-axis calibration rotation used element-wise multiply instead of matrix multiply (2026-07)
+
+`generate_rotation_matrix()` in
+[pyrs/core/reduce_hb2b_pyrs.py](../pyrs/core/reduce_hb2b_pyrs.py) combined
+the three per-axis rotation matrices (`rot_x_matrix`, `rot_y_matrix`,
+`rot_z_matrix`, each a plain `np.array`, not `np.matrix`) with NumPy's
+`*` operator, which is element-wise (Hadamard) multiplication for plain
+ndarrays — not matrix multiplication.
+
+**Correction to the initial bug report:** the original report (and this
+entry's first draft) described the bug as "quiescent whenever at most
+one axis is non-zero" — i.e., only combined multi-axis rotations were
+assumed broken, with single-axis calibrations assumed fine. That is
+**not** correct, and was disproven by running the actual single-axis
+regression test against the unfixed code (it failed) and independently
+verifying the arithmetic:
+```python
+Rx = rotation matrix for rot_x=2deg, Ry0 = Rz0 = identity (angle=0)
+Rx * Ry0 * Rz0   # elementwise: zeroes every off-diagonal term of Rx too,
+                 # because elementwise-multiplying by an identity matrix
+                 # kills any entry that lands on a zero of the identity
+```
+Elementwise-multiplying any matrix by the identity (which is what a
+zero-angle axis matrix reduces to) zeroes all of that matrix's
+off-diagonal terms, not just the identity's. So the **only** case the
+old code ever got right was all three angles being exactly zero (no
+rotation at all, both sides trivially the identity). Any calibration
+with even one non-zero rotation angle — single-axis or combined — was
+silently wrong.
+
+This is not dead code: `generate_rotation_matrix()` is called from
+`ResidualStressInstrument.build_instrument()`
+(`reduce_hb2b_pyrs.py:133`), and the resulting matrix is applied to
+every detector pixel's position via `_rotate_detector()`
+(`reduce_hb2b_pyrs.py:38-52`) on the real reduction path
+(`reduction_manager.py` → `PyHB2BReduction.build_instrument()` →
+`ResidualStressInstrument.build_instrument()`), whenever a calibration
+with any non-zero rotation is applied. Every pixel's 2theta, and
+therefore every downstream peak position/d-spacing/strain, would be
+silently wrong for such a calibration.
+
+**Fix applied**: changed line 270 from
+`rot_x_matrix * rot_y_matrix * rot_z_matrix` to
+`rot_x_matrix @ rot_y_matrix @ rot_z_matrix` (matrix multiplication).
+Regression coverage added in
+`tests/unit/pyrs/core/test_reduce_hb2b_pyrs.py`:
+`test_generate_rotation_matrix_combined_rotation_is_orthogonal` asserts
+`R @ R.T ≈ I` and `det(R) ≈ 1` for simultaneously non-zero rotations on
+all three axes; `test_generate_rotation_matrix_single_axis_matches_axis_matrix`
+asserts a single-axis rotation reduces exactly to that axis's own
+matrix. Both were confirmed to fail against the unfixed code (verified
+by temporarily reverting the fix) and pass with it.
+
+**Why this matters going forward:** the actual gap in test coverage
+wasn't "single-axis tests don't catch multi-axis bugs" (the initial,
+incorrect hypothesis) — it's that **no test exercised
+`build_instrument()`/`generate_rotation_matrix()` with any non-`None`,
+non-zero calibration at all** (the one test that calls
+`build_instrument()`, in `tests/integration/test_powder_pattern.py`,
+passes `instrument_calibration=None`). A function is only as tested as
+the inputs actually exercised — a plausible-sounding severity
+assessment ("this only breaks when N things are true") still needs to
+be verified against the real unfixed code before it's written down;
+don't propagate an unverified claim about a bug's scope, even from a
+detailed-looking report, without checking it against a failing test.
+`grep -rn '\* rot_\|rot_.*_matrix \*' pyrs/` (and generally
+`grep -rn ' \* .*_matrix\b'`) is a reasonable sweep for the same
+`*`-instead-of-`@` mistake elsewhere in this file or in similar
+geometry code.
+
+**Action needed on existing calibration files:** any previously-saved
+calibration JSON with a non-zero rotation was *fit* using the old,
+broken forward model (`least_squares` in
+`pyrs/calibration/mantid_peakfit_calibration.py` calls the same
+`generate_rotation_matrix()` during refinement, so calibration and
+reduction shared the identical bug, and the fit self-consistently
+absorbed it). Applying such a stale calibration through the now-fixed
+model will **not** reproduce its old (also wrong) geometry — it needs
+to be re-refined from raw data, not just re-applied. Check any
+calibration JSON with 2+ non-zero rotation values against its
+refinement date relative to this fix.
+
+## Vanadium normalization is a flat-field correction only — run-duration scaling is intentionally NOT applied (2026-07)
+
+**Intent.** The vanadium normalization in
+[pyrs/core/reduce_hb2b_pyrs.py](../pyrs/core/reduce_hb2b_pyrs.py)
+(`PyHB2BReduction.histogram_by_numpy()`) is a **flat-field correction**:
+it divides out per-pixel detector-efficiency and solid-angle variation
+so that a uniform scatterer would produce a uniform response. Vanadium
+is a near-isotropic incoherent scatterer, so its measured pattern
+reflects instrument response rather than sample structure. The
+normalized signal is:
+
+```
+normalized signal = Sample / (V_signal / V_signal.max())
+                  = Sample * (V_signal.max() / V_signal)
+```
+
+which is exactly what the code computes:
+
+```python
+normalized_data = data_array * (van_array_max / van_array)
+```
+
+This ratio is deliberately **self-referencing** — `van_array_max` and
+`van_array` are drawn from the same array, so it is algebraically
+invariant to any uniform rescaling of the vanadium counts
+(`(k·V_max)/(k·V) = V_max/V`). It corrects the *shape* of the response,
+not its absolute scale. That scale-invariance is a feature of a
+flat-field correction, not a defect: the correction should not depend on
+how long either run counted.
+
+**Why run-duration scaling was reverted.** A prior change (commit
+`8a979f67`) threaded `sub_run_duration`/`van_duration` through
+`convert_counts_to_diffraction` → `reduce_to_2theta_histogram` →
+`histogram_by_numpy` and, after the flat-field ratio, applied an extra
+multiplicative factor `van_duration / sub_run_duration`. That turns the
+correction into an absolute/counting-time normalization, which is **out
+of scope** for a flat-field correction and changed reduced intensities
+by the ratio of the two runs' counting times (e.g. the
+`test_manual_reduction` UI baseline shifted by ~0.575×). This was
+reverted: `reduce_to_2theta_histogram()`/`histogram_by_numpy()` no
+longer take duration parameters, and the reduction returns to
+flat-field-only output.
+
+**Current state of the duration parameters.**
+`reduce_sub_run_diffraction()`/`reduce_sub_run_texture()`/
+`reduce_diffraction_data()` in
+[pyrs/core/reduction_manager.py](../pyrs/core/reduction_manager.py)
+still *accept* `sub_run_duration` and `van_duration` (and their
+docstrings still describe the "raw / vanadium * vanadium duration / sub
+run duration" formula), but these values are **not** forwarded into the
+histogram arithmetic and have no effect on the output. Treat that
+docstring formula as describing an intent that is intentionally not
+implemented here. If run-duration (absolute counting-time) normalization
+is ever wanted, it belongs in a separate, explicitly-named step — not
+folded into the vanadium flat-field correction — and needs its own
+review of every reduction call site, since it changes output scale for
+every reduced pattern.
+
+## Output project file never recorded which calibration/vanadium/PyRS version produced it (2026-07)
+
+The output HiDRA project file (HDF5) recorded the calibrated wavelength
+and raw instrument geometry, but never recorded which calibration file
+was applied, which PyRS version wrote the file, or which vanadium run
+was used for normalization — a scientist could not verify, from the
+file alone, how it was produced. The schema already had an empty
+`CALIBRATION` subgroup under `INSTRUMENT`, created at file-creation
+time by `_init_project`
+([pyrs/projectfile/file_object.py](../pyrs/projectfile/file_object.py)),
+apparently intended for exactly this — but nothing ever wrote into it
+(`grep -rn "HidraConstants.CALIBRATION" pyrs/` found only the
+group-creation call site).
+
+**Important structural detail**: `write_instrument_geometry` — the
+only function that touches the `INSTRUMENT` group — is called from
+exactly one place in the whole codebase: `NeXusConvertingApp.save()`,
+which runs during the *earlier* NeXus→HiDRA-project conversion stage,
+before any calibration file has even been chosen. The calibration file
+path is a local variable inside `ReductionApp.reduce_data()`
+([pyrs/core/powder_pattern.py](../pyrs/core/powder_pattern.py)), a
+later, separate stage — it was never reachable from
+`write_instrument_geometry` no matter what was added to that function.
+Any fix had to add a new write path at the point where `reduce_data()`
+actually knows the calibration/vanadium inputs, not extend the existing
+one.
+
+**Fix applied**:
+1. Added `write_reduction_provenance(calibration_file=None,
+   vanadium_run=None)` to `HidraProjectFile`
+   (`pyrs/projectfile/file_object.py`): writes `calibration_file` (path)
+   and `calibration_file_sha256` (via a new `_compute_file_sha256`
+   helper, 64KB-chunked, silently skipped if the file can't be read) as
+   attributes on the existing `CALIBRATION` group when a calibration
+   file is given; writes `vanadium_run` similarly when given; always
+   (re-)writes a root-level `pyrs_version` attribute from
+   `pyrs.__version__`.
+2. `write_instrument_geometry` also now writes `pyrs_version` at the
+   root, since it already runs for essentially every produced file
+   during conversion — this means the version is recorded even for
+   files that are never touched by `reduce_data()`/`save_diffraction_data()`.
+3. `ReductionApp` (`powder_pattern.py`) now stores
+   `self._calibration_file`/`self._van_file` from `reduce_data()`'s
+   parameters (previously discarded once the function returned), and
+   `save_diffraction_data()` calls `write_reduction_provenance()` with
+   them before writing reduced diffraction data.
+
+Verified end-to-end (NeXus conversion → calibrated `reduce_data()` →
+`save_diffraction_data()` → reopened with `h5py`): `calibration_file`,
+its real SHA-256, and `pyrs_version` are all present and correct;
+`vanadium_run` is correctly absent when no vanadium was used. Unit
+tests in `tests/unit/pyrs/projectfile/test_file_object.py` cover the
+round-trip, the "neither given" case, and a calibration path that no
+longer exists on disk (path still recorded, hash silently skipped, no
+exception).
+
+**Known gap (not fixed here) — verified by direct repro, not just
+inspection:** `write_reduction_provenance` writes each of
+`calibration_file`/`vanadium_run` only when that specific argument is
+given; it never clears a previously-written attribute for the other
+one. So calling it twice on the same file with different combinations
+of arguments leaves a stale mix:
+```python
+f.write_reduction_provenance(calibration_file="calA.json", vanadium_run="van1")
+f.write_reduction_provenance(calibration_file="calB.json")   # vanadium_run omitted
+# CALIBRATION group now reads: calibration_file="calB.json", vanadium_run="van1" (stale!)
+```
+(Note: calling it with *neither* argument is safe — the method returns
+immediately without touching either attribute, confirmed by
+`test_write_reduction_provenance_no_calibration_or_vanadium_only_records_version`
+— so `save_diffraction_data()` called without a prior `reduce_data()`
+does not clobber good provenance with `None`; the risk above is
+specifically a second call with a *different* partial combination of
+real values.) Audited every current call site
+(`pyrs/interface/manual_reduction/pyrs_api.py`,
+`pyrs/calibration/mantid_peakfit_calibration.py`, all integration
+tests): every one constructs a fresh `ReductionApp()` immediately
+before its `reduce_data()` + `save_diffraction_data()` pair, so this is
+a latent trap for future reuse, not a live bug today. If it needs
+closing, `write_reduction_provenance` should delete the
+`vanadium_run`/`calibration_file`/`calibration_file_sha256` attrs
+explicitly for whichever of the two is `None`, not just skip writing
+them.
+
+**Second gap, resolved by removal (2026-07-22):** `PyRsCore.save_diffraction_data()`
+(`pyrs/core/pyrscore.py`) called `HB2BReductionManager.save_reduced_diffraction()`
+directly, bypassing `ReductionApp.save_diffraction_data()` (and therefore
+`write_reduction_provenance`) entirely. `grep -rn
+"\.save_diffraction_data("` across the repo confirmed zero callers of
+`PyRsCore.save_diffraction_data` — it was dead code. Since nothing used
+it, it was deleted outright rather than wired into provenance-writing;
+if reduced-diffraction saving from `PyRsCore` is needed again in the
+future, add it back calling `ReductionApp.save_diffraction_data()` (or
+thread `write_reduction_provenance()` through directly) so it doesn't
+silently reintroduce this same bypass.
+
+**Why this matters going forward:** before adding a write to an
+existing function because "that's where this kind of data gets
+written," check whether the function is actually called at a stage of
+the pipeline where the new data is available at all — extending
+`write_instrument_geometry` here would have been a no-op fix, since the
+calibration path doesn't exist yet at that call site. The right fix
+needed a new write path anchored to where the data is actually known
+(`save_diffraction_data`), not a bigger version of the existing one.

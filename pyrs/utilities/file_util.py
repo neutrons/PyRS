@@ -2,12 +2,56 @@ from . import checkdatatypes
 from mantid.api import FileFinder
 from mantid.simpleapi import mtd, GetIPTS, SaveNexusProcessed
 from mantid.kernel import amend_config
+import configparser
 import os
 from pathlib import Path
 from subprocess import check_output
-from typing import Union
+from typing import Optional, Union
 
-__all__ = ["get_ipts_dir", "get_default_output_dir", "get_input_project_file", "get_nexus_file"]
+__all__ = [
+    "get_ipts_dir",
+    "get_default_output_dir",
+    "get_input_project_file",
+    "get_nexus_file",
+    "parse_eta_mask_angle",
+]
+
+
+def parse_eta_mask_angle(config: configparser.ConfigParser) -> Optional[float]:
+    """Parse ``REDUCTION/ETA_MASK_ANGLE`` from an ``hb2b_autoreduction.ini`` config.
+
+    ``configparser`` always returns strings, so the value must be coerced
+    explicitly. This is the single source of truth shared by the autoreduction
+    and live-reduction pipelines; both import this function so their config
+    semantics cannot diverge.
+
+    Args:
+        config: Parsed configuration containing a ``REDUCTION`` section.
+
+    Returns:
+        The eta step in degrees, or ``None`` when the value is blank
+        (meaning no out-of-plane/texture masking — in-plane reduction only).
+
+    Raises:
+        ValueError: If the value is non-empty but does not parse as a number.
+            Failing loudly is intentional — the previous behaviour silently
+            disabled texture reduction on a typo.
+
+    Example:
+        >>> import configparser
+        >>> cfg = configparser.ConfigParser()
+        >>> cfg.add_section("REDUCTION")
+        >>> cfg["REDUCTION"]["ETA_MASK_ANGLE"] = "5"
+        >>> parse_eta_mask_angle(cfg)
+        5.0
+    """
+    raw = (config["REDUCTION"].get("ETA_MASK_ANGLE", "") or "").strip()
+    if raw == "":
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        raise ValueError(f"ETA_MASK_ANGLE must be blank or a number, got {raw!r}")
 
 
 def save_mantid_nexus(workspace_name, file_name, title=""):
