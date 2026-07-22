@@ -205,6 +205,16 @@ class PyRsCore:
 
         return ws
 
+    def save_diffraction_data(self, project_name, file_name):
+        """Save (reduced) diffraction data to HiDRA project file
+        :param project_name: HiDRA wokspace reference or name
+        :param file_name:
+        :return:
+        """
+        self.reduction_service.save_reduced_diffraction(project_name, file_name)
+
+        return
+
     def save_peak_fit_result(self, project_name, hidra_file_name, peak_tag, overwrite=True):
         """Save the result from peak fitting to HiDRA project file
         Parameters

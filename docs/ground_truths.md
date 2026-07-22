@@ -608,17 +608,15 @@ closing, `write_reduction_provenance` should delete the
 explicitly for whichever of the two is `None`, not just skip writing
 them.
 
-**Second gap, resolved by removal (2026-07-22):** `PyRsCore.save_diffraction_data()`
-(`pyrs/core/pyrscore.py`) called `HB2BReductionManager.save_reduced_diffraction()`
-directly, bypassing `ReductionApp.save_diffraction_data()` (and therefore
+**Second gap, currently unreachable:** `PyRsCore.save_diffraction_data()`
+(`pyrs/core/pyrscore.py`) calls
+`HB2BReductionManager.save_reduced_diffraction()` directly, bypassing
+`ReductionApp.save_diffraction_data()` (and therefore
 `write_reduction_provenance`) entirely. `grep -rn
-"\.save_diffraction_data("` across the repo confirmed zero callers of
-`PyRsCore.save_diffraction_data` — it was dead code. Since nothing used
-it, it was deleted outright rather than wired into provenance-writing;
-if reduced-diffraction saving from `PyRsCore` is needed again in the
-future, add it back calling `ReductionApp.save_diffraction_data()` (or
-thread `write_reduction_provenance()` through directly) so it doesn't
-silently reintroduce this same bypass.
+"\.save_diffraction_data("` across the repo finds zero callers of
+`PyRsCore.save_diffraction_data` — it is dead code today. If it is ever
+wired up (e.g. from a GUI action), it will need the same
+`write_reduction_provenance()` call added.
 
 **Why this matters going forward:** before adding a write to an
 existing function because "that's where this kind of data gets
