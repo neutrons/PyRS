@@ -17,9 +17,9 @@ def _config(value):
 @pytest.mark.parametrize(
     "value, expected",
     [
-        ("", None),        # blank -> no eta masking (in-plane only)
-        ("   ", None),     # whitespace-only is also blank
-        ("5", 5.0),        # single digit must be honored (was dropped by auto)
+        ("", None),  # blank -> no eta masking (in-plane only)
+        ("   ", None),  # whitespace-only is also blank
+        ("5", 5.0),  # single digit must be honored (was dropped by auto)
         ("10", 10.0),
         ("-5", -5.0),
         ("2.5", 2.5),

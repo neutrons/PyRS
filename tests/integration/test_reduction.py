@@ -520,5 +520,6 @@ def test_reduce_data_with_unconverged_calibration_status_raises(tmp_path):
     with pytest.raises(RuntimeError, match="never successfully refined"):
         reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=str(bad_calibration_file), mask=None)
 
+
 if __name__ == "__main__":
     pytest.main([__file__])
