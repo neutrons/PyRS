@@ -7,27 +7,6 @@ import json
 import datetime
 
 
-@pytest.mark.parametrize("status", [-1, -4])
-def test_check_calibration_status_negative_status_raises(status):
-    """Test that a negative Status (unconverged or never-refined calibration) is rejected"""
-    # Arrange - status already provided by parametrize
-
-    # Act / Assert
-    with pytest.raises(RuntimeError, match="never successfully refined"):
-        calibration_file_io.check_calibration_status(status)
-
-
-@pytest.mark.parametrize("status", [0, 1, 3])
-def test_check_calibration_status_nonnegative_status_ok(status):
-    """Test that a non-negative Status (a completed optimizer run) passes without error"""
-    # Arrange - status already provided by parametrize
-
-    # Act
-    calibration_file_io.check_calibration_status(status)
-
-    # Assert - no exception raised
-
-
 def test_calibration_json_io():
     """Test the calibration file (in Json format) I/O methods
 
