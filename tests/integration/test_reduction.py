@@ -519,9 +519,7 @@ def test_reduce_data_with_unconverged_calibration_status_raises(tmp_path):
 
     # Act / Assert
     with pytest.raises(RuntimeError, match="never successfully refined"):
-        reducer.reduce_data(
-            sub_runs=None, instrument_file=None, calibration_file=str(bad_calibration_file), mask=None
-        )
+        reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=str(bad_calibration_file), mask=None)
 
 
 def test_reduce_diffraction_data_vanadium_duration_scales_intensity():

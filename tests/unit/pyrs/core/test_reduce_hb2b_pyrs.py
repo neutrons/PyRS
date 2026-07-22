@@ -1,4 +1,5 @@
 """Unit tests for pyrs.core.reduce_hb2b_pyrs"""
+
 import numpy as np
 
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry
@@ -109,9 +110,7 @@ def test_histogram_by_numpy_no_duration_given_matches_shape_correction_only():
     pixel_2theta, counts, vanadium, two_theta_bins = _make_histogram_inputs()
 
     # Act
-    _, hist_no_duration, _ = PyHB2BReduction.histogram_by_numpy(
-        pixel_2theta, counts, two_theta_bins, True, vanadium
-    )
+    _, hist_no_duration, _ = PyHB2BReduction.histogram_by_numpy(pixel_2theta, counts, two_theta_bins, True, vanadium)
     _, hist_ratio_1, _ = PyHB2BReduction.histogram_by_numpy(
         pixel_2theta, counts, two_theta_bins, True, vanadium, sub_run_duration=10.0, van_duration=10.0
     )
