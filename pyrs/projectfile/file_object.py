@@ -1,9 +1,11 @@
 # This is rs_scan_io.DiffractionFile's 2.0 version
 from enum import Enum
 import h5py
+import hashlib
 from mantid.kernel import Logger
 import numpy
 from pathlib import Path
+from pyrs import __version__
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float, to_int
 from pyrs.utilities.file_util import to_filepath
@@ -14,6 +16,23 @@ from pyrs.projectfile import HidraProjectFileMode  # type: ignore
 from typing import Union
 
 __all__ = ["HidraProjectFile"]
+
+
+def _compute_file_sha256(file_path):
+    """Compute the SHA-256 hex digest of a file's contents
+
+    :param str file_path: path to the file to hash
+    :return: hex digest, or None if the file cannot be read (e.g. it no longer exists)
+    :rtype: str or None
+    """
+    try:
+        hasher = hashlib.sha256()
+        with open(file_path, "rb") as handle:
+            for chunk in iter(lambda: handle.read(65536), b""):
+                hasher.update(chunk)
+        return hasher.hexdigest()
+    except OSError:
+        return None
 
 
 class DiffractionUnit(Enum):
@@ -667,6 +686,10 @@ class HidraProjectFile:
         self._validate_write_operation()
         checkdatatypes.check_type("Instrument geometry setup", instrument_setup, HidraSetup)
 
+        # PyRS version producing this file: recorded at the root level so it survives
+        # regardless of which writer touches the file afterwards
+        self._project_h5.attrs["pyrs_version"] = __version__
+
         # write value to instrument
         instrument_group = self._project_h5[HidraConstants.INSTRUMENT]
 
@@ -694,6 +717,47 @@ class HidraProjectFile:
         # Set wave length
         if wl is not None:
             wavelength_group.create_dataset("Calibrated", data=numpy.array([wl]))
+
+    def write_reduction_provenance(self, calibration_file=None, vanadium_run=None):
+        """Record which calibration and vanadium run (if any) produced this file's reduced data
+
+        Populates the CALIBRATION group (previously created but never populated) with enough
+        information for a scientist to determine, from the output file alone, which calibration
+        was applied and which vanadium run was used for normalization. Also (re-)records the
+        PyRS version, in case this file was never touched by write_instrument_geometry.
+
+        Parameters
+        ----------
+        calibration_file : str or None
+            path to the calibration JSON/ASCII file applied during reduction, if any
+        vanadium_run : str or None
+            path or run identifier of the vanadium project/NeXus file used for normalization,
+            if any
+        """
+        self._validate_write_operation()
+
+        self._project_h5.attrs["pyrs_version"] = __version__
+
+        if calibration_file is None and vanadium_run is None:
+            return
+
+        try:
+            calibration_group = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.CALIBRATION]
+        except KeyError:
+            raise RuntimeError(
+                "Project file {} has no '{}/{}' group to record provenance in".format(
+                    self._project_h5.filename, HidraConstants.INSTRUMENT, HidraConstants.CALIBRATION
+                )
+            )
+
+        if calibration_file is not None:
+            calibration_group.attrs["calibration_file"] = str(calibration_file)
+            sha256 = _compute_file_sha256(calibration_file)
+            if sha256 is not None:
+                calibration_group.attrs["calibration_file_sha256"] = sha256
+
+        if vanadium_run is not None:
+            calibration_group.attrs["vanadium_run"] = str(vanadium_run)
 
     def read_peak_tags(self):
         """Get all the tags of peaks with parameters stored in HiDRA project

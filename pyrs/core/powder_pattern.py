@@ -33,6 +33,10 @@ class ReductionApp:
         self._hydra_file_name = None
         self._sub_runs = None
 
+        # provenance of the most recent reduce_data() call, written out by save_diffraction_data()
+        self._calibration_file = None
+        self._van_file = None
+
         return
 
     def get_diffraction_data(self, sub_run, mask_id=None):
@@ -159,6 +163,10 @@ class ReductionApp:
             # sort array to make sure the sub-run data are written into project files in increasing order
             self._sub_runs = sorted(sub_runs)
 
+        # Record provenance for save_diffraction_data() to write out
+        self._calibration_file = calibration_file
+        self._van_file = van_file
+
         # instrument file
         if instrument_file is not None:
             print("instrument file: {}".format(instrument_file))
@@ -264,6 +272,9 @@ class ReductionApp:
 
         # Calibrated wave length shall be written
         self._hydra_ws.save_wavelength(out_file)
+
+        # Record which calibration and vanadium run (if any) produced this reduction
+        out_file.write_reduction_provenance(calibration_file=self._calibration_file, vanadium_run=self._van_file)
 
         # Write & close
         self._hydra_ws.save_reduced_diffraction_data(out_file, sub_runs=self._sub_runs)
