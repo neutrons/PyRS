@@ -444,3 +444,82 @@ model will **not** reproduce its old (also wrong) geometry — it needs
 to be re-refined from raw data, not just re-applied. Check any
 calibration JSON with 2+ non-zero rotation values against its
 refinement date relative to this fix.
+
+## Vanadium/sample run duration accepted as reduction parameters, never applied (2026-07)
+
+`reduce_sub_run_diffraction()` and `reduce_sub_run_texture()` in
+[pyrs/core/reduction_manager.py](../pyrs/core/reduction_manager.py)
+both accept `sub_run_duration` and `van_duration` and document the
+intended formula: *"If both sub run duration and vanadium duration are
+given, normalized intensity = raw histogram / vanadium histogram *
+vanadium duration / sub run duration."* Neither parameter was ever
+forwarded past these two functions: `convert_counts_to_diffraction()`
+had no duration parameters at all, and its callees
+`PyHB2BReduction.reduce_to_2theta_histogram()` /
+`histogram_by_numpy()` in
+[pyrs/core/reduce_hb2b_pyrs.py](../pyrs/core/reduce_hb2b_pyrs.py) had
+none either. `grep -rn` for both parameter names across `pyrs/`
+confirmed zero consumers anywhere — this was not limited to the
+vanadium-duration term as initially reported; `sub_run_duration` (the
+sample run's own counting time) was equally dead end-to-end, threaded
+through `reduce_diffraction_data()`'s `normalize_by_duration` machinery
+for nothing.
+
+A subtlety that shapes the fix: the existing vanadium normalization,
+`normalized_data = data_array * (van_array_max / van_array)`, is a
+*self-referencing* shape/efficiency correction — `van_array_max` and
+`van_array` come from the same array, so this ratio is algebraically
+invariant to any uniform rescaling of the vanadium counts (`(k·V_max)/(k·V)
+= V_max/V` for any constant `k`). This means `van_duration` cannot be
+introduced by scaling the vanadium counts before this ratio is computed
+— it has no effect that way. It has to be applied as an explicit,
+separate multiplicative factor after the ratio.
+
+**Fix applied**: threaded `sub_run_duration`/`van_duration` through the
+full call chain (`convert_counts_to_diffraction` →
+`reduce_to_2theta_histogram` → `histogram_by_numpy`). Inside
+`histogram_by_numpy`'s existing vanadium branch, immediately after the
+shape-correction ratio, added:
+```python
+if (sub_run_duration is not None) and (van_duration is not None):
+    normalized_data = normalized_data * (van_duration / sub_run_duration)
+```
+This reproduces the documented formula (up to the pre-existing,
+unrelated `van_array_max` scaling convention already baked into the
+shape correction, which this fix does not change). Regression coverage:
+`tests/unit/pyrs/core/test_reduce_hb2b_pyrs.py` (`histogram_by_numpy`
+in isolation — asserts the ratio scales output linearly, and that
+omitting both durations reproduces the old shape-only behavior) and
+`tests/integration/test_reduction.py::test_reduce_diffraction_data_vanadium_duration_scales_intensity`
+(real project data through `HB2BReductionManager.reduce_diffraction_data()`,
+a flat fabricated vanadium array to isolate the duration term from
+shape correction, asserts halving `van_duration` halves the output).
+All new tests confirmed to fail against the unfixed code.
+
+**Known gap (not fixed here, scoped out deliberately):** when no
+vanadium is supplied, `sub_run_duration` still has no effect —
+`normalize_by_duration=True` in `reduce_diffraction_data()` computes a
+real sub-run duration but nothing ever divides sample counts by it
+outside the vanadium branch. So plain (non-vanadium-normalized)
+reduction is still not corrected for sub-run counting time. This is a
+real, separate bug from the one fixed here (fixing it would mean
+deciding whether to unconditionally divide sample counts by
+`sub_run_duration` regardless of vanadium, which changes output scale
+for every non-vanadium reduction call site and needs its own review),
+left as a follow-up rather than folded into this fix.
+
+**Why this matters going forward:** an accepted-but-unused parameter
+threaded through 3+ function signatures with a docstring describing
+behavior that was never implemented is easy to miss by reading any
+single function in isolation — each one *looks* complete because it
+forwards the parameter onward. Confirming a normalization claim
+requires tracing the parameter all the way to where the arithmetic
+actually happens, not just to the next function call. Also: before
+assuming a duration/scale correction can be introduced by rescaling one
+of the two arrays going into a ratio, check whether the ratio is
+self-referencing (numerator and denominator drawn from the same array)
+— if so, a uniform rescale of that array is invisible to the ratio and
+the correction must be applied as a separate explicit factor.
+`grep -rn "duration" pyrs/core/reduction_manager.py
+pyrs/core/reduce_hb2b_pyrs.py` is a reasonable sweep to re-check this
+if the reduction call chain is refactored again.
