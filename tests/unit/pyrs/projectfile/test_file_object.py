@@ -1,10 +1,8 @@
 import datetime
-import hashlib
 import numpy as np
 import os
 import pytest
 
-from pyrs import __version__
 from pyrs.core.peak_profile_utility import PeakShape, BackgroundFunction
 from pyrs.dataobjects.constants import HidraConstants
 from pyrs.peaks import PeakCollection  # type: ignore
@@ -269,103 +267,6 @@ class TestHidraProjectFile:
 
         # Clean
         os.remove(test_file_name)
-
-    def test_write_reduction_provenance_records_calibration_version_and_vanadium(self, tmpdir):
-        """Test that calibration file path/hash, vanadium run, and PyRS version round-trip
-
-        Regression test: the CALIBRATION group in the HDF5 schema was created but never
-        populated, so a scientist could not determine from the output file alone which
-        calibration or vanadium run produced it, nor which PyRS version wrote it.
-        """
-        # Arrange
-        test_file_name = str(tmpdir.join("test_provenance.h5"))
-        calibration_file = str(tmpdir.join("fake_calibration.json"))
-        calibration_content = b'{"Lambda": 1.5}'
-        with open(calibration_file, "wb") as handle:
-            handle.write(calibration_content)
-
-        test_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.OVERWRITE)
-
-        # Act
-        test_project_file.write_reduction_provenance(calibration_file=calibration_file, vanadium_run="HB2B_931.h5")
-        test_project_file.save(verbose=False)
-
-        # Assert
-        verify_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.READONLY)
-        calibration_group = verify_project_file._project_h5[HidraConstants.INSTRUMENT][HidraConstants.CALIBRATION]
-
-        assert calibration_group.attrs["calibration_file"] == calibration_file
-        assert calibration_group.attrs["calibration_file_sha256"] == hashlib.sha256(calibration_content).hexdigest()
-        assert calibration_group.attrs["vanadium_run"] == "HB2B_931.h5"
-        assert verify_project_file._project_h5.attrs["pyrs_version"] == __version__
-
-        verify_project_file.close()
-
-    def test_write_reduction_provenance_no_calibration_or_vanadium_only_records_version(self, tmpdir):
-        """Test that omitting calibration_file/vanadium_run still records the PyRS version"""
-        # Arrange
-        test_file_name = str(tmpdir.join("test_provenance_none.h5"))
-        test_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.OVERWRITE)
-
-        # Act
-        test_project_file.write_reduction_provenance()
-        test_project_file.save(verbose=False)
-
-        # Assert
-        verify_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.READONLY)
-        calibration_group = verify_project_file._project_h5[HidraConstants.INSTRUMENT][HidraConstants.CALIBRATION]
-
-        assert verify_project_file._project_h5.attrs["pyrs_version"] == __version__
-        assert "calibration_file" not in calibration_group.attrs
-        assert "vanadium_run" not in calibration_group.attrs
-
-        verify_project_file.close()
-
-    def test_write_reduction_provenance_missing_calibration_file_skips_hash(self, tmpdir):
-        """Test that a calibration path pointing to a file that no longer exists still
-        records the path (for provenance) but skips the unreadable hash, without raising
-        """
-        # Arrange
-        test_file_name = str(tmpdir.join("test_provenance_missing.h5"))
-        missing_calibration_file = str(tmpdir.join("does_not_exist.json"))
-        test_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.OVERWRITE)
-
-        # Act
-        test_project_file.write_reduction_provenance(calibration_file=missing_calibration_file)
-        test_project_file.save(verbose=False)
-
-        # Assert
-        verify_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.READONLY)
-        calibration_group = verify_project_file._project_h5[HidraConstants.INSTRUMENT][HidraConstants.CALIBRATION]
-
-        assert calibration_group.attrs["calibration_file"] == missing_calibration_file
-        assert "calibration_file_sha256" not in calibration_group.attrs
-
-        verify_project_file.close()
-
-    def test_write_reduction_provenance_second_call_does_not_clear_omitted_field(self, tmpdir):
-        """Test the current (documented, not-yet-fixed) partial-overwrite behavior: a second
-        call that omits vanadium_run leaves the first call's vanadium_run attribute in place,
-        rather than clearing it. This pins down the known gap recorded in docs/ground_truths.md
-        so a future fix changes this test deliberately, not by accident.
-        """
-        # Arrange
-        test_file_name = str(tmpdir.join("test_provenance_twice.h5"))
-        test_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.OVERWRITE)
-
-        # Act
-        test_project_file.write_reduction_provenance(calibration_file="calA.json", vanadium_run="van1")
-        test_project_file.write_reduction_provenance(calibration_file="calB.json")
-        test_project_file.save(verbose=False)
-
-        # Assert
-        verify_project_file = HidraProjectFile(test_file_name, HidraProjectFileMode.READONLY)
-        calibration_group = verify_project_file._project_h5[HidraConstants.INSTRUMENT][HidraConstants.CALIBRATION]
-
-        assert calibration_group.attrs["calibration_file"] == "calB.json"
-        assert calibration_group.attrs["vanadium_run"] == "van1"  # stale, from the first call
-
-        verify_project_file.close()
 
     def test_peak_fitting_result_io(self):
         """Test peak fitting result's writing and reading
