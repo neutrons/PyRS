@@ -1,3 +1,4 @@
+import json
 import os
 from mantid.simpleapi import LoadEventNexus
 from pyrs.core.nexus_conversion import NeXusConvertingApp, DEFAULT_KEEP_LOGS
@@ -496,6 +497,30 @@ def test_reduce_with_calibration():
     finally:
         if os.path.exists(project):
             os.remove(project)
+
+
+def test_reduce_data_with_unconverged_calibration_status_raises(tmp_path):
+    """Test that a calibration JSON with a negative Status (never successfully refined) is rejected
+
+    Regression test: ReductionApp.reduce_data() previously ignored the calibration's
+    Status field entirely and applied the shift/wavelength from an unconverged (or
+    never-refined) calibration exactly like a valid one.
+    """
+    # Arrange - a known-good calibration, corrupted to carry the "never refined" sentinel status
+    with open("tests/data/HB2B_CAL_Si333.json") as f:
+        calib_dict = json.load(f)
+    calib_dict["Status"] = -1
+    bad_calibration_file = tmp_path / "HB2B_CAL_unconverged.json"
+    bad_calibration_file.write_text(json.dumps(calib_dict))
+
+    reducer = ReductionApp()
+    reducer.load_project_file("tests/data/HB2B_1017.h5")
+
+    # Act / Assert
+    with pytest.raises(RuntimeError, match="never successfully refined"):
+        reducer.reduce_data(
+            sub_runs=None, instrument_file=None, calibration_file=str(bad_calibration_file), mask=None
+        )
 
 
 if __name__ == "__main__":

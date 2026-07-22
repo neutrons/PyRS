@@ -307,3 +307,58 @@ using that name. `grep -rn '"\.\./\|\.\(json\|csv\|h5\|xml\)"' tests/`
 (and manually check for bare relative filenames passed to file dialogs,
 `open()`, `os.remove()`, etc.) is a reasonable sweep for this pattern in
 other UI tests.
+
+## Uncalibrated (`Status: -1`) calibration JSON silently applied during reduction (2026-07)
+
+`read_calibration_json_file()` in
+[pyrs/utilities/calibration_file_io.py](../pyrs/utilities/calibration_file_io.py)
+returns a 5-tuple `(shift, shift_error, wave_length, wave_length_error,
+status)`, where `status` is the exit code of the
+`scipy.optimize.least_squares` call performed during calibration
+refinement (`self._calibstatus = out[2]` in
+`pyrs/calibration/mantid_peakfit_calibration.py`, `out.status` from
+`FitDetector`). That field is initialized to `-1` in `__init__` before
+any refinement has run, and negative values in general mean the
+optimizer never converged. `ReductionApp.reduce_data()` in
+[pyrs/core/powder_pattern.py](../pyrs/core/powder_pattern.py) unpacked
+this 5-tuple but only ever used `calib_values[0]` (shift) and
+`calib_values[2]` (wavelength) — it ignored `status` entirely, so a JSON
+calibration file that was never successfully refined (e.g. a stale
+template still carrying the `-1` sentinel, or one saved after a
+non-converging fit) was applied to reduction exactly like a good one,
+producing plausible-looking but systematically shifted diffraction
+patterns with no diagnostic indication.
+
+**Fix applied**: added `check_calibration_status(status)` to
+`calibration_file_io.py`, which raises `RuntimeError` when `status < 0`.
+`reduce_data()` now calls it immediately after
+`read_calibration_json_file()` returns and before any of the returned
+values are used, so an unconverged/never-refined calibration aborts
+reduction instead of being silently applied. Regression coverage:
+`tests/unit/pyrs/utilities/test_calibration_file_io.py::test_check_calibration_status_negative_status_raises`
+(the guard in isolation) and
+`tests/integration/test_reduction.py::test_reduce_data_with_unconverged_calibration_status_raises`
+(exercises the real `ReductionApp.reduce_data()` call site against
+`tests/data/HB2B_1017.h5` with a corrupted-status copy of
+`tests/data/HB2B_CAL_Si333.json`).
+
+**Why this matters going forward:** `read_calibration_json_file()` has a
+single production caller (`powder_pattern.py`);
+`import_calibration_ascii_file()` (the other calibration loader, used
+for the non-JSON branch of the same `if`) has no `Status` field/concept
+at all, so it needed no change. If another caller of
+`read_calibration_json_file()` is added later, it must also call
+`check_calibration_status()` on the returned status before applying the
+shift/wavelength — `grep -rn "read_calibration_json_file" pyrs/` is the
+sweep to check this hasn't been bypassed.
+
+**Known gap (not yet fixed):** `check_calibration_status()` only rejects
+negative status codes. `status == 0` is scipy's "maximum number of
+function evaluations exceeded" code — the optimizer ran but did **not**
+converge — which is the same class of "never successfully refined"
+problem this fix targets, just not the specific `-1` sentinel that
+motivated it. A calibration JSON saved after a non-converging fit with
+`Status: 0` is currently still applied silently. If this needs closing,
+change the guard's condition and confirm with whoever owns the
+calibration refinement code whether `status == 0` should always be
+rejected outright or only warned on.

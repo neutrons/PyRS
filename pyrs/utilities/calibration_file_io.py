@@ -29,6 +29,41 @@ def check_calibration_dictionary(calib_dict):
     return calib_dict
 
 
+def check_calibration_status(status):
+    """Verify that a calibration's optimizer status indicates it was actually refined
+
+    The ``Status`` field stored in a calibration JSON file is the exit code from the
+    ``scipy.optimize.least_squares`` call used to refine the calibration
+    (see ``pyrs.calibration.mantid_peakfit_calibration``). That field is initialized
+    to ``-1`` before any refinement has run, and negative values in general indicate
+    the optimizer never produced a valid result. Applying such a calibration to
+    reduction would silently shift every reduced pattern with no diagnostic.
+
+    Note that ``status == 0`` (scipy's "maximum number of function evaluations
+    exceeded" code, meaning the optimizer ran but did not converge) is currently
+    accepted rather than rejected; only negative codes are treated as invalid here.
+
+    Parameters
+    ----------
+    status : int
+        Value of the calibration's ``Status`` field, as returned by
+        :func:`read_calibration_json_file`.
+
+    Raises
+    ------
+    RuntimeError
+        If ``status`` is negative, meaning the calibration was never successfully
+        refined.
+    """
+    if status < 0:
+        raise RuntimeError(
+            "Calibration status is {}, indicating it was never successfully refined "
+            "(negative status codes are only produced by an optimizer that never converged, "
+            "or by the -1 sentinel set before any refinement has run). "
+            "Refusing to apply this calibration to reduction.".format(status)
+        )
+
+
 def read_calibration_json_file(calibration_file_name):
     """Import calibration file in json format
 

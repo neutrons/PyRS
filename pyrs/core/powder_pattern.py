@@ -174,6 +174,7 @@ class ReductionApp:
         if calibration_file is not None:
             if calibration_file.lower().endswith(".json"):
                 calib_values = calibration_file_io.read_calibration_json_file(calibration_file_name=calibration_file)
+                calibration_file_io.check_calibration_status(calib_values[4])
                 geometry_calibration = calib_values[0]
                 wave_length = calib_values[2]
                 self._hydra_ws.set_wavelength(wave_length, True)
