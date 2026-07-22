@@ -3,7 +3,6 @@ import os
 from mantid.simpleapi import LoadEventNexus
 from pyrs.core.nexus_conversion import NeXusConvertingApp, DEFAULT_KEEP_LOGS
 from pyrs.core.powder_pattern import ReductionApp
-from pyrs.core.reduction_manager import HB2BReductionManager
 from pyrs.dataobjects import HidraConstants  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
@@ -520,96 +519,6 @@ def test_reduce_data_with_unconverged_calibration_status_raises(tmp_path):
     # Act / Assert
     with pytest.raises(RuntimeError, match="never successfully refined"):
         reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=str(bad_calibration_file), mask=None)
-
-
-def test_reduce_diffraction_data_vanadium_duration_scales_intensity():
-    """Test that halving the vanadium run's duration halves the vanadium-normalized intensity
-
-    Regression test: HB2BReductionManager.reduce_diffraction_data() accepted van_duration
-    and threaded it into reduce_sub_run_diffraction, but it was silently dropped before ever
-    reaching the histogramming code, so vanadium-normalized intensity was independent of the
-    vanadium run's counting time.
-    """
-    # Arrange
-    project_file_name = "tests/data/HB2B_1017.h5"
-    test_project = HidraProjectFile(project_file_name)
-    test_ws = HidraWorkspace("test_vanadium_duration")
-    test_ws.load_hidra_project(test_project, load_raw_counts=True, load_reduced_diffraction=False)
-    test_project.close()
-
-    sub_run = test_ws.get_sub_runs()[0]
-    raw_counts = test_ws.get_detector_counts(sub_run)
-    # any vanadium array works here: each pair of calls below reuses the identical vanadium
-    # array/binning/mask, so the van_max/van shape-correction factor cancels between them
-    # regardless of the array's shape; a flat array just keeps the fixture simple
-    vanadium_counts = np.full(raw_counts.shape, 100.0)
-
-    reducer = HB2BReductionManager()
-    reducer.init_session("test_van_duration", hidra_ws=test_ws)
-
-    # Act
-    reducer.reduce_diffraction_data(
-        "test_van_duration",
-        False,
-        1000,
-        sub_run_list=[sub_run],
-        mask=None,
-        mask_id=None,
-        vanadium_counts=vanadium_counts,
-        van_duration=20.0,
-        normalize_by_duration=False,
-    )
-    _, intensity_van20, _ = reducer.get_reduced_diffraction_data("test_van_duration", sub_run)
-
-    reducer.reduce_diffraction_data(
-        "test_van_duration",
-        False,
-        1000,
-        sub_run_list=[sub_run],
-        mask=None,
-        mask_id=None,
-        vanadium_counts=vanadium_counts,
-        van_duration=10.0,
-        normalize_by_duration=False,
-    )
-    _, intensity_van10, _ = reducer.get_reduced_diffraction_data("test_van_duration", sub_run)
-
-    # Assert - halving van_duration (20 -> 10) halves the normalized intensity
-    np.testing.assert_allclose(intensity_van10, intensity_van20 / 2.0, equal_nan=True)
-    assert np.nansum(intensity_van20) > 0, "sanity check: reduction produced non-zero intensity"
-
-    # Act - now hold van_duration fixed and vary sub_run_duration instead, via the lower-level
-    # reduce_sub_run_diffraction() call (reduce_diffraction_data() only exposes sub_run_duration
-    # indirectly through normalize_by_duration, which reads a real, unknown-ratio sample log value)
-    reducer.reduce_sub_run_diffraction(
-        test_ws,
-        sub_run,
-        None,
-        mask_vec_tuple=(None, None),
-        num_bins=1000,
-        sub_run_duration=10.0,
-        vanadium_counts=vanadium_counts,
-        van_duration=20.0,
-    )
-    _, intensity_sample10, _ = test_ws.get_reduced_diffraction_data(sub_run)
-
-    reducer.reduce_sub_run_diffraction(
-        test_ws,
-        sub_run,
-        None,
-        mask_vec_tuple=(None, None),
-        num_bins=1000,
-        sub_run_duration=5.0,
-        vanadium_counts=vanadium_counts,
-        van_duration=20.0,
-    )
-    _, intensity_sample5, _ = test_ws.get_reduced_diffraction_data(sub_run)
-
-    # Assert - halving sub_run_duration (10 -> 5) doubles the normalized intensity. This pins down
-    # that sub_run_duration is used as the divisor, not just van_duration as the multiplier — a bug
-    # that dropped sub_run_duration entirely would still pass the van_duration-only checks above.
-    np.testing.assert_allclose(intensity_sample5, intensity_sample10 * 2.0, equal_nan=True)
-
 
 if __name__ == "__main__":
     pytest.main([__file__])

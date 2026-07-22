@@ -210,9 +210,7 @@ class HB2BReductionManager:
         """Load vanadium from HiDRA project file or NeXus file
 
         :param str van_project_file: vanadium HiDRA project file or NeXus file
-        :returns:
-            - van_array (numpy.ndarray) - 1D array as vanadium counts
-            - van_duration (numpy.ndarray) - duration of vanadium run (second)
+        :returns: van_array (numpy.ndarray) - 1D array as vanadium counts
         """
         checkdatatypes.check_file_name(van_project_file, True, False, False, "Vanadium project/NeXus file")
 
@@ -242,10 +240,7 @@ class HB2BReductionManager:
         # get vanadium data
         van_array = self._van_ws.get_detector_counts(sub_runs[0]).astype(np.float64)
 
-        # get vanadium run duration
-        van_duration = self._van_ws.get_sample_log_value(HidraConstants.SUB_RUN_DURATION, sub_runs[0])
-
-        return van_array, van_duration
+        return van_array
 
     def get_mask_vector(self, mask_id):
         """
@@ -268,7 +263,6 @@ class HB2BReductionManager:
         mask,
         mask_id,
         vanadium_counts=None,
-        van_duration=None,
         normalize_by_duration=True,
         eta_step=None,
         eta_min=None,
@@ -292,15 +286,8 @@ class HB2BReductionManager:
         :param mask_id: ID for mask.  If mask ID is None, then it is the default universal mask applied to all data
         :type mask_id: str, optional
         :param integer sub_run: sub run number in workspace to reduce
-        :param vanadium_counts: detector pixels' vanadium for efficiency and normalization.
-            If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
+        :param vanadium_counts: detector pixels' vanadium for efficiency and normalization (flat-field correction)
         :type vanadium_counts: numpy.ndarray, optional
-        :param normalize_by_duration: if True (default), require and read the sub run's duration
-            sample log. Note this duration is only actually applied when vanadium_counts and
-            van_duration are also given (see reduce_sub_run_diffraction); with no vanadium, a
-            sub run duration is still required (raises RuntimeError if the sample log is missing)
-            but has no effect on the output.
-        :type normalize_by_duration: bool, optional
         :param eta_step: angular step size for out-of-plane reduction
         :type eta_step: float, optional
         :param eta_min: min angle for out-of-plane reduction
@@ -352,7 +339,7 @@ class HB2BReductionManager:
         if sub_run_list is None:
             sub_run_list = workspace.get_sub_runs()
 
-        # Determine whether normalization by time is supported
+        # When normalize_by_duration is requested, require the sub-run duration sample log to be present
         if normalize_by_duration and not workspace.has_sample_log(HidraConstants.SUB_RUN_DURATION):
             raise RuntimeError(
                 "Workspace {} does not have sample log {}.  Existing logs are {}".format(
@@ -364,13 +351,6 @@ class HB2BReductionManager:
         workspace.reset_diffraction_data()
 
         for sub_run in sub_run_list:
-            # get the duration
-            if normalize_by_duration:
-                duration_i = workspace.get_sample_log_value(HidraConstants.SUB_RUN_DURATION, sub_run)
-            else:
-                # not normalized
-                duration_i = 1.0
-
             if eta_step is None:
                 # reduce sub run
                 self.reduce_sub_run_diffraction(
@@ -382,9 +362,7 @@ class HB2BReductionManager:
                     max_2theta=max_2theta,
                     num_bins=num_bins,
                     delta_2theta=delta_2theta,
-                    sub_run_duration=duration_i,
                     vanadium_counts=vanadium_counts,
-                    van_duration=van_duration,
                 )
             else:
                 # reduce sub run texture
@@ -396,9 +374,7 @@ class HB2BReductionManager:
                     min_2theta=min_2theta,
                     max_2theta=max_2theta,
                     num_bins=num_bins,
-                    sub_run_duration=duration_i,
                     vanadium_counts=vanadium_counts,
-                    van_duration=van_duration,
                     eta_step=eta_step,
                     eta_min=eta_min,
                     eta_max=eta_max,
@@ -457,9 +433,7 @@ class HB2BReductionManager:
         min_2theta=None,
         max_2theta=None,
         num_bins=1000,
-        sub_run_duration=None,
         vanadium_counts=None,
-        van_duration=None,
         delta_2theta=None,
     ):
         """Reduce import data (workspace or vector) to 2-theta ~ I
@@ -472,11 +446,6 @@ class HB2BReductionManager:
         2. 2-theta resolution/step size:
             If 2theta resolution is not given, num_bins will be used to determine resolution with 2-theta range;
             Otherwise, use resolution
-
-        Normalization to time/duration
-
-        If both sub run duration and vanadium duration are given
-        normalized intensity = raw histogram / vanadium histogram * vanadium duration / sub run duration
 
         :param HidraWorkspace workspace: workspace with detector counts and position
         :param integer sub_run: sub run number in workspace to reduce
@@ -492,12 +461,7 @@ class HB2BReductionManager:
         :param int num_bins: number of bins
         :param delta_2theta: 2theta increment in the reduced diffraction data
         :type delta_2theta: float, optional
-        :param sub_run_duration: sample sub run duration in seconds. Only has an effect when
-            vanadium_counts and van_duration are also given (see the vanadium normalization
-            formula above) — it has no effect on its own.
-        :type sub_run_duration: float, optional
-        :param vanadium_counts: detector pixels' vanadium for efficiency and normalization.
-            If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
+        :param vanadium_counts: detector pixels' vanadium for efficiency and normalization (flat-field correction)
         :type vanadium_counts: numpy.ndarray, optional
         :return: None
 
@@ -511,14 +475,7 @@ class HB2BReductionManager:
 
         # Histogram
         bin_centers, hist, variances = self.convert_counts_to_diffraction(
-            reduction_engine,
-            (min_2theta, max_2theta),
-            num_bins,
-            delta_2theta,
-            mask_vec,
-            vanadium_counts,
-            sub_run_duration,
-            van_duration,
+            reduction_engine, (min_2theta, max_2theta), num_bins, delta_2theta, mask_vec, vanadium_counts
         )
 
         # record
@@ -570,9 +527,7 @@ class HB2BReductionManager:
         min_2theta=None,
         max_2theta=None,
         num_bins=1000,
-        sub_run_duration=None,
         vanadium_counts=None,
-        van_duration=None,
         eta_step=None,
         eta_min=None,
         eta_max=None,
@@ -590,10 +545,6 @@ class HB2BReductionManager:
         If 2theta resolution is not given, num_bins will be used to determine resolution with 2-theta range;
         Otherwise, use resolution
 
-        Normalization to time/duration
-        If both sub run duration and vanadium duration are given
-        normalized intensity = raw histogram / vanadium histogram * vanadium duration / sub run duration
-
         :param HidraWorkspace workspace: workspace with detector counts and position
         :param integer sub_run: sub run number in workspace to reduce
         :param DENEXDetectorShift geometry_calibration: instrument geometry to calculate diffraction pattern
@@ -608,12 +559,7 @@ class HB2BReductionManager:
         :param int num_bins: number of bins
         :param delta_2theta: 2theta increment in the reduced diffraction data
         :type delta_2theta: float, optional
-        :param sub_run_duration: sample sub run duration in seconds. Only has an effect when
-            vanadium_counts and van_duration are also given (see the vanadium normalization
-            formula above) — it has no effect on its own.
-        :type sub_run_duration: float, optional
-        :param vanadium_counts: detector pixels' vanadium for efficiency and normalization.
-            If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
+        :param vanadium_counts: detector pixels' vanadium for efficiency and normalization (flat-field correction)
         :type vanadium_counts: numpy.ndarray, optional
         :param float eta_step: angular step size for out-of-plane reduction
         :param float eta_min: min angle for out-of-plane reduction
@@ -648,14 +594,7 @@ class HB2BReductionManager:
 
             # Histogram data
             bin_centers, hist, variances = self.convert_counts_to_diffraction(
-                reduction_engine,
-                (min_2theta, max_2theta),
-                num_bins,
-                delta_2theta,
-                eta_mask,
-                vanadium_counts,
-                sub_run_duration,
-                van_duration,
+                reduction_engine, (min_2theta, max_2theta), num_bins, delta_2theta, eta_mask, vanadium_counts
             )
 
             if mask_id is None:
@@ -669,15 +608,7 @@ class HB2BReductionManager:
         self._last_reduction_engine = reduction_engine
 
     def convert_counts_to_diffraction(
-        self,
-        reduction_engine,
-        two_theta_range,
-        num_bins,
-        delta_2theta,
-        mask_array,
-        vanadium_array,
-        sub_run_duration=None,
-        van_duration=None,
+        self, reduction_engine, two_theta_range, num_bins, delta_2theta, mask_array, vanadium_array
     ):
         """Histogram detector counts for a defined 2theta range
 
@@ -693,12 +624,6 @@ class HB2BReductionManager:
         :param vanadium_array: detector pixels' vanadium for efficiency and normalization.
             If vanadium duration is recorded, the vanadium counts are normalized by its duration in seconds
         :type vanadium_array: numpy.ndarray, optional
-        :param sub_run_duration: sample sub run duration in seconds, used with van_duration to scale the
-            vanadium normalization by their relative counting time
-        :type sub_run_duration: float, optional
-        :param van_duration: vanadium run duration in seconds, used with sub_run_duration to scale the
-            vanadium normalization by their relative counting time
-        :type van_duration: float, optional
         :return: 2theta bins, histogram of counts, variances of counts
         :rtype: numpy.ndarray
         """
@@ -715,12 +640,7 @@ class HB2BReductionManager:
 
         # Histogram
         data_set = reduction_engine.reduce_to_2theta_histogram(
-            bin_boundaries_2theta,
-            mask_array=mask_array,
-            is_point_data=True,
-            vanadium_counts_array=vanadium_array,
-            sub_run_duration=sub_run_duration,
-            van_duration=van_duration,
+            bin_boundaries_2theta, mask_array=mask_array, is_point_data=True, vanadium_counts_array=vanadium_array
         )
         bin_centers = data_set[0]
         hist = data_set[1]

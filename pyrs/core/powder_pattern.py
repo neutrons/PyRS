@@ -195,12 +195,11 @@ class ReductionApp:
         # Vanadium
         if van_file is not None:
             # vanadium file is given
-            van_array, van_duration = self._reduction_manager.load_vanadium(van_file)
+            van_array = self._reduction_manager.load_vanadium(van_file)
 
         else:
             # no vanadium
             van_array = None
-            van_duration = None
 
         self._reduction_manager.reduce_diffraction_data(
             self._session,
@@ -213,7 +212,6 @@ class ReductionApp:
             mask=mask,
             mask_id=mask_id,
             vanadium_counts=van_array,
-            van_duration=van_duration,
             eta_step=eta_step,
             eta_min=eta_min,
             eta_max=eta_max,
