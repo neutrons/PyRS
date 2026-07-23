@@ -35,7 +35,7 @@ class HB2BReductionManager:
         self._van_ws = None
 
         # (default) number of bins
-        self._num_bins = 2500
+        self._num_bins = 720
 
         # masks
         self._loaded_mask_files = list()
@@ -324,7 +324,7 @@ class HB2BReductionManager:
 
         # Operate AND with default mask
         if default_mask is not None:
-            mask_vec *= default_mask
+            mask_vec = mask_vec * default_mask
 
         # Apply (or not) instrument geometry calibration shift
         if isinstance(apply_calibrated_geometry, instrument_geometry.DENEXDetectorShift):
@@ -590,7 +590,7 @@ class HB2BReductionManager:
             eta_mask[eta_vec < (eta_cent - eta_step / 2.0)] = 0
 
             if mask_vec is not None:
-                eta_mask[mask_vec] = 0
+                eta_mask[mask_vec == 0] = 0
 
             # Histogram data
             bin_centers, hist, variances = self.convert_counts_to_diffraction(
