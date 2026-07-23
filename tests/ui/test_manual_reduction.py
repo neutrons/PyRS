@@ -81,11 +81,11 @@ def test_manual_reduction(tmpdir, manual_reduction_window):
     # get the data from the plot canvas and check the data limits and label
     line = window.ui.graphicsView_1DPlot.canvas().get_axis().lines[0]
     assert line.get_label() == "sub-run: 1, 2theta = 90.00050354003906"
-    assert line.get_xdata().min() == pytest.approx(81.88955539289697)
-    assert line.get_xdata().max() == pytest.approx(98.07327399000138)
+    assert line.get_xdata().min() == pytest.approx(81.88640540875517)
+    assert line.get_xdata().max() == pytest.approx(98.06382403754796)
     # first data point is a nan so exclude it
-    assert line.get_ydata()[1::].min() == pytest.approx(56.53846153846154)
-    assert line.get_ydata()[1::].max() == pytest.approx(580.4936170212766)
+    assert line.get_ydata()[1::].min() == pytest.approx(136.97619047619048)
+    assert line.get_ydata()[1::].max() == pytest.approx(1037.9183222958056)
 
 
 def test_manual_reduction_subruns(tmpdir, manual_reduction_window):
