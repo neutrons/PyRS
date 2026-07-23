@@ -147,7 +147,6 @@ def test_nexus_to_project(nexusfile, projectfile):
     # verify sub run duration
     sub_runs = test_hidra_ws.get_sub_runs()
     durations = test_hidra_ws.get_sample_log_values(HidraConstants.SUB_RUN_DURATION, sub_runs=sub_runs)
-    # plt.plot(sub_runs, durations)
 
     if projectfile == "HB2B_439.h5":
         np.testing.assert_equal(sub_runs, [1, 2, 3, 4])
@@ -156,11 +155,6 @@ def test_nexus_to_project(nexusfile, projectfile):
 
     # extract the powder patterns and add them to the project file
     addPowderToProject(projectfile)
-
-    # cleanup    os.remove(projectfile)
-
-
-# [('/HFIR/HB2B/IPTS-22331/nexus/HB2B_1431.nxs.h5', 'HB2B_1431.h5')],
 
 
 @pytest.mark.parametrize(
@@ -209,7 +203,6 @@ def test_exclude_subruns(nexusfile, projectfile):
 
     # cleanup
     reduced_project.close()
-    os.remove(projectfile)
 
 
 @pytest.mark.parametrize(
@@ -257,14 +250,13 @@ def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
     # Test reduction to diffraction pattern
     reducer = ReductionApp()
     reducer.load_hidra_workspace(hidra_ws)
-    reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None)
+    reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None, num_bins=1000)
 
     # check ranges and total counts
     for sub_run, angle, total_counts in zip(SUBRUNS, CENTERS, histogram_counts):
         assert_label = "mismatch in subrun={} for histogrammed data".format(sub_run)
         x, y, e = reducer.get_diffraction_data(sub_run)
         assert x[0] < angle < x[-1], assert_label
-        # assert np.isnan(np.sum(y[1:])), assert_label
         np.testing.assert_almost_equal(np.nansum(y), total_counts, decimal=1, err_msg=assert_label)
 
 
@@ -328,11 +320,11 @@ def test_reduce_method_data(mask_file_name, filtered_counts, histogram_counts):
     # Test reduction to diffraction pattern
     reducer = ReductionApp()
     reducer.load_hidra_workspace(hidra_ws)
-    reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None)
+    reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None, num_bins=1000)
 
     live_reducer = ReductionApp()
     live_reducer.load_hidra_workspace(hidra_live_ws)
-    live_reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None)
+    live_reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None, num_bins=1000)
 
     # check ranges and total counts
     for sub_run, angle, total_counts in zip(SUBRUNS, CENTERS, histogram_counts):
@@ -402,9 +394,6 @@ def test_apply_vanadium(project_file, van_project_file, target_project_file):
         sub_runs=None, instrument_file=None, calibration_file=None, mask=None, van_file=van_project_file, num_bins=950
     )
     reducer.save_diffraction_data(target_project_file)
-
-    # plot for proof
-    # reducer.plot_reduced_data()
 
 
 def test_apply_mantid_mask():

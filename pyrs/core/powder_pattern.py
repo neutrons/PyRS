@@ -113,7 +113,7 @@ class ReductionApp:
         mask,
         mask_id=None,
         van_file=None,
-        num_bins=1000,
+        num_bins=720,
         eta_step=None,
         eta_min=-8.2,
         eta_max=8.2,
