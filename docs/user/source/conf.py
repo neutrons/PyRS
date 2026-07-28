@@ -39,6 +39,12 @@ extensions = [
     "sphinx.ext.todo",
     "sphinxcontrib.programoutput",
     "sphinx.ext.mathjax",
+    "myst_parser",
+]
+
+myst_enable_extensions = [
+    "dollarmath",
+    "colon_fence",
 ]
 
 MOCK_MODULES = [
@@ -70,9 +76,12 @@ warnings.filterwarnings("ignore", message=".*Mock name.*is not a Python type.*")
 templates_path = ["_templates"]
 
 # The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
-# source_suffix = ['.rst', '.md']
-source_suffix = ".rst"
+# Both are kept because `api/modules.rst` (developer docs) is auto-generated
+# reStructuredText by sphinx-apidoc; hand-written pages are Markdown (MyST).
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+}
 
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'

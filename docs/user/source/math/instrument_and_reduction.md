@@ -1,17 +1,14 @@
-:orphan:
+---
+orphan: true
+---
 
-::
-  It wasn't really clear where this document was intended to go.  It seems most relevant to `mathematical.rst`.
+<!-- It wasn't really clear where this document was intended to go.  It seems most relevant to `mathematical.md`. -->
 
+# Instrument Geometry
 
-Instrument Geometry
-===================
+## Mantid
 
-Mantid
-------
-
-PyRS-instrument
----------------
+## PyRS-instrument
 
 It is assumed that for HB2B,
 
@@ -21,19 +18,16 @@ It is assumed that for HB2B,
 
 3. detector can be configured to
 
-  - 1024, 1024
-  - 2048, 2048
+   - 1024, 1024
+   - 2048, 2048
 
 4. detector pixels' size can be defined flexibly.
 
-Reduction Workflow
-==================
+# Reduction Workflow
 
-Mantid
-------
+## Mantid
 
-PyRS-reduction
---------------
+## PyRS-reduction
 
 This is a reduction algorithm based on pure python programming.
 It is supposed to be equivalent to the reduction Mantid algorithms,

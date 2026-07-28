@@ -1,7 +1,4 @@
-############
-Introduction
-############
-
+# Introduction
 
 The python Residual Stress (pyRS) analysis software was designed to address the data reduction and analysis needs of the High-Intensity Diffractometer for Residual stress Analysis (HIDRA) user community.
 pyRS implements frameworks for the calibration and reduction of measured 2D data into intensity vs scattering vector and subsequent single-peak fitting analysis to facilitate texture and residual strain/stress analysis.
@@ -14,24 +11,23 @@ A high-level workflow that highlights the interconnection between modules is sho
 Note that the blue shaded region represents modules available to the autoreduction platform for automated analysis.
 pyRS saves data into a single hdf5 file to streamline data storage by storing metadata, reduced diffraction data, and peak analysis results within a single hdf5 file (named HiDRA project file) that is passed between different modules.
 
-.. figure:: Reduction_Workflow.svg
-   :align: center
-   :alt: image
+```{figure} Reduction_Workflow.svg
+:align: center
+:alt: image
+```
 
-Installation
-############
+# Installation
 
-Using a Pixi Environment
-=========================
+## Using a Pixi Environment
 
 1. Install:
 
-.. code-block::
-
-  pixi install
-
+```
+pixi install
+```
 
 2. Run the application:
-.. code-block::
 
-  pixi run pyrs
+```
+pixi run pyrs
+```

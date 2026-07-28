@@ -6,6 +6,7 @@ channels:
 dependencies:
   - python=3.6
   - sphinx
+  - myst-parser
   - pip
   - sphinxcontrib-programoutput
   - uncertainties

@@ -144,6 +144,7 @@ pip-audit = "*"
 
 [tool.pixi.feature.docs.dependencies]
 sphinx = "*"
+myst-parser = "*"
 sphinx_rtd_theme = "*"
 sphinxcontrib-mermaid = "*"
 sphinxcontrib-programoutput = "*"

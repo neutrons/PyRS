@@ -307,3 +307,66 @@ using that name. `grep -rn '"\.\./\|\.\(json\|csv\|h5\|xml\)"' tests/`
 (and manually check for bare relative filenames passed to file dialogs,
 `open()`, `os.remove()`, etc.) is a reasonable sweep for this pattern in
 other UI tests.
+
+## Migrated hand-written Sphinx docs from reStructuredText to MyST Markdown (2026-07)
+
+Both doc trees ([docs/user/source](../docs/user/source) for Read the Docs,
+[docs/developer/source](../docs/developer/source) for the developer/API
+guide) were converted from `.rst` to `.md` using the
+[MyST](https://myst-parser.readthedocs.io/) Sphinx extension. Both
+`conf.py` files now set `source_suffix = {".rst": "restructuredtext",
+".md": "markdown"}` (a dict, not the old bare string) and add
+`"myst_parser"` to `extensions`, with `myst_enable_extensions =
+["dollarmath", "colon_fence"]` for `$...$`/`$$...$$` math and `:::`
+fences.
+
+**`api/modules.rst` under `docs/developer/source` was deliberately left as
+`.rst`, not converted.** It's regenerated on every build by the
+`run_apidoc` hook in `docs/developer/source/conf.py` (calls
+`sphinx.ext.apidoc.main`), and `sphinx-apidoc` only emits
+reStructuredText — there's no Markdown output mode. Because Sphinx's
+`source_suffix` dict lets `.rst` and `.md` coexist in the same project,
+the auto-generated tree can stay `.rst` while every hand-written page is
+now `.md`, with no special-casing needed. It's also gitignored (see
+`docs/developer/source/api/.gitignore`), so this was never something to
+convert in the repo anyway.
+
+**RST citations (`` .. [NumPy] text `` defined once, referenced elsewhere
+as `` [NumPy]_ ``) have no direct MyST equivalent** — MyST doesn't support
+the RST citation-node/citation-reference pair. Replaced with plain MyST
+cross-reference targets: each bibliography entry in
+`bibliography.md` is preceded by an explicit target line, e.g. `(numpy)=`,
+and referenced elsewhere as `` {ref}`NumPy <numpy>` ``. **The explicit
+link text (`` <numpy> `` inside the role, not just `` {ref}`numpy` ``) is
+required** — `{ref}` normally auto-generates link text from the target's
+heading/figure caption, and a bibliography entry is a plain paragraph
+with no caption, so the bare form fails the build with `WARNING: Failed
+to create a cross reference. A title or caption not found`. This was
+caught by actually building the docs (`pixi run build-docs`), not by
+inspection.
+
+**RST relies on underline-character *order of first appearance* per file
+to infer heading depth** (whichever underline character is used for the
+first heading in a document becomes H1, the next new character becomes
+H2, etc., independent of the literal character used) — Markdown has no
+such inference; heading level is the literal number of `#`. When
+converting each file, this meant reading the whole `.rst` file's
+underline sequence first to work out the intended depth before choosing
+`#`/`##`/`###`, rather than mapping characters 1:1
+(e.g. `=` isn't always H1 — in `docs/user/source/api/manual_api.rst` the
+title used `=` but a *later* section used `#` for a still-higher-level
+heading than its position in the file would suggest). Getting this wrong
+is silent in some cases but was caught in one case by MyST's own
+`WARNING: Document headings start at H2, not H1 [myst.header]` (in
+`math/instrument_and_reduction.md`) — that warning class is worth
+grepping the build log for after any future heading-structure edit, since
+Sphinx has no other structural check for this.
+
+**Verification:** `pixi run build-docs` and `pixi run build-dev-docs`
+both build clean (zero warnings from converted content) after the fixes
+above. The developer build's remaining warnings (`more than one target
+found for cross-reference 'HidraProjectFile'`/`'SampleLogs'`, a duplicate
+`pyrs.utilities.NXstress.NXstress` object description) come entirely from
+the auto-generated `api/*.rst` tree and pre-exist this migration —
+confirmed by grepping the warning list for any converted `.md` path (none
+appear).
