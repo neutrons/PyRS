@@ -339,11 +339,27 @@ class TestFit:
     def test_Fit_multiple_masks(
         self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
     ):
-        """Verify workspace with multiple masks creates one DIFFRACTOGRAM per mask"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        """Verify a workspace with multiple named reduced-diffraction masks creates exactly
+        one DIFFRACTOGRAM per configured mask, plus the always-present default.
+        """
+        ws = minimal_HidraWorkspace(with_instrument=False, with_reduced_diffraction=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
+
+        # `_Fit.init_group` counts one DIFFRACTOGRAM per key in `ws._diff_data_set` (plus
+        # the always-present default, keyed `None`) -- `minimal_HidraWorkspace`'s own
+        # `with_reduced_diffraction` only ever creates that single default entry, so the
+        # extra named masks are configured here directly.
+        n_two_theta = 20
+        two_theta_matrix = np.tile(np.linspace(60.0, 120.0, n_two_theta), (N_subrun, 1))
+        mask_names = ("mask1", "mask2")
+        diff_data_set: dict[str | None, np.ndarray] = {None: np.ones((N_subrun, n_two_theta))}
+        var_data_set: dict[str | None, np.ndarray] = {None: np.ones((N_subrun, n_two_theta))}
+        for mask_name in mask_names:
+            diff_data_set[mask_name] = np.ones((N_subrun, n_two_theta))
+            var_data_set[mask_name] = np.ones((N_subrun, n_two_theta))
+        ws.set_reduced_diffraction_data_set(two_theta_matrix, diff_data_set, var_data_set)
 
         peak0 = createPeakCollection(
             peak_tag="Al 111",
@@ -360,8 +376,8 @@ class TestFit:
         # Count NXdata groups (diffractograms)
         diffractogram_count = sum(1 for key in fit.keys() if isinstance(fit[key], NXdata))
 
-        # Should have at least one diffractogram
-        assert diffractogram_count >= 1
+        # One diffractogram per configured mask, plus the always-present default.
+        assert diffractogram_count == len(mask_names) + 1
 
     def test_Fit_duplicate_diffractogram_raises(
         self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]

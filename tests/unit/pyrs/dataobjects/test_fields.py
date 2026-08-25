@@ -770,11 +770,16 @@ class Test_StrainField:
 
 
 class TestStrainField:
-        # TODO: test the RuntimeError when the strain is a composite
-
-
-
-
+    # NOTE: `StrainField` used to expose a singular `.peak_collection` property that
+    # raised RuntimeError for a composite (multi-scan) strain ("There is more than one
+    # peak collection associated to this strain field") -- removed in commit d340cccb
+    # (2020) in favor of the plural `.peak_collections`, which returns all of them for
+    # a composite strain with no restriction today. No current operation on
+    # `StrainField` raises RuntimeError specifically because the strain is composite.
+    # TODO: please verify that this is the expected behavior! Was dropping that
+    # restriction intentional, or should some accessor still reject/flag a composite
+    # strain for certain callers? Needs sign-off from someone who owns the physics/
+    # data model here, not just an engineering call.
 
     def test_create_strain_field_from_scalar_field_sample(self):
         values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]  # values

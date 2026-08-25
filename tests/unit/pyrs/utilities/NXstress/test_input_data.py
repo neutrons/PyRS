@@ -88,7 +88,7 @@ class TestInputData:
 
         # Check that all scan points are present
         original_scan_points = list(ws_write._raw_counts.keys())
-        read_scan_points = list(ws_write._raw_counts.keys())
+        read_scan_points = list(ws_read._raw_counts.keys())
 
         for scan_point in original_scan_points:
             assert scan_point in read_scan_points

@@ -344,7 +344,7 @@ select = ["E4", "E7", "E9", "F"]
 
 [tool.ruff.lint.per-file-ignores]
 # WARNING: there are multiple `conftest.py` files!
-"**/conftest.py" = ["F401"]
+"**/conftest.py" = ["F401", "F811"]
 
 [tool.ruff.format]
 line-ending = "lf"

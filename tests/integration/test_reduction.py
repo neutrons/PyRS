@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 from mantid.simpleapi import LoadEventNexus
 from pyrs.core.nexus_conversion import NeXusConvertingApp, DEFAULT_KEEP_LOGS
 from pyrs.core.powder_pattern import ReductionApp
@@ -270,7 +271,12 @@ def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
     ],
     ids=("HB2B_1017_Masked", "HB2B_1017_NoMask"),
 )
-def test_reduce_method_data(mask_file_name, filtered_counts, histogram_counts):
+def test_reduce_method_data_valid_nexus_writes_diffraction_files(
+    mask_file_name: str | None,
+    filtered_counts: tuple[int, int, int],
+    histogram_counts: tuple[float, float, float],
+    tmp_path: Path,
+) -> None:
     """Verify NeXus converters including counts and sample log values"""
     SUBRUNS = (1, 2, 3)
     CENTERS = (69.99525, 80.0, 97.50225)
@@ -329,22 +335,27 @@ def test_reduce_method_data(mask_file_name, filtered_counts, histogram_counts):
     live_reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None, num_bins=1000)
 
     # check ranges and total counts
-    for sub_run, angle, total_counts in zip(SUBRUNS, CENTERS, histogram_counts):
+    for sub_run, angle, total_intensity in zip(SUBRUNS, CENTERS, histogram_counts):
         assert_label = "mismatch in subrun={} for histogrammed data".format(sub_run)
         x, y, e = reducer.get_diffraction_data(sub_run)
         assert x[0] < angle < x[-1], assert_label
         # assert np.isnan(np.sum(y[1:])), assert_label
-        np.testing.assert_almost_equal(np.nansum(y), total_counts, decimal=1, err_msg=assert_label)
+        np.testing.assert_almost_equal(np.nansum(y), total_intensity, decimal=1, err_msg=assert_label)
 
     # check ranges and total counts
-    for sub_run, angle, total_counts in zip(SUBRUNS, CENTERS, histogram_counts):
+    for sub_run, angle, total_intensity in zip(SUBRUNS, CENTERS, histogram_counts):
         assert_label = "mismatch in subrun={} for histogrammed data".format(sub_run)
         x, y, e = live_reducer.get_diffraction_data(sub_run)
         assert x[0] < angle < x[-1], assert_label
         # assert np.isnan(np.sum(y[1:])), assert_label
-        np.testing.assert_almost_equal(np.nansum(y), total_counts, decimal=1, err_msg=assert_label)
-    reducer.save_diffraction_data("testing.h5")
-    live_reducer.save_diffraction_data("testing2.h5")
+        np.testing.assert_almost_equal(np.nansum(y), total_intensity, decimal=1, err_msg=assert_label)
+    testing_file = tmp_path / "testing.h5"
+    reducer.save_diffraction_data(str(testing_file))
+    assert testing_file.exists(), "reducer.save_diffraction_data did not write a file"
+
+    testing2_file = tmp_path / "testing2.h5"
+    live_reducer.save_diffraction_data(str(testing2_file))
+    assert testing2_file.exists(), "live_reducer.save_diffraction_data did not write a file"
 
 
 def test_split_log_time_average():

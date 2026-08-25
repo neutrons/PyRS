@@ -120,11 +120,11 @@ class HidraWorkspace:
         try:
             vec_2theta = hidra_file.read_diffraction_2theta_array()
         except KeyError as key_err:
-            print(
-                "[INFO] Unable to load 2theta vector from HidraProject file due to {}."
-                "It is very likely that no reduced data is recorded."
-                "".format(key_err)
-            )
+            # read_diffraction_2theta_array only raises a bare KeyError for the
+            # legitimate "no REDUCED_DATA group at all" case -- an unrecognized/
+            # unsupported schema instead raises RuntimeError, which is deliberately
+            # NOT caught here, so it propagates instead of being silently swallowed.
+            print("[INFO] No reduced-diffraction data recorded in this project file ({}).".format(key_err))
             return
         # TRY-CATCH
 
@@ -189,11 +189,11 @@ class HidraWorkspace:
         try:
             vec_2theta = hidra_file.read_diffraction_2theta_array()
         except KeyError as key_err:
-            print(
-                "[INFO] Unable to load 2theta vector from HidraProject file due to {}."
-                "It is very likely that no reduced data is recorded."
-                "".format(key_err)
-            )
+            # read_diffraction_2theta_array only raises a bare KeyError for the
+            # legitimate "no REDUCED_DATA group at all" case -- an unrecognized/
+            # unsupported schema instead raises RuntimeError, which is deliberately
+            # NOT caught here, so it propagates instead of being silently swallowed.
+            print("[INFO] No reduced-diffraction data recorded in this project file ({}).".format(key_err))
             return
         # TRY-CATCH
 

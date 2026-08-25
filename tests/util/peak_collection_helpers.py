@@ -38,6 +38,13 @@ def createPeakCollection() -> Generator[Callable[..., PeakCollection]]:
         error_fraction_min=0.005,  # minimum fractional error (0.5%), as a fraction of the value drawn
         error_fraction_max=0.05,  # maximum fractional error (5%), as a fraction of the value drawn
     ) -> PeakCollection:
+        if not (0 < error_fraction_min <= error_fraction_max):
+            raise ValueError(
+                "createPeakCollection: invalid error_fraction bounds "
+                f"(error_fraction_min={error_fraction_min}, error_fraction_max={error_fraction_max}); "
+                "require 0 < error_fraction_min <= error_fraction_max"
+            )
+
         peaks = PeakCollection(
             peak_tag,
             peak_profile,

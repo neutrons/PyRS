@@ -187,6 +187,7 @@ def test_load_split():
     assert abs(controller.get_sample_log_value("2theta", 3) - 97.50225) < 1e-5
 
 
+@pytest.mark.integration
 def test_diffraction_pattern_geometry_shift():
     """
 

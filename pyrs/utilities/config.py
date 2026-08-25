@@ -28,13 +28,25 @@ from neutrons_standard.config import Config  # noqa: E402  (import must follow i
 
 
 def validate_config() -> None:
-    """Raise ValueError unless at least one output format is enabled.
+    """Raise RuntimeError unless both format-enable flags are actual booleans, then
+    raise ValueError unless at least one output format is enabled.
+
+    `neutrons_standard.Config` performs no schema validation of its own -- a
+    malformed override (e.g. `enable: "false"`, a YAML string rather than a real
+    boolean) would otherwise be silently truthy and pass the check below undetected.
 
     Raises:
+        RuntimeError: If `nxstress.enable` or `legacy_io.enable` is not a bool.
         ValueError: If both `nxstress.enable` and `legacy_io.enable` are false --
             PyRS must be able to write at least one output format.
     """
-    if not (Config["nxstress.enable"] or Config["legacy_io.enable"]):
+    nxstress_enable = Config["nxstress.enable"]
+    legacy_io_enable = Config["legacy_io.enable"]
+    for key, value in (("nxstress.enable", nxstress_enable), ("legacy_io.enable", legacy_io_enable)):
+        if not isinstance(value, bool):
+            raise RuntimeError('Config["{}"] must be a bool, got {} ({})'.format(key, value, type(value).__name__))
+
+    if not (nxstress_enable or legacy_io_enable):
         raise ValueError("At least one of nxstress.enable or legacy_io.enable must be true")
 
 

@@ -1,75 +1,104 @@
-"""Unit tests for the manual-reduction run-number specification parser."""
+"""Unit tests for the manual-reduction run-number specification parser.
+
+These tests exercise `parse_run_numbers`/`is_run_specification` directly, with no
+file I/O or HFIR archive access needed -- kept out of the HFIR-gated integration
+suite for exactly that reason (originally split out of
+tests/integration/test_batch_reduction.py; see plans/test-framework.md).
+"""
 
 import pytest
 
 from pyrs.interface.manual_reduction.manual_reduction_model import is_run_specification, parse_run_numbers
 
 
-def test_parse_run_numbers_single():
-    """A single run number parses to a one-element list."""
-    assert parse_run_numbers("938") == [938]
+def test_parse_run_numbers_single_run_returns_one_element_list() -> None:
+    """Test that a single run number parses to a one-element list."""
+    # Arrange
+    text = "938"
+
+    # Act
+    result = parse_run_numbers(text)
+
+    # Assert
+    assert result == [938]
 
 
-def test_parse_run_numbers_dash_range_is_inclusive():
-    """A dash range includes both endpoints."""
-    assert parse_run_numbers("938-940") == [938, 939, 940]
+def test_parse_run_numbers_dash_range_returns_inclusive_list() -> None:
+    """Test that a dash range expands to an inclusive list of run numbers."""
+    # Arrange
+    text = "938-940"
+
+    # Act
+    result = parse_run_numbers(text)
+
+    # Assert
+    assert result == [938, 939, 940]
 
 
-def test_parse_run_numbers_comma_list():
-    """Comma-separated runs parse in order."""
-    assert parse_run_numbers("938,945,950") == [938, 945, 950]
+def test_parse_run_numbers_comma_separated_returns_ordered_list() -> None:
+    """Test that comma-separated runs parse in the order given."""
+    # Arrange
+    text = "938,945,950"
+
+    # Act
+    result = parse_run_numbers(text)
+
+    # Assert
+    assert result == [938, 945, 950]
 
 
-def test_parse_run_numbers_mixed_range_and_list():
-    """Ranges and individual runs can be combined and spaces are ignored."""
-    assert parse_run_numbers("938-940, 945") == [938, 939, 940, 945]
+def test_parse_run_numbers_mixed_range_and_list_with_spaces_returns_combined_list() -> None:
+    """Test that ranges and individual runs can be combined, with spaces ignored."""
+    # Arrange
+    text = "938-940, 945"
+
+    # Act
+    result = parse_run_numbers(text)
+
+    # Assert
+    assert result == [938, 939, 940, 945]
 
 
-def test_parse_run_numbers_trailing_comma_ignored():
-    """Empty tokens from stray commas are skipped."""
-    assert parse_run_numbers("938,,940") == [938, 940]
+def test_parse_run_numbers_stray_comma_returns_list_with_empty_tokens_skipped() -> None:
+    """Test that empty tokens from stray commas are skipped."""
+    # Arrange
+    text = "938,,940"
+
+    # Act
+    result = parse_run_numbers(text)
+
+    # Assert
+    assert result == [938, 940]
 
 
-def test_parse_run_numbers_invalid_raises():
-    """A non-integer token raises ValueError."""
+def test_parse_run_numbers_non_integer_token_raises_value_error() -> None:
+    """Test that a non-integer token raises `ValueError`."""
+    # Arrange
+    text = "938-abc"
+
+    # Act / Assert
     with pytest.raises(ValueError):
-        parse_run_numbers("938-abc")
+        parse_run_numbers(text)
 
 
-def test_is_run_specification_accepts_run_specs():
-    """Digit/dash/comma strings are recognized as run specs."""
+def test_parse_run_numbers_blank_or_whitespace_returns_empty_list() -> None:
+    """Test that blank and whitespace-only input return an empty list, not an error."""
+    # Arrange / Act / Assert
+    assert parse_run_numbers("") == []
+    assert parse_run_numbers("   ") == []
+
+
+def test_is_run_specification_digit_dash_comma_strings_returns_true() -> None:
+    """Test that digit/dash/comma strings (including spaced dash ranges) are recognized as run specs."""
+    # Arrange / Act / Assert
     assert is_run_specification("938")
     assert is_run_specification("938-940,945")
     assert is_run_specification(" 938 - 940 ")
 
 
-def test_is_run_specification_rejects_paths_and_empty():
-    """File paths and empty input are not run specs."""
+def test_is_run_specification_path_or_blank_returns_false() -> None:
+    """Test that file paths, blank input, and whitespace-only input are not run specs."""
+    # Arrange / Act / Assert
     assert not is_run_specification("tests/data/HB2B_938.nxs.h5")
     assert not is_run_specification("")
     assert not is_run_specification("   ")
-
-
-# The following moved from tests/integration/test_batch_reduction.py — they test the
-# same two functions and need no HFIR access, so they don't belong in an integration
-# suite gated on archive availability. See plans/test-framework.md.
-
-
-def test_parse_run_numbers_range():
-    """A dash range is expanded to inclusive list."""
-    assert parse_run_numbers("1017-1019") == [1017, 1018, 1019]
-
-
-def test_parse_run_numbers_comma_and_range():
-    """Mixed comma and range parses correctly."""
-    assert parse_run_numbers("1017,1019-1021") == [1017, 1019, 1020, 1021]
-
-
-def test_is_run_specification_run_numbers():
-    assert is_run_specification("1017")
-    assert is_run_specification("1017-1019")
-    assert is_run_specification("1017, 1019")
-
-
-def test_is_run_specification_rejects_path():
-    assert not is_run_specification("/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5")

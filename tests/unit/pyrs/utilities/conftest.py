@@ -16,11 +16,45 @@ Fixture conventions
   `NXstress/` tests as well as siblings of this file (e.g. `test_config.py`).
 """
 
+from collections.abc import Generator
+from pathlib import Path
+from typing import TYPE_CHECKING
+
 import pytest
+
+if TYPE_CHECKING:
+    # Only for type-checking -- a real runtime import here would race
+    # neutrons_standard.init("pyrs") exactly like importing it anywhere else in this
+    # codebase would (see pyrs/utilities/config.py's module docstring). TYPE_CHECKING
+    # guards this from ever executing.
+    from neutrons_standard.config import _Config
 
 
 @pytest.fixture
-def default_config(tmp_path, monkeypatch):
+def default_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Generator["_Config"]:
+    """Yield a `neutrons_standard.Config` singleton, fully isolated from the real environment.
+
+    Setup: monkeypatches `HOME` to `tmp_path` and clears any `env` override, then
+    resets and reloads the singleton (both `neutrons_standard.config` and
+    `pyrs.utilities.config`) so it picks up the redirected `HOME` -- `reset_Singletons()`
+    alone only clears the `Singleton` decorator's internal state; it does not change
+    what an already-imported module's `Config` name refers to.
+
+    Cleanup: resets and reloads the singleton again after the test, so the next test
+    (or any later code importing `pyrs.utilities.config.Config`) gets a clean instance
+    rather than one still holding this test's `tmp_path`-scoped `HOME` or `env`
+    override.
+
+    Args:
+        tmp_path: Pytest's built-in per-test temporary directory; used as the fake
+            `HOME` so `neutrons_standard.Config`'s real side effects (writing a backup
+            file to `~/.{package_name}/`) never touch the real user's home.
+        monkeypatch: Pytest's built-in fixture for reversible env-var patching.
+
+    Yields:
+        The live `neutrons_standard.Config` singleton (via
+        `pyrs.utilities.config.Config`), loaded against the isolated `HOME`.
+    """
     # `neutrons_standard.Config` is a process-wide singleton: every `reload()` writes a
     # backup to `~/.{package_name}/application.yml.bak`, and it may auto-swap onto a
     # pre-existing `~/.{package_name}/{package_name}-user.yml` override -- both against

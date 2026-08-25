@@ -453,7 +453,7 @@ EXPECTED_HEADER_938 = """# IPTS number = 22731
             ",311_chisq",
         ),
         (
-            "data/HB2B_938_peak.h5",
+            "tests/data/HB2B_938_peak.h5",
             "HB2B_938.csv",
             EXPECTED_HEADER_938,
             1,
