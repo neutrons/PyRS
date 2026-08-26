@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup pixi
         uses: prefix-dev/setup-pixi@v0.9.6
         with:
@@ -79,7 +79,7 @@ jobs:
           extra-channels: mantid-ornl/label/rc neutrons mantid
 
       - name: Check out grype config
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           sparse-checkout: |
             .grype.yaml
