@@ -617,63 +617,99 @@ session — remove any stale lock file, fit peaks, export (succeeds), load
 a new data file, fit again, export a second time (fails). No test suite
 or second PyRS instance needs to be running.
 
-Root cause: nothing in `pyrs/` calls `QSettings` directly, but every
-native-feeling Qt dialog (`QFileDialog`, used by every browse/export
-action) implicitly reads/writes `QSettings` state (history, sidebar,
-geometry) on close, guarded by a `QLockFile`. **PyRS never calls
-`QCoreApplication.setOrganizationName()`/`setApplicationName()`**
-(`grep -rn "setOrganizationName\|setApplicationName" pyrs/ scripts/`
-came back empty), so Qt falls back to its generic, hardcoded identity —
-which is literally why the file is named `QtProject.conf`. That fallback
-identity, and therefore that exact file and its lock, is shared by
-*every* unnamed Qt/PyQt process on the machine: two PyRS export dialogs
-in the same session, two PyRS windows, a concurrently running Mantid
-Workbench, Qt Designer, or `pytest-qt`'s own `QApplication` instances
-all read/write/lock the identical `~/.config/QtProject.conf`. Two of
-them racing to acquire/release that lock at the same time is what
-produces "Could not remove our own lock file." This got easier to
-reproduce after the `os._exit()` change in
-[scripts/development/run_tests.py](../scripts/development/run_tests.py)
-(see above), since that skips `QSettings`'s normal C++ destructor/flush
-path entirely on the test side — but the shared-identity race exists
-independently of that.
+**Correction (2026-08-31): the first fix attempt below (commit `a1f7ba3d`,
+calling `setOrganizationName()`/`setApplicationName()`) was based on a wrong
+diagnosis and does not work.** It was believed that Qt falls back to a
+generic `"QtProject"` identity only because PyRS never sets its own
+org/app name. That's false: `QFileDialog`'s own C++ implementation
+(`QFileDialogPrivate::saveSettings()`/`restoreSettings()`) **hardcodes**
+`QSettings(QSettings::UserScope, "QtProject")` for its history/sidebar
+state, completely independent of `QCoreApplication::organizationName()`/
+`applicationName()`. This was verified empirically: a probe script that
+called `setOrganizationName("PyRS")`/`setApplicationName("PyRS")` *before*
+constructing `QApplication` and a `QFileDialog` still wrote
+`[FileDialog]` state to the real `~/.config/QtProject.conf` (confirmed by
+content and by a live, reproduced infinite `.rmlock`-chaining loop against
+that exact file). So setting an org/app name does nothing to isolate
+`QFileDialog`'s settings — it only affects code that explicitly
+constructs its own `QSettings()`/`QSettings(org, app)`, which nothing in
+`pyrs/` does.
 
-**Could not reproduce deterministically**: a scripted, single-process
-repro driving `FitPeaksWindow` twice in a row (load → fit → export →
-load → fit → export) via `QTest`, under `QT_QPA_PLATFORM=offscreen`,
-completed both exports cleanly with no lock warning — this is an
-inherently timing-dependent race (like the segfault above), and offscreen
-mode with nothing else on the machine touching `QtProject.conf`
-apparently doesn't hit the same timing as a real desktop session where
-other Qt apps (e.g. Mantid Workbench) are also live.
+**Actual root cause, in two parts:**
+1. Every Qt/PyQt process on the machine that ever opens a `QFileDialog`
+   — PyRS, Mantid Workbench, Qt Designer, another PyRS window, `pytest-qt`
+   — reads/writes/locks the *same* `~/.config/QtProject.conf`, by Qt
+   design (it's meant to share "recent places" across apps). Two of them
+   racing on its `QLockFile` at the same moment is what produces "Could
+   not remove our own lock file."
+2. That race is normally recoverable (Qt detects and removes a stale
+   lock), but `~/.config` here lives on an **NFS4-mounted home directory**
+   (`mount` shows `nfs4 ... local_lock=none`). `QLockFile`'s stale-lock
+   recovery depends on atomic `rename()`/`link()`, which NFS does not
+   guarantee. On this filesystem the recovery attempt can itself fail and
+   retry against its own leftover output, producing exactly the observed
+   `.lock.rmlock.rmlock.rmlock...` chains (reproduced live during this
+   investigation — a single hung Python process appended a new `.rmlock`
+   suffix to `~/.config/QtProject.conf.lock` roughly once a minute,
+   indefinitely, until killed).
 
-**Fixes applied**:
-1. [scripts/pyrsplot.py](../scripts/pyrsplot.py): call
-   `QCoreApplication.setOrganizationName("PyRS")` /
-   `setOrganizationDomain("ornl.gov")` / `setApplicationName("PyRS")`
-   before creating the `QApplication` — the
-   actual root-cause fix. This moves all of PyRS's implicit dialog state
-   to its own `~/.config/PyRS/PyRS.conf`, so it can never again share a
-   `QSettings`/`QLockFile` with an unrelated Qt process on the same
-   machine.
-2. [tests/conftest.py](../tests/conftest.py): set `XDG_CONFIG_HOME` to a
-   private `tempfile.mkdtemp()` directory at module-import time (before
-   `pytest-qt`'s session-scoped `qapp` fixture runs), so the test suite's
-   `QApplication` instances never touch a developer's real `~/.config` at
-   all, regardless of what org/app name is in effect. Verified by running
-   the full `tests/ui` suite (27 tests, all passed) while `scripts/pyrsplot`
-   ran concurrently in the background under `QT_QPA_PLATFORM=offscreen` —
-   the real `~/.config/QtProject.conf` was untouched by the test run.
+**Could not reproduce deterministically** in a scripted, single-process,
+offscreen repro at the time of the first fix attempt — consistent with
+this being a race that depends on real concurrent Qt processes and NFS
+timing, neither of which a quiet local repro exercises.
 
-**Why this matters going forward:** any Qt app with no explicit
-`organizationName`/`applicationName` implicitly shares `QtProject.conf`
-(and its lock) with every other unnamed Qt process on the machine —
-this is not specific to PyRS or to tests. Setting an explicit
-organization/application name early (before any widget that can open a
-dialog exists) is the general fix for this whole class of bug. If a
-similar "permission denied removing our own lock file" resurfaces
-elsewhere, check first whether the affected `QApplication` has an
-explicit identity set, rather than assuming filesystem or permissions
-corruption — and note that it is a genuine race condition, so failure
-to reproduce it in a quiet, single-process repro does not mean the fix
-didn't address it.
+**Fix attempt #2 (superseded, same day):** redirect `XDG_CONFIG_HOME` to
+a PyRS-private, persistent subdirectory *still under the NFS-mounted
+home* (`~/.config/PyRS`) before constructing `QApplication`. This
+correctly isolated PyRS's settings file from every other Qt process
+(`~/.config/QtProject.conf` itself went untouched in verification), so
+it does fix cross-app lock *contention*. It does **not** fix the
+underlying problem: `~/.config/PyRS` is still on NFS, so `QLockFile`'s
+stale-lock recovery is still non-atomic there. This was confirmed for
+real: a PyRS session was killed (or crashed) leaving
+`~/.config/PyRS/QtProject.conf.lock` referencing a dead PID, and the
+*next* launch failed with `Could not remove our own lock file
+.../PyRS/QtProject.conf.lock: Device or resource busy` — the identical
+symptom, just against the now-private file instead of the shared one.
+Moving the file off the contention path was necessary but not
+sufficient; it needed to also move off NFS.
+
+**Actual fix** ([scripts/pyrsplot.py](../scripts/pyrsplot.py)): redirect
+`XDG_CONFIG_HOME` to `<tempfile.gettempdir()>/pyrs-qt-config-<user>` —
+i.e. **local disk** (verified here to be `xfs` on `/`, not NFS),
+namespaced per OS user (`getpass.getuser()`) so it can't collide with
+other users on a shared multi-user analysis/login node, created with
+`0o700` permissions so other users can't read one user's dialog
+history. Because local filesystems support the atomic `rename()`/
+`link()` operations `QLockFile`'s stale-lock recovery depends on, a
+crashed/killed PyRS process's lock is now cleanly detected and reclaimed
+by Qt's own recovery logic on the next launch — no manual intervention
+needed. Verified empirically: two consecutive isolated launches (dialog
+open → close → quit) both completed cleanly with zero lock file left
+behind afterward, on both the first and second run.
+
+Trade-off accepted: this directory is local to whichever compute/login
+node the session happens to run on (typical at a shared, multi-node
+facility), so "recent places" history does not follow the user between
+nodes and may be cleared by OS temp-directory housekeeping. That's a
+purely cosmetic loss — nothing in `pyrs/` reads this state — traded for
+never hitting an NFS-unrecoverable lock again.
+`setOrganizationName()`/`setApplicationName()` calls were kept (correct
+practice for any future code that constructs its own `QSettings`), but
+were never what fixed this.
+
+**Why this matters going forward:** if a similar "permission denied /
+device or resource busy removing our own lock file" resurfaces
+elsewhere, check, in order: (a) whether the affected settings file is
+one Qt itself hardcodes an identity for (`QFileDialog` does via
+`QSettings::UserScope, "QtProject"`; your own explicit `QSettings()`
+calls don't — `setOrganizationName()`/`setApplicationName()` only helps
+the latter); (b) whether the file's directory is shared with other,
+unrelated Qt processes; and (c), the one that actually matters for
+*recovery* from a crash, whether that directory is on NFS — if so,
+isolating the file (b) is not enough, it must also move off NFS
+entirely, since `QLockFile` recovery is fundamentally unreliable there.
+A quiet, single-process, offscreen repro will not reproduce (a)/(b), and
+won't reproduce (c) either unless it specifically kills the process
+mid-lock and relaunches — a clean repro passing is not evidence the fix
+works under real crash/network conditions.

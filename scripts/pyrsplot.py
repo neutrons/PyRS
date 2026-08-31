@@ -1,5 +1,8 @@
 #!/usr/bin/python
+import getpass
+import os
 import sys
+import tempfile
 from qtpy.QtCore import QCoreApplication
 from qtpy.QtWidgets import QApplication
 import pyrs.interface.pyrs_main
@@ -9,14 +12,28 @@ def main(argv=None):
     """ """
     if argv is None:
         argv = sys.argv
-    # Without an explicit org/app name, Qt falls back to a generic "QtProject"
-    # identity for QSettings -- used implicitly by every QFileDialog (browse/export
-    # dialogs) to persist sidebar/history state. That fallback file is shared by
-    # *every* unnamed Qt/PyQt application on the machine (e.g. Mantid Workbench,
-    # Qt Designer, another PyRS window), so two such apps writing to it at the same
-    # time can race over its QLockFile and produce
-    # 'Could not remove our own lock file ...QtProject.conf.lock.rmlock'. Giving
-    # PyRS its own identity isolates its dialog state in ~/.config/PyRS/PyRS.conf.
+    # QFileDialog (used by every browse/export dialog) hardcodes
+    # QSettings(QSettings::UserScope, "QtProject") in its own C++ implementation to
+    # persist sidebar/history state -- this is NOT influenced by
+    # setOrganizationName()/setApplicationName() below. That fixed "QtProject.conf"
+    # file, under XDG_CONFIG_HOME, must not live on an NFS-mounted home directory
+    # (e.g. ORNL analysis nodes' /SNS/users/<user>): QLockFile's stale-lock
+    # recovery depends on atomic rename()/link(), which NFS does not guarantee, so
+    # a crashed/killed PyRS process leaves a lock that every subsequent launch
+    # fails to clean up ("Could not remove our own lock file ...", "Device or
+    # resource busy"). Redirecting XDG_CONFIG_HOME to a PyRS-private directory on
+    # local disk (per-user, so it can't collide with other users on a shared
+    # login/analysis node; not per-machine-persistent, since local disk is
+    # node-specific -- losing dialog history when switching nodes is harmless)
+    # sidesteps this entirely, since local filesystems support the atomic
+    # operations QLockFile's recovery needs. Must happen before any QFileDialog is
+    # constructed. See docs/ground_truths.md for how this was diagnosed.
+    pyrs_config_home = os.path.join(tempfile.gettempdir(), f"pyrs-qt-config-{getpass.getuser()}")
+    os.makedirs(pyrs_config_home, mode=0o700, exist_ok=True)
+    os.environ["XDG_CONFIG_HOME"] = pyrs_config_home
+    # Kept for any future explicit QSettings/QStandardPaths use -- does not affect
+    # QFileDialog's own settings, which are isolated by the XDG_CONFIG_HOME
+    # redirect above instead.
     QCoreApplication.setOrganizationName("PyRS")
     QCoreApplication.setOrganizationDomain("ornl.gov")
     QCoreApplication.setApplicationName("PyRS")
