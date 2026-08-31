@@ -3,7 +3,7 @@ import getpass
 import os
 import sys
 import tempfile
-from qtpy.QtCore import QCoreApplication
+from qtpy.QtCore import QCoreApplication  # type: ignore
 from qtpy.QtWidgets import QApplication
 import pyrs.interface.pyrs_main
 
