@@ -607,3 +607,73 @@ the pipeline where the new data is available at all — extending
 calibration path doesn't exist yet at that call site. The right fix
 needed a new write path anchored to where the data is actually known
 (`save_diffraction_data`), not a bigger version of the existing one.
+
+## `~/.config/QtProject.conf`'s lock file: "Could not remove our own lock file" on export (2026-08)
+
+Exporting peak-fit results from PyRS intermittently produced
+`Could not remove our own lock file "~/.config/QtProject.conf.lock.rmlock"`
+(Permission denied). Reported reproduction: within a *single* PyRS GUI
+session — remove any stale lock file, fit peaks, export (succeeds), load
+a new data file, fit again, export a second time (fails). No test suite
+or second PyRS instance needs to be running.
+
+Root cause: nothing in `pyrs/` calls `QSettings` directly, but every
+native-feeling Qt dialog (`QFileDialog`, used by every browse/export
+action) implicitly reads/writes `QSettings` state (history, sidebar,
+geometry) on close, guarded by a `QLockFile`. **PyRS never calls
+`QCoreApplication.setOrganizationName()`/`setApplicationName()`**
+(`grep -rn "setOrganizationName\|setApplicationName" pyrs/ scripts/`
+came back empty), so Qt falls back to its generic, hardcoded identity —
+which is literally why the file is named `QtProject.conf`. That fallback
+identity, and therefore that exact file and its lock, is shared by
+*every* unnamed Qt/PyQt process on the machine: two PyRS export dialogs
+in the same session, two PyRS windows, a concurrently running Mantid
+Workbench, Qt Designer, or `pytest-qt`'s own `QApplication` instances
+all read/write/lock the identical `~/.config/QtProject.conf`. Two of
+them racing to acquire/release that lock at the same time is what
+produces "Could not remove our own lock file." This got easier to
+reproduce after the `os._exit()` change in
+[scripts/development/run_tests.py](../scripts/development/run_tests.py)
+(see above), since that skips `QSettings`'s normal C++ destructor/flush
+path entirely on the test side — but the shared-identity race exists
+independently of that.
+
+**Could not reproduce deterministically**: a scripted, single-process
+repro driving `FitPeaksWindow` twice in a row (load → fit → export →
+load → fit → export) via `QTest`, under `QT_QPA_PLATFORM=offscreen`,
+completed both exports cleanly with no lock warning — this is an
+inherently timing-dependent race (like the segfault above), and offscreen
+mode with nothing else on the machine touching `QtProject.conf`
+apparently doesn't hit the same timing as a real desktop session where
+other Qt apps (e.g. Mantid Workbench) are also live.
+
+**Fixes applied**:
+1. [scripts/pyrsplot.py](../scripts/pyrsplot.py): call
+   `QCoreApplication.setOrganizationName("PyRS")` /
+   `setOrganizationDomain("ornl.gov")` / `setApplicationName("PyRS")`
+   before creating the `QApplication` — the
+   actual root-cause fix. This moves all of PyRS's implicit dialog state
+   to its own `~/.config/PyRS/PyRS.conf`, so it can never again share a
+   `QSettings`/`QLockFile` with an unrelated Qt process on the same
+   machine.
+2. [tests/conftest.py](../tests/conftest.py): set `XDG_CONFIG_HOME` to a
+   private `tempfile.mkdtemp()` directory at module-import time (before
+   `pytest-qt`'s session-scoped `qapp` fixture runs), so the test suite's
+   `QApplication` instances never touch a developer's real `~/.config` at
+   all, regardless of what org/app name is in effect. Verified by running
+   the full `tests/ui` suite (27 tests, all passed) while `scripts/pyrsplot`
+   ran concurrently in the background under `QT_QPA_PLATFORM=offscreen` —
+   the real `~/.config/QtProject.conf` was untouched by the test run.
+
+**Why this matters going forward:** any Qt app with no explicit
+`organizationName`/`applicationName` implicitly shares `QtProject.conf`
+(and its lock) with every other unnamed Qt process on the machine —
+this is not specific to PyRS or to tests. Setting an explicit
+organization/application name early (before any widget that can open a
+dialog exists) is the general fix for this whole class of bug. If a
+similar "permission denied removing our own lock file" resurfaces
+elsewhere, check first whether the affected `QApplication` has an
+explicit identity set, rather than assuming filesystem or permissions
+corruption — and note that it is a genuine race condition, so failure
+to reproduce it in a quiet, single-process repro does not mean the fix
+didn't address it.
