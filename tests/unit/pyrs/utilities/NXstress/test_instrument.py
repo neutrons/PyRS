@@ -17,10 +17,6 @@ from tests.util.mask_helpers import add_named_detector_mask
 class TestInstrument:
     """Test suite for _instrument.py"""
 
-    PROJECT_FILE_A = "HB2B_1017.h5"  # instrument, input data, reduced data, no mask
-    PROJECT_FILE_B = "HB2B_1628.h5"  # instrument, mask, reduced data, but no input data
-    PROJECT_FILE_C = "HB2B_1017_w_mask.h5"  # instrument, mask, input data, reduced data
-
     def test_Masks_init(self):
         """Verify _Masks._init creates empty NXcollection with required fields"""
         masks = _Masks._init()
@@ -37,12 +33,10 @@ class TestInstrument:
 
     def test_Masks_init_group_with_default_mask(
         self,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify default mask appears in masks with DEFAULT_TAG name"""
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_C, name="test_workspace", load_raw_counts=True, load_reduced_diffraction=True
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
 
         masks = _Masks.init_group(ws)
 
@@ -52,12 +46,10 @@ class TestInstrument:
 
     def test_Masks_init_group_append(
         self,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify calling init_group twice (detector then solid_angle) populates both"""
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_C, name="test_workspace", load_raw_counts=True, load_reduced_diffraction=True
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
 
         # First call for detector masks
         masks = _Masks.init_group(ws)
@@ -82,7 +74,7 @@ class TestInstrument:
 
     def test_Masks_init_group_duplicate_raises(
         self,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify behavior when attempting to add duplicate masks
 
@@ -90,9 +82,7 @@ class TestInstrument:
         `init_group` writes it; the second call must raise because the same
         name is already present in the masks group.
         """
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_C, name="test_workspace", load_raw_counts=True, load_reduced_diffraction=True
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True)
 
         # Add a non-default named mask so that `mask_keys(ws)` contains a
         # name other than DEFAULT_TAG.  The first `init_group` call will write
@@ -115,12 +105,10 @@ class TestInstrument:
 
     def test_Instrument_detector_module_fields(
         self,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify NXdetector_module contains required fields"""
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_A, name="test_workspace", load_raw_counts=True, load_reduced_diffraction=True
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True)
 
         inst = _Instrument.init_group(ws)
 
@@ -143,12 +131,10 @@ class TestInstrument:
 
     def test_Instrument_transformations_chain(
         self,
-        load_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify all 8 transformations exist and depends_on chain is correct"""
-        ws = load_HidraWorkspace(
-            file_name=self.PROJECT_FILE_A, name="test_workspace", load_raw_counts=True, load_reduced_diffraction=True
-        )
+        ws = minimal_HidraWorkspace(with_instrument=True)
 
         inst = _Instrument.init_group(ws)
 

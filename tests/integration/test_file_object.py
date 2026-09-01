@@ -10,6 +10,8 @@ from pyrs.dataobjects.constants import HidraConstants
 from pyrs.peaks import PeakCollection  # type: ignore
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 
+pytestmark = pytest.mark.integration
+
 
 def assert_allclose_structured_numpy_arrays(expected, calculated):
     if expected.dtype.names != calculated.dtype.names:
@@ -222,6 +224,70 @@ class TestHidraProjectFile:
         assert not np.allclose(ws._var_data_set[None], np.sqrt(intensity)), (
             "Variance readback matches sqrt(intensity) -- the stored variance was not used"
         )
+
+    def test_read_diffraction_2theta_array_missing_reduced_data_group_raises_key_error(self, tmpdir):
+        """A project file with no reduced-diffraction data at all is a legitimate,
+        common case (e.g. saved before any reduction step) -- read_diffraction_2theta_array
+        must still raise KeyError for it, and loading such a file into a HidraWorkspace
+        must succeed silently (no reduced-diffraction data populated), not raise.
+        """
+        from pyrs.core.workspaces import HidraWorkspace
+
+        test_file = str(tmpdir.join("test_no_reduced_data.h5"))
+
+        pf_write = HidraProjectFile(test_file, HidraProjectFileMode.OVERWRITE)
+        pf_write.append_raw_counts(1, np.zeros(4))
+        pf_write.append_experiment_log(HidraConstants.SUB_RUNS, np.array([1]))
+        # note: write_reduced_diffraction_data_set is deliberately never called
+        pf_write.save(verbose=False)
+
+        pf_read = HidraProjectFile(test_file, HidraProjectFileMode.READONLY)
+        with pytest.raises(KeyError):
+            pf_read.read_diffraction_2theta_array()
+
+        # loading into a workspace must not raise -- this is the legitimate "no data" case
+        ws = HidraWorkspace("test")
+        ws.load_hidra_project(pf_read, load_raw_counts=False, load_reduced_diffraction=True)
+        assert ws._diff_data_set == {}
+
+    def test_read_diffraction_2theta_array_unrecognized_schema_raises_runtime_error(self, tmpdir):
+        """A REDUCED_DATA group present without a TWO_THETA coordinate dataset (e.g. an
+        older, unsupported schema) must fail clearly, not be silently treated as "no
+        reduced data" -- regression test for the bug where a raw KeyError from either
+        cause was caught identically by the HidraWorkspace loader.
+        """
+        import h5py
+
+        from pyrs.core.workspaces import HidraWorkspace
+
+        test_file = str(tmpdir.join("test_unrecognized_schema.h5"))
+
+        n_subruns = 1
+        n_bins = 10
+        two_theta = np.tile(np.linspace(80.0, 95.0, n_bins), (n_subruns, 1))
+        intensity = np.random.default_rng(0).uniform(0.0, 1000.0, (n_subruns, n_bins))
+
+        pf_write = HidraProjectFile(test_file, HidraProjectFileMode.OVERWRITE)
+        pf_write.append_raw_counts(1, np.zeros(4))
+        pf_write.append_experiment_log(HidraConstants.SUB_RUNS, np.arange(1, n_subruns + 1))
+        pf_write.write_reduced_diffraction_data_set(two_theta, {None: intensity}, None)
+        pf_write.save(verbose=False)
+
+        # simulate an older/unsupported schema by removing the TWO_THETA coordinate
+        # dataset directly, leaving the rest of REDUCED_DATA (the intensity dataset) intact
+        with h5py.File(test_file, "r+") as raw_h5:
+            del raw_h5[HidraConstants.REDUCED_DATA][HidraConstants.TWO_THETA]
+
+        pf_read = HidraProjectFile(test_file, HidraProjectFileMode.READONLY)
+        with pytest.raises(RuntimeError, match="not up-to-date"):
+            pf_read.read_diffraction_2theta_array()
+
+        # loading into a workspace must propagate the same clear error, not silently
+        # report "no reduced data" while actually dropping real (unreadable) data
+        pf_read2 = HidraProjectFile(test_file, HidraProjectFileMode.READONLY)
+        ws = HidraWorkspace("test")
+        with pytest.raises(RuntimeError, match="not up-to-date"):
+            ws.load_hidra_project(pf_read2, load_raw_counts=False, load_reduced_diffraction=True)
 
     def test_wave_length_rw(self):
         """Test writing and reading for wave length

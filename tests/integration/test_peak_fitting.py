@@ -15,6 +15,8 @@ from collections import namedtuple
 import os
 import shutil
 
+pytestmark = pytest.mark.integration
+
 
 # Named tuple for peak information
 PeakInfo = namedtuple("PeakInfo", "center left_bound right_bound tag")
@@ -451,7 +453,7 @@ EXPECTED_HEADER_938 = """# IPTS number = 22731
             ",311_chisq",
         ),
         (
-            "data/HB2B_938_peak.h5",
+            "tests/data/HB2B_938_peak.h5",
             "HB2B_938.csv",
             EXPECTED_HEADER_938,
             1,

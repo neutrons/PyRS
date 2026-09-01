@@ -9,6 +9,8 @@ import functools
 # import json
 import pytest
 
+pytestmark = [pytest.mark.gui, pytest.mark.integration]
+
 wait = 200
 plot_wait = 100
 

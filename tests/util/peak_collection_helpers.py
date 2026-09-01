@@ -9,12 +9,19 @@ from pyrs.peaks.peak_fit_engine import FitResult
 
 import pytest
 
-RNG = np.random.default_rng(seed=0x923F109B1D944AF5)
+# Fixed literal seed for full reproducibility -- re-instantiated fresh inside the fixture
+# below (not held at module scope) so that no test's random draws depend on how many draws
+# earlier tests happened to consume from a shared stream.
+_SEED = 0x923F109B1D944AF5
 
 
 @pytest.fixture
 def createPeakCollection() -> Generator[Callable[..., PeakCollection]]:
     # This fixture generates a `PeakCollection` instance initialized using random values.
+    # A fresh, identically-seeded RNG is created per test invocation (see `_SEED` above):
+    # every test that requests this fixture gets the same deterministic sequence of draws,
+    # regardless of what other tests ran before it in the same session.
+    rng = np.random.default_rng(seed=_SEED)
 
     def _init(
         *,
@@ -28,8 +35,16 @@ def createPeakCollection() -> Generator[Callable[..., PeakCollection]]:
         exclude_list=None,
         N_counts=1000,  # range for random counts
         N_span=10000.0,  # domain for random axes
-        error_fraction=0.01,  # fractional error for various initializations
+        error_fraction_min=0.005,  # minimum fractional error (0.5%), as a fraction of the value drawn
+        error_fraction_max=0.05,  # maximum fractional error (5%), as a fraction of the value drawn
     ) -> PeakCollection:
+        if not (0 < error_fraction_min <= error_fraction_max):
+            raise ValueError(
+                "createPeakCollection: invalid error_fraction bounds "
+                f"(error_fraction_min={error_fraction_min}, error_fraction_max={error_fraction_max}); "
+                "require 0 < error_fraction_min <= error_fraction_max"
+            )
+
         peaks = PeakCollection(
             peak_tag,
             peak_profile,
@@ -49,6 +64,15 @@ def createPeakCollection() -> Generator[Callable[..., PeakCollection]]:
 
         # Ensure that the parameter values are somewhat physically meaningful:
         #   for example, no negative peak widths or out-of-range mixing fractions.
+        # Uncertainties are drawn as a bounded, non-degenerate *fraction of the value itself*
+        #   (never as an absolute range independent of the value): this keeps the ratio between
+        #   any two parameters' relative uncertainties bounded by error_fraction_max/error_fraction_min,
+        #   which is what actually bounds the condition number of downstream error-propagation
+        #   formulas that recombine several parameters' uncertainties (see e.g.
+        #   pyrs/utilities/NXstress/_fit.py's PseudoVoigt Intensity-from-Height inversion, which
+        #   subtracts comparable-magnitude terms and would otherwise amplify float32 rounding
+        #   noise without bound whenever a draw happened to make one parameter's absolute
+        #   uncertainty tiny relative to its value).
         params = peaks._peak_profile.native_parameters
         dtypes = dict(get_parameter_dtype(peaks._peak_profile, peaks._background_type))
         param_values = np.zeros(N_subrun, list(dtypes.items()))
@@ -57,24 +81,23 @@ def createPeakCollection() -> Generator[Callable[..., PeakCollection]]:
             dtype = dtypes[param]
             match param:
                 case "Height" | "Intensity":
-                    vs = RNG.uniform(0.0, N_counts, size=(N_subrun,)).astype(dtype)
-                    es = RNG.uniform(0.0, error_fraction * N_counts, size=(N_subrun,)).astype(dtype)
+                    vs = rng.uniform(0.0, N_counts, size=(N_subrun,)).astype(dtype)
                 case "PeakCentre":
-                    vs = RNG.uniform(0.0, N_span, size=(N_subrun,)).astype(dtype)
-                    es = RNG.uniform(0.0, error_fraction * N_span, size=(N_subrun,)).astype(dtype)
+                    vs = rng.uniform(0.0, N_span, size=(N_subrun,)).astype(dtype)
                 case "Sigma" | "FWHM":
-                    vs = RNG.uniform(0.0, N_span / 10.0, size=(N_subrun,)).astype(dtype)
-                    es = RNG.uniform(0.0, error_fraction * N_span / 10.0, size=(N_subrun,)).astype(dtype)
+                    vs = rng.uniform(0.0, N_span / 10.0, size=(N_subrun,)).astype(dtype)
                 case "Mixing":
-                    vs = RNG.uniform(0.0, 1.0, size=(N_subrun,)).astype(dtype)
-                    es = RNG.uniform(0.0, error_fraction * 1.0, size=(N_subrun,)).astype(dtype)
+                    vs = rng.uniform(0.0, 1.0, size=(N_subrun,)).astype(dtype)
                 case _:
                     raise RuntimeError(f"`createPeakCollection`: unexpected param '{param}'")
+
+            fraction = rng.uniform(error_fraction_min, error_fraction_max, size=(N_subrun,))
+            es = (fraction * vs).astype(dtype)
 
             param_values[param] = vs
             param_errors[param] = es
 
-        fit_costs = RNG.uniform(0.0, 100.0, size=(N_subrun,)).astype(dtype)
+        fit_costs = rng.uniform(0.0, 100.0, size=(N_subrun,)).astype(dtype)
 
         peaks.set_peak_fitting_values(subruns, param_values, param_errors, fit_costs, exclude_list)
         return peaks
