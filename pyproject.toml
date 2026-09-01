@@ -330,8 +330,8 @@ namespace_packages = true
 norecursedirs = ["tests/scripts/cis_tests"]
 addopts = "--strict-markers"
 markers = [
-    "integration: exercises real file I/O (tests/data, /HFIR archive) or a multi-component workflow",
-    "gui: constructs or drives Qt widgets; requires a display (xvfb or offscreen)",
+  "integration: exercises real file I/O (tests/data, /HFIR archive) or a multi-component workflow",
+  "gui: constructs or drives Qt widgets; requires a display (xvfb or offscreen)",
 ]
 
 [tool.ruff]

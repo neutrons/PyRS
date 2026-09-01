@@ -6,7 +6,6 @@ Tests for pyrs/utilities/NXstress/_peaks.py
 from collections.abc import Callable
 import numpy as np
 from nexusformat.nexus import NXreflections
-import pytest
 
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.peaks.peak_collection import PeakCollection
@@ -55,7 +54,9 @@ class TestPeaks:
         assert peaks["center_type"].nxdata == "d-spacing"
 
     def test_Peaks_init_group_data_values(
-        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify one PeakCollection creates N_scan rows with correct values"""
         ws = minimal_HidraWorkspace(with_instrument=False)
@@ -103,7 +104,9 @@ class TestPeaks:
         np.testing.assert_array_equal(peaks["scan_point"].nxdata, subruns)
 
     def test_Peaks_init_group_multiple_peaks(
-        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify two PeakCollections create 2×N_scan rows in lexicographic sort order"""
         ws = minimal_HidraWorkspace(with_instrument=False)
@@ -161,7 +164,9 @@ class TestPeaks:
         assert all(peaks["l"].nxdata[:N_subrun] == l)
 
     def test_PeakIndex_sort_key(
-        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify PeakIndex.sort_key returns correct tuple for sorting"""
         ws = minimal_HidraWorkspace(with_instrument=False)
@@ -202,7 +207,9 @@ class TestPeaks:
         assert (key0 < key1) or (key0 > key1)
 
     def test_Peaks_qxyz_nan(
-        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify qx, qy, qz fields exist but remain empty after init_group since implementation doesn't populate them"""
         ws = minimal_HidraWorkspace(with_instrument=False)
@@ -232,7 +239,9 @@ class TestPeaks:
         assert peaks["qz"].shape[0] == 0
 
     def test_Peaks_sxyz_nan(
-        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify sx, sy, sz are filled with NaN after init_group"""
         ws = minimal_HidraWorkspace(with_instrument=False)

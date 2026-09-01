@@ -122,9 +122,17 @@ def minimal_PeakCollection(createPeakCollection):
     # Convenience wrapper around `createPeakCollection` with defaults suited to
     # `minimal_HidraWorkspace` -- still fully overridable.
 
-    def _init(*, N_subrun: int, peak_tag: str = "Fe 110", peak_profile: str = "Gaussian",
-              background_type: str = "Linear", wavelength: float = 1.486,
-              projectfilename: str = "/does/not/exist.h5", runnumber: int = 1, **kwargs):
+    def _init(
+        *,
+        N_subrun: int,
+        peak_tag: str = "Fe 110",
+        peak_profile: str = "Gaussian",
+        background_type: str = "Linear",
+        wavelength: float = 1.486,
+        projectfilename: str = "/does/not/exist.h5",
+        runnumber: int = 1,
+        **kwargs,
+    ):
         return createPeakCollection(
             peak_tag=peak_tag,
             peak_profile=peak_profile,
