@@ -51,6 +51,10 @@ After a significant feature or refactor, delegate review using the `Agent` tool.
 
 Brief the sub-agent with what changed, why, the files touched, and what to focus on. Address findings, then update documentation.
 
+## 📦 Environment & Launching
+
+All environment setup, dependency management, and program launching in this repo goes through **pixi**. Use `pixi run <task>` (e.g. `pixi run pyrs`) to start the application, and `pixi install`/`pixi shell` for environment work — never hand-roll a `python setup.py build`, a bare `pip install`, or a standalone launcher shell script that bypasses pixi's environment. Stale, pixi-external artifacts (e.g. an old `build/` directory or ad hoc launcher scripts) are a common source of "it still does the old thing" bugs because they don't get updated when the source changes.
+
 ## 🛠️ Technology Stack Preferences
 
 When the user needs to choose, prefer these well-integrated options:
