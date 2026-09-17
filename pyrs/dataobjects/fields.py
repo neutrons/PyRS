@@ -1549,7 +1549,9 @@ class StrainField(_StrainField):
 
     @staticmethod
     def fuse_strains(
-        *args: "_StrainField", resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = "min_error"
+        *args: "_StrainField",
+        resolution: float = DEFAULT_POINT_RESOLUTION,
+        criterion: str = "min_error"
     ) -> "_StrainField":
         r"""
         Bring in together several strains measured along the same direction. Overlaps are resolved
@@ -1874,7 +1876,7 @@ class Direction(Enum):
                 return Direction.Z
             try:
                 return Direction(str(direction).upper())
-            except ValueError:  # give clearer error message
+            except ValueError:  # `ValueError` is canonical here, not `KeyError`.
                 raise ValueError('Cannot determine direction type from "{}"'.format(direction)) from None
 
     @property

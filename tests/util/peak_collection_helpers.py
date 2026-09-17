@@ -9,7 +9,8 @@ from pyrs.peaks.peak_fit_engine import FitResult
 
 import pytest
 
-# Fixed literal seed for full reproducibility -- re-instantiated fresh inside the fixture
+# Fixed literal seed for full reproducibility:
+# Each consuming RNG is re-instantiated fresh inside the fixture
 # below (not held at module scope) so that no test's random draws depend on how many draws
 # earlier tests happened to consume from a shared stream.
 _SEED = 0x923F109B1D944AF5
