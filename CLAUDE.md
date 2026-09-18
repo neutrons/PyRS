@@ -209,11 +209,19 @@ Notes:
 - `tests/util/` holds shared helper modules and fixtures, not tests of its own
   (beyond tests *for* those helpers); `tests/scripts/` is excluded from
   collection via `norecursedirs`.
-- **Export `QT_QPA_PLATFORM=offscreen` before `pixi run test-gui` or the full
-  `pixi run test`.** On a workstation with a real desktop session, the GUI tier
-  otherwise opens an actual window and blocks forever — see
-  [docs/ground_truths.md](docs/ground_truths.md). `test-unit` and
-  `test-integration` deselect `gui` and are unaffected.
+- `test-gui` sets `QT_QPA_PLATFORM=offscreen` itself, so no window ever appears.
+  The full `pixi run test` does **not** — it is the task CI drives under
+  `xvfb-run`, and a pixi task `env` would override that. Export
+  `QT_QPA_PLATFORM=offscreen` yourself before running the full suite on a
+  workstation with a real desktop session, or it will stall on the GUI tier
+  until the timeout below fires — see [docs/ground_truths.md](docs/ground_truths.md).
+- **Every test has a 300-second timeout** (`timeout`/`timeout_method` in
+  `pyproject.toml`, via `pytest-timeout`). A hang is a failure, not an infinite
+  wait. `timeout_method = "thread"` is deliberate: a test blocked inside Qt's C++
+  event loop never returns to the interpreter, so the default `signal` method
+  cannot interrupt it — verified. The watchdog dumps every thread's stack, which
+  names the blocking line. Override per-test with `@pytest.mark.timeout(N)` for a
+  genuinely long-running case rather than raising the global limit.
 
 ## 🔍 Code Review Process
 

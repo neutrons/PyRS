@@ -333,11 +333,37 @@ makes a local run finish, while CI's real display server (`xvfb-run` +
 modes want opposite platforms, which is why neither is reliably visible
 from the other's environment.
 
+**Resolved (2026-09-18), two ways:**
+
+1. `test-gui` now carries `env = { QT_QPA_PLATFORM = "offscreen" }` in its
+   pixi task definition, so it can no longer open a window regardless of
+   the developer's desktop. It is *not* set on the `test` task: a pixi task
+   `env` overrides the ambient environment unconditionally (verified — a
+   caller's `QT_QPA_PLATFORM=xcb` is ignored, and neither `${VAR:-default}`
+   in `env` nor in `cmd` expands), so setting it there would silently
+   defeat CI's `xvfb-run` wrapper and switch CI off the `xcb` platform
+   this very section is about.
+2. Every test now has a 300s cap (`pytest-timeout`, configured in
+   `pyproject.toml`). A hang is therefore a failure with a stack dump
+   rather than an unbounded wait, including on the full `pixi run test`
+   where offscreen is not forced.
+
+`timeout_method = "thread"` is required, not a preference. Measured
+directly against a `QEventLoop().exec()` that never returns to the
+interpreter: with `--timeout-method=signal` (the plugin's Unix default)
+the 5s timeout passed unnoticed and an external `timeout 40` had to kill
+the process; with `--timeout-method=thread` it was caught at 5s and the
+dump named the exact blocking line. SIGALRM is only delivered when the
+interpreter next executes bytecode, which a blocked C++ event loop never
+does.
+
 **Practical consequence:** prefer `pixi run test-unit` /
 `pixi run test-integration` for day-to-day work — they deselect the `gui`
-marker entirely and never open a window. Reserve the full `pixi run test`
-(and `pixi run test-gui`) for when GUI coverage is actually needed, and
-export `QT_QPA_PLATFORM=offscreen` first.
+marker entirely and never open a window. (Confirmed: the only `tests/ui/`
+tests the integration tier selects are `test_model`,
+`test_model_multiple_files` and `test_model_from_json`, which construct
+`Model()` and touch no widget.) Before the full `pixi run test`, still
+export `QT_QPA_PLATFORM=offscreen` yourself.
 
 ## Uncalibrated (`Status: -1`) calibration JSON silently applied during reduction (2026-07)
 
