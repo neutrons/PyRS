@@ -34,9 +34,10 @@ pytestmark = pytest.mark.skipif(not hfir_available(), reason="HFIR archive not a
 # reduce_runs — integration tests against real HB2B data
 #
 # The pure-logic tests for parse_run_numbers / is_run_specification that used to
-# live here (no HFIR access needed) moved to
-# tests/unit/pyrs/interface/test_manual_reduction_runspec.py, alongside the other
-# tests of the same two functions — see plans/test-framework.md.
+# live here moved to tests/unit/pyrs/interface/test_manual_reduction_runspec.py,
+# joining the near-duplicate tests of those same two functions that lived in
+# tests/ui/.  They need neither HFIR access nor a Qt display, so the whole module
+# skip below (and the `gui` tier) was hiding them for no reason.
 # ---------------------------------------------------------------------------
 
 

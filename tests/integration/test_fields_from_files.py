@@ -102,9 +102,7 @@ class TestStrainFieldSingle:
     """Tests for `StrainFieldSingle` backed by real and synthetic HB2B data."""
 
     @pytest.mark.integration
-    def test_get_effective_peak_parameter_invalid_name_raises_value_error(
-        self, strain_field_samples: dict[str, StrainFieldSingle]
-    ) -> None:
+    def test_get_peak_param_invalid_name_raises(self, strain_field_samples: dict[str, StrainFieldSingle]) -> None:
         """Test that `get_effective_peak_parameter` raises `ValueError` for an unknown parameter name."""
         strain = strain_field_samples["strain with two points per direction"]  # mock object
 
@@ -113,9 +111,7 @@ class TestStrainFieldSingle:
         assert "impossible" in str(exception_info.value)
 
     @pytest.mark.integration
-    def test_get_effective_peak_parameter_supported_name_returns_scalar_field(
-        self, strain_field_samples: dict[str, StrainFieldSingle]
-    ) -> None:
+    def test_get_peak_param_supported_name(self, strain_field_samples: dict[str, StrainFieldSingle]) -> None:
         """Test that `get_effective_peak_parameter` returns a per-point field for every known parameter name."""
         strain = strain_field_samples["strain with two points per direction"]  # mock object
 
@@ -265,7 +261,7 @@ class TestStrainField:
             assert_allclose_with_sorting(strain.values, values)
 
     @pytest.mark.integration
-    def test_stack_operator_overlapping_and_disjoint_strains_returns_expected_fields(
+    def test_stack_overlapping_and_disjoint_strains(
         self, strain_field_samples: dict[str, StrainFieldSingle], allclose_with_sorting: Callable[..., bool]
     ) -> None:
         """Test `*` (stacking) for strains with overlapping, and with disjoint, evaluation points."""
@@ -301,9 +297,7 @@ class TestStrainField:
             assert nan_measurements_count == len(strain_other)
 
     @pytest.mark.integration
-    def test_stack_strains_unimplemented_mode_raises_not_implemented_error(
-        self, strain_field_samples: dict[str, StrainFieldSingle]
-    ) -> None:
+    def test_stack_strains_unimplemented_mode_raises(self, strain_field_samples: dict[str, StrainFieldSingle]) -> None:
         """Test that `StrainField.stack_strains` rejects the recognized-but-not-yet-implemented
         `stack_mode="intersection"` value.
 
@@ -321,7 +315,7 @@ class TestStrainField:
             StrainField.stack_strains(strain1, strain3, stack_mode="intersection")
 
     @pytest.mark.integration
-    def test_fuse_then_stack_strains_matches_expected_finite_and_nan_counts(
+    def test_fuse_then_stack_strains(
         self, strain_field_samples: dict[str, StrainFieldSingle], allclose_with_sorting: Callable[..., bool]
     ) -> None:
         """Test that stacking a strain against a fused pair matches fusing then stacking, point-for-point."""
@@ -362,7 +356,7 @@ class TestStrainField:
 
 
 @pytest.mark.integration
-def test_stress_field_from_identical_strains_computes_expected_values(test_data_dir: str) -> None:
+def test_stress_field_identical_strains(test_data_dir: str) -> None:
     """Test `StressField` computed from three identical strains loaded from a real project file."""
     HB2B_1320_PROJECT = os.path.join(test_data_dir, "HB2B_1320.h5")
     YOUNG = 200.0
@@ -416,7 +410,7 @@ def test_stress_field_from_identical_strains_computes_expected_values(test_data_
 
 
 @pytest.mark.integration
-def test_stress_field_select_invalid_direction_raises_value_error(test_data_dir: str) -> None:
+def test_stress_field_select_invalid_direction(test_data_dir: str) -> None:
     """Test that `StressField.select` rejects an unrecognized direction string."""
     HB2B_1320_PROJECT = os.path.join(test_data_dir, "HB2B_1320.h5")
     YOUNG = 200.0

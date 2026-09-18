@@ -52,7 +52,7 @@ def strain_instantiator(
     )
 
 
-def test_summary_generator_stress_init_strain_without_filenames_raises_runtime_error() -> None:
+def test_init_strain_without_filenames_raises() -> None:
     """Test that `SummaryGeneratorStress` rejects strains with no `filenames`.
 
     Strains built directly from values via `strain_instantiator` (not loaded from a
@@ -96,7 +96,7 @@ def test_summary_generator_stress_init_strain_without_filenames_raises_runtime_e
     assert "StrainField filenames in direction " in str(exception_info.value)
 
 
-def test_summary_generator_stress_init_none_stress_raises_runtime_error() -> None:
+def test_init_none_stress_raises() -> None:
     """Test that `SummaryGeneratorStress` rejects `stress_input=None`.
 
     `None` is neither a `StressField` nor a `StressFacade`, so construction must raise

@@ -5,7 +5,7 @@ import pytest
 from tests.util.peak_collection_helpers import createPeakCollection  # noqa: F401
 
 
-def test_createPeakCollection_inverted_error_fraction_bounds_raises_value_error(createPeakCollection) -> None:  # noqa: F811
+def test_inverted_error_fraction_bounds_raises(createPeakCollection) -> None:  # noqa: F811
     """Test that createPeakCollection rejects error_fraction_min > error_fraction_max."""
     with pytest.raises(ValueError, match="invalid error_fraction bounds"):
         createPeakCollection(
@@ -21,7 +21,7 @@ def test_createPeakCollection_inverted_error_fraction_bounds_raises_value_error(
         )
 
 
-def test_createPeakCollection_zero_error_fraction_min_raises_value_error(createPeakCollection) -> None:  # noqa: F811
+def test_zero_error_fraction_min_raises(createPeakCollection) -> None:  # noqa: F811
     """Test that createPeakCollection rejects a non-positive error_fraction_min."""
     with pytest.raises(ValueError, match="invalid error_fraction bounds"):
         createPeakCollection(

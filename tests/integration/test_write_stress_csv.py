@@ -17,8 +17,10 @@ def compare_csv(file1, file2):
 
 
 # test_write_csv_empty_strain_filenames and test_write_csv_none_stress moved to
-# tests/unit/pyrs/core/test_summary_generator_stress.py — they need no real project
-# file. See plans/test-framework.md.
+# tests/unit/pyrs/core/test_summary_generator_stress.py.  Both build their strains
+# from in-memory PeakCollectionLite objects and only assert that
+# SummaryGeneratorStress.__init__ rejects bad input, so they read no project file
+# and do not belong in the `integration` tier.
 
 
 @pytest.mark.integration

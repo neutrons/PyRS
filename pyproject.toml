@@ -327,11 +327,12 @@ ignore_missing_imports = true
 namespace_packages = true
 
 [tool.pytest.ini_options]
-norecursedirs = ["tests/scripts/cis_tests"]
+# By-hand smoke-test scripts, never collected -- see tests/scripts/cis_tests/README.rst
+norecursedirs = ["tests/scripts"]
 addopts = "--strict-markers"
 markers = [
-    "integration: exercises real file I/O (tests/data, /HFIR archive) or a multi-component workflow",
-    "gui: constructs or drives Qt widgets; requires a display (xvfb or offscreen)",
+  "integration: exercises real file I/O (tests/data, /HFIR archive) or a multi-component workflow",
+  "gui: constructs or drives Qt widgets; requires a display (xvfb or offscreen)",
 ]
 
 [tool.ruff]

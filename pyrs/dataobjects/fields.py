@@ -1549,9 +1549,7 @@ class StrainField(_StrainField):
 
     @staticmethod
     def fuse_strains(
-        *args: "_StrainField",
-        resolution: float = DEFAULT_POINT_RESOLUTION,
-        criterion: str = "min_error"
+        *args: "_StrainField", resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = "min_error"
     ) -> "_StrainField":
         r"""
         Bring in together several strains measured along the same direction. Overlaps are resolved
@@ -1876,7 +1874,13 @@ class Direction(Enum):
                 return Direction.Z
             try:
                 return Direction(str(direction).upper())
-            except ValueError:  # `ValueError` is canonical here, not `KeyError`.
+            except ValueError:
+                # `Enum.__call__` raises `ValueError` (not `KeyError`) on a bad value, so `ValueError`
+                # is what this lookup must both catch and re-raise.  `from None` suppresses exception
+                # chaining: the caught exception ("'FOO' is not a valid Direction") says nothing this
+                # message does not, so chaining would only bury the actionable message under a
+                # "During handling of the above exception..." traceback.  Where a caught exception
+                # *does* add context, use `raise ... from <exc>` instead -- see `convertdatatypes.py`.
                 raise ValueError('Cannot determine direction type from "{}"'.format(direction)) from None
 
     @property

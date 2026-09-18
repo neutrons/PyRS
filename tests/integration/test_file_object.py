@@ -225,7 +225,7 @@ class TestHidraProjectFile:
             "Variance readback matches sqrt(intensity) -- the stored variance was not used"
         )
 
-    def test_read_diffraction_2theta_array_missing_reduced_data_group_raises_key_error(self, tmpdir):
+    def test_read_2theta_empty_group_raises_key_error(self, tmpdir):
         """A project file with no reduced-diffraction data at all is a legitimate,
         common case (e.g. saved before any reduction step) -- read_diffraction_2theta_array
         must still raise KeyError for it, and loading such a file into a HidraWorkspace
@@ -250,7 +250,7 @@ class TestHidraProjectFile:
         ws.load_hidra_project(pf_read, load_raw_counts=False, load_reduced_diffraction=True)
         assert ws._diff_data_set == {}
 
-    def test_read_diffraction_2theta_array_unrecognized_schema_raises_runtime_error(self, tmpdir):
+    def test_read_2theta_bad_schema_raises_runtime_error(self, tmpdir):
         """A REDUCED_DATA group present without a TWO_THETA coordinate dataset (e.g. an
         older, unsupported schema) must fail clearly, not be silently treated as "no
         reduced data" -- regression test for the bug where a raw KeyError from either

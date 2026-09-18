@@ -159,7 +159,61 @@ Always cover:
 3. **Error cases** — invalid inputs, type errors.
 4. **Integration** — components working together.
 
-Naming: `test_<function_name>_<scenario>_<expected_outcome>`.
+Naming: `test_<function_name>_<scenario>_<expected_outcome>`, **kept under 60
+characters**. Omit any part the module or class name already carries — a test in
+`test_config.py` needs no `config_` prefix — and drop `_returns_*` tails when the
+scenario already implies the outcome. Keep `_raises` for error cases; the
+exception type is usually redundant with it.
+
+```
+# too long — the module already says `summary_generator_stress`, and
+# `_raises_runtime_error` repeats what `pytest.raises` in the body states
+test_summary_generator_stress_init_strain_without_filenames_raises_runtime_error
+
+# good
+test_init_strain_without_filenames_raises
+```
+
+### Test tiers, markers, and locations
+
+Tests are split into three tiers so the fast ones can be run without waiting on
+real data or being interrupted by GUI pop-ups. **Put every new test in the tier
+matching what it actually touches, and apply the marker that tier requires.**
+
+| Tier | Location | Marker | Run with |
+|---|---|---|---|
+| Unit | `tests/unit/<module-path>/`, mirroring the `pyrs/` package layout | *none* | `pixi run test-unit` |
+| Integration | `tests/integration/` (flat) | `@pytest.mark.integration` | `pixi run test-integration` |
+| GUI | `tests/ui/` | `@pytest.mark.gui` **and** `@pytest.mark.integration` | `pixi run test-gui` |
+| By-hand scripts | `tests/scripts/` | *n/a — never collected* | run the file directly |
+
+Marker definitions, registered in `pyproject.toml`:
+
+- **`integration`** — exercises real file I/O (`tests/data`, the `/HFIR`
+  archive) or a multi-component workflow.
+- **`gui`** — constructs or drives Qt widgets; requires a display (xvfb or
+  offscreen).
+
+Notes:
+
+- Markers are enforced by `addopts = "--strict-markers"`: an unregistered marker
+  is an error, not a silent no-op. Register new markers in `pyproject.toml`.
+- `test-gui` selects `-m gui`; `test-integration` selects
+  `-m 'integration and not gui'`. GUI tests therefore carry **both** markers —
+  `gui` alone would drop them from the integration tier.
+- A test is a *unit* test only if it needs no real file and no widget. If it
+  loads a fixture file purely for convenience, prefer rewriting it against a
+  synthetic fixture and keeping it in the unit tier.
+- Apply a whole-module marker with `pytestmark = pytest.mark.integration` rather
+  than decorating every function.
+- `tests/util/` holds shared helper modules and fixtures, not tests of its own
+  (beyond tests *for* those helpers); `tests/scripts/` is excluded from
+  collection via `norecursedirs`.
+- **Export `QT_QPA_PLATFORM=offscreen` before `pixi run test-gui` or the full
+  `pixi run test`.** On a workstation with a real desktop session, the GUI tier
+  otherwise opens an actual window and blocks forever — see
+  [docs/ground_truths.md](docs/ground_truths.md). `test-unit` and
+  `test-integration` deselect `gui` and are unaffected.
 
 ## 🔍 Code Review Process
 

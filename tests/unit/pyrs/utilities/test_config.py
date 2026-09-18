@@ -76,7 +76,7 @@ def test_validate_config_raises_when_both_formats_disabled(default_config: "_Con
         config_module.validate_config()
 
 
-def test_validate_config_raises_when_nxstress_enable_is_not_bool(default_config: "_Config", tmp_path: Path) -> None:
+def test_validate_nxstress_enable_not_bool(default_config: "_Config", tmp_path: Path) -> None:
     """Test that a non-bool `nxstress.enable` (e.g. a quoted YAML string) is rejected
     up front, rather than silently passing the truthiness check (`bool("false")` is
     `True` in Python).
@@ -95,7 +95,7 @@ def test_validate_config_raises_when_nxstress_enable_is_not_bool(default_config:
         config_module.validate_config()
 
 
-def test_validate_config_raises_when_legacy_io_enable_is_not_bool(default_config: "_Config", tmp_path: Path) -> None:
+def test_validate_legacy_io_enable_not_bool(default_config: "_Config", tmp_path: Path) -> None:
     """Test that a non-bool `legacy_io.enable` (e.g. an int) is rejected up front."""
     # Arrange
     import pytest

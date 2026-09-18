@@ -1,5 +1,6 @@
 # Data manager
 import numpy as np
+from mantid.kernel import Logger
 from pyrs.dataobjects import HidraConstants, SampleLogs  # type: ignore
 from pyrs.projectfile import HidraProjectFile  # type: ignore
 from pyrs.utilities import checkdatatypes
@@ -23,6 +24,8 @@ class HidraWorkspace:
         """
         # workspace name
         self._name = name
+
+        self._log = Logger(__name__)
 
         # raw counts
         self._raw_counts = dict()  # dict [sub-run] = count vector
@@ -124,7 +127,7 @@ class HidraWorkspace:
             # legitimate "no REDUCED_DATA group at all" case -- an unrecognized/
             # unsupported schema instead raises RuntimeError, which is deliberately
             # NOT caught here, so it propagates instead of being silently swallowed.
-            print("[INFO] No reduced-diffraction data recorded in this project file ({}).".format(key_err))
+            self._log.information("No reduced-diffraction data recorded in this project file ({}).".format(key_err))
             return
         # TRY-CATCH
 
@@ -171,10 +174,8 @@ class HidraWorkspace:
             if self._var_data_set[mask_name] is None:
                 self._var_data_set[mask_name] = np.sqrt(self._diff_data_set[mask_name])
 
-        print(
-            "[INFO] Loaded diffraction data from {} includes : {}".format(
-                self._project_file_name, self._diff_data_set.keys()
-            )
+        self._log.information(
+            "Loaded diffraction data from {} includes : {}".format(self._project_file_name, self._diff_data_set.keys())
         )
 
     def _append_reduced_diffraction_data(self, hidra_file):
@@ -193,7 +194,7 @@ class HidraWorkspace:
             # legitimate "no REDUCED_DATA group at all" case -- an unrecognized/
             # unsupported schema instead raises RuntimeError, which is deliberately
             # NOT caught here, so it propagates instead of being silently swallowed.
-            print("[INFO] No reduced-diffraction data recorded in this project file ({}).".format(key_err))
+            self._log.information("No reduced-diffraction data recorded in this project file ({}).".format(key_err))
             return
         # TRY-CATCH
 
@@ -239,10 +240,8 @@ class HidraWorkspace:
             if self._var_data_set[mask_name] is None:
                 self._var_data_set[mask_name] = np.sqrt(self._diff_data_set[mask_name])
 
-        print(
-            "[INFO] Loaded diffraction data from {} includes : {}".format(
-                self._project_file_name, self._diff_data_set.keys()
-            )
+        self._log.information(
+            "Loaded diffraction data from {} includes : {}".format(self._project_file_name, self._diff_data_set.keys())
         )
 
     def _load_instrument(self, hidra_file):
@@ -1048,7 +1047,7 @@ class HidraWorkspace:
                 if sub_runs is None or sub_run_i in sub_runs:
                     hidra_project.append_raw_counts(sub_run_i, self._raw_counts[sub_run_i])
                 else:
-                    print("[WARNING] sub run {} is not exported to {}".format(sub_run_i, hidra_project.name))
+                    self._log.warning("sub run {} is not exported to {}".format(sub_run_i, hidra_project.name))
                 # END-IF-ELSE
             # END-FOR
 

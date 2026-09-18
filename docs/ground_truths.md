@@ -308,6 +308,37 @@ using that name. `grep -rn '"\.\./\|\.\(json\|csv\|h5\|xml\)"' tests/`
 `open()`, `os.remove()`, etc.) is a reasonable sweep for this pattern in
 other UI tests.
 
+## `pixi run test` hangs on the GUI tier under an interactive display (2026-09)
+
+Running the full suite on a workstation with a real desktop session
+(`DISPLAY=:0` plus a live Wayland compositor) and **no** `QT_QPA_PLATFORM`
+override hangs indefinitely at the first GUI test,
+`tests/ui/test_calibration_ui.py`. It is not slow — it is blocked. The
+process sits at ~6% CPU with `wchan = poll_schedule_timeout`, holding the
+compositor's cursor-shm, `mime.cache` and `icon-theme.cache` file
+descriptors open: the signature of a real, mapped Qt window spinning its
+event loop waiting for an interaction that never arrives. pytest's stdout
+is block-buffered when redirected, so the log shows nothing after the
+`tests/ui/test_calibration_ui.py` line and the run looks merely slow.
+
+Set `QT_QPA_PLATFORM=offscreen` and the same suite completes in under six
+minutes. This matches what `scripts/development/run_tests.py`'s own
+docstring assumes ("the offscreen Qt platform used for local runs"), but
+nothing in the repo actually *sets* it, so whether a local run works
+depends on the developer's desktop environment.
+
+Note the asymmetry with the segfault entry above: `offscreen` is what
+makes a local run finish, while CI's real display server (`xvfb-run` +
+`xcb`) is what makes the shutdown segfault reproducible. The two failure
+modes want opposite platforms, which is why neither is reliably visible
+from the other's environment.
+
+**Practical consequence:** prefer `pixi run test-unit` /
+`pixi run test-integration` for day-to-day work — they deselect the `gui`
+marker entirely and never open a window. Reserve the full `pixi run test`
+(and `pixi run test-gui`) for when GUI coverage is actually needed, and
+export `QT_QPA_PLATFORM=offscreen` first.
+
 ## Uncalibrated (`Status: -1`) calibration JSON silently applied during reduction (2026-07)
 
 `read_calibration_json_file()` in

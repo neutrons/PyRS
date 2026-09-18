@@ -2,8 +2,11 @@
 
 These tests exercise `parse_run_numbers`/`is_run_specification` directly, with no
 file I/O or HFIR archive access needed -- kept out of the HFIR-gated integration
-suite for exactly that reason (originally split out of
-tests/integration/test_batch_reduction.py; see plans/test-framework.md).
+suite for exactly that reason.  They consolidate two previously separate, partly
+overlapping sets of tests for the same two functions: one in
+tests/integration/test_batch_reduction.py (skipped whenever the HFIR archive was
+unreachable) and one in tests/ui/test_manual_reduction_runspec.py (which touched
+no Qt widget at all).
 """
 
 import pytest
@@ -47,7 +50,7 @@ def test_parse_run_numbers_comma_separated_returns_ordered_list() -> None:
     assert result == [938, 945, 950]
 
 
-def test_parse_run_numbers_mixed_range_and_list_with_spaces_returns_combined_list() -> None:
+def test_parse_run_numbers_mixed_range_and_list() -> None:
     """Test that ranges and individual runs can be combined, with spaces ignored."""
     # Arrange
     text = "938-940, 945"
@@ -59,7 +62,7 @@ def test_parse_run_numbers_mixed_range_and_list_with_spaces_returns_combined_lis
     assert result == [938, 939, 940, 945]
 
 
-def test_parse_run_numbers_stray_comma_returns_list_with_empty_tokens_skipped() -> None:
+def test_parse_run_numbers_stray_comma_skipped() -> None:
     """Test that empty tokens from stray commas are skipped."""
     # Arrange
     text = "938,,940"
@@ -81,14 +84,14 @@ def test_parse_run_numbers_non_integer_token_raises_value_error() -> None:
         parse_run_numbers(text)
 
 
-def test_parse_run_numbers_blank_or_whitespace_returns_empty_list() -> None:
+def test_parse_run_numbers_blank_returns_empty() -> None:
     """Test that blank and whitespace-only input return an empty list, not an error."""
     # Arrange / Act / Assert
     assert parse_run_numbers("") == []
     assert parse_run_numbers("   ") == []
 
 
-def test_is_run_specification_digit_dash_comma_strings_returns_true() -> None:
+def test_is_run_specification_accepts_run_specs() -> None:
     """Test that digit/dash/comma strings (including spaced dash ranges) are recognized as run specs."""
     # Arrange / Act / Assert
     assert is_run_specification("938")
