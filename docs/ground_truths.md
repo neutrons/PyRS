@@ -567,7 +567,7 @@ one. So calling it twice on the same file with different combinations
 of arguments leaves a stale mix:
 ```python
 f.write_reduction_provenance(calibration_file="calA.json", vanadium_run="van1")
-f.write_reduction_provenance(calibration_file="calB.json")   # vanadium_run omitted
+f.write_reduction_provenance(calibration_file="calB.json")  # vanadium_run omitted
 # CALIBRATION group now reads: calibration_file="calB.json", vanadium_run="van1" (stale!)
 ```
 (Note: calling it with *neither* argument is safe — the method returns
