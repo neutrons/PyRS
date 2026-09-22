@@ -111,7 +111,9 @@ class TestNXstress:
             assert key in entry
 
     def test_NXentry_subgroups(
-        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
     ):
         # Verify that all required subgroups are present
         #   on the `NXentry`
@@ -144,7 +146,9 @@ class TestNXstress:
             assert isinstance(entry[key], NXclass_)
 
     def test_NXentry_input_data(
-        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
     ):
         # Verify that an optional `input_data` `NXdata` group will be created on the `NXentry`
         #   when detector-counts data is attached to the source workspace.
@@ -171,7 +175,9 @@ class TestNXstress:
         assert isinstance(entry[key], NXclass_)
 
     def test_NXentry_input_data_optional(
-        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
     ):
         # When no input data is attached to the source workspace:
         #   verify that an empty (i.e. no scan-points) `input_data` `NXdata` group is created on the `NXentry`.
@@ -314,7 +320,9 @@ class TestNXstress:
             assert isinstance(sample[key], NXclass_)
 
     def test__Fit_fields_and_subgroups(
-        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
     ):
         ws = minimal_HidraWorkspace(with_instrument=False)
         sampleLogs = ws._sample_logs
@@ -396,7 +404,9 @@ class TestNXstress:
         assert "end_time" in entry
 
     def test_validateWorkspaceAndPeaksData_valid(
-        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify _validateWorkspaceAndPeaksData completes without error for valid data"""
         ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
@@ -429,7 +439,9 @@ class TestNXstress:
         assert entry["processing_type"] == "d-spacing"
 
     def test__PeakParameters_fields_and_subgroups(
-        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
     ):
         # Load a workspace in order to get a realistic <scan point> axis.
         ws = minimal_HidraWorkspace(with_instrument=False)
@@ -473,7 +485,9 @@ class TestNXstress:
         )
 
     def test__BackgroundParameters_fields_and_subgroups(
-        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
     ):
         # Load a workspace in order to get a realistic <scan point> axis.
         ws = minimal_HidraWorkspace(with_instrument=False)
@@ -510,7 +524,9 @@ class TestNXstress:
             assert key in background_parameters
 
     def test__Diffractogram_fields_and_subgroups(
-        self, minimal_HidraWorkspace: Callable[..., HidraWorkspace], createPeakCollection: Callable[..., PeakCollection]
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
     ):
         ws = minimal_HidraWorkspace(with_instrument=False)
         sampleLogs = ws._sample_logs

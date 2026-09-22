@@ -1,18 +1,14 @@
 # Standard and third party libraries
 from collections import namedtuple
 from copy import deepcopy
-import copy
 import numpy as np
 from numpy.testing import assert_allclose, assert_equal
-import os
 import pytest
 import random
 import warnings
 from uncertainties import unumpy
 
 # PyRs libraries
-from pyrs.core.peak_profile_utility import EFFECTIVE_PEAK_PARAMETERS, get_parameter_dtype
-from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.constants import DEFAULT_POINT_RESOLUTION
 from pyrs.dataobjects.fields import (
     aggregate_scalar_field_samples,
@@ -20,14 +16,12 @@ from pyrs.dataobjects.fields import (
     ScalarFieldSample,
     _StrainField,
     StrainField,
-    StrainFieldSingle,
     StressField,
     stack_scalar_field_samples,
 )
 from pyrs.dataobjects.sample_logs import PointList
-from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
+from pyrs.peaks import PeakCollectionLite  # type: ignore
 from pyrs.peaks.peak_collection import to_microstrain
-from tests.conftest import assert_allclose_with_sorting
 
 to_megapascal = StressField.to_megapascal
 SampleMock = namedtuple("SampleMock", "name values errors x y z")
@@ -588,8 +582,6 @@ class TestScalarFieldSample:
         assert_allclose(field_extended.values, to_microstrain([nan, nan, nan, 0.045, 0.05, 0.06, 0.07, 0.08]), atol=1)
 
 
-
-
 class TestStrainFieldSingle:
     def test_overlapping_list(self):
         x = [0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.0]  # x
@@ -634,10 +626,7 @@ class TestStrainFieldSingle:
         assert_allclose(strain_single_object_0.values, np.zeros(8), atol=1.0e-5)
 
 
-
 class Test_StrainField:
-
-
     def test_stack_with(self, strain_stress_object_0, strain_stress_object_1):
         r"""
         Stack pair of strains.
@@ -884,9 +873,6 @@ class TestStrainField:
             assert stacked.point_list == orig.point_list
         """
 
-
-
-
     def test_d_reference(self):
         # create two strains
         x = np.array([0.0, 0.5, 0.0, 0.5])
@@ -984,9 +970,6 @@ class TestStrainField:
             strain.set_d_reference(d_reference_update)  # affects only the last three points
             assert_allclose(strain.get_d_reference().values[:-3], d_reference_old.values[:-3])
             assert_allclose(strain.get_d_reference().values[-3:], [9, 9, 9])
-
-
-
 
 
 def test_calculated_strain():
@@ -1604,8 +1587,6 @@ def test_stack_scalar_field_samples(
         float("nan"),
     ]
     assert allclose_with_sorting(sample3.values, sample3_values, equal_nan=True)
-
-
 
 
 if __name__ == "__main__":
