@@ -308,6 +308,63 @@ using that name. `grep -rn '"\.\./\|\.\(json\|csv\|h5\|xml\)"' tests/`
 `open()`, `os.remove()`, etc.) is a reasonable sweep for this pattern in
 other UI tests.
 
+## `pixi run test` hangs on the GUI tier under an interactive display (2026-09)
+
+Running the full suite on a workstation with a real desktop session
+(`DISPLAY=:0` plus a live Wayland compositor) and **no** `QT_QPA_PLATFORM`
+override hangs indefinitely at the first GUI test,
+`tests/ui/test_calibration_ui.py`. It is not slow — it is blocked. The
+process sits at ~6% CPU with `wchan = poll_schedule_timeout`, holding the
+compositor's cursor-shm, `mime.cache` and `icon-theme.cache` file
+descriptors open: the signature of a real, mapped Qt window spinning its
+event loop waiting for an interaction that never arrives. pytest's stdout
+is block-buffered when redirected, so the log shows nothing after the
+`tests/ui/test_calibration_ui.py` line and the run looks merely slow.
+
+Set `QT_QPA_PLATFORM=offscreen` and the same suite completes in under six
+minutes. This matches what `scripts/development/run_tests.py`'s own
+docstring assumes ("the offscreen Qt platform used for local runs"), but
+nothing in the repo actually *sets* it, so whether a local run works
+depends on the developer's desktop environment.
+
+Note the asymmetry with the segfault entry above: `offscreen` is what
+makes a local run finish, while CI's real display server (`xvfb-run` +
+`xcb`) is what makes the shutdown segfault reproducible. The two failure
+modes want opposite platforms, which is why neither is reliably visible
+from the other's environment.
+
+**Resolved (2026-09-18), two ways:**
+
+1. `test-gui` now carries `env = { QT_QPA_PLATFORM = "offscreen" }` in its
+   pixi task definition, so it can no longer open a window regardless of
+   the developer's desktop. It is *not* set on the `test` task: a pixi task
+   `env` overrides the ambient environment unconditionally (verified — a
+   caller's `QT_QPA_PLATFORM=xcb` is ignored, and neither `${VAR:-default}`
+   in `env` nor in `cmd` expands), so setting it there would silently
+   defeat CI's `xvfb-run` wrapper and switch CI off the `xcb` platform
+   this very section is about.
+2. Every test now has a 300s cap (`pytest-timeout`, configured in
+   `pyproject.toml`). A hang is therefore a failure with a stack dump
+   rather than an unbounded wait, including on the full `pixi run test`
+   where offscreen is not forced.
+
+`timeout_method = "thread"` is required, not a preference. Measured
+directly against a `QEventLoop().exec()` that never returns to the
+interpreter: with `--timeout-method=signal` (the plugin's Unix default)
+the 5s timeout passed unnoticed and an external `timeout 40` had to kill
+the process; with `--timeout-method=thread` it was caught at 5s and the
+dump named the exact blocking line. SIGALRM is only delivered when the
+interpreter next executes bytecode, which a blocked C++ event loop never
+does.
+
+**Practical consequence:** prefer `pixi run test-unit` /
+`pixi run test-integration` for day-to-day work — they deselect the `gui`
+marker entirely and never open a window. (Confirmed: the only `tests/ui/`
+tests the integration tier selects are `test_model`,
+`test_model_multiple_files` and `test_model_from_json`, which construct
+`Model()` and touch no widget.) Before the full `pixi run test`, still
+export `QT_QPA_PLATFORM=offscreen` yourself.
+
 ## Uncalibrated (`Status: -1`) calibration JSON silently applied during reduction (2026-07)
 
 `read_calibration_json_file()` in

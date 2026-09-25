@@ -9,6 +9,7 @@ from pyrs.interface.manual_reduction.pyrs_api import ReductionController, reduce
 import h5py
 
 
+@pytest.mark.integration
 def test_default_calibration_file():
     """Test to find current/latest calibration file
 
@@ -46,6 +47,7 @@ def test_default_calibration_file():
     ],
     ids=("HB2B_1017_NoCal_NoMask", "HB2B_1017_NoCal_Mask", "HB2B_1017_Cal_Mask"),
 )
+@pytest.mark.integration
 def test_manual_reduction(nexus_file, calibration_file, mask_file, gold_file):
     """Test the workflow to do manual reduction.
 
@@ -103,6 +105,7 @@ def test_manual_reduction(nexus_file, calibration_file, mask_file, gold_file):
             os.remove(filename)
 
 
+@pytest.mark.integration
 def test_reduction_with_vanadium():
     """Test manual reduction workflow with vanadium correction
 
@@ -136,6 +139,7 @@ def test_reduction_with_vanadium():
     assert test_ws
 
 
+@pytest.mark.integration
 def test_load_split():
     """Test method to load, split, convert to powder pattern and save
 
@@ -183,6 +187,7 @@ def test_load_split():
     assert abs(controller.get_sample_log_value("2theta", 3) - 97.50225) < 1e-5
 
 
+@pytest.mark.integration
 def test_diffraction_pattern_geometry_shift():
     """
 

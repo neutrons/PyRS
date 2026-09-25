@@ -27,6 +27,7 @@ def test_parse_integers():
 
 
 @pytest.mark.skipif(not os.path.exists("/HFIR/HB2B/shared/"), reason="HFIR data archive is not mounted")
+@pytest.mark.integration
 def test_get_ipts_dir():
     """Test to get IPTS directory from run number
 
@@ -57,6 +58,7 @@ def test_get_ipts_dir():
 
 
 @pytest.mark.skipif(not os.path.exists("/HFIR/HB2B/shared/"), reason="HFIR data archive is not mounted")
+@pytest.mark.integration
 def test_get_default_output_dir():
     assert get_default_output_dir(1060) == "/HFIR/HB2B/IPTS-22731/shared/manualreduce", (
         "Output directory is not correct for run 1060"
@@ -68,6 +70,7 @@ def test_get_default_output_dir():
 
 
 @pytest.mark.skipif(not os.path.exists("/HFIR/HB2B/shared/"), reason="HFIR data archive is not mounted")
+@pytest.mark.integration
 def test_get_input_project_file():
     assert get_input_project_file(1060) == "/HFIR/HB2B/IPTS-22731/shared/manualreduce", (
         "Output directory is not correct for run 1060"
@@ -83,6 +86,7 @@ def test_get_input_project_file():
 
 
 @pytest.mark.skipif(not os.path.exists("/HFIR/HB2B/shared/"), reason="HFIR data archive is not mounted")
+@pytest.mark.integration
 def test_get_nexus_file():
     assert get_nexus_file(1060) == "/HFIR/HB2B/IPTS-22731/nexus/HB2B_1060.nxs.h5"
     assert get_nexus_file(1017) == "/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5"

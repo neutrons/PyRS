@@ -7,6 +7,8 @@ import functools
 import os
 import pytest
 
+pytestmark = [pytest.mark.gui, pytest.mark.integration]
+
 wait = 500
 plot_wait = 100
 

@@ -13,6 +13,8 @@ try:
 except ImportError as e:
     least_squares = str(e)  # import failed exception explains why
 
+pytestmark = pytest.mark.integration
+
 
 def are_equivalent_jsons(test_json_name, gold_json_name, atol):
     """Print out the difference of two JSON files

@@ -28,6 +28,7 @@ def test_check_calibration_status_nonnegative_status_ok(status):
     # Assert - no exception raised
 
 
+@pytest.mark.integration
 def test_calibration_json_io():
     """Test the calibration file (in Json format) I/O methods
 
