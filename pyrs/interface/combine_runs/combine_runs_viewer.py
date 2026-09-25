@@ -6,8 +6,9 @@ from qtpy.QtWidgets import QGridLayout  # type:ignore
 from qtpy.QtWidgets import QMainWindow  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 
-from pyrs.interface.gui_helper import pop_message
+from pyrs.interface.gui_helper import impose_extension, pop_message
 from pyrs.projectfile.file_object import CalibrationMismatchError, ReductionMismatchError
+from pyrs.utilities.config import Config
 # from pyrs.interface.gui_helper import browse_file
 
 
@@ -50,21 +51,39 @@ class FileLoad(QWidget):
         if self._parent._project_files is not None:
             self.load_project_files()
 
-    def saveFileDialog(self):
+    def saveFileDialog(self) -> None:
         if self._parent._project_files is not None:
             _export_project, _ = QFileDialog.getSaveFileName(
                 self, "Save Combined Proeject File", "", self.fileType, options=QFileDialog.DontUseNativeDialog
             )
 
-            self._parent.controller.export_combined_projectfile(_export_project)
+            # Guard against an empty string (dialog cancelled) and impose the
+            # configured extension regardless of what the user typed.
+            if _export_project:
+                _export_project = impose_extension(_export_project, Config["legacy_io.extension"])
+                self._parent.controller.export_combined_projectfile(_export_project)
 
-    def loadRunNumbers(self):
+    def saveFileDialogNXstress(self) -> None:
+        if self._parent._project_files is not None:
+            _export_project, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save Combined Proeject File (NXstress)",
+                "",
+                "NXstress (*.nxs)",
+                options=QFileDialog.DontUseNativeDialog,
+            )
+
+            if _export_project:
+                _export_project = impose_extension(_export_project, Config["nxstress.extension"])
+                self._parent.controller.export_combined_projectfile(_export_project)
+
+    def loadRunNumbers(self) -> None:
         self._parent._project_files = self._parent.controller.parse_entry_list(self.lineEdit.text())
         # the same checks and messages as the file dialog (this used to call saveFileDialog with an
         # argument it does not take, so a failure was never shown)
         self.load_project_files()
 
-    def load_project_files(self):
+    def load_project_files(self) -> None:
         """Combine the chosen files: different calibrations are refused, different vanadium runs, masks or
         binning need the user's approval, and historic files without a record are flagged (#1063, #1068)."""
         files = self._parent._project_files
@@ -89,8 +108,28 @@ class FileLoad(QWidget):
             return
         for warning in self._parent.model.warnings:
             pop_message(self, "Reduction not fully checked", warning, "warning")
-        if self._auto_prompt_export:
-            self.saveFileDialog()
+        if not self._auto_prompt_export:
+            return
+        # The exports have their own handler: an exception escaping a Qt slot aborts PyRS (see
+        # docs/ground_truths.md), and a refused write is not a failure to find the runs.
+        try:
+            # Two sequential auto-prompts, each gated by its own format's config
+            # flag -- one dialog completes, then (if enabled) the other pops up.
+            # No persistent Export button exists in this viewer to grey out, so
+            # "enablement" is realized as "does this dialog get offered at all".
+            if Config["legacy_io.enable"]:
+                self.saveFileDialog()
+            # NXstress additionally requires the merged workspace to have
+            # instrument geometry -- combine_project_files loads with
+            # load_raw_counts=False, and (see HidraWorkspace.load_hidra_project)
+            # geometry may genuinely be absent from an older/legacy source file;
+            # in that case NXstress export is silently skipped here (analogous to
+            # a disabled/greyed-out action -- HidraWorkspace.load_hidra_project
+            # already logs a warning at load time explaining why).
+            if Config["nxstress.enable"] and self._parent.model._hidra_ws.get_instrument_setup() is not None:
+                self.saveFileDialogNXstress()
+        except (FileNotFoundError, RuntimeError, ValueError) as export_err:
+            pop_message(self, "Export failed", str(export_err), "error")
 
     def setFilenamesText(self, filenames):
         self.lineEdit.setText(filenames)
@@ -109,9 +148,6 @@ class FileLoading(QGroupBox):
         layout.addWidget(self.file_load_dilg)
 
         self.setLayout(layout)
-
-    def set_text_values(self, direction, text):
-        getattr(self, f"file_load_e{direction}").setFilenamesText(text)
 
 
 class CombineRunsViewer(QMainWindow):
