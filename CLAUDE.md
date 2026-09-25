@@ -195,8 +195,13 @@ Marker definitions, registered in `pyproject.toml`:
 
 - **`integration`** — exercises real file I/O (`tests/data`, the `/HFIR`
   archive) or a multi-component workflow.
-- **`gui`** — constructs or drives Qt widgets; requires a display (xvfb or
-  offscreen).
+- **`gui`** — requires a display (xvfb or offscreen). Constructing or driving a
+  Qt widget is the usual reason, but it is not the only one: taking the `qapp`
+  fixture is enough on its own (it builds a real `QApplication`, which aborts
+  with no display), as is importing any module that pulls in matplotlib's
+  `QtAgg` backend at module scope. If the module cannot be *imported* headless,
+  it is `gui` — `python -c 'import <module>'` with `DISPLAY` and
+  `QT_QPA_PLATFORM` unset is the check.
 
 Notes:
 

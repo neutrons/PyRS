@@ -1,8 +1,22 @@
+"""GUI-tier tests for `PeakFittingModel`.
+
+No `QWidget` is constructed here, but these tests still need a display and so
+carry `gui`: `PeakFittingModel` is a `QObject`, and the `qapp` fixture builds a
+real `QApplication`, which aborts when no display or offscreen platform is
+available.
+
+Both markers are required -- `test-gui` selects `-m gui` while
+`test-integration` selects `-m 'integration and not gui'`, so `gui` alone would
+drop these from the integration tier.
+"""
+
 from unittest.mock import MagicMock
 
 import pytest
 
 from pyrs.interface.peak_fitting.peak_fitting_model import PeakFittingModel
+
+pytestmark = [pytest.mark.gui, pytest.mark.integration]
 
 
 @pytest.fixture
