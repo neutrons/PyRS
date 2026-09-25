@@ -1,4 +1,5 @@
 # Data manager
+import logging
 import numpy as np
 from mantid.kernel import Logger
 from pyrs.dataobjects import HidraConstants, SampleLogs  # type: ignore
@@ -6,6 +7,8 @@ from pyrs.projectfile import HidraProjectFile  # type: ignore
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_int
 from typing import Any, Optional, Tuple
+
+_logger = logging.getLogger(__name__)
 
 
 class HidraWorkspace:
@@ -475,10 +478,28 @@ class HidraWorkspace:
         # create the spectrum map - must exist before loading the counts array
         self._sample_logs.subruns = hidra_file.read_sub_runs()
 
-        # load raw detector counts and load instrument
+        # load raw detector counts
         if load_raw_counts:
             self._load_raw_counts(hidra_file)
+
+        # Load instrument geometry independently of load_raw_counts -- these were
+        # previously (and apparently unintentionally) coupled: any project file
+        # loaded with load_raw_counts=False (e.g.
+        # CombineRunsModel.combine_project_files, PeakFittingModel's .h5 load
+        # path) silently ended up with no instrument geometry at all, which
+        # crashes NXstress.write() later (it has no None-geometry fallback).
+        # Not every project file necessarily has geometry recorded (older/legacy
+        # files may not), so tolerate its absence with a warning rather than
+        # raising -- callers that need geometry (e.g. NXstress export) must
+        # check `get_instrument_setup() is not None` themselves.
+        try:
             self._load_instrument(hidra_file)
+        except KeyError:
+            _logger.warning(
+                "No instrument geometry found in HiDRA project file '%s' -- features that require it "
+                "(e.g. NXstress export) will not be available for this workspace.",
+                hidra_file.name,
+            )
 
         # load reduced diffraction
         if load_reduced_diffraction:

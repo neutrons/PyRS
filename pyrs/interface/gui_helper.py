@@ -1,6 +1,76 @@
 # a collection of helper methdos for GUI
+import logging
+import os
+from pathlib import Path
+from typing import TYPE_CHECKING, Callable, Optional
+
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities.config import Config
 from qtpy.QtWidgets import QLineEdit, QFileDialog, QMessageBox, QComboBox  # type:ignore
+
+if TYPE_CHECKING:
+    from pyrs.core.workspaces import HidraWorkspace
+
+_logger = logging.getLogger(__name__)
+
+
+def impose_extension(filename: str, extension: str) -> str:
+    """Force filename's suffix to extension (e.g. '.nxs'), regardless of what a
+    user typed into a save dialog.
+
+    Never lets a user pick a different extension than the format actually being
+    written -- each save action imposes its own output format's configured
+    extension unconditionally.
+    """
+    return str(Path(filename).with_suffix(extension))
+
+
+def nxstress_save_available(ws: Optional["HidraWorkspace"]) -> bool:
+    """Whether NXstress output can be offered for a workspace: NXstress must be
+    enabled in the config, and the workspace must have the instrument geometry
+    that `NXstress.write` requires.
+
+    Args:
+        ws: The loaded workspace, or None if nothing is loaded.
+
+    Returns:
+        True if a *Save as NXstress...* action should be enabled.
+    """
+    return bool(Config["nxstress.enable"]) and ws is not None and ws.get_instrument_setup() is not None
+
+
+def write_nxstress_or_report(parent, filename: str, write: Callable[[str], None]) -> bool:
+    """Write an NXstress file, reporting any failure in a message box instead of
+    raising.
+
+    Imposes the configured NXstress extension, then writes to a sibling
+    ``<stem>.partial<ext>`` file that replaces ``filename`` only on success: an
+    NXstress write truncates its target on open, so writing in place would
+    destroy an existing file on any failure. Raising is avoided because an
+    uncaught exception in a Qt slot aborts the application under PyQt6.
+
+    Args:
+        parent: Parent widget for the error message box.
+        filename: Destination chosen by the user.
+        write: Writes the NXstress file to the path it is given.
+
+    Returns:
+        True if the file was written; False if the failure was reported.
+    """
+    target = Path(impose_extension(filename, Config["nxstress.extension"]))
+    partial = target.with_name(f"{target.stem}.partial{target.suffix}")
+    try:
+        write(str(partial))
+        os.replace(partial, target)
+        return True
+    except Exception as save_err:  # noqa: BLE001 -- see docstring
+        _logger.exception("Failed to save NXstress file '%s'", target)
+        try:
+            partial.unlink(missing_ok=True)
+        except OSError:
+            _logger.exception("Failed to remove partial NXstress file '%s'", partial)
+        pop_message(parent, "Failed to save NXstress file", str(save_err), "error")
+        return False
 
 
 def browse_dir(parent, caption, default_dir):

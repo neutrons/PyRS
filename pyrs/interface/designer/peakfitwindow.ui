@@ -941,6 +941,7 @@
     </property>
     <addaction name="actionSave"/>
     <addaction name="actionSaveAs"/>
+    <addaction name="actionSaveAsNXstress"/>
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
@@ -983,6 +984,11 @@
   <action name="actionSave">
    <property name="text">
     <string>Save</string>
+   </property>
+  </action>
+  <action name="actionSaveAsNXstress">
+   <property name="text">
+    <string>Save as NXstress...</string>
    </property>
   </action>
   <action name="actionQuick_Fit_Result_Check">

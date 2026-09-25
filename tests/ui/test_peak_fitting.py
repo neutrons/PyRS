@@ -6,6 +6,11 @@ import functools
 import pytest
 import os
 
+from pyrs.interface import gui_helper
+from pyrs.interface.peak_fitting import peak_fitting_viewer
+from pyrs.peaks.peak_fit_engine import FitResult
+from pyrs.utilities.config import Config
+
 pytestmark = [pytest.mark.gui, pytest.mark.integration]
 
 wait = 300
@@ -224,4 +229,122 @@ def test_peak_selection(tmpdir, fit_peaks_window):
     qtbot.mouseRelease(canvas, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier, QtCore.QPoint(int(end_x2), int(end_y2)))
     qtbot.wait(wait)
 
+
+def test_init_widgets_nxstress_and_legacy_action_enablement_matches_config(fit_peaks_window: tuple) -> None:
+    r"""
+    Confirm the new "Save as NXstress..." action exists, is wired, and its
+    enabled state (set in _init_widgets) matches the shipped default config
+    (nxstress.enable / legacy_io.enable both True). This intentionally reuses
+    the session-scoped `fit_peaks_window` fixture rather than constructing a
+    second FitPeaksWindow with a different Config override -- constructing this
+    window with function scope is documented (see the fixture above) to cause
+    segfaults, so a "flip the config, rebuild the window, assert disabled"
+    variant is not attempted here.
+    """
+    window, _qtbot = fit_peaks_window
+
+    from pyrs.utilities.config import Config
+
+    assert hasattr(window.ui, "actionSaveAsNXstress")
+    assert window.ui.actionSaveAsNXstress.isVisible()
+    # NXstress additionally needs instrument geometry on the loaded workspace;
+    # see `test_nxstress_action_follows_workspace_geometry`.
+    ws = window._model.hidra_workspace
+    has_geometry = ws is not None and ws.get_instrument_setup() is not None
+    assert window.ui.actionSaveAsNXstress.isEnabled() == (Config["nxstress.enable"] and has_geometry)
+
+    assert window.ui.actionSave.isVisible()
+    assert window.ui.actionSave.isEnabled() == Config["legacy_io.enable"]
+    assert window.ui.actionSaveAs.isVisible()
+    assert window.ui.actionSaveAs.isEnabled() == Config["legacy_io.enable"]
+
     window.hide()
+
+
+def test_nxstress_action_follows_workspace_geometry(fit_peaks_window: tuple) -> None:
+    """*Save as NXstress...* is grayed out after loading a file without instrument
+    geometry, and enabled after loading one with it."""
+    window, qtbot = fit_peaks_window
+
+    # Act / Assert: no geometry
+    window.load_and_plot([os.path.abspath("tests/data/HB2B_1423.h5")])
+    qtbot.wait(wait)
+    assert window.ui.actionSaveAsNXstress.isVisible()
+    assert not window.ui.actionSaveAsNXstress.isEnabled()
+
+    # Act / Assert: geometry
+    window.load_and_plot([os.path.abspath("tests/data/HB2B_1017.h5")])
+    qtbot.wait(wait)
+    assert window.ui.actionSaveAsNXstress.isEnabled() == Config["nxstress.enable"]
+
+
+@pytest.fixture
+def nxstress_ready_window(fit_peaks_window, minimal_HidraWorkspace, minimal_PeakCollection, monkeypatch, tmp_path):
+    """The shared window holding a workspace with geometry, with the save dialog
+    and message boxes replaced. Call the returned `set_peak_tag` before saving.
+    Every change to the window is made through `monkeypatch` and undone on exit."""
+    window, _qtbot = fit_peaks_window
+    ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+    monkeypatch.setattr(window._model, "hidra_workspace", ws)
+    monkeypatch.setattr(window._model, "fit_result", None)
+    window._update_nxstress_action()
+
+    out_path = tmp_path / "saved.nxs"
+    messages = []
+
+    def record(parent, message, *args, **kwargs):
+        messages.append(message)
+
+    monkeypatch.setattr(peak_fitting_viewer, "browse_file", lambda *args, **kwargs: str(out_path))
+    monkeypatch.setattr(peak_fitting_viewer, "pop_message", record)
+    monkeypatch.setattr(gui_helper, "pop_message", record)
+
+    def set_peak_tag(peak_tag: str) -> None:
+        peak = minimal_PeakCollection(N_subrun=len(ws.get_sub_runs()), peak_tag=peak_tag)
+        window._model.fit_result = FitResult(peakcollections=[peak], fitted=None, difference=None)
+
+    yield window, out_path, messages, set_peak_tag
+    monkeypatch.undo()
+    window._update_nxstress_action()
+
+
+def test_save_as_nxstress_writes_file(nxstress_ready_window) -> None:
+    # Arrange
+    window, out_path, messages, set_peak_tag = nxstress_ready_window
+    set_peak_tag("Fe 110")
+
+    # Act
+    window.save_as_nxstress()
+
+    # Assert
+    assert out_path.exists()
+    assert messages == []
+
+
+def test_save_as_nxstress_failure_reports_and_cleans_up(nxstress_ready_window) -> None:
+    """A tag NXstress cannot parse raises inside the writer; the slot must report
+    it (an uncaught slot exception aborts the app) and remove the partial file."""
+    # Arrange
+    window, out_path, messages, set_peak_tag = nxstress_ready_window
+    set_peak_tag("peak0")
+
+    # Act
+    window.save_as_nxstress()
+
+    # Assert
+    assert not out_path.exists()
+    assert messages == ["Failed to save NXstress file"]
+
+
+def test_save_as_nxstress_cancel_writes_nothing(nxstress_ready_window, monkeypatch) -> None:
+    # Arrange
+    window, out_path, messages, set_peak_tag = nxstress_ready_window
+    set_peak_tag("Fe 110")
+    monkeypatch.setattr(peak_fitting_viewer, "browse_file", lambda *args, **kwargs: None)
+
+    # Act
+    window.save_as_nxstress()
+
+    # Assert
+    assert not out_path.exists()
+    assert messages == []

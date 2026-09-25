@@ -1,6 +1,7 @@
 # Claude Code Instructions
 
-This file configures how Claude Code should assist with development in this repository. This project is designed for scientists who may be new to software engineering, so all interactions should be educational, clear, and follow best practices. These instructions mirror [.github/copilot-instructions.md](.github/copilot-instructions.md) — keep both in sync when you change one.
+This file configures how Claude Code should assist with development in this repository. This project is designed for scientists who may be new to software engineering, so all interactions should be educational, clear, and follow best practices.
+<!-- cherry-pick 30231c18: removed trailing sentence "These instructions mirror [.github/copilot-instructions.md](.github/copilot-instructions.md) — keep both in sync when you change one." -->
 
 ## 🎯 Core Principles
 
@@ -44,10 +45,11 @@ After implementation:
 - For UI work, actually exercise the feature in a browser — type checking and tests verify code correctness, not feature correctness.
 
 ### Step 5: Review (For Major Changes)
-After a significant feature or refactor, delegate review using the `Agent` tool. Prefer the project's purpose-built reviewers in [.github/agents/](.github/agents/):
-- [security-reviewer](.github/agents/security-reviewer.md) — security-focused review.
-- [design-reviewer](.github/agents/design-reviewer.md) — architecture and design review.
-- [test-reviewer](.github/agents/test-reviewer.md) — test-coverage review.
+<!-- cherry-pick 30231c18: reviewer links below changed from .github/agents/ to .claude/agents/ -->
+After a significant feature or refactor, delegate review using the `Agent` tool. Prefer the project's purpose-built reviewers in [.claude/agents/](.claude/agents/):
+- [security-reviewer](.claude/agents/security-reviewer.md) — security-focused review.
+- [design-reviewer](.claude/agents/design-reviewer.md) — architecture and design review.
+- [test-reviewer](.claude/agents/test-reviewer.md) — test-coverage review.
 
 Brief the sub-agent with what changed, why, the files touched, and what to focus on. Address findings, then update documentation.
 
@@ -232,6 +234,26 @@ Notes:
   names the blocking line. Override per-test with `@pytest.mark.timeout(N)` for a
   genuinely long-running case rather than raising the global limit.
 
+<!-- cherry-pick 30231c18: BEGIN added block "Pytest markers" -->
+**Pytest markers** — apply the correct marker(s) when a test is *written*,
+not as a later audit pass. See `pyproject.toml`'s
+`[tool.pytest.ini_options] markers` for the authoritative definitions.
+- `@pytest.mark.integration` (or a module-level `pytestmark`) for a test
+  that reads/writes real data (`tests/data`, `/HFIR` archive) **or**
+  exercises a multi-component workflow.
+- The dividing line for "multi-component": a synthetic in-memory round trip
+  through `tmp_path` that stays inside one component's own public API
+  (e.g. a library's own `write`/`read`) is unit, unmarked — it's testing
+  that component's own correctness. The same round trip called *through* a
+  second component (e.g. a GUI-model class driving that library, or a
+  session-registry hookup between two separate classes) is `integration` —
+  it's testing that the two integrate correctly, regardless of whether the
+  underlying data is real or synthetic.
+- Marker (not file location) is what actually selects the fast tier
+  (`-m "not integration and not gui"`) — a correctly-marked test doesn't
+  need to move directories to be classified correctly.
+<!-- cherry-pick 30231c18: END added block "Pytest markers" -->
+
 ## 🔍 Code Review Process
 
 Trigger a review when:
@@ -241,6 +263,114 @@ Trigger a review when:
 - The user asks.
 
 When delegating to a sub-agent via the `Agent` tool, hand over a self-contained brief: what changed, why, the files touched, and the specific concerns to weigh (style, tests, docs, bugs, perf, security). Sub-agents do not see your conversation — give them the context they need to make judgment calls.
+
+<!-- cherry-pick 30231c18: BEGIN added section "Auditing a Plan or Subspec" -->
+## 🔬 Auditing a Plan or Subspec
+
+This is **not** the Code Review Process above. That reviews code that was written;
+this verifies a *plan document* before the code exists. A plan series lives in
+`plans/<series>/` as a grounded `README.md` plus numbered PR-sized subspecs. The
+rationale, the evidence, and the toolkit specification are in
+[plans/audit-process/process.md](plans/audit-process/process.md).
+
+### What a complete audit consists of
+
+An audit is complete when **all seven axes** are covered with the stated evidence.
+
+| # | Axis | Referent |
+|---|---|---|
+| **A1** | Doc vs self | Every prose claim against every code block, table and link in the same document; **every Markdown link resolved to an existing file, every anchor to an existing heading** |
+| **A2** | Doc vs siblings | `README.md`'s `## Sub-specifications` table (the `Depends on` column) and `## 5. Files to be Modified`; each shared name traced to exactly one owning document |
+| **A3** | Doc vs codebase | Every cited file, symbol and line range opened and read, not recalled |
+| **A4** | Doc vs library | Every claim about third-party behaviour true *of the installed version* — proven by a committed probe |
+| **A5** | Doc vs runtime contract | Every claim about how another module treats our output — proven by a probe through that module's real code path |
+| **A6** | Doc vs earlier draft | `README.md` against `plans/<series>/archive/overview.md`; each divergence listed with rationale |
+| **A7** | Freshness | Claims re-verified later than the most recent landed subspec the document depends on |
+
+**Anything less is a partial audit and is recorded as partial — never reported as
+"consistent".** A subspec asserting nothing third-party and nothing cross-module is
+genuinely A4/A5-exempt, but write the exemption down: afterwards, "no probes were
+needed" and "no probes were written" are indistinguishable.
+
+### Anti-patterns — things that look like auditing and are not
+
+- **Re-reading a claim and finding it plausible.** Plausibility is what a stale
+  claim has in abundance; a dead relative link renders exactly like a live one. A
+  claim is verified when checked *against its referent*, not when re-read.
+- **Checking the grounded document against the earlier draft.** That confirms
+  transcription, not correctness — and since the draft is *older*, agreeing with it
+  is evidence of staleness.
+- **Treating an exemption label as exemption from everything.** "Blocked",
+  "tracked follow-up", "not scheduled in this plan's phases" and `open-questions/`
+  are *scheduling* statements. Work that proceeds on an assumption is not exempt
+  from A1.
+- **Assessing "self-consistent" as "does not conflict with the codebase."** A
+  document can match the code perfectly and contradict itself on the next page.
+- **Counting audit passes.** Five passes over three axes is three axes covered.
+- **Recording the correction in the log and not in the document.** A log preserves
+  what was believed, which is right for a claim. A line number is a pointer, not a
+  belief — log the finding *and* apply the number.
+
+### Probe before asserting (A4/A5)
+
+**A document may not be marked audited if it asserts third-party library behaviour,
+or how another module treats its output, without a committed probe under
+`plans/<series>/probes/` whose real output is pasted into the document at the
+claim.** Run probes with `pixi run python plans/<series>/probes/<name>.py`.
+
+A probe is **not** a `## Verification` section, and this is not an extension of that
+convention. They share only an evidentiary standard: run it, paste the *real*
+output, never the predicted output.
+
+| | `## Verification` | Probe |
+|---|---|---|
+| Audience | the PR reviewer | the spec author / auditor |
+| When | after implementation | before it, during the audit |
+| Purpose | show the shipped thing works end to end | test whether a design assumption is true |
+| If it fails | the PR is not finished | the **document** is wrong and the design must change |
+
+**A probe never modifies `pyproject.toml` or `pixi.lock`.** If a probe needs a
+package the environment lacks, **that absence is the finding** — record it, do not
+install it. Name probes `a4_*.py` / `a5_*.py`, never `test_*`: there is no
+`testpaths` setting, so a bare `pytest` at the repo root would collect them.
+
+When a probe turns up something true of PyRS generally rather than of one document
+— an installed library's real behaviour, an environment constraint — **it is a
+ground truth and also belongs in [docs/ground_truths.md](docs/ground_truths.md)**,
+in that file's `**Why this matters going forward:**` form, with the probe linked.
+Findings about a *document* stay in that document (below); findings about *the code
+or the environment* go to ground truths.
+
+### Invariants belong in tests, not prose
+
+An audit finding that can be expressed as a test must be, and the prose becomes a
+comment on the test. A paragraph is re-read once per audit; a test is re-checked on
+every commit. The idiom to copy is
+[tests/unit/pyrs/utilities/NXstress/test_definitions.py](tests/unit/pyrs/utilities/NXstress/test_definitions.py),
+which iterates `GROUP_NAME` rather than restating it, so adding a member extends
+the guarantee automatically.
+
+Be accurate about the starting point: **nothing in PyRS yet pins a third-party API
+surface or scans source for a convention.** Both shapes are net-new here. Place any
+new test by the tier rules in *Testing Guidelines* above.
+
+**An audit flags; the implementing PR writes.** Writing the test during the audit
+produces a test with no subject.
+
+### "Audited" is not a terminal state
+
+Auditing eliminates staleness and self-contradiction. It **cannot** eliminate false
+assumptions about library or cross-module behaviour — only probing does. Budget a
+document-correction pass per PR as normal cost, not as an audit failure.
+
+Findings go in an **append-only `## Follow-up N` section of the document being
+audited**, after its `## Verification` section, so the finding sits with the claim
+it corrects. `N` increments and is never renumbered; an earlier Follow-up is never
+edited. Findings do **not** go in `open-questions/NN-*.md` (stakeholder Q&A) or
+`README.md`'s `## 4. Decisions Log` (decisions taken) — both are human-facing
+records with different audiences. When a finding forces a design change, the
+*decision* goes to the Decisions Log and the Follow-up holds the evidence.
+<!-- cherry-pick 30231c18: END added section "Auditing a Plan or Subspec" -->
 
 ## 📚 Documentation Standards
 
@@ -260,7 +390,8 @@ the XYZ instrument. Typical workflow:
 """
 ```
 
-Class docstring: describe purpose, key attributes, and a usage example. See [.github/copilot-instructions.md](.github/copilot-instructions.md) for the full template.
+Class docstring: describe purpose, key attributes, and a usage example.
+<!-- cherry-pick 30231c18: removed trailing sentence "See [.github/copilot-instructions.md](.github/copilot-instructions.md) for the full template." -->
 
 ## 🚨 Common Scenarios
 
