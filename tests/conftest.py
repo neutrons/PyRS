@@ -11,8 +11,6 @@ from pyrs.dataobjects.fields import StrainField, StrainFieldSingle, StressField
 from pyrs.dataobjects.sample_logs import _coerce_to_ndarray, PointList
 from pyrs.core.peak_profile_utility import get_parameter_dtype
 from pyrs.peaks.peak_collection import PeakCollection
-from pytestqt.qtbot import QtBot
-from pytestqt.exceptions import format_captured_exceptions, capture_exceptions
 
 # Point Qt's QSettings (native file dialogs, etc.) at a private, disposable
 # config directory instead of the developer's real ~/.config. Without this,
@@ -717,16 +715,3 @@ def strain_stress_object_1(strain_builder):
             "in-plane-stress": StressField(strain11, strain22, None, 3.0 / 2, 1.0 / 2, "in-plane-stress"),
         },
     }
-
-
-@pytest.fixture(scope="session")
-def my_qtbot(qapp, request):
-    r"""
-    Fixture to provide a QtBot instance for testing Qt-based applications with a session scope. This fixture will
-    behave like the `qtbot` fixture, but with a session scope to avoid a segmentation fault when running UI tests.
-    """
-    result = QtBot(qapp)
-    with capture_exceptions() as exceptions:
-        yield result
-    if exceptions:
-        pytest.fail(format_captured_exceptions(exceptions))

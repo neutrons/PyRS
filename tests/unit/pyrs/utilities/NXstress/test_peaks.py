@@ -74,7 +74,7 @@ class TestPeaks:
             N_subrun=N_subrun,
         )
 
-        peaks = _Peaks.init_group([peak0], ws._sample_logs)
+        peaks = _Peaks.init_group(_Peaks.indexed([peak0], ws._sample_logs), ws._sample_logs)
 
         assert isinstance(peaks, NXreflections)
 
@@ -135,7 +135,7 @@ class TestPeaks:
             N_subrun=N_subrun,
         )
 
-        peaks = _Peaks.init_group([peak0, peak1], ws._sample_logs)
+        peaks = _Peaks.init_group(_Peaks.indexed([peak0, peak1], ws._sample_logs), ws._sample_logs)
 
         # Should have 2 * N_subrun rows
         assert peaks["h"].shape[0] == 2 * N_subrun
@@ -227,7 +227,7 @@ class TestPeaks:
             N_subrun=N_subrun,
         )
 
-        peaks = _Peaks.init_group([peak0], ws._sample_logs)
+        peaks = _Peaks.init_group(_Peaks.indexed([peak0], ws._sample_logs), ws._sample_logs)
 
         # qx, qy, qz exist but remain empty (implementation doesn't populate them)
         assert "qx" in peaks
@@ -238,17 +238,22 @@ class TestPeaks:
         assert peaks["qy"].shape[0] == 0
         assert peaks["qz"].shape[0] == 0
 
-    def test_Peaks_sxyz_nan(
+    # NXstress requires `peaks/sx,sy,sz` and defines them as the sample position in
+    # the sample reference frame. In PyRS that is `PointList.(vx, vy, vz)`, not the
+    # identically-spelled stage-position logs -- so these tests assert the values
+    # track `vx`/`vy`/`vz`. They replace a test that pinned the previous behaviour,
+    # where all three were written as NaN placeholders.
+
+    def test_Peaks_sample_position_from_coords(
         self,
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
         createPeakCollection: Callable[..., PeakCollection],
     ):
-        """Verify sx, sy, sz are filled with NaN after init_group"""
+        """Verify sx, sy, sz carry the sample coordinates, tagged with their source"""
+        # Arrange
         ws = minimal_HidraWorkspace(with_instrument=False)
-
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
-
         peak0 = createPeakCollection(
             peak_tag="Al 111",
             peak_profile="Gaussian",
@@ -259,18 +264,199 @@ class TestPeaks:
             N_subrun=N_subrun,
         )
 
-        peaks = _Peaks.init_group([peak0], ws._sample_logs)
+        # Act
+        peaks = _Peaks.init_group(_Peaks.indexed([peak0], ws._sample_logs), ws._sample_logs)
 
-        # sx, sy, sz should exist and be filled with NaN
-        assert "sx" in peaks
-        assert "sy" in peaks
-        assert "sz" in peaks
+        # Assert: values are the sample coordinates, not NaN
+        for peak_axis, coord_axis in zip(("sx", "sy", "sz"), ("vx", "vy", "vz")):
+            assert peaks[peak_axis].shape[0] == N_subrun
+            np.testing.assert_allclose(peaks[peak_axis].nxdata, ws._sample_logs[coord_axis])
+            # The field name is NXstress's; the value's provenance is PyRS's.
+            assert peaks[peak_axis].attrs["local_name"] == coord_axis
 
-        assert peaks["sx"].shape[0] == N_subrun
-        assert peaks["sy"].shape[0] == N_subrun
-        assert peaks["sz"].shape[0] == N_subrun
+    def test_Peaks_sample_position_subset(
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
+    ):
+        """Verify a PeakCollection covering some scan points gets only those positions.
 
-        # All values should be NaN
-        assert all(np.isnan(peaks["sx"].nxdata))
-        assert all(np.isnan(peaks["sy"].nxdata))
-        assert all(np.isnan(peaks["sz"].nxdata))
+        Regression for the defect that kept this block commented out: reading the log
+        wholesale yields one value per workspace scan point, but this slice needs one
+        per scan point *of this PeakCollection*.
+        """
+        # Arrange: the collection covers fewer subruns than the workspace holds.
+        ws = minimal_HidraWorkspace(with_instrument=False)
+        N_workspace = len(ws._sample_logs.subruns.raw_copy())
+        N_subset = N_workspace - 1
+        assert N_subset >= 1, "fixture must supply more than one subrun"
+        peak0 = createPeakCollection(
+            peak_tag="Al 111",
+            peak_profile="Gaussian",
+            background_type="Quadratic",
+            wavelength=25.4,
+            projectfilename="/does/not/exist.h5",
+            runnumber=12345,
+            N_subrun=N_subset,
+        )
+
+        # Act
+        peaks = _Peaks.init_group(_Peaks.indexed([peak0], ws._sample_logs), ws._sample_logs)
+
+        # Assert: length and values follow the collection, not the workspace
+        assert peaks["sx"].shape[0] == N_subset
+        np.testing.assert_allclose(peaks["sx"].nxdata, ws._sample_logs["vx"][:N_subset])
+
+    def test_Peaks_sample_position_nan_fallback(
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
+    ):
+        """Verify absent sample coordinates give NaN rather than failing the write"""
+        # Arrange: drop the coordinate logs entirely
+        ws = minimal_HidraWorkspace(with_instrument=False)
+        subruns = ws._sample_logs.subruns.raw_copy()
+        N_subrun = len(subruns)
+        for coord_axis in ("vx", "vy", "vz"):
+            del ws._sample_logs[coord_axis]
+        peak0 = createPeakCollection(
+            peak_tag="Al 111",
+            peak_profile="Gaussian",
+            background_type="Quadratic",
+            wavelength=25.4,
+            projectfilename="/does/not/exist.h5",
+            runnumber=12345,
+            N_subrun=N_subrun,
+        )
+
+        # Act
+        peaks = _Peaks.init_group(_Peaks.indexed([peak0], ws._sample_logs), ws._sample_logs)
+
+        # Assert
+        for peak_axis in ("sx", "sy", "sz"):
+            assert all(np.isnan(peaks[peak_axis].nxdata))
+
+
+class TestPeaksTailAppend:
+    """`init_group(..., data=...)` grows an existing index instead of building one.
+
+    Per-family coverage, independent of the end-to-end round trip in
+    `test_append.py`: the peak-index family's three groups stay positionally
+    aligned only because each grows by the same count from its own current end.
+    """
+
+    def test_append_grows_by_exactly_the_new_row_count(
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
+    ):
+        # Arrange
+        ws = minimal_HidraWorkspace(with_instrument=False, sub_runs=np.array([1, 2, 3, 4, 5]))
+        logs = ws._sample_logs
+        first = createPeakCollection(
+            peak_tag="Fe110",
+            peak_profile="Gaussian",
+            background_type="Linear",
+            wavelength=1.486,
+            projectfilename="x.h5",
+            runnumber=1,
+            N_subrun=3,
+            sub_runs=np.array([1, 2, 3]),
+        )
+        peaks = _Peaks.init_group(_Peaks.indexed([first], logs), logs)
+        before = np.asarray(peaks["scan_point"].nxdata).copy()
+
+        second = createPeakCollection(
+            peak_tag="Si111",
+            peak_profile="Gaussian",
+            background_type="Linear",
+            wavelength=1.486,
+            projectfilename="x.h5",
+            runnumber=1,
+            N_subrun=2,
+            sub_runs=np.array([4, 5]),
+        )
+
+        # Act
+        returned = _Peaks.init_group(_Peaks.indexed([second], logs), logs, data=peaks)
+
+        # Assert
+        assert returned is peaks
+        assert peaks["scan_point"].shape[0] == 5
+        assert np.array_equal(np.asarray(peaks["scan_point"].nxdata)[:3], before)
+        assert np.asarray(peaks["scan_point"].nxdata).tolist() == [1, 2, 3, 4, 5]
+
+    def test_append_does_not_re_sort_what_is_already_there(
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
+    ):
+        """'Locally sorted, globally segmented': the new block follows, it does not merge in."""
+        # Arrange -- 'Al' sorts BEFORE 'Fe', so a re-sorting append would put it first
+        ws = minimal_HidraWorkspace(with_instrument=False, sub_runs=np.array([1, 2, 3, 4, 5]))
+        logs = ws._sample_logs
+        first = createPeakCollection(
+            peak_tag="Fe110",
+            peak_profile="Gaussian",
+            background_type="Linear",
+            wavelength=1.486,
+            projectfilename="x.h5",
+            runnumber=1,
+            N_subrun=3,
+            sub_runs=np.array([1, 2, 3]),
+        )
+        peaks = _Peaks.init_group(_Peaks.indexed([first], logs), logs)
+        second = createPeakCollection(
+            peak_tag="Al111",
+            peak_profile="Gaussian",
+            background_type="Linear",
+            wavelength=1.486,
+            projectfilename="x.h5",
+            runnumber=1,
+            N_subrun=2,
+            sub_runs=np.array([4, 5]),
+        )
+
+        # Act
+        _Peaks.init_group(_Peaks.indexed([second], logs), logs, data=peaks)
+
+        # Assert
+        names = [v.decode() if isinstance(v, bytes) else str(v) for v in peaks["phase_name"].nxdata]
+        assert names == ["Fe", "Fe", "Fe", "Al", "Al"]
+
+    def test_the_appended_index_still_satisfies_the_reader(
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        createPeakCollection: Callable[..., PeakCollection],
+    ):
+        """Contiguity and within-run monotonicity are all `peakCollectionRanges` requires.
+
+        The rule is restated here rather than inferred from the splitter's own
+        output, so this fails if the appended layout stops satisfying it.
+        """
+        # Arrange
+        ws = minimal_HidraWorkspace(with_instrument=False, sub_runs=np.array([1, 2, 3, 4, 5, 6, 7]))
+        logs = ws._sample_logs
+        peaks = None
+        for tag, points in (("Fe110", [1, 2, 3]), ("Al111", [4, 5]), ("Si220", [6, 7])):
+            collection = createPeakCollection(
+                peak_tag=tag,
+                peak_profile="Gaussian",
+                background_type="Linear",
+                wavelength=1.486,
+                projectfilename="x.h5",
+                runnumber=1,
+                N_subrun=len(points),
+                sub_runs=np.array(points),
+            )
+            peaks = _Peaks.init_group(_Peaks.indexed([collection], logs), logs, data=peaks)
+
+        # Act
+        ranges = _Peaks.peakCollectionRanges(peaks)
+
+        # Assert -- one contiguous run per key, each covering a strictly increasing span
+        assert [(start, end) for _, _, start, end in ranges] == [(0, 3), (3, 5), (5, 7)]
+        scan_point = np.asarray(peaks["scan_point"].nxdata)
+        for _, _, start, end in ranges:
+            block = scan_point[start:end]
+            assert np.all(block[1:] > block[:-1])

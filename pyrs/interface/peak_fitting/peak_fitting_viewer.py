@@ -16,6 +16,7 @@ import os
 from typing import List, Optional
 
 import numpy as np
+from nexusformat.nexus import NeXusError
 from qtpy import QtGui  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 from qtpy.QtGui import QCursor  # type:ignore
@@ -285,10 +286,18 @@ class PeakFittingViewer(QMainWindow):
         # --- load the data into the model ---
         try:
             self._model.load_hidra_project(hidra_file_name)
-        except (RuntimeError, TypeError) as run_err:
+        # Every error a bad file is known to raise. An uncaught one aborts the
+        # application under PyQt6 (see docs/ground_truths.md): `OSError` is a
+        # non-HDF5 `.h5`, `NeXusError` a non-HDF5 or malformed `.nxs`, and
+        # `ValueError` a multi-file selection that includes a `.nxs`.
+        except (RuntimeError, TypeError, ValueError, KeyError, OSError, NeXusError) as run_err:
             pop_message(
                 self, "Unable to load {}".format(hidra_file_name), detailed_message=str(run_err), message_type="error"
             )
+            # Return rather than fall through: everything below assumes a loaded
+            # workspace, so continuing turns a reported failure into a second,
+            # unreported one against whatever was loaded previously.
+            return
 
         self._update_nxstress_action()
 

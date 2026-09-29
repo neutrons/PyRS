@@ -15,14 +15,21 @@ _logger = logging.getLogger(__name__)
 
 
 def impose_extension(filename: str, extension: str) -> str:
-    """Force filename's suffix to extension (e.g. '.nxs'), regardless of what a
+    """Force filename's suffix to extension (e.g. 'nxs'), regardless of what a
     user typed into a save dialog.
 
     Never lets a user pick a different extension than the format actually being
     written -- each save action imposes its own output format's configured
     extension unconditionally.
+
+    The leading dot is **implied**, and added here. It is a `pathlib` separator
+    rather than part of the extension, so `nxstress.extension` is configured as
+    `"nxs"`; `ConfigSchema` rejects a configured value that carries one, so that
+    a reader never has to wonder whether the dot was configured or supplied. A
+    value that does carry one is still accepted here, since this is also reached
+    with literals.
     """
-    return str(Path(filename).with_suffix(extension))
+    return str(Path(filename).with_suffix("." + extension.lstrip(".")))
 
 
 def nxstress_save_available(ws: Optional["HidraWorkspace"]) -> bool:

@@ -30,6 +30,7 @@ from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
 from pyrs.peaks.peak_fit_engine import FitResult
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities.NXstress.NXstress import NXstress
+from pyrs.interface.nxstress_load import read_single_workspace
 
 
 class PeakFittingModel(QObject):
@@ -94,8 +95,9 @@ class PeakFittingModel(QObject):
                 raise ValueError("Loading multiple project files is not supported for NXstress (.nxs) format")
 
             nxs_file = project_files_list[0]
-            with NXstress(Path(nxs_file), "r") as nx:
-                ws, peaks = nx.read()
+            # This model holds one workspace. A file holding more is refused by
+            # name rather than silently truncated -- see `nxstress_load`.
+            ws, peaks = read_single_workspace(Path(nxs_file))
 
             self._set_up_project_name(project_files_list)
             self._curr_file_name = nxs_file
@@ -230,7 +232,7 @@ class PeakFittingModel(QObject):
             # no "existing .nxs file to patch" concept; NXstress always writes fresh
             # from the in-memory workspace + fit result.
             with NXstress(Path(out_file_name), "w") as nx:
-                nx.write(self.hidra_workspace, fit_result.peakcollections)
+                nx.write([self.hidra_workspace], [fit_result.peakcollections])
             return
 
         if out_file_name is not None and self._curr_file_name != out_file_name:

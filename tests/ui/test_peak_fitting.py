@@ -16,15 +16,13 @@ pytestmark = [pytest.mark.gui, pytest.mark.integration]
 wait = 300
 
 
-@pytest.fixture(scope="session")
-def fit_peaks_window(my_qtbot):
-    r"""
-    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
-    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
-    """
+@pytest.fixture
+def fit_peaks_window(qtbot):
+    """A fresh peak fitting window for each test, closed afterwards (see `tests/ui/conftest.py`)."""
     fit_peak_core = pyrscore.PyRsCore()
     window = fitpeakswindow.FitPeaksWindow(None, fit_peak_core=fit_peak_core)
-    return window, my_qtbot
+    qtbot.addWidget(window)
+    return window, qtbot
 
 
 def test_peak_fitting(tmpdir, fit_peaks_window):
@@ -348,3 +346,25 @@ def test_save_as_nxstress_cancel_writes_nothing(nxstress_ready_window, monkeypat
     # Assert
     assert not out_path.exists()
     assert messages == []
+
+
+@pytest.mark.parametrize("kind", ["garbage", "two_entries", "nxs_in_multi_select"])
+def test_load_failure_reports_and_returns(fit_peaks_window, unloadable_nxstress_files, monkeypatch, kind) -> None:
+    """Every error a bad file raises is reported in a dialog rather than escaping
+    the slot -- which, under PyQt6, aborts the application."""
+    # Arrange
+    window, _ = fit_peaks_window
+    if kind == "nxs_in_multi_select":
+        target = [str(unloadable_nxstress_files["two_entries"]), os.path.abspath("tests/data/HB2B_1017.h5")]
+    else:
+        target = str(unloadable_nxstress_files[kind])
+    messages = []
+    monkeypatch.setattr(
+        peak_fitting_viewer, "pop_message", lambda parent, message, *args, **kwargs: messages.append(message)
+    )
+
+    # Act
+    window.load_and_plot(target)
+
+    # Assert
+    assert messages == [f"Unable to load {target}"]

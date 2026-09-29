@@ -8,10 +8,14 @@ from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 import pytest
 import os
+from pathlib import Path
 
 pytestmark = pytest.mark.integration
 
-DATA_DIR = "tests/data/"
+#: Absolute, so the module does not depend on the process working directory.
+#: Resolved from `__file__` rather than a fixture because these paths are used in
+#: `@pytest.mark.parametrize`, which is evaluated at collection time.
+DATA_DIR = f"{Path(__file__).resolve().parents[2] / 'tests' / 'data'}/"
 
 
 def parse_gold_file(file_name):
