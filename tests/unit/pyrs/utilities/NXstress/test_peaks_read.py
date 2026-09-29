@@ -5,10 +5,14 @@ Tests for NXstress read functionality in pyrs/utilities/NXstress/_peaks.py and _
 
 import numpy as np
 from nexusformat.nexus import NXparameters, NXfield
+import ast
 import pytest
 from pathlib import Path
 import tempfile
 
+from pyrs.dataobjects.constants import HidraConstants
+from pyrs.dataobjects.sample_logs import SampleLogs, SubRuns
+from pyrs.utilities.NXstress import _peaks as _peaks_module
 from pyrs.utilities.NXstress._peaks import _Peaks
 from pyrs.utilities.NXstress._fit import _PeakParameters, _BackgroundParameters
 from pyrs.utilities.NXstress.NXstress import NXstress
@@ -57,7 +61,7 @@ class TestPeakCollectionRanges:
         )
 
         # Write to NXreflections group
-        peaks_group = _Peaks.init_group([peak1, peak2, peak3], ws._sample_logs)
+        peaks_group = _Peaks.init_group(_Peaks.indexed([peak1, peak2, peak3], ws._sample_logs), ws._sample_logs)
 
         # Read ranges
         ranges = _Peaks.peakCollectionRanges(peaks_group)
@@ -66,12 +70,12 @@ class TestPeakCollectionRanges:
         assert len(ranges) == 3
 
         # Verify each range spans N_subrun entries
-        for (phase_name, h, k, l, mask), start, end in ranges:
+        for _discriminators, (phase_name, h, k, l, mask), start, end in ranges:
             assert end - start == N_subrun
 
         # Verify ranges are contiguous
         expected_start = 0
-        for (phase_name, h, k, l, mask), start, end in ranges:
+        for _discriminators, (phase_name, h, k, l, mask), start, end in ranges:
             assert start == expected_start
             expected_start = end
 
@@ -188,7 +192,7 @@ class TestValidateNoDuplicatePeaks:
         )
 
         # Should not raise any error
-        _Peaks.validateNoDuplicatePeaks([peak1, peak2, peak3])
+        _Peaks.validateNoDuplicatePeaks(_Peaks.indexed([peak1, peak2, peak3]))
 
     def test_validateNoDuplicatePeaks_with_duplicates(self, createPeakCollection):
         """2 PeakCollections with same key → ValueError with 'Duplicate PeakCollection detected'"""
@@ -215,7 +219,7 @@ class TestValidateNoDuplicatePeaks:
 
         # Should raise ValueError
         with pytest.raises(ValueError, match="Duplicate PeakCollection detected"):
-            _Peaks.validateNoDuplicatePeaks([peak1, peak2])
+            _Peaks.validateNoDuplicatePeaks(_Peaks.indexed([peak1, peak2]))
 
 
 class TestPeakParametersForRange:
@@ -355,7 +359,7 @@ class TestPeakCollectionsFromNexus:
             file_path = Path(tmpdir) / "test_roundtrip.nxs"
 
             with NXstress(file_path, mode="w") as nxs:
-                nxs.write(ws, original_peaks)
+                nxs.write([ws], [original_peaks])
 
             # Read back
             with NXstress(file_path, mode="r") as nxs:
@@ -374,7 +378,9 @@ class TestPeakCollectionsFromNexus:
 
         # Match by sub-index key (not by list position)
         original_by_key = {_Peaks.PeakIndex.sort_key(p): p for p in original_peaks}
-        reconstructed_by_key = {_Peaks.PeakIndex.sort_key(p): p for p in reconstructed_peaks}
+        reconstructed_by_key = {
+            _Peaks.PeakIndex.sort_key(item.collection): item.collection for item in reconstructed_peaks
+        }
 
         assert set(original_by_key.keys()) == set(reconstructed_by_key.keys())
 
@@ -440,7 +446,7 @@ class TestPeakCollectionsFromNexus:
             file_path = Path(tmpdir) / "test_multidigit.nxs"
 
             with NXstress(file_path, mode="w") as nxs:
-                nxs.write(ws, original_peaks)
+                nxs.write([ws], [original_peaks])
 
             with NXstress(file_path, mode="r") as nxs:
                 entry = nxs._root["entry"]
@@ -451,10 +457,10 @@ class TestPeakCollectionsFromNexus:
 
         # Verify peak_tag matches
         assert len(reconstructed_peaks) == 1
-        assert reconstructed_peaks[0].peak_tag == "Fe120100"
+        assert reconstructed_peaks[0].collection.peak_tag == "Fe120100"
 
         # Verify parsing produces correct Miller indices
-        phase, (h, k, l) = _Peaks._parse_peak_tag(reconstructed_peaks[0].peak_tag)
+        phase, (h, k, l) = _Peaks._parse_peak_tag(reconstructed_peaks[0].collection.peak_tag)
         assert phase == "Fe"
         assert h == 12
         assert k == 1
@@ -501,4 +507,250 @@ class TestValidateNoDuplicatePeaksIntegration:
             # The validation happens before any writes, so the error is raised early
             with pytest.raises(ValueError, match="Duplicate PeakCollection detected"):
                 with NXstress(file_path, mode="w") as nxs:
-                    nxs.write(ws, duplicate_peaks)
+                    nxs.write([ws], [duplicate_peaks])
+
+
+class TestSplitterEnforcesOnlyContiguityAndMonotonicity:
+    """What `peakCollectionRanges` requires of row order -- and what it does not.
+
+    Two subspecs rest their design on this: 04b puts discriminators first in the
+    sort key so each workspace forms one contiguous super-block, and 04c makes
+    append a plain tail-append, on the shared premise that the reader never
+    required *global* order. Promoted here from
+    `plans/NXstress-prod/probes/a5_peakcollection_ranges.py` so the premise is
+    re-checked on every commit rather than once per audit.
+
+    The block rule is reproduced locally in `expected_block_count` rather than
+    imported from `_peaks.py`. A test that asked `_peaks.py` for its own rule
+    would agree with any rule it later adopted, and so would pass vacuously --
+    the point is to fail if the splitter's contract changes.
+    """
+
+    @staticmethod
+    def peaks_group(phase, h, k, l_, mask, scan_point):
+        """A real `NXreflections`, built by the writer and then filled by hand.
+
+        Built through `_Peaks._init` rather than assembled as a dict of
+        `NXfield`s. A hand-built stand-in carried only the six columns the
+        splitter happens to read today, so it both diverged from the group it
+        stands for and would fail with a bare `KeyError` the moment the splitter
+        read a seventh -- "a test that reimplements its counterparty is testing
+        the reimplementation", as `probes/README.md` puts it about probes.
+
+        The row values are still set by hand, because the point is to present
+        orderings the writer would never emit.
+        """
+        logs = SampleLogs()
+        logs[HidraConstants.SUB_RUNS] = np.arange(1, len(phase) + 1)
+        group = _Peaks._init(logs, {})
+
+        n = len(phase)
+        for name, values in (
+            ("phase_name", np.array(phase)),
+            ("h", np.array(h, dtype=np.int32)),
+            ("k", np.array(k, dtype=np.int32)),
+            ("l", np.array(l_, dtype=np.int32)),
+            ("mask", np.array(mask)),
+            ("scan_point", np.array(scan_point, dtype=np.int32)),
+        ):
+            group[name].resize((n,))
+            group[name][:] = values
+        return group
+
+    @staticmethod
+    def expected_block_count(phase, h, k, l_, mask) -> int:
+        """The rule, restated independently: a block boundary is any key change."""
+        keys = list(zip(phase, h, k, l_, mask))
+        return 1 + sum(1 for i in range(1, len(keys)) if keys[i] != keys[i - 1])
+
+    def test_globally_unsorted_but_locally_contiguous_is_accepted(self):
+        """ "Locally sorted, globally segmented" -- what an appended file looks like."""
+        # Arrange: Ni before Fe, so the index is not in lexicographic order.
+        phase, h, k, l_, mask = (
+            ["Ni"] * 3 + ["Fe"] * 3,
+            [2] * 3 + [1] * 3,
+            [2] * 3 + [1] * 3,
+            [2] * 3 + [1] * 3,
+            ["m"] * 6,
+        )
+        group = self.peaks_group(phase, h, k, l_, mask, [1, 2, 3, 1, 2, 3])
+
+        # Act
+        ranges = _Peaks.peakCollectionRanges(group)
+
+        # Assert
+        assert len(ranges) == self.expected_block_count(phase, h, k, l_, mask) == 2
+        assert [(start, end) for _disc, _key, start, end in ranges] == [(0, 3), (3, 6)]
+
+    def test_key_split_into_two_runs_raises(self):
+        """Contiguity IS enforced: the same key may not reappear after another."""
+        group = self.peaks_group(["Fe", "Ni", "Fe"], [1, 2, 1], [1, 2, 1], [1, 2, 1], ["m"] * 3, [1, 1, 2])
+
+        with pytest.raises(RuntimeError, match="Interleaved blocks detected"):
+            _Peaks.peakCollectionRanges(group)
+
+    def test_descending_scan_point_within_a_run_raises(self):
+        """Monotonicity IS enforced, within a run."""
+        group = self.peaks_group(["Fe"] * 3, [1] * 3, [1] * 3, [1] * 3, ["m"] * 3, [3, 2, 1])
+
+        with pytest.raises(RuntimeError, match="not strictly increasing"):
+            _Peaks.peakCollectionRanges(group)
+
+    def test_scan_points_need_not_be_ordered_across_runs(self):
+        """And nothing more than those two: run B may start below where run A ended."""
+        phase, h, k, l_, mask = (
+            ["Fe"] * 3 + ["Ni"] * 3,
+            [1] * 3 + [2] * 3,
+            [1] * 3 + [2] * 3,
+            [1] * 3 + [2] * 3,
+            ["m"] * 6,
+        )
+        group = self.peaks_group(phase, h, k, l_, mask, [10, 11, 12, 1, 2, 3])
+
+        ranges = _Peaks.peakCollectionRanges(group)
+
+        assert len(ranges) == self.expected_block_count(phase, h, k, l_, mask) == 2
+
+    #: Calls that would mean the splitter searches or reorders the **on-disk index**.
+    #: `sorted` is deliberately absent: `_peaks.init_group` sorts the incoming
+    #: batch in memory, which is not a search over the index and is what makes each
+    #: written block contiguous in the first place.
+    ORDERING_CALLS = frozenset({"searchsorted", "argsort", "sort", "bisect", "bisect_left", "bisect_right"})
+
+    def test_no_global_ordering_machinery_in_the_module(self):
+        """There is no search over the index, which is why global order is free.
+
+        A source scan rather than a behavioural check, because the claim is about
+        absence: a binary search introduced later would not fail any of the cases
+        above until a file happened to be globally unsorted.
+
+        Parsed rather than text-matched. `source.count("argsort")` would also fire
+        on a *comment* saying "deliberately no argsort over the index here" -- the
+        comment this test invites -- so it would punish the documentation written
+        because of it. `ast` sees calls only, which is what the claim is about, and
+        follows `tests/unit/pyrs/projectfile/test_file_object.py`'s idiom.
+        """
+        # Arrange
+        tree = ast.parse(Path(_peaks_module.__file__).read_text())
+
+        # Act -- `np.argsort(...)` is an Attribute; a bare `argsort(...)` is a Name.
+        called = set()
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
+            if name in self.ORDERING_CALLS:
+                called.add(name)
+
+        # Assert
+        assert not called, f"{sorted(called)} would search or reorder the on-disk index"
+
+    def test_the_scan_would_notice_such_a_call(self):
+        """The scan above is only worth having if it can fail.
+
+        Its subject is the *absence* of something, so a scan that silently
+        matched nothing would pass for the wrong reason -- a mis-spelled node
+        type, say, or a walk that never reaches a `Call`.
+        """
+        # Arrange -- a module shaped like `_peaks.py` with one offending call
+        tree = ast.parse("import numpy as np\n\ndef f(a):\n    return np.argsort(a)\n")
+
+        # Act
+        called = {
+            (node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", None))
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+        }
+
+        # Assert
+        assert called & self.ORDERING_CALLS == {"argsort"}
+
+    def test_monotonic_scan_points_are_guaranteed_upstream(self):
+        """The invariant the reader enforces is one PyRS cannot violate anyway.
+
+        `SubRuns.set` rejects a non-increasing array, so every
+        `PeakCollection.sub_runs` is strictly increasing by construction --
+        independently of anything NXstress sorts.
+        """
+        with pytest.raises(RuntimeError, match="not sorted in increasing order"):
+            SubRuns(np.array([3, 1, 2]))
+
+
+class TestDiscriminatorNamesAreCheckedAgainstTheGroup:
+    """Passing the wrong discriminator names must fail loudly, not quietly.
+
+    This is the one mistake the splitter could not survive: with the names
+    omitted, a two-workspace entry whose blocks happen to be adjacent and share
+    a compound key collapses into a single range, and the monotonicity check
+    passes because the concatenated scan points are still increasing. Measured
+    before the guard: 1 range returned where 2 were correct, **no exception**.
+    With differently shaped data the same mistake surfaced instead as
+    "Interleaved blocks detected", naming the wrong cause.
+    """
+
+    @staticmethod
+    def _two_block_group(logs, with_column: bool):
+        """Two adjacent blocks sharing one compound key, told apart only by direction."""
+        dtypes = {"direction": FIELD_DTYPE.STRING.value} if with_column else {}
+        peaks = _Peaks._init(logs, dtypes)
+        n = 6
+        for name in ("phase_name", "h", "k", "l", "mask", "scan_point", "center", "center_errors"):
+            peaks[name].resize((n,))
+        peaks["phase_name"][:] = np.array(["Fe"] * n)
+        peaks["h"][:] = np.ones(n, dtype=int)
+        peaks["k"][:] = np.ones(n, dtype=int)
+        peaks["l"][:] = np.zeros(n, dtype=int)
+        peaks["mask"][:] = np.array(["_DEFAULT_"] * n)
+        peaks["scan_point"][:] = np.arange(1, n + 1)
+        peaks["center"][:] = np.full(n, 1.0)
+        peaks["center_errors"][:] = np.full(n, 0.01)
+        if with_column:
+            peaks["direction"].resize((n,))
+            peaks["direction"][:] = np.array(["11"] * 3 + ["22"] * 3)
+        return peaks
+
+    def test_omitting_the_names_raises_instead_of_merging_two_workspaces(self, minimal_HidraWorkspace):
+        # Arrange
+        logs = minimal_HidraWorkspace(with_instrument=False, sub_runs=np.arange(1, 7))._sample_logs
+        peaks = self._two_block_group(logs, with_column=True)
+
+        # Act / Assert
+        with pytest.raises(RuntimeError, match=r"discriminator names given do not match"):
+            _Peaks.peakCollectionRanges(peaks)
+
+    def test_naming_a_column_the_group_does_not_have_raises(self, minimal_HidraWorkspace):
+        # Arrange
+        logs = minimal_HidraWorkspace(with_instrument=False, sub_runs=np.arange(1, 7))._sample_logs
+        peaks = self._two_block_group(logs, with_column=False)
+
+        # Act / Assert
+        with pytest.raises(RuntimeError, match=r"has no column for discriminator field"):
+            _Peaks.peakCollectionRanges(peaks, ("direction",))
+
+    def test_the_correct_names_split_into_two_ranges(self, minimal_HidraWorkspace):
+        """The case the guard must not break -- and what the silent failure got wrong."""
+        # Arrange
+        logs = minimal_HidraWorkspace(with_instrument=False, sub_runs=np.arange(1, 7))._sample_logs
+        peaks = self._two_block_group(logs, with_column=True)
+
+        # Act
+        ranges = _Peaks.peakCollectionRanges(peaks, ("direction",))
+
+        # Assert
+        assert [(start, end) for _, _, start, end in ranges] == [(0, 3), (3, 6)]
+        assert [dict(disc)["direction"] for disc, _, _, _ in ranges] == ["11", "22"]
+
+    def test_a_column_less_group_still_reads_with_no_names(self, minimal_HidraWorkspace):
+        """Empty is legitimate: it means the entry records no workspace boundary."""
+        # Arrange
+        logs = minimal_HidraWorkspace(with_instrument=False, sub_runs=np.arange(1, 7))._sample_logs
+        peaks = self._two_block_group(logs, with_column=False)
+
+        # Act
+        ranges = _Peaks.peakCollectionRanges(peaks)
+
+        # Assert -- one run, because nothing on disk distinguishes the two halves.
+        # Not "merged" in any NXstress sense: the rows were concatenated with no
+        # boundary recorded, and the splitter has nothing to split on.
+        assert [(start, end) for _, _, start, end in ranges] == [(0, 6)]

@@ -17,16 +17,14 @@ wait = 200
 plot_wait = 100
 
 
-@pytest.fixture(scope="session")
-def calibration_window(my_qtbot):
-    r"""
-    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
-    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
-    """
+@pytest.fixture
+def calibration_window(qtbot):
+    """A fresh detector calibration window for each test, closed afterwards (see `tests/ui/conftest.py`)."""
     model = DetectorCalibrationModel(pyrscore.PyRsCore())
     ctrl = DetectorCalibrationCrtl(model)
     window = DetectorCalibrationViewer(model, ctrl)
-    return window, my_qtbot
+    qtbot.addWidget(window)
+    return window, qtbot
 
 
 def handle_export_dialog(folder, write_shared):
@@ -252,7 +250,11 @@ def test_recipe_keeps_method_and_strips(calibration_window, tmp_path, monkeypatc
     monkeypatch.setattr(viewer_module, "save_json_file", lambda parent: recipe)
     monkeypatch.setattr(viewer_module.QFileDialog, "getOpenFileName", lambda *args, **kwargs: (recipe, ""))
 
-    # Arrange - Ring-based, 3 strips, two steps (saving kept only the last step before)
+    # Arrange - data loaded, then Ring-based, 3 strips, two steps (saving kept only the last step
+    # before). `load_json` needs the saved "nexus_file", and `save_json` writes it only when data
+    # are loaded; a recipe saved without data cannot be loaded back (recorded, not fixed here).
+    window._nexus_file = "tests/data/calibration_tests/HB2B_3510.nxs.h5"
+    window.fileLoading.file_load_dilg.load_nexus()
     setup.method_combo.setCurrentText("Ring-based")
     setup.strips_lineEdit.setText("3")
     for i_row in range(8):

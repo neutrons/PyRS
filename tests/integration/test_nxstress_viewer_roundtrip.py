@@ -164,11 +164,63 @@ class TestCombineRunsViewerRoundtrip:
         assert out_path.exists()
 
         with NXstress(out_path, "r") as nx:
-            ws_read, peaks_read = nx.read()
+            # CombineRuns pre-merges its N runs into one workspace before
+            # exporting, so the entry holds exactly one -- per the resolved Q3.
+            (ws_read,), (peaks_read,) = nx.read()
 
         assert peaks_read == []
         assert len(ws_read.get_sub_runs()) == merged_n_subrun
         np.testing.assert_allclose(ws_read.get_sample_log_values("vx"), merged_vx)
+
+    def test_export_project_files_wraps_the_merged_workspace_in_a_length_one_list(
+        self,
+        write_minimal_h5_project: Callable[..., Path],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        tmp_path: Path,
+    ) -> None:
+        """The 04b call-site change for CombineRuns is a wrap, not a restructuring.
+
+        `NXstress.write` now takes N workspaces, but per the resolved Q3
+        CombineRuns keeps its in-PyRS pre-merge -- `append_hidra_project`
+        discards per-run boundaries, which NXstress does not do (Decisions Log
+        row 45), and the unaffected `.h5` export path needs the single merged
+        workspace regardless. So the export still
+        passes one workspace and no peak collections, now spelled
+        `write([ws], [[]])`, and the entry it produces holds exactly one
+        workspace no matter how many runs went in.
+        """
+        # Arrange -- count the sub-runs going IN, so the assertion below is against
+        # the inputs rather than against the model that produced the output. Comparing
+        # the read-back count to `model._hidra_ws` would hold just as well if
+        # `combine_project_files` had silently dropped two of the three runs.
+        runs = [minimal_HidraWorkspace(name=f"run{n}", with_masks=True) for n in (1, 2, 3)]
+        expected_subruns = sum(len(ws.get_sub_runs()) for ws in runs)
+        paths = [
+            write_minimal_h5_project(
+                ws,
+                filename=f"run{n}.h5",
+                with_instrument=True,
+                with_masks=True,
+            )
+            for n, ws in enumerate(runs, start=1)
+        ]
+
+        # Act
+        model = CombineRunsModel()
+        model.combine_project_files([str(p) for p in paths])
+        out_path = tmp_path / "three-runs.nxs"
+        model.export_project_files(str(out_path))
+
+        with NXstress(out_path, "r") as nx:
+            workspaces, peakss = nx.read()
+
+        # Assert
+        assert len(workspaces) == 1, "three runs pre-merged into one workspace, not three"
+        assert peakss == [[]]
+        assert len(workspaces[0].get_sub_runs()) == expected_subruns, (
+            "the single workspace must carry every run's scan points -- one workspace "
+            "out is also what dropping two of the three runs would produce"
+        )
 
     def test_export_project_files_h5_suffix_routes_through_hidraprojectfile(
         self,

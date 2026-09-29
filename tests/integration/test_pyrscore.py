@@ -1,9 +1,147 @@
 #!/usr/bin/python
+import hashlib
 import os
-from pyrs.core import pyrscore
+import shutil
+from pathlib import Path
+from typing import Callable
+
+from pyrs.core import pyrscore, reduction_manager
+from pyrs.core.workspaces import HidraWorkspace
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 import pytest
 
 pytestmark = pytest.mark.integration
+
+
+#: The one fixture still on the legacy capitalized '2Theta' schema. Named once so
+#: the `xfail` reason below, `test_main` and `TestLoadDoesNotModifyTheFile` cannot
+#: drift apart about which file they mean.
+LEGACY_SCHEMA_FIXTURE = "Hidra_16-1_cor_log.h5"
+
+
+def _digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _recording_project_file(monkeypatch):
+    """Record the mode every `HidraProjectFile` is opened with, and each instance.
+
+    `reduction_manager` resolves the name at call time, so patching the name in
+    that module intercepts exactly the opens under test and nothing else.
+
+    Returns `(opens, instances)`: a list of `(filename, mode)` and the objects
+    themselves, whose `_project_h5` is `None` once closed.
+    """
+    opens: list[tuple[str, HidraProjectFileMode]] = []
+    instances: list[HidraProjectFile] = []
+
+    class Recording(HidraProjectFile):
+        def __init__(self, name, mode=HidraProjectFileMode.READONLY):
+            opens.append((Path(name).name, mode))
+            super().__init__(name, mode=mode)
+            instances.append(self)
+
+    monkeypatch.setattr(reduction_manager, "HidraProjectFile", Recording)
+    return opens, instances
+
+
+class TestLoadDoesNotModifyTheFile:
+    """Loading a project file is a read, and must leave it byte-identical.
+
+    `ReductionManager.load_hidra_project` used to choose its HDF5 mode from
+    `os.access(project_file_name, os.W_OK)` -- the file's *permissions* rather
+    than what the operation needed -- so loading any writable project file
+    opened it in append mode. HDF5 marks the superblock on a read-write open,
+    so merely loading a file changed it on disk. The handle was also not closed
+    when loading raised, and pytest's traceback keeps the frame alive, so the
+    modification survived for the rest of the session. The visible symptom was
+    committed fixtures under `tests/data/` appearing in `git status`.
+
+    Both paths are covered, because only one of them leaked: a load that
+    succeeds, and a load that raises part-way through.
+
+    **The digest assertions alone cannot catch this, and did not.** Measured on
+    h5py 3.16.0 / HDF5 1.14.6, a read-write open changes the bytes *only while
+    the handle is open*::
+
+        r+ open, handle OPEN : changed
+        r+ after close       : unchanged
+        r  open, handle OPEN : unchanged
+
+    By the time a test takes its digest, the `HidraProjectFile` is unreferenced
+    and CPython has closed it, so the mark is already reverted. Reverting
+    `reduction_manager` to the full pre-fix state -- READWRITE *and* no
+    `finally` -- left these tests green. The original symptom needed the handle
+    held open across the whole session, which a digest taken after the call can
+    never observe.
+
+    So each test also asserts what the fix actually changed, through a recording
+    `HidraProjectFile`: the **mode** it opens with, and that the handle is
+    **closed** even when the load raises. Those fail against either mutation.
+    The digests stay as the statement of intent -- they say what the code is
+    for -- but they do not carry the guarantee.
+    """
+
+    def test_failing_load_leaves_the_file_unchanged(self, tmp_path: Path, test_data_dir, monkeypatch) -> None:
+        # Arrange -- a writable copy; the bug cannot reproduce on a read-only file,
+        # which is exactly why it went unnoticed on archive-mounted data.
+        source = Path(test_data_dir) / LEGACY_SCHEMA_FIXTURE
+        assert source.exists(), f"missing fixture {source}"
+        target = tmp_path / source.name
+        shutil.copy2(source, target)
+        assert os.access(target, os.W_OK)
+        digest_before = _digest(target)
+
+        opens, instances = _recording_project_file(monkeypatch)
+
+        # Act -- this fixture uses the legacy capitalized '2Theta' key, so the load
+        # raises part-way through. That is the path that leaked the handle, and the
+        # `match` pins it: the closure assertion below is only meaningful if the load
+        # reached the point where a handle is open. A `RuntimeError` raised earlier,
+        # or for an unrelated reason, would satisfy a bare `pytest.raises` while
+        # exercising none of this.
+        rs_core = pyrscore.PyRsCore()
+        with pytest.raises(RuntimeError, match=r'non-empty "reduced diffraction data" entry'):
+            rs_core.load_hidra_project(str(target), "no-mutation-on-failure", False, True)
+
+        # Assert -- the digest states the intent; the two below carry the guarantee.
+        assert _digest(target) == digest_before, "a failed load modified the project file on disk"
+        assert opens == [(source.name, HidraProjectFileMode.READONLY)], (
+            f"load must open READONLY regardless of the file's permissions; got {opens}"
+        )
+        assert all(handle._project_h5 is None for handle in instances), (
+            "a load that raises must still close its handle -- an open read-write handle is "
+            "what left the superblock marked for the rest of the session"
+        )
+
+    def test_successful_load_leaves_the_file_unchanged(
+        self,
+        write_minimal_h5_project: Callable[..., Path],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        tmp_path: Path,
+        monkeypatch,
+    ) -> None:
+        # Arrange -- a synthetic project that loads cleanly, so this covers the
+        # normal path rather than only the error path above.
+        project = write_minimal_h5_project(
+            minimal_HidraWorkspace(with_instrument=True), filename="loadable.h5", with_instrument=True
+        )
+        assert os.access(project, os.W_OK)
+        digest_before = _digest(Path(project))
+
+        opens, instances = _recording_project_file(monkeypatch)
+
+        # Act
+        rs_core = pyrscore.PyRsCore()
+        workspace = rs_core.load_hidra_project(str(project), "no-mutation-on-success", False, True)
+
+        # Assert -- the digest states the intent; the two below carry the guarantee.
+        assert workspace is not None
+        assert _digest(Path(project)) == digest_before, "a successful load modified the project file on disk"
+        assert opens == [(Path(project).name, HidraProjectFileMode.READONLY)], (
+            f"load must open READONLY regardless of the file's permissions; got {opens}"
+        )
+        assert all(handle._project_h5 is None for handle in instances), "the handle must be closed after loading"
 
 
 def broken_test_pole_figure_calculation():
@@ -45,7 +183,7 @@ def test_main():
     rs_core = pyrscore.PyRsCore()
 
     # pre-requisite is that the data file exists
-    test_data = "tests/data/Hidra_16-1_cor_log.h5"
+    test_data = str(Path(__file__).resolve().parents[2] / "tests" / "data" / LEGACY_SCHEMA_FIXTURE)
     assert os.path.exists(test_data), "File {} does not exist".format(test_data)
 
     # load data
