@@ -15,15 +15,33 @@ _logger = logging.getLogger(__name__)
 
 
 def impose_extension(filename: str, extension: str) -> str:
-    """Append ``extension`` (e.g. '.nxs') to ``filename`` if it has no extension.
+    """Append ``extension`` (e.g. 'nxs') to ``filename`` if it has no extension.
 
     A name that already has an extension is returned unchanged: replacing it
     would cut a dotted name short (``HB2B_1327.v2`` would become
     ``HB2B_1327.nxs``). Whether an existing extension is acceptable is
     `resolve_save_target`'s decision, not this function's.
+
+    The leading dot is implied, and added by `dotted`.
     """
     path = Path(filename)
-    return filename if path.suffix else str(path.with_name(path.name + extension))
+    return filename if path.suffix else str(path.with_name(path.name + dotted(extension)))
+
+
+def dotted(extension: str) -> str:
+    """``extension`` as `pathlib` reports a suffix: with exactly one leading dot.
+
+    The dot is a `pathlib` separator rather than part of the extension, so
+    `nxstress.extension` is configured as `"nxs"`; `ConfigSchema` rejects a
+    configured value that carries one, so that a reader never has to wonder
+    whether the dot was configured or supplied. A value that does carry one is
+    still accepted here, since this is also reached with literals.
+
+    Example:
+        >>> dotted("nxs") == dotted(".nxs") == ".nxs"
+        True
+    """
+    return "." + extension.lstrip(".")
 
 
 def confirm_replace(parent, filename: str) -> bool:
@@ -66,21 +84,21 @@ def resolve_save_target(
     Args:
         parent: Parent widget for any message or question box.
         filename: The name chosen in the save dialog.
-        extension: The format's configured extension, e.g. '.nxs'.
+        extension: The format's configured extension, e.g. 'nxs' (see `dotted`).
         format_name: The format's name as the user knows it, e.g. 'NXstress'.
-        also_accepted: Further extensions accepted as typed, e.g. ('.hdf5',).
+        also_accepted: Further extensions accepted as typed, e.g. ('hdf5',).
 
     Returns:
         The path to write, or None if the save should not go ahead.
     """
     suffix = Path(filename).suffix
-    if suffix == extension or suffix in also_accepted:
+    if suffix == dotted(extension) or suffix in {dotted(other) for other in also_accepted}:
         return filename
     if suffix:
         pop_message(
             parent,
             f"Unable to save {format_name} format as '*{suffix}'",
-            f"Use a file name ending in '{extension}'; nothing was saved to '{Path(filename).name}'.",
+            f"Use a file name ending in '{dotted(extension)}'; nothing was saved to '{Path(filename).name}'.",
             "error",
         )
         return None

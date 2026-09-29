@@ -28,6 +28,7 @@ import pyrs.interface.gui_helper
 from pyrs.interface.gui_helper import (
     browse_dir,
     browse_file,
+    dotted,
     nxstress_save_available,
     parse_integers,
     pop_message,
@@ -209,7 +210,7 @@ class PeakFittingViewer(QMainWindow):
         target = self.current_hidra_file_name
         if isinstance(target, list):
             target = target[0]
-        if Path(target).suffix == Config["nxstress.extension"]:
+        if Path(target).suffix == dotted(Config["nxstress.extension"]):
             # The same conditions as *Save as NXstress...*.
             if not nxstress_save_available(self._model.hidra_workspace):
                 pop_message(

@@ -8,6 +8,7 @@ import pytest
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.interface import gui_helper
 from pyrs.interface.gui_helper import (
+    dotted,
     impose_extension,
     nxstress_save_available,
     resolve_save_target,
@@ -53,6 +54,27 @@ def replace_answer(monkeypatch: pytest.MonkeyPatch) -> List[bool]:
 )
 def test_impose_extension_appends_only_when_missing(filename: str, expected: str) -> None:
     assert impose_extension(filename, ".nxs") == expected
+
+
+@pytest.mark.parametrize("extension", ["nxs", ".nxs"], ids=["bare", "dotted"])
+def test_dotted_has_one_leading_dot(extension: str) -> None:
+    assert dotted(extension) == ".nxs"
+
+
+def test_impose_extension_bare_extension_gets_dot() -> None:
+    """Configured extensions carry no dot (`ConfigSchema` refuses one)."""
+    assert impose_extension("out", "nxs") == "out.nxs"
+
+
+@pytest.mark.parametrize(
+    "typed, expected",
+    [("out.nxs", "out.nxs"), ("out.hdf5", "out.hdf5"), ("out.h5", None)],
+    ids=["as-typed", "also", "other"],
+)
+def test_resolve_save_target_bare_extensions(typed: str, expected: Optional[str], messages: List[str]) -> None:
+    """The configured form, without a dot, decides the same as the dotted one."""
+    target = resolve_save_target(None, typed, extension="nxs", format_name="NXstress", also_accepted=("hdf5",))
+    assert target == expected
 
 
 def test_resolve_save_target_right_extension_as_typed(

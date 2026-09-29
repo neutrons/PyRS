@@ -16,6 +16,7 @@ from nexusformat.nexus import (
     NXsource,
 )
 from pathlib import Path
+import numpy as np
 
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.peaks.peak_collection import PeakCollection
@@ -31,39 +32,20 @@ import pytest
 
 
 class TestNXstress:
-    @pytest.fixture(autouse=True)
-    def setUp(self, load_HidraWorkspace, createPeakCollection):
-        """
-        self.sampleLogs = self.ws._sample_logs
-        self.subruns = self.ws._sample_logs.subruns.raw_copy()
+    """End-to-end tests for `NXstress.py`, each building the workspace it needs.
 
-        N_subrun = len(self.subruns)
-        self.peak0 = createPeakCollection(
-            peak_tag="Al 251540",
-            peak_profile="Gaussian",
-            background_type="Quadratic",
-            wavelength=25.4,
-            projectfilename="/does/not/exist.h5",
-            runnumber=12345,
-            N_subrun=N_subrun
-        )
-        self.peak1 = createPeakCollection(
-            peak_tag="111 Si",
-            peak_profile="PseudoVoigt",
-            background_type="Linear",
-            wavelength=10.1,
-            projectfilename="/does/not/exist2.h5",
-            runnumber=12346,
-            N_subrun=N_subrun
-        )
-        """
-        # Unfortunately, no available project file actually includes
-        # all of the necessary data to initialize the NXstress file.
-        # The tests below, use different files to verify different sections.
-        yield
+    There is no shared setup. An `autouse` `setUp` fixture used to sit here,
+    requesting `load_HidraWorkspace` and `createPeakCollection` and using
+    neither: its whole body was a triple-quoted string, so it assigned nothing,
+    and the `self.ws` it referenced was never set -- reviving it would have
+    raised `AttributeError` on the first line. It was removed rather than
+    repaired, because the reason it was abandoned still holds and is worth
+    keeping:
 
-        # teardown follows ...
-        pass
+    **No single available project file carries everything an NXstress entry
+    needs**, so the tests below each use whichever source exercises the section
+    under test, and construct it locally.
+    """
 
     def test_NXstress_context_manager(
         self,
@@ -90,7 +72,7 @@ class TestNXstress:
         assert not file_path.exists()
 
         with NXstress(file_path, "w") as nx:
-            nx.write(ws, [peak0])
+            nx.write([ws], [[peak0]])
             assert nx._root is not None
         assert file_path.exists()
 
@@ -105,7 +87,7 @@ class TestNXstress:
 
         required_datasets = ("definition", "start_time", "end_time", "processing_type")
 
-        entry = NXstress._init(ws)
+        entry = NXstress._init([ws])
         assert isinstance(entry, NXentry)
         for key in required_datasets:
             assert key in entry
@@ -139,7 +121,7 @@ class TestNXstress:
             (GROUP_NAME.PEAKS, NXreflections),
         )
 
-        entry = NXstress.init_group(ws, [peak0])
+        entry = NXstress.init_group([ws], [[peak0]])
         assert isinstance(entry, NXentry)
         for key, NXclass_ in required_groups:
             assert key in entry
@@ -168,7 +150,7 @@ class TestNXstress:
             N_subrun=N_subrun,
         )
 
-        entry = NXstress.init_group(ws, [peak0])
+        entry = NXstress.init_group([ws], [[peak0]])
         assert isinstance(entry, NXentry)
         key, NXclass_ = GROUP_NAME.INPUT_DATA, NXdata
         assert key in entry
@@ -201,7 +183,7 @@ class TestNXstress:
             N_subrun=N_subrun,
         )
 
-        entry = NXstress.init_group(ws, [peak0])
+        entry = NXstress.init_group([ws], [[peak0]])
         assert isinstance(entry, NXentry)
         key, NXclass_ = GROUP_NAME.INPUT_DATA, NXdata
         assert key in entry
@@ -240,8 +222,12 @@ class TestNXstress:
 
         file_path = tmp_path / "test_NXstress_multiple_NXentry.nxs"
         with NXstress(file_path, "w") as nx:
-            nx.write(ws, [peak0])
-            nx.write(ws, [peak1])
+            nx.write([ws], [[peak0]])
+            # `entry_number` is what distinguishes "write another entry" from "grow the
+            # one already there": a bare second `write` targets the highest existing
+            # entry and tail-appends to it (spec 04c). Naming the next free number is
+            # how a second entry is requested.
+            nx.write([ws], [[peak1]], entry_number=2)
             root = nx._root
 
             assert root is not None
@@ -270,7 +256,7 @@ class TestNXstress:
             (GROUP_NAME.MASKS, NXcollection),
         )
 
-        inst = _Instrument.init_group(ws)
+        inst = _Instrument.init_group([ws])
         assert isinstance(inst, NXinstrument)
         for key in required_fields:
             assert key in inst
@@ -310,7 +296,7 @@ class TestNXstress:
         )
         required_subgroups: list[tuple[str, type[object]]] = []
 
-        sample = _Sample.init_group(ws._sample_logs)
+        sample = _Sample.init_group([ws._sample_logs])
         assert isinstance(sample, NXsample)
         for key in required_fields:
             assert key in sample
@@ -348,7 +334,7 @@ class TestNXstress:
             (GROUP_NAME.DIFFRACTOGRAM, NXdata),
         )
 
-        fit = _Fit.init_group(ws, [peak0], sampleLogs)
+        fit = _Fit.init_group([ws], _Peaks.indexed([peak0], sampleLogs), [sampleLogs])
         assert isinstance(fit, NXprocess)
         for key in required_fields:
             assert key in fit
@@ -382,7 +368,7 @@ class TestNXstress:
         nx = NXstress(file_path, "w")
 
         with pytest.raises(RuntimeError, match=r".*only usage as context manager is supported.*"):
-            nx.write(ws, [peak0])
+            nx.write([ws], [[peak0]])
 
     def test_NXentry_init_fallback_timestamps(
         self,
@@ -398,10 +384,38 @@ class TestNXstress:
         ws._sample_logs["end_time"] = bad_timestamps
 
         # Should not raise - fallback path handles this
-        entry = NXstress._init(ws)
+        entry = NXstress._init([ws])
         assert isinstance(entry, NXentry)
         assert "start_time" in entry
         assert "end_time" in entry
+
+    def test_NXentry_init_accepts_str_timestamps(
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+    ):
+        """A `str`-valued time log must not crash the writer.
+
+        `_entryTimes` decoded every value unconditionally, inside a `try` that
+        catches only `ValueError` -- the clause that substitutes `NO_LOG` for an
+        unparseable timestamp. A `str` log therefore raised `AttributeError`
+        straight past it, and on the append path `_appendEntryTimes` is the first
+        mutation step, so the instance was invalidated for what was only a type
+        mismatch. In-memory logs are now normalized to `str`, which makes this the
+        ordinary case rather than the exotic one.
+        """
+        # Arrange
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        stamps = [f"2024-01-15T10:{n:02d}:00" for n in range(len(ws._sample_logs.subruns))]
+        ws._sample_logs["start_time"] = np.array(stamps)
+        ws._sample_logs["end_time"] = np.array(stamps)
+
+        # Act
+        start_times, end_times = NXstress._entryTimes([ws])
+
+        # Assert -- parsed, not substituted with the `NO_LOG` sentinel
+        assert len(start_times) == len(stamps)
+        assert all(t.startswith("2024-01-15T10:") for t in start_times)
+        assert start_times == end_times
 
     def test_validateWorkspaceAndPeaksData_valid(
         self,
@@ -425,7 +439,7 @@ class TestNXstress:
         )
 
         # Should not raise
-        NXstress._validateWorkspaceAndPeaksData(ws, [peak0])
+        NXstress._validateWorkspaceAndPeaksData([ws], [[peak0]], _Peaks.indexed([peak0], sampleLogs))
 
     def test_NXentry_definition_value(
         self,
@@ -434,7 +448,7 @@ class TestNXstress:
         """Verify entry['definition'] is 'NXstress' and processing_type is 'd-spacing'"""
         ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
 
-        entry = NXstress._init(ws)
+        entry = NXstress._init([ws])
         assert entry["definition"] == "NXstress"
         assert entry["processing_type"] == "d-spacing"
 
@@ -474,7 +488,7 @@ class TestNXstress:
             "form_factor_errors",
         )
 
-        peak_parameters = _PeakParameters.init_group([peak0])
+        peak_parameters = _PeakParameters.init_group(_Peaks.indexed([peak0]))
         assert isinstance(peak_parameters, NXparameters)
         for key in required_fields:
             assert key in peak_parameters
@@ -518,7 +532,7 @@ class TestNXstress:
             "A2_errors",
         )
 
-        background_parameters = _BackgroundParameters.init_group([peak0])
+        background_parameters = _BackgroundParameters.init_group(_Peaks.indexed([peak0]))
         assert isinstance(background_parameters, NXparameters)
         for key in required_fields:
             assert key in background_parameters
@@ -554,7 +568,7 @@ class TestNXstress:
         )
         required_subgroups: list[tuple[str, type[object]]] = []
 
-        dgram = _Diffractogram.init_group(ws, "_DEFAULT_", [peak0])
+        dgram = _Diffractogram.init_group([ws], "_DEFAULT_", _Peaks.indexed([peak0]))
         assert isinstance(dgram, NXdata)
         for key in required_attributes:
             assert key in dgram.attrs
@@ -567,7 +581,6 @@ class TestNXstress:
 
     def test__Peaks_fields_and_subgroups(
         self,
-        tmp_path: Path,
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
         createPeakCollection: Callable[..., PeakCollection],
     ):
@@ -603,7 +616,7 @@ class TestNXstress:
         )
         required_subgroups: list[tuple[str, type[object]]] = []
 
-        peaks = _Peaks.init_group([peak0], sampleLogs)
+        peaks = _Peaks.init_group(_Peaks.indexed([peak0], sampleLogs), sampleLogs)
         assert isinstance(peaks, NXreflections)
         for key in required_fields:
             assert key in peaks
@@ -653,7 +666,7 @@ class TestNXstress:
         required_fields = ("scan_point", "detector_counts")
         required_subgroups: list[tuple[str, type[object]]] = []
 
-        data = _InputData.init_group(ws)
+        data = _InputData.init_group([ws])
         assert isinstance(data, NXdata)
         for key in required_attributes:
             assert key in data.attrs
@@ -676,7 +689,7 @@ class TestNXstress:
         required_fields = ("scan_point", "detector_counts")
         required_subgroups: list[tuple[str, type[object]]] = []
 
-        data = _InputData.init_group(ws)
+        data = _InputData.init_group([ws])
         assert isinstance(data, NXdata)
         for key in required_attributes:
             assert key in data.attrs
