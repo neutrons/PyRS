@@ -16,16 +16,14 @@ wait = 500
 plot_wait = 100
 
 
-@pytest.fixture(scope="session")
-def combine_projects_window(my_qtbot):
-    r"""
-    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
-    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
-    """
+@pytest.fixture
+def combine_projects_window(qtbot):
+    """A fresh combine-projects window for each test, closed afterwards (see `tests/ui/conftest.py`)."""
     model = CombineRunsModel()
     ctrl = CombineRunsCrtl(model)
     window = CombineRunsViewer(model, ctrl)
-    return window, my_qtbot
+    qtbot.addWidget(window)
+    return window, qtbot
 
 
 def test_merged_projectfile_viewer(combine_projects_window):

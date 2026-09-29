@@ -77,6 +77,7 @@ SCHEMA: dict[str, object] = {
     },
     "exclude": {
         "paths": list,
+        "dirs": list,
     },
     "code": {
         "roots": list,
@@ -258,6 +259,7 @@ def _classify(series_dir: Path, cfg: dict) -> dict[str, list[Path]]:
     # themselves, which are scanned.
     probes_dir = series["probes"].rstrip("/")
     findings_path = series["findings"]
+    exclude_dirs = [d.rstrip("/") for d in cfg["exclude"]["dirs"]]
 
     buckets: dict[str, list[Path]] = {
         "readme": [],
@@ -287,13 +289,21 @@ def _classify(series_dir: Path, cfg: dict) -> dict[str, list[Path]]:
                 if "excluded" not in hits:
                     hits.append("excluded")
                 exclude_hits[pattern] += 1
+        # A directory exclusion holds whether or not the directory currently
+        # contains any `*.md`, which is the whole point of it: a glob cannot
+        # express "and anything added here later". Its staleness check is that
+        # the directory exists, enforced at load, rather than the zero-match
+        # rule that guards `paths`.
+        for excluded_dir in exclude_dirs:
+            if rel.startswith(f"{excluded_dir}/") and "excluded" not in hits:
+                hits.append("excluded")
 
         if not hits:
             _fail(
                 f"{rel} matches no classification. Every *.md under the series "
                 f"directory must match exactly one of [series.readme], "
                 f"[series.subspecs], [series.open_questions], [series.probes], "
-                f"[series.findings] or [exclude.paths]."
+                f"[series.findings], [exclude.paths] or [exclude.dirs]."
             )
         if len(hits) > 1:
             _fail(f"{rel} matches more than one classification: {', '.join(hits)}")
@@ -384,6 +394,15 @@ def load(series_dir: str | Path) -> Manifest:
     oq_dir = series_dir / series["open_questions"]
     if not oq_dir.is_dir():
         _fail(f"[series.open_questions] = {series['open_questions']!r} resolves to {oq_dir}, which is not a directory")
+
+    for name in cfg["exclude"]["dirs"]:
+        candidate = series_dir / name
+        if not candidate.is_dir():
+            _fail(
+                f"[exclude.dirs] entry {name!r} resolves to {candidate}, which is not a directory. "
+                f"A directory exclusion is stale in exactly the way a zero-match [exclude.paths] "
+                f"pattern is, and is caught the same way."
+            )
 
     for key in OUTPUT_PATH_KEYS:
         if not series[key]:

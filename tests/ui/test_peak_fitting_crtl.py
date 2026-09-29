@@ -80,3 +80,36 @@ def test_plot_diff_and_fitted_data_fitted_none_does_not_raise(
     # Assert
     assert len(fake_view.experiment_calls) == 1
     assert len(fake_view.fitted_calls) == 0
+
+
+class _FakeDiffPlotView(_FakeFitSetupView):
+    """Adds the reset `plot_diff_data` calls first."""
+
+    def reset_viewer(self) -> None:
+        pass
+
+
+class TestSubRunNumbersAreNotPositions:
+    """Typed sub-runs are numbers, not positions. Recorded under DD-2 in
+    `plans/PR_review/deferred-defects.md`."""
+
+    @pytest.mark.xfail(reason="DD-2: one typed sub-run is used as a 1-based position", raises=IndexError, strict=True)
+    def test_plot_diff_data_one_typed_sub_run(self, peak_model: PeakFittingModel) -> None:
+        """Only the number-to-position mapping is under test, so the per-sub-run
+        plot is recorded rather than drawn."""
+        # Arrange
+        crtl = PeakFittingCrtl(peak_model)
+        drawn: list = []
+        crtl.plot_diff_and_fitted_data = lambda view, sub_run: drawn.append(sub_run)  # type: ignore[method-assign]
+
+        # Act
+        returned = crtl.plot_diff_data(_FakeDiffPlotView(), [6], [5, 6, 7])  # type: ignore[arg-type]
+
+        # Assert
+        assert (returned, drawn) == (6, [6])
+
+    @pytest.mark.xfail(reason="DD-2: typed sub-runs are used as 0-based positions", raises=AssertionError, strict=True)
+    def test_parse_sub_run_list_selects_every_typed_sub_run(self, peak_model: PeakFittingModel) -> None:
+        """Typing all of sub-runs 1..3 used to select positions [1, 2] -- two of them."""
+        selected = PeakFittingCrtl(peak_model).parse_sub_run_list([1, 2, 3], 3)
+        assert selected.tolist() == [0, 1, 2]

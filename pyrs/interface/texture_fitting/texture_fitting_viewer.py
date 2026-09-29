@@ -95,7 +95,21 @@ class FileLoad(QWidget):
 
     def load_project_plot(self):
         self._reset_fit_data()
-        self._parent.controller.load_projectfile(self._parent._project_file)
+        try:
+            self._parent.controller.load_projectfile(self._parent._project_file)
+        except (RuntimeError, TypeError, ValueError) as load_err:
+            # Previously unguarded: a load failure escaped into Qt, leaving the
+            # user a traceback on stderr and a window that looked as though
+            # nothing had happened. `loadRunNumber` above already reports its own
+            # failures this way. Everything below assumes a loaded workspace, so
+            # this returns rather than carrying on against the previous one.
+            pop_message(
+                self,
+                f"Unable to load {self._parent._project_file}",
+                detailed_message=str(load_err),
+                message_type="error",
+            )
+            return
         self._parent.update_diffraction_data_plot()
         self._parent.fit_setup.sl.setMaximum(self._parent.model.sub_runs.size - 1)
         self._parent.fit_summary.setup_out_of_plane_angle(self._parent.model.ws.reduction_masks)

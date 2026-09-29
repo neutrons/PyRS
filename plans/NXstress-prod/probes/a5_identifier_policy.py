@@ -62,18 +62,30 @@ from __future__ import annotations
 
 import glob
 import itertools
+import re
 import sys
 
 import h5py
 
 MARK = "__"
 
+# NeXus `validItemName`, from `nxdl.xsd` of nexusformat/definitions (NXDL v2026.01,
+# commit 004da96e). Pinned by `a4_validitemname_rule.py`, which reads it live.
+VALID_ITEM_NAME = "[a-zA-Z0-9_]([a-zA-Z0-9_.]*[a-zA-Z0-9_])?"
+MAX_NAME_LEN = 63
+RULE = re.compile(f"^{VALID_ITEM_NAME}$")
 
-def _legal_at(ch: str, lead: bool) -> bool:
-    """Is ``ch`` legal at this position of a Python identifier?"""
-    if not ch.isascii():
-        return False
-    return (ch + "x").isidentifier() if lead else ("x" + ch).isidentifier()
+_EDGE = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
+_INTERIOR = _EDGE | {"."}
+
+
+def _legal_at(ch: str, *, edge: bool) -> bool:
+    """Is ``ch`` legal at this position of a NeXus identifier?
+
+    The rule is position-dependent in exactly one way: ``.`` is permitted in the
+    interior but not as the first or last character.
+    """
+    return ch in (_EDGE if edge else _INTERIOR)
 
 
 def _escape(ch: str) -> str:
@@ -81,18 +93,20 @@ def _escape(ch: str) -> str:
 
 
 def encode(s: str) -> str:
-    """Map an arbitrary PV-log name to a valid Python identifier, reversibly."""
+    """Map an arbitrary PV-log name to a valid NeXus identifier, reversibly."""
     out: list[str] = []
+    last = len(s) - 1
     for i, ch in enumerate(s):
+        edge = i == 0 or i == last
         if ch == "_":
             nxt = s[i + 1] if i + 1 < len(s) else ""
             # Escape only when the NEXT emitted token would also start with '_',
             # which is the only way a lone '_' could be misread as an introducer.
-            if nxt == "_" or (nxt != "" and not _legal_at(nxt, False)):
+            if nxt == "_" or (nxt != "" and not _legal_at(nxt, edge=(i + 1 == last))):
                 out.append(_escape("_"))
             else:
                 out.append("_")
-        elif _legal_at(ch, i == 0):
+        elif _legal_at(ch, edge=edge):
             out.append(ch)
         else:
             out.append(_escape(ch))
@@ -172,6 +186,10 @@ def main() -> int:
     )
 
     # --- Alternative 3: is there any authoritative NeXus rule to check against? ---
+    # SUPERSEDED. Round one answered "no" by searching only the installed
+    # `nexusformat` package, and concluded `.` was unverifiable. The rule is
+    # published in `nxdl.xsd` of nexusformat/definitions -- a separate artifact
+    # the package does not ship. `a4_validitemname_rule.py` reads it live.
     import pathlib
 
     import nexusformat
@@ -185,19 +203,28 @@ def main() -> int:
         and "validItemName" in p.read_text(errors="replace")
     ]
     report(
-        "an authoritative NeXus identifier rule is available (alternative 3)",
+        "the INSTALLED nexusformat package carries the rule (what round one asked)",
         f"FALSE -- files in nexusformat defining `validItemName`: {rule_files or 'NONE'}. "
-        f"The absence IS the finding; the schema doc is still not in the repo.",
+        f"Round one stopped here and called `.` unverifiable. That was the wrong place "
+        f"to look: the rule lives in `nxdl.xsd` of the definitions REPOSITORY.",
+    )
+    report(
+        "the rule is available, and permits `.` in the interior (alternative 3, reopened)",
+        f"TRUE -- {VALID_ITEM_NAME!r}, maxLength {MAX_NAME_LEN}. "
+        f"So `.` was legal all along, and Decision 23 rejected it on an absence "
+        f"rather than on a fact.",
     )
 
     report(
-        "`$` is legal in a Python identifier",
-        "FALSE -- punctuation legal in a Python identifier: "
-        f"{[c for c in '_.$:- @#!' if ('a' + c + 'b').isidentifier()]}",
+        "punctuation the ADOPTED rule permits, vs the Python-identifier rule",
+        f"NeXus: {[c for c in '_.$:- @#!' if RULE.match('a' + c + 'b')]} ; "
+        f"Python: {[c for c in '_.$:- @#!' if ('a' + c + 'b').isidentifier()]} "
+        f"-- `.` is the difference, and it is why `__` stays the marker: `.` cannot "
+        f"lead or trail, so it is not safe as an introducer.",
     )
 
     names = real_log_names()
-    already = {n for n in names if n.isidentifier()}
+    already = {n for n in names if RULE.match(n)}
     report(
         "the rule is workable against REAL log names",
         f"{len(names)} distinct names sampled from tests/data; "
@@ -207,15 +234,24 @@ def main() -> int:
     )
 
     print("\n  legibility -- the point of the `__` introducer:")
-    for s in ["my_log_value", "average_value", "_DEFAULT_", "a_3Ab", "HB2B:Mot:sz_real", "Scan Index", "2theta"]:
+    for s in [
+        "my_log_value",
+        "average_value",
+        "_DEFAULT_",
+        "a_3Ab",
+        "HB2B:Mot:sz_real",
+        "Scan Index",
+        "2theta",
+        "HB2B:Mot:IS:Y:Center.RBV",
+    ]:
         e = encode(s)
         flag = "  <- unchanged" if e == s else ""
         print(f"    {s!r:24} -> {e!r:30} rt={decode(e) == s}{flag}")
 
     print("\n  adversarial -- inputs that could be misread as escapes:")
-    for s in ["a__b", "a___b", "a_:b", "__", "_", "a$b", "ü"]:
+    for s in ["a__b", "a___b", "a_:b", "__", "_", "a$b", "ü", ".lead", "trail.", "a.b"]:
         e = encode(s)
-        print(f"    {s!r:10} -> {e!r:18} id={e.isidentifier()} rt={decode(e) == s}")
+        print(f"    {s!r:10} -> {e!r:18} ok={bool(RULE.match(e))} rt={decode(e) == s}")
 
     escaped = sorted(n for n in names if f"{MARK}5F" in encode(n))
     report(
@@ -224,16 +260,23 @@ def main() -> int:
         f"single-underscore introducer, which is every name containing '_'.",
     )
 
-    ok = all(encode(n).isidentifier() and decode(encode(n)) == n for n in names)
+    ok = all(RULE.match(encode(n)) and decode(encode(n)) == n for n in names)
+    over = sorted(n for n in names if len(encode(n)) > MAX_NAME_LEN)
     report(
         "every real name encodes to a valid identifier AND round-trips",
         f"{ok} over all {len(names)} sampled names",
+    )
+    report(
+        "any real name exceeds the 63-character cap once encoded",
+        f"{over or 'NONE'} -- longest encoded form: "
+        f"{max((len(encode(n)) for n in names), default=0)} chars. The cap is still "
+        f"enforced in code: it is reachable in principle (see a4 probe), just not here.",
     )
 
     seen2: dict[str, str] = {}
     clash2 = None
     for n in range(1, 6):
-        for tup in itertools.product(["A", "_", ":", "3"], repeat=n):
+        for tup in itertools.product(["A", "_", ":", "3", "."], repeat=n):
             s = "".join(tup)
             e = encode(s)
             if e in seen2 and seen2[e] != s:

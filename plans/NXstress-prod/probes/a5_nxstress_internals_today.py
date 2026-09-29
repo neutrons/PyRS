@@ -98,7 +98,7 @@ def main() -> int:
     )
 
     # --- Beyond claim 1: is the conversion many-to-one, and is that detected? ---
-    # `_sample.py:127-137` iterates EVERY sample log, converts the key, and
+    # `_sample.py:191-201` iterates EVERY sample log, converts the key, and
     # writes into a flat NXcollection. If two keys converge, the second
     # overwrites the first -- including the `local_name` attribute that is
     # supposed to preserve the original PV name.

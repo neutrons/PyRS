@@ -17,9 +17,10 @@ extending `NXreflections` beyond the schema's required columns.
 
 That assumption doesn't hold: `_peaks.py::_init` already writes `mask`,
 `scan_point`, `center`, `center_errors`, `center_type`, and `sx`/`sy`/`sz`
-onto `NXreflections` (`_peaks.py:100-172`), and the module's own docstring
-(`_peaks.py:37-40`) states only `h`/`k`/`l`/`phase_name` (plus the unused
-`qx`/`qy`/`qz`) are schema-required — `mask` explicitly was not part of
+onto `NXreflections` (`_peaks.py:168-262`), and the module's own docstring
+(`_peaks.py:32-39`) states only `h`/`k`/`l`/`phase_name` are schema-required
+(the unused `qx`/`qy`/`qz` are recorded as required at `_peaks.py:196-198`, not
+in that docstring) — `mask` explicitly was not part of
 `PeakCollection` before this implementation added it. A discriminator column
 is the same category of extension `NXreflections` already tolerates in
 practice.
@@ -144,10 +145,10 @@ sorting was never actually required by the NXstress reader — only a
 "nice to have."
 
 **Verified directly, and confirmed correct.** `_Peaks.peakCollectionRanges`
-(`_peaks.py:246-338`) — the only reader-side splitter — enforces only
+(`_peaks.py:446-559`) — the only reader-side splitter — enforces only
 contiguity of each compound key's run and monotonic `scan_point` within a
 run, never global order; the monotonic-`scan_point` invariant is itself
-guaranteed upstream by `SubRuns.set` (`sample_logs.py:164-166`), not by
+guaranteed upstream by `SubRuns.set` (`sample_logs.py:167-168`), not by
 NXstress's `sorted()` calls. See `04c`'s `open-questions` Q5 for the full
 verification writeup (shared across both specs).
 
@@ -156,7 +157,7 @@ verification writeup (shared across both specs).
 input workspace's rows one contiguous super-block in every position-aligned
 group, which in turn simplifies the read-side workspace split (a `groupby`
 over already-contiguous ranges, not new indexing machinery) and keeps the
-scan-point family's existing exact-match reader (`_input_data.py:70-72`)
+scan-point family's existing exact-match reader (`_input_data.py:170-172`)
 working unchanged, since each workspace's slice of the concatenated array
 equals its own `get_sub_runs()` verbatim.
 
@@ -168,15 +169,19 @@ changed," not by re-deriving the writer's sort order, so
 later read — the exact scenario name-keying (Q2) protects against — still
 cannot corrupt anything under this ordering rule either.
 
-**Also flagged for correction at implementation time:** `_peaks.py:44-45`'s
-docstring currently states global lexicographic sorting as a format
+**Also flagged for correction at implementation time — since done:**
+`_peaks.py`'s module docstring stated global lexicographic sorting as a format
 guarantee ("the entire index set will be sorted lexographically prior to
 output... makes the append operation more complicated, but provides
-robustness against duplicates"). That framing is now known to be
-inaccurate on two counts: the actual guarantee is the two invariants above
-(not a specific global order), and the robustness against duplicates it
-credits to sorting is actually delivered by `validateNoDuplicatePeaks`
-and the contiguity check, independent of sort order.
+robustness against duplicates"). That framing was inaccurate on two counts: the
+actual guarantee is the two invariants above (not a specific global order), and
+the robustness against duplicates it credits to sorting is actually delivered by
+`validateNoDuplicatePeaks` and the contiguity check, independent of sort order.
+
+`_peaks.py:53-60` now says exactly that, including that a global lexicographic
+sort is *not* guaranteed, and points at Decisions Log item 17. The quoted text
+above is the superseded wording, kept because this entry is the record of what
+was flagged.
 
 ---
 
@@ -218,7 +223,7 @@ error immediately, not a silently-unsplittable file discovered later at
 question:** the Scope/NXstress-Changes bullets describing
 `_Instrument.init_group`'s "validate consistency across N inputs" claim
 incorrectly grouped wavelength with geometry/shift/calibration-state.
-Wavelength is per-scan-point (`_instrument.py:103`) and belongs to the
+Wavelength is per-scan-point (`_instrument.py:227`) and belongs to the
 scan-point family's concatenation pattern instead — corrected in the spec
 text; see the new "Reconstructing N workspaces from the scan-point family"
 subsection.

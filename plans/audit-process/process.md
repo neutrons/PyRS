@@ -394,6 +394,7 @@ no dependency is added. Worked example:
 | `git.base_commit` | **Triple-checked:** the object exists; `git merge-base --is-ancestor <sha> HEAD` passes; and `git log -1 --format=%s` **equals `base_subject`** |
 | `scope.*` | A glob matching zero files, a file in both lists, or a file matched by `subspecs` and in neither, are each errors |
 | `exclude.paths` | Same exhaustiveness rule: every discovered `*.md` matches exactly one classification. A zero-match pattern is an error; so is a path matched both here and by `subspecs` |
+| `exclude.dirs` | Whole directories, excluded whether or not they hold any `*.md` **today**. A glob cannot express "and anything added here later", so a directory that currently holds none — a working prompts directory, say — cannot be covered by `paths` at all: the pattern would match zero files and fail the rule above, while still leaving the loader to break on the day a `*.md` lands there. The staleness check that `paths` gets from zero-match, `dirs` gets from the directory having to exist |
 | `series.probes`, `series.findings` | **Output paths, not inputs: created on demand, never existence-checked.** Every other path key fails loudly when absent; these two are absent on a series' first pass by definition, so applying the same rule would make the manifest unloadable exactly when it is first needed |
 | `code.roots` | Each root must exist; a citation resolving outside them is reported `OUT-OF-SCOPE`, never dropped |
 | any unknown key | Error. Typos are the thing this catches |
@@ -546,6 +547,27 @@ semantic half of A1 and A2, and all of A4 and A5, which are probes not checkers.
    or `stays a probe` -- naming **both** the PR that makes promotion possible and
    the PR that owns the invariant. Do not write the promoted test during the audit:
    **an audit flags, the implementing PR writes.**
+9. **A probe that is expected to fail says so in the file, not only in the index.**
+   An audit re-runs the probe directory, so `retire to record` creates a probe that
+   *must* fail -- and a traceback is indistinguishable from a regression unless the
+   file itself declares it. Such a probe carries three things:
+
+   - `AUDIT_STATUS = "retired"` at module level, after the imports. Absent means
+     live. This is the machine-readable half: a sweep skips, or expects the failure
+     of, any probe that sets it, without parsing prose.
+   - A `RETIRED` block opening the module docstring: why, **the exact failure to
+     expect**, and the sentence *any other failure is a real finding*. Without the
+     exact failure, the annotation excuses every future breakage too.
+   - The per-claim successor map required by item 6, in **both** the file and the
+     index row -- naming a successor *probe* where there is one, and saying
+     **none** where there is not. "Covered by tests" is not a successor: a claim
+     that leaves probe coverage is a coverage change, and the A5 matrix must move
+     with it.
+
+   A retired probe's claims are **not** edited to match current behaviour -- that
+   is item 6, and a log preserves what was believed. But a claim that has since
+   become *false* is marked as false at the claim, or the file reads as a current
+   description of the system to anyone who opens it.
 
 ### 7.6 What these tools cannot do
 

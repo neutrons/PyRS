@@ -46,11 +46,38 @@ followup_prefix = "## Follow-up" # scanned by check_citations.py; see section 7.
 
 [git]
 main_branch = "next"
-base_commit = "7a5ef73f"
-base_subject = "Merge pull request #1000 from neutrons/qt_lock_fix"
+base_commit = "eb5457b16dab"
+base_subject = "Working subspec-implementation prompt, now *applying* the audit process."
 # `base_subject` is the defense against the one manifest error that would
 # otherwise fail SILENTLY: a hash from another branch will exist, and may even be
 # an ancestor, but will not match the subject a human wrote down beside it.
+#
+# THE RULE: `base_commit..HEAD` must span **every landed change the next subspec
+# must see** -- not "the previous subspec's changes". Usually those are the same
+# thing, which is why this was previously written the narrower way. They are not
+# the same when a series is implemented and reviewed as one unit.
+#
+# Never a merge commit: that leaves an EMPTY range, and `landing_trigger.py`
+# would report clean while the claims went stale. Too wide is the benign
+# direction -- it reports citations into files that were already audited, which
+# is noise; too narrow hides citations into files that changed, which is a
+# missed finding. When in doubt, go wider.
+#
+# Advanced for subspec 05 (2026-10-16): set to the commit preceding subspec 04's
+# first commit, so the range spans the ENTIRE 04 series -- 04, 04b, 04c -- plus
+# the 32-batch human PR review of all three. 43 commits. The narrow reading would
+# have pointed this at 04c's predecessor, and 05 would then never see that the
+# review changed `_discriminator.py`, `restorable_property.py`, `workspaces.py`,
+# `_sample.py` and `_instrument.py` under it. The review treated the 04 series as
+# one unit, so the base does too. Expect a correspondingly large
+# `landing_trigger.py` signal; that is the range working, not a fault.
+#
+# Previously "d69e1834e73" (".. defer PR review: subspec 04: final audit pass,
+# ready for 04b"), which spanned 04b alone and whose comment stated the narrow
+# rule superseded above. Before that "eb5457b16dab" -- this same commit, then
+# scoped to 04 only. Before that, 7a5ef73f ("Merge pull request #1000 from
+# neutrons/qt_lock_fix"), this branch's point of divergence, set wide on purpose
+# so the first audit pass could see 01-03 at once. All rationales discharged.
 #
 # The plan documents were authored on an unsquashed parent branch before plans/
 # was re-added at 5b9dfe98, so `git log <planfile>` does NOT date their claims.
@@ -63,9 +90,6 @@ claims_written_against = "492350bd"
 # the silent gap this whole system exists to prevent.
 full = [
   "README.md",
-  "04-*.md",
-  "04b-*.md",
-  "04c-*.md",
   "05-*.md",
   "06-*.md",
   "07-*.md",
@@ -77,6 +101,9 @@ freshness_only = [
   "01-*.md",
   "02-*.md",
   "03-*.md",
+  "04-*.md",
+  "04b-*.md",
+  "04c-*.md",
 ] # landed; claims settled by shipped code
 
 [exclude]
@@ -86,8 +113,19 @@ freshness_only = [
 # A pattern matching zero files is also an error: a stale exclude is as bad as a
 # missing one.
 paths = ["archive/*.md"]
-# prompts/ holds no *.md (only append.prompt.txt), so it needs no pattern -- and
-# adding one would itself be a load error under the zero-match rule above.
+
+# Whole directories, excluded whether or not they hold any *.md today. A glob
+# cannot express "and anything added here later", and `prompts/` holds only
+# `.txt` right now -- so `prompts/*.md` would match zero files and fail the rule
+# above, while leaving a future `prompts/*.md` to break the loader on the day it
+# is added. The staleness check for a directory is that it exists, enforced at
+# load in the same spirit.
+#
+# `prompts/` is the author's working prompt directory: `implementation-prompt.txt`
+# is adjusted before each subspec's implementation begins. It is an input to the
+# work, not a record of it, and is not audited.
+dirs = ["prompts"]
+
 # Excluding is not hiding. archive/ holds superseded drafts: never link-checked,
 # citation-checked or landing-triggered, because a superseded draft is stale BY
 # DEFINITION and reporting its staleness would bury the live findings. But
@@ -97,4 +135,13 @@ paths = ["archive/*.md"]
 [code]
 # Roots a cited repo path may resolve into. A citation resolving outside these is
 # REPORTED as OUT-OF-SCOPE, never silently skipped.
-roots = ["pyrs/", "scripts/", "tests/", "docs/", "pyproject.toml", "pixi.lock"]
+roots = [
+  "pyrs/",
+  "scripts/",
+  "tests/",
+  "docs/",
+  "plans/",
+  "pyproject.toml",
+  "pixi.lock",
+  "CLAUDE.md",
+]

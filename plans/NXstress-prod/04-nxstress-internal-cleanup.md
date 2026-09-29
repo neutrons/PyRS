@@ -323,7 +323,7 @@ anywhere in this series; found by probing
           'HB2B_CS_X' -- the first log is gone, with no record that it existed.
 ```
 
-`_sample.py:127-137` iterates **every** sample log, converts the key, and writes
+`_sample.py:191-201` iterates **every** sample log, converts the key, and writes
 into a flat `NXcollection`. A second key converging on the same identifier
 overwrites the first — **including the `local_name` attribute that exists
 specifically to preserve the original PV name**. So the one mechanism that could
@@ -334,7 +334,7 @@ by this spec; this spec's widening of the conversion makes it **more likely**.
 
 **F3.2** — Why "just disallow them" needs one distinction before it is acted on.
 
-The only production caller (`_sample.py:129`) converts **instrument PV-log
+The only production caller (`_sample.py:193`) converts **instrument PV-log
 names**. That input is not ours: it comes from the control system, and the set
 of names is open-ended. So "disallow" splits into two very different policies:
 
@@ -567,3 +567,579 @@ F4.4's "not avoidable" claim was asserted without probing and then falsified.
 A consolidated decision row records *what was decided*; the Follow-ups record
 *what was believed along the way*, which is what makes a later reader able to
 tell a settled question from a lucky guess.
+
+---
+
+## Follow-up 7 — 2026-09-29 (implementation pass; the schema turned out to exist)
+
+Implementing this spec falsified the premise Follow-up 4 rests on, and turned one
+of its TODOs into a defect larger than the TODO described. Per `process.md` §5.6
+this is budgeted cost, not audit failure. Follow-ups 1-6 are untouched.
+
+**F7.1** (A4) — **The NXstress schema is available, and F4.2's "unverifiable" no
+longer holds.** F4.2 probed the installed `nexusformat` package, found no
+`validItemName`, and concluded a design decision must not rest on `.` being legal.
+The rule is published — not in the package, and not in the application definition
+either, but in `nxdl.xsd` of the NeXus *definitions repository*:
+
+```console
+  CLAIM   `nxdl.xsd` defines a `validItemName` simpleType with a pattern and a length cap
+  RESULT  pattern='[a-zA-Z0-9_]([a-zA-Z0-9_.]*[a-zA-Z0-9_])?' maxLength=63
+
+  CLAIM   `.` is legal in the interior of an identifier (F4.2 called this unverifiable)
+  RESULT  True -- so the unsourced comment in `_definitions.py` was correct.
+          Leading/trailing `.`: False/False
+
+  CLAIM   a LEADING DIGIT is legal (Decision 23's Python rule escapes it)
+  RESULT  True -- `2theta` and `2thetaSetpoint` are real log names, and need no
+          encoding at all under this rule.
+```
+
+The probe reading it live is
+[`probes/a4_validitemname_rule.py`](probes/a4_validitemname_rule.py).
+
+Two corrections follow. First, the round-one search was in the wrong place, not
+absent: the failure mode was concluding "unavailable" from one package's contents.
+Second, **`_definitions.py`'s unsourced comment asserting `.` is interior-legal was
+right all along** — it was disbelieved because it was unsourced, which is the
+correct instinct but produced the wrong answer here.
+
+**F7.2** (A4) — **The 63-character cap is a constraint nothing in this series had
+accounted for**, and encoding *lengthens* names:
+
+```console
+  CLAIM   worst-case encoded length against the cap
+  RESULT  96 chars if EVERY character of the longest name escaped, vs cap 63 --
+          CAN EXCEED, so the encoder must check
+  CLAIM   any real name exceeds the 63-character cap once encoded
+  RESULT  NONE -- longest encoded form: 36 chars
+```
+
+Reachable in principle, not reached by current data. `allowed_identifier` raises
+on it rather than emitting a name NeXus will reject.
+
+**F7.3** — **Adopted rule, superseding Decision 23** (recorded as Decisions row 25).
+Same `__` introducer and the same escape forms; the alphabet widens from
+`str.isidentifier()` to `validItemName`. Measured against the same 185 real names:
+
+```console
+  RESULT  185 distinct names sampled from tests/data; 118 already valid identifiers,
+          67 need encoding; non-ASCII: 0; leading-digit: ['2theta', '2thetaSetpoint']
+    '2theta'                 -> '2theta'                       rt=True  <- unchanged
+    'a.b'                    -> 'a.b'                          rt=True  <- unchanged
+    'HB2B:Mot:IS:Y:Center.RBV' -> 'HB2B__3AMot__3AIS__3AY__3ACenter.RBV' rt=True
+  CLAIM   every real name encodes to a valid identifier AND round-trips
+  RESULT  True over all 185 sampled names
+  CLAIM   the adopted encoding is injective
+  RESULT  YES over 3905 inputs
+```
+
+118 verbatim rather than 116; `2theta` and dotted names stop being mangled.
+Decision 23's stated virtue — "strictly narrower than any plausible NeXus rule, so
+it stays valid whatever the schema says" — held: its output was always conformant,
+merely not minimal.
+
+**F7.4** — **Deviation from the approved plan, recorded because it was deliberate.**
+The plan said `allowed_identifier` should raise on `/`, carrying forward F3.2's
+reasoning that a `/` indicates a bug and h5py silently nests on it. Implementation
+showed that rationale does not survive the encoding: F2.2's nesting result is about
+an **unencoded** `/`, and under a total encoding `a/b` becomes `a__2Fb`, which
+round-trips and creates exactly one group. Raising would discard an entire
+reduction's output over one unanticipated PV name — the failure mode F3.2 itself
+rejected when it chose "restrict the output alphabet" over "reject the input".
+`/` is therefore encoded like any other illegal character. Empty input and the
+63-character overflow still raise: neither is representable.
+
+**F7.5** (A5) — **`_instrument.py`'s transformation chain was not traversable, and
+the defect is larger than the TODO it sits next to.** The TODO at the rotation
+block reads `check order of rotations here!!!`. The order is *correct*. The chain
+is not connected.
+
+`NXtransformations`' own documentation states the entry point "will be outside of
+this class and point to a field in here", and that for `T₁` depending on `T₂`
+depending on `T₃`, `T_f = T₃T₂T₁`. `_instrument.py` set the detector's
+`depends_on` to `translation_x` — the **first** link, whose own `depends_on` is
+`"."` — so traversal ended immediately:
+
+```console
+  CLAIM   how many transformations `_instrument.py` writes
+  RESULT  8: ['translation_x', 'translation_y', 'translation_z', 'distance',
+              'rotation_x', 'rotation_y', 'rotation_z', 'two_theta_zero']
+
+  CLAIM   how many are REACHABLE by following depends_on from the detector
+  RESULT  1 of 8 -- entry point './transformations/translation_x',
+          traversal ['translation_x']
+
+  CLAIM   the composed transform, as the file currently stands
+  RESULT  translation=[0.01, 0.0, 0.0], rotation_is_identity=True
+```
+
+Every rotation and the two-theta zero were written to the file and excluded from
+the geometry. Pointing the entry point at the last link fixes it:
+
+```console
+  RESULT  8 of 8 -- entry point './transformations/two_theta_zero', traversal
+          ['two_theta_zero', 'rotation_z', 'rotation_y', 'rotation_x', 'distance',
+           'translation_z', 'translation_y', 'translation_x']
+  RESULT  translation=[0.01, 0.02, 2.03], rotation_is_identity=False
+```
+
+Probe: [`probes/a5_transformations_chain.py`](probes/a5_transformations_chain.py).
+
+**Why no one noticed, and why the spec's own test would not have caught it.**
+`instrumentFromNexus` reads each transformation *by name* and never follows the
+chain, so a PyRS round trip is insensitive to it. This spec's `## Tests` section
+asks for exactly that round trip — "writes a geometry, reads it back, and asserts
+the rotation components are numerically equal". It would have passed throughout.
+The same shape as `a4_basename_extensions.py`'s finding against spec 07, where
+07's own Verification case was one the two branches agree on. The replacement
+test walks the chain and asserts every written transformation is reached.
+
+**F7.6** — **F1.4 now has a concrete referent, and Chris's Q2 answer has a bad
+citation.** F1.4 left open whether the cross-check referent is
+`DENEXDetectorGeometry` or "the reduction pipeline". `open-questions/04` Q2's
+answer names `file_object.py:generate_rotation_matrix` — **that symbol is not in
+`file_object.py`**; it is `reduce_hb2b_pyrs.py:257`, and the `@`-fix described has
+landed there with regression tests in `tests/unit/pyrs/core/test_reduce_hb2b_pyrs.py`.
+So the reduction pipeline's convention *is* readable, and the probe compares
+against it directly:
+
+```console
+  CLAIM   does the NeXus rotation sub-chain match reduce_hb2b_pyrs's Rx @ Ry @ Rz
+  RESULT  True
+  CLAIM   and with the rotation sub-chain traversed the other way
+  RESULT  False
+```
+
+The written order already agrees with the reduction pipeline. F1.4's question is
+answered in the affirmative for the rotations; the `translation_z`/`distance`
+double-count along `ez` that F2.3 noted remains spec 09's.
+
+**F7.7** (A5) — **The instrument name cannot come from the workspace, because PyRS
+does not record one.** This spec says to draw it "from the `HidraWorkspace` (e.g.,
+from a sample-log entry or a new workspace attribute)". Neither exists: the Hidra
+project format's `instrument` group holds only `calibration`, `efficiency
+calibration`, `geometry setup` and `monochromator setting`, and no sample log
+carries a beamline name. A new workspace attribute is a PyRS data-model change,
+which this spec's Scope puts **out of scope**.
+
+Resolved through configuration instead — `nxstress.instrument_name` and
+`nxstress.instrument_short_name` in `pyrs/resources/application.yml`, read by
+`_Instrument._instrument_names()` with a logged fallback to `"HB2B"`. This meets
+the stated goal ("usable at other beamlines without a code change") using the
+config mechanism spec 01 already shipped, and touches no data model.
+
+**F7.8** — **`peaks/sx,sy,sz` carry `vx,vy,vz`, and the schema settles it.** The
+fields are required (`minOccurs="1"`, dimension `n_Peaks`) and documented as *"the
+sample position in the sample reference frame"*. In PyRS that quantity is
+`PointList.(vx, vy, vz)`; the identically-spelled `sx`/`sy`/`sz` logs are stage
+positions the stress/strain workflow does not use (`open-questions/04` Q3).
+`docs/developer/source/design/nexus/IO_prototype.rst` had already recorded the
+doubt — *"included from the logs, but mostly just because the logs had the same
+variable names -- **this is probably incorrect**!"* — and it was right.
+
+The commented-out block's `# This doesn't make sense!` is now explicable: it read
+`logs['sx']`, which spans **every** workspace scan point, into a slice needing only
+the scan points of one `PeakCollection`. `SampleLogs.get_pointlist(subruns)` takes
+the subset directly. Each field records its real source in `local_name`, because
+the field name alone is misleading (Decisions row 24).
+
+**F7.9** — A tier correction. `review/findings.md` §5 assigns invariants 7-9 to the
+unit tier, and the real-namespace sweep they describe reads `tests/data`, which
+`CLAUDE.md`'s tier rules make integration. Resolved by splitting rather than
+re-tiering: the unit tests exhaust the rule over generated and adversarial inputs
+(every byte value at every position), and the real-namespace measurement stays in
+the probe, where it already was.
+
+**Invariants written by this PR** (the flagged set, plus two the above added):
+
+| # | Invariant | Where |
+|---|---|---|
+| 6 | no legacy log-name `FIXME` in `file_object.py`; no capitalized `"2Theta"` key in code | `tests/unit/pyrs/projectfile/test_file_object.py` |
+| 7 | every character at every position encodes into the NeXus alphabet | `test_definitions.py` |
+| 7b | the 63-character cap is enforced at its edge, and one past it raises | `test_definitions.py` — split out from 7 by the PR review: the length half of 7 was an assertion that could not fail (longest encoding of those inputs is 14, against a cap of 63) |
+| 8 | `decode(encode(name)) == name` over escape-shaped and real-shaped inputs | `test_definitions.py` |
+| 9 | `allowed_identifier` is injective | `test_definitions.py` |
+| 10 | every written transformation is reachable from the detector's `depends_on` | `test_instrument.py` |
+| 11 | default and named masks round-trip; `DEFAULT_TAG` never leaks into the workspace | `test_workspace_read.py` |
+
+Invariant 6's second test walks the AST rather than scanning text: the
+`RuntimeError` that *replaced* the legacy fallback names `"2Theta"` in its own
+docstring, and a text scan cannot distinguish documenting a fix from repeating a
+defect. The first version of that test failed for exactly that reason.
+
+**Still open, recorded rather than assumed.** The schema expresses `peaks/sx,sy,sz`
+in the frame defined by `SAMPLE_DESCRIPTION`'s `NXtransformations` group, which
+PyRS does not write. The values are correct; the frame they are expressed in is
+undefined for an external consumer. Raised as `open-questions/04` Q5 — settling it
+needs goniometer conventions this spec has no referent for.
+
+**F7.10** — **A `## Verification` step is not runnable against this repository, and
+that is a finding rather than a step to skip.** Step 2 reads: "Write a `.nxs` file
+from a real HB2B dataset; inspect sx/sy/sz fields with `h5dump` or the
+`nexusformat` Python API — confirm they are non-NaN."
+
+**No file in `tests/data` can satisfy it.** Writing an NXstress file requires
+instrument geometry and a parseable peak tag; producing non-NaN sample positions
+additionally requires finite `vx`/`vy`/`vz`. Surveying every `tests/data/*.h5`:
+
+```console
+  with geometry + parseable peak tag:   HB2B_938_peak.h5  -- vx/vy/vz NON-FINITE
+  with finite vx/vy/vz:                 3393/3394/3395_PWHT-*.h5, HB2B_1320,
+                                        _1327, _1328, _1331, _1332
+                                        -- ALL lack instrument geometry, and all
+                                           use the unparseable tag 'peak0'
+  with BOTH:                            NONE
+```
+
+The two halves are disjoint. This is the same class as spec 09's `STRESS_FIELD`
+block (`probes/README.md`, "Not probed, and why"): externally blocked by the
+absence of a fixture, not by anything in the design.
+
+**What was verified instead**, separately, so the claim is not left unsupported:
+
+*(a) The non-NaN path, against real logs* — `_Peaks._sample_positions` on
+`HB2B_1327.h5`'s real sample logs:
+
+```console
+  tests/data/HB2B_1327.h5: 150 workspace subruns; PeakCollection covers 150
+    sx[:5] = [-30. -30. -30. -30. -30.]
+    sy[:5] = [3. 6. 3. 6. 3.]
+    sz[:5] = [-10. -10.   0.   0.  10.]
+    all finite: True      any NaN: False
+    matches vx: True
+    equals the sx LOG (should be False -- different quantity): False
+    sx log[:5] = [-8.000972 -8.000972 -8.000972 -8.000972 -8.000972]
+```
+
+> **Superseded by F7.11.** This paragraph went on to say the `sx` **log** is
+> *constant* at -8.000972, making it obviously a stage position. **That was wrong,
+> and wrong in a specific way worth recording: it generalised from the first five
+> of 150 values**, which happen to be equal because the scan's outer loop is over
+> `x`. Over the full array `sx` varies by 60 mm. The conclusion it supported —
+> that the two are different quantities — survives, but the evidence given for it
+> did not. Left standing as the record of what was believed.
+
+Writing the log, as this spec's body instructs, would have recorded the wrong
+quantity, and no test that only checked "not NaN" would have noticed.
+
+*(b) The written file, end to end* — `HB2B_938_peak.h5` → `.nxs`, read back with
+`h5py`:
+
+```console
+  peaks/sx: local_name='vx' units=mm values=[nan]      <- fallback path, logged
+  entry point: ./transformations/two_theta_zero
+  reached  : ['two_theta_zero', 'rotation_z', 'rotation_y', 'rotation_x',
+              'distance', 'translation_z', 'translation_y', 'translation_x']
+  ALL REACHABLE: True
+  'HB2B__3ACS__3AStrainDirection'  <- local_name 'HB2B:CS:StrainDirection'
+  (58 of 120 names needed escaping)
+```
+
+That file exercises the geometry and identifier work on real data, and shows the
+NaN fallback behaving as designed (with its warning) on a dataset whose
+coordinates are genuinely non-finite.
+
+- Action (for a future PR, not this one): either add a `tests/data` fixture
+  carrying geometry *and* finite sample coordinates *and* a parseable peak tag, or
+  restate this Verification step as the two halves above. Recorded rather than
+  quietly marked done. Note this also bears on spec 04b/05, whose round trips will
+  want the same fixture.
+
+**F7.11** — **The fixture now exists, and the relationship between the two log
+families is sharper than F7.10 claimed.** `tests/data/HB2B_1327_with_instrument.h5`
+is built by `tests/scripts/make_nxstress_sample_position_fixture.py` from
+`HB2B_1327.h5`, whose sample coordinates are real and finite. Two peripheral
+things were supplied, neither of them the quantity under test: the
+`instrument/geometry setup/detector` group, which **exists in the source but is
+empty** (its three datasets are simply absent — which is why
+`get_instrument_setup()` returned `None`), filled from the real values in
+`HB2B_938_peak.h5`; and parseable peak tags, `peak0`/`peak1` → `peak000`/`peak111`,
+since `_parse_peak_tag` needs a digit run of length divisible by three. Nothing
+physical is lost by that rename: the source records `d reference` as 1.0 for one
+peak and `NaN` for the other, so those tags never identified a reflection. The
+8.4 MB `mask` group is dropped, keeping the fixture at 2.72 MB, under
+pre-commit's 8 MB ceiling; NXstress generates a default mask when a workspace
+carries none.
+
+Measured across all 150 subruns, the stage and sample logs are **not** unrelated —
+they describe the same motion in different frames:
+
+```console
+  sx: min= -8.0010 max= 51.9994 ptp= 60.0004 uniq= 18
+  vx: min=-30.0000 max= 30.0000 ptp= 60.0000 uniq= 18
+  sy: min=  3.5596 max= 11.5293 ptp=  7.9697 uniq= 58
+  vy: min=  3.0000 max=  6.0000 ptp=  3.0000 uniq=  3
+  sz: min= 53.0245 max= 73.0079 ptp= 19.9834 uniq=  3
+  vz: min=-10.0000 max= 10.0000 ptp= 20.0000 uniq=  3
+
+  sx vs vx: allclose=False maxdiff=22.0006 corr= 1.0000
+  sy vs vy: allclose=False maxdiff= 5.5293 corr= 0.6378
+  sz vs vz: allclose=False maxdiff=83.0079 corr=-1.0000
+```
+
+`sx` tracks `vx` with correlation **+1** and a 22 mm offset; `sz` tracks `vz` with
+correlation **-1** — the stage z axis runs *opposite* to the sample z axis; `sy` is
+an encoder readback (58 distinct values) against a commanded 3-point grid. So
+writing the stage logs into `peaks/sx,sy,sz` would have stored an offset,
+partly sign-flipped coordinate in a field the schema defines as the sample
+position — a defect no "is it NaN" check could detect, and one that would have
+silently inverted a strain gradient along z for any external consumer.
+
+**This also sharpens `open-questions/04` Q5 from a tidiness concern to a concrete
+one.** The offset-and-inversion between the two frames is exactly what
+`SAMPLE_DESCRIPTION`'s `NXtransformations` is for, and PyRS writes no such group —
+so the frame our (correct) values are expressed in is stated nowhere in the file.
+The anti-correlation is pinned by `test_stage_and_sample_axes_differ_in_frame`, so
+if the frames ever coincide the question is re-raised rather than lapsing quietly.
+
+Verification step 2 is therefore **runnable**, as
+`tests/integration/test_nxstress_sample_position.py` (7 tests, tier `integration`):
+non-NaN, equal to `vx`/`vy`/`vz` under the writer's own flattening, *not* equal to
+the stage logs, `local_name` provenance, full chain reachability on a real written
+file, and `decode(encode(name)) == name` over the fixture's real PV-log names.
+
+---
+
+## Follow-up 8 — 2026-10-08 (PR review: detector masks and diffractogram keys are two namespaces, not one)
+
+Raised in the human PR review of 04 + 04b + 04c (batch 5,
+[plans/PR_review/04-comments.md](../PR_review/04-comments.md)), brought forward
+into batch 4 because the D8 all-NaN-mask discussion ran into the same code.
+
+Four defects (D10–D13) with **one root cause**, which this document does not
+name anywhere: `masks/names` was being asked to hold two different kinds of
+string.
+
+| | what it is | has an array | produced by |
+|---|---|---|---|
+| **detector mask name** | `_DEFAULT_` and the entries of `HidraWorkspace._mask_dict` | yes | `set_detector_mask` |
+| **diffractogram key** | a key of `_diff_data_set` | **no** | `reduction_manager.py:613-615`, as `"{mask_id}_eta_{eta_cent}"` with either part dropped when absent |
+
+So the key space is `{None, "mask_a", "eta_-5.0", "mask_a_eta_-5.0"}`, and only
+the second of those four is also a mask name. `_Masks.mask_keys` returned the
+union of both sets.
+
+### F8.1 — `nxstress_mask_names` conflated them; there are now two functions
+
+`_definitions.py` gains `nxstress_diffractogram_keys(ws)` alongside
+`nxstress_mask_names(ws)`. They differ in two ways, both load-bearing:
+
+- `nxstress_mask_names` reads `_mask_dict` only; `nxstress_diffractogram_keys`
+  reads `_diff_data_set` only.
+- `nxstress_mask_names` injects `DEFAULT_TAG`, because the default detector mask
+  is **always** present. `nxstress_diffractogram_keys` does not, because a
+  reduction keyed `eta_0.0` is a reduction *that used the default mask* — the
+  bare `DEFAULT_TAG` key means "the default mask with no eta ROI", which such a
+  reduction never produced.
+
+The second point is the correction the reviewer supplied twice, and it is the
+whole of the fix: there is no reduction "with no mask", so `None` is not an
+absence to be filled in — it is the name of a specific reduction.
+
+Also new: `diffractogram_detector_mask(key, known_masks)`, which resolves a key
+to the detector mask it references by matching against the names actually
+present (longest first, so `mask_a` wins over a hypothetical `mask`), rather
+than by splitting on `_eta_`. Parsing would have been wrong in both directions —
+a mask legitimately named `rotated_eta_bar` parses as an eta ROI, and `__`-escaped
+identifiers (Follow-up 5) do not survive a naive split at all.
+
+### F8.2 — `masks/names` listed names with no array (D11); the `NXlink` is gone
+
+Measured on a texture-shaped workspace before the fix:
+
+```console
+  names          : ['_DEFAULT_', 'eta_0.0', 'eta_-5.0', 'eta_5.0']
+  detector/      : ['_DEFAULT_']
+      eta_0.0    -> NOWHERE
+```
+
+[_instrument.py](../../pyrs/utilities/NXstress/_instrument.py)'s `_Masks` had an
+`NXlink`-to-default branch intended to cover this. It never serialised. **Making
+it work would have been a worse defect than leaving it broken**: `masksFromNexus`
+would then hand back the default array under each composite key, and
+`set_masks_from_dict` would install `_mask_dict` entries the source workspace
+never had — D8 (all-NaN masks appearing on read) in a different property.
+Branch deleted; `mask_keys` returns the mask namespace only.
+
+### F8.3 — a texture workspace could not be written at all (D13)
+
+```console
+  eta-only reductions      -> ValueError: Reduced data required for mask '_DEFAULT_'
+  eta-keyed PeakCollection -> ValueError: Mask 'eta_0.0' required by `PeakCollection`
+```
+
+Both from F8.1's conflation: the first from forcing `DEFAULT_TAG` into the key
+space, the second from `validateWorkspaceAndPeaksData` checking
+`PeakCollection.mask` — a diffractogram key — against the *mask* namespace. That
+function's **second** check, against `_diff_data_set`, was correct all along, so
+the fix was to delete the first rather than add a third.
+
+This means §Tests' round-trip coverage never exercised a texture workspace. It
+does now.
+
+### F8.4 — the solid-angle heuristic misclassified in both directions (D10)
+
+`_Masks` guessed between detector and solid-angle masks from dtype and length
+parity:
+
+```console
+  detector mask, float, 16 px -> solid_angle=True    MISCLASSIFIED
+  solid-angle, 3 floats (odd) -> solid_angle=False   MISCLASSIFIED
+```
+
+Nothing in PyRS ever loads a solid-angle mask into a `HidraWorkspace`
+(`HidraProjectFile.read_mask_solid_angle` has exactly one caller, a test), so the
+branch has never run on real data. Per the reviewer's direction it now
+`raise NotImplementedError` rather than classify. The `solid_angle` group stays
+as the schema placeholder and `masksFromNexus` still reads it, so implementing
+the writer later needs no reader change. The dead `detector_mask=False` branch of
+`_generate_default_mask` — which returned a plausible-looking `[-180.0, 180.0]` —
+became a raise for the same reason.
+
+### F8.5 — a workspace with no masks wrote a file PyRS could not read (D12)
+
+```console
+  masks SET (default exists):        on disk (16,)  -> read back OK
+  masks ABSENT (default generated):  on disk (4, 4) -> READ FAILED
+                                     RuntimeError: Mask array with shape (4, 4) is not acceptable
+```
+
+`_generate_default_mask` returned `np.ones(detector_size)`, which is 2-D, while
+`set_detector_mask` refuses a 2-D array whose second axis is not 1. All 42
+existing round-trip tests pass `with_masks=True`, so the generated path was never
+round-tripped. Now returns 1-D `np.ones(nrows * ncols, dtype=np.int64)`, with the
+missing `with_masks=False` round trip added.
+
+### F8.6 — invariants added
+
+Per `CLAUDE.md`'s "invariants belong in tests, not prose", the namespace split is
+pinned rather than described:
+
+- `test_definitions.py::TestDiffractogramKeysAreNotMaskNames` — over a texture
+  workspace, `nxstress_diffractogram_keys` and `nxstress_mask_names` are
+  disjoint except where a key genuinely *is* a mask name, and `DEFAULT_TAG` is in
+  the second and not the first.
+- `test_instrument.py::TestMaskGroupHoldsOnlyRealMasks` — every name in
+  `masks/names` resolves to an array under `detector/` or `solid_angle/`. This is
+  the one that would have caught D11, and it iterates the written group rather
+  than restating a list, so a future mask kind is covered automatically.
+
+### F8.7 — an unrelated repair, and an open defect
+
+`probes/a5_transformations_chain.py` has been broken since 04b generalised
+`_Instrument.init_group` to take `list[HidraWorkspace]`; nothing runs the probes,
+so it went unnoticed. Repointed — it again confirms README Decisions row 26 (8 of
+8 transformations reachable). This is distinct from `a5_nxstress_roundtrip`, whose
+failure is documented and deliberate.
+
+**Open:** `_Masks.init_group(ws, masks=...)` reads `names = masks["names"].nxvalue`,
+which returns a bare `str` rather than a 1-element list when the group holds
+exactly one mask, so the following `names.append(...)` would raise
+`AttributeError`. Unreachable today (`_Instrument.init_group` never passes
+`masks=`) and left standing rather than fixed blind, since mask-append semantics
+are not specified anywhere. Recorded here so 04c's append work does not inherit it
+silently.
+
+---
+
+## Follow-up 9 — 2026-10-14 (PR review: the sample frame is now defined, and Q5's premise was wrong)
+
+Raised in the human PR review of 04 + 04b + 04c (batch 24,
+[plans/PR_review/04-comments.md](../PR_review/04-comments.md)).
+
+This document's `## Verification` and Follow-up 7 F7.5 both treat the *detector*
+`NXtransformations` chain as the only one at issue. The sample side has no chain
+at all, which [open-questions/04 Q5](open-questions/04-nxstress-internal-cleanup.md)
+records — together with the reason it was left that way: *"the sample side has no
+equivalent [referent] that has been located."*
+
+**That reason was false, and the stakeholder said so.** Asked to accept leaving
+`depends_on` unwritten, the reviewer's response was: *"I'm not understanding how
+we can be presented with a 3-angle transformation, in an applicable form, that
+can't simply be mathematically decomposed? That doesn't make any sense!"*
+
+### F9.1 — the referent existed; it just had no matrix in it
+
+`PoleFigureCalculator.rotate_project_q` (`pyrs/core/polefigurecalculator.py:186`)
+applies `omega`, `chi` and `phi`. It was passed over during the implementation
+pass because it implements the closed-form pole-figure projection of Bob He,
+*Two-Dimensional X-ray Diffraction*, ch. 8.3 — built from sines and cosines, with
+no matrix anywhere in it and therefore no axis to read off.
+
+A composition of rotations is still a composition of rotations however it is
+spelled. Driving that function through its **public signature** — aiming the
+probe vector its `theta`/`eta` arguments fix along each basis vector in turn —
+reads off the matrix it implements without touching its internals. Of 2880
+candidate compositions over the six signed axes, exactly one survives.
+
+Probe: [`probes/a5_sample_rotation_axes.py`](probes/a5_sample_rotation_axes.py).
+Full output is pasted in Q5; the result is
+
+```
+sample -> lab  ==  M0 @ R_omega(0,-1,0) @ R_chi(1,0,0) @ R_phi(0,0,-1)
+worst elementwise error over 200 random triples: 5.818e-14
+```
+
+### F9.2 — the finding inside the finding: a first decomposition said "ambiguous", wrongly
+
+An earlier attempt enumerated stage rotations only and reported two survivors
+differing in a handedness sign, which was written up as an irreducible ambiguity
+for Q5 to settle. It is not. At `omega = chi = phi = 0` the projection does not
+reduce to the identity but to `diag(1, -1, -1)` — a constant 180-degree rotation
+about `+x`, written as the chain's `frame_offset` link. **A search over stage
+rotations alone cannot match a composition carrying a constant factor**, so it
+returns partial matches that disagree, and the disagreement looks exactly like a
+real ambiguity. With the offset in the search the answer is exact and unique.
+
+Recorded because the failure mode generalises: a decomposition that comes back
+*underdetermined* is as likely to mean the candidate space is wrong as it is to
+mean the referent is ambiguous, and the two are indistinguishable from the result
+alone.
+
+### F9.3 — what `_sample.py` now writes
+
+`SAMPLE_DESCRIPTION/transformations`, as a per-scan-point chain, with the group's
+`depends_on` naming the **last** link — the F7.5 defect asserted against on the
+sample side before it could occur.
+
+| # | link | type | vector | source |
+|---|---|---|---|---|
+| 1–3 | `translation_x/y/z` | translation | `(1,0,0)`, `(0,1,0)`, `(0,0,1)` | `vx`, `vy`, `vz` |
+| 4 | `frame_offset` | rotation | `(1, 0, 0)` | constant `180` |
+| 5 | `omega` | rotation | `(0, -1, 0)` | log `omega` |
+| 6 | `chi` | rotation | `(1, 0, 0)` | log `chi` |
+| 7 | `phi` | rotation | `(0, 0, -1)` | log `phi` — the entry point |
+
+The rotation links are written all together or not at all, gated on every input
+carrying all three angle logs; the synthetic unit fixtures carry none and get a
+translations-only chain, while every real HB2B file in `tests/data` gets all
+seven. The raw angle logs stay untouched under `logs/`, so this group is purely
+additive. `frame_offset` is gated with the angles although it is constant:
+written alone it would assert the stage was at zero.
+
+### F9.4 — verification
+
+Writing `tests/data/HB2B_1327_with_instrument.h5` (150 scan points) through
+`NXstress.write` and reading it back with h5py: all seven links reachable by
+following `depends_on`, all 150 rows long, and the chain composed from the
+**on-disk** vectors and values reproduces `rotate_project_q` to a maximum
+elementwise error of `1.11e-16`.
+
+`test_sample.py::TestSampleTransformationChain` pins reachability, that the entry
+point is the last link and not the first, traversal order against write order,
+the axes, the all-or-nothing rotation gate, and lockstep growth on append.
+`test_the_rotations_compose_in_write_order` composes the written chain and
+compares it against `rotate_project_q` itself — so an edit to an axis *or to the
+order* fails against the referent rather than against a restatement of it. Three
+mutants confirm it can fail: swapping `omega` and `chi` in write order (axes
+unchanged, rotation different), dropping `frame_offset`, and setting its value to
+zero are each caught.
+
+### F9.5 — what stays open
+
+Nothing about the convention. Two things are worth a stakeholder's eye, both
+recorded at the end of Q5: whether `frame_offset` is physical or an artefact of
+the ch. 8.3 output convention (the chain is correct either way; only the name
+would change), and whether `mrot` — present in every real HB2B file, absent from
+`rotate_project_q` — moves the sample, in which case the chain is incomplete.

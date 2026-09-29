@@ -220,6 +220,15 @@ class HidraProjectFile:
             Unable to write this log to the project file
         TypeError
             Unable to write this type of log value to the project file
+
+        Notes
+        -----
+        A string log arrives here as `str`: `SampleLogs.__setitem__` normalizes
+        string values to text, so that in memory a log value never depends on
+        where the workspace came from. h5py has **no conversion path for numpy's
+        `<U` dtype**, so the encode back to `bytes` belongs here, at the HDF5
+        boundary -- which is the other half of that pairing. See
+        `docs/ground_truths.md`.
         """
         # check
         assert self._project_h5 is not None, "cannot be None"
@@ -228,6 +237,19 @@ class HidraProjectFile:
 
         self._log.debug("Add sample log: {}".format(log_name))
         node_logs = self._project_h5[HidraConstants.RAW_DATA][HidraConstants.SAMPLE_LOGS]
+        # `bytes` on disk, `str` in memory: encode at the boundary. See this
+        # method's Notes -- h5py cannot store `<U` at all.
+        #
+        # The target is the VARIABLE-LENGTH UTF-8 dtype, not fixed-width `|S`.
+        # `numpy.char.encode` would give `|S`, whose width is fixed by the longest
+        # value present at creation; a later longer value is then truncated
+        # **silently**, and re-saving a project file would quietly convert its
+        # existing variable-length columns to fixed-width ones. See
+        # docs/ground_truths.md, and `NXstress._sample._Sample._writable`, which
+        # coerces to this same dtype for the same reason.
+        if getattr(log_value_array, "dtype", None) is not None and log_value_array.dtype.kind == "U":
+            log_value_array = log_value_array.astype(h5py.string_dtype(encoding="utf-8"))
+
         try:
             data_set = node_logs.create_dataset(log_name, data=log_value_array)
         except RuntimeError as run_err:

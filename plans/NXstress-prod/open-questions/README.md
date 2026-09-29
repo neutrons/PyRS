@@ -21,6 +21,21 @@ for what's still outstanding.
 | [09](09-fit-spectrum-nxstress.md) | Fit spectrum & calibration fidelity (NXstress) | No | 4 |
 | [10](10-flip-defaults.md) | Flip defaults — NXstress becomes primary | Partially | 3 |
 
+## Raised during an implementation pass
+
+Files above hold questions the spec text flagged *before* the code existed.
+`implementation-pass/` holds questions raised *after* it, by a PR review of
+shipped code — kept separate because the two have different standing: a
+planning question is answered before anything is built, while one of these is
+a defect in landed code that could not be fixed without a decision from
+outside the subspec that found it.
+
+| File | Raised by | Blocking? | Question count |
+|---|---|---|---|
+| [04c](implementation-pass/04c-questions.md) | PR review of 04 + 04b + 04c, batch 27 | No for 04c; blocks any claim that the written detector geometry is correct | 1 |
+
+---
+
 **No hard implementation gates remain in specs 01–07 or 09.**
 [04b, Q1](04b-multi-workspace-nxstress.md#q1) — whether `NXreflections`
 permits additional index columns at all — was the plan's one hard

@@ -332,3 +332,45 @@ A5-**uncovered**, not A5-verified. What *was* probed is the invariant beneath
 them: the reader enforces only run-contiguity and monotonic `scan_point`, so a
 block-per-direction layout is safe
 ([`probes/a5_peakcollection_ranges.py`](probes/a5_peakcollection_ranges.py)).
+
+---
+
+## Follow-up 2 — 2026-10-07 (delivered early by the 04/04b/04c PR review)
+
+**F2.1** — **`HidraWorkspace.direction` now exists; this spec no longer adds it.**
+The Scope item *"Add a settable `direction` `@property` to `HidraWorkspace`"* and
+the `direction`-needs-a-home section above are **struck**: the property shipped in
+the 04/04b/04c PR review, because `_discriminator` turned out to need it there —
+see `04b`'s Follow-up 3. What this spec inherits is slightly different from what
+it asked for, in two ways that matter to its own text:
+
+1. **It is read-only, not settable.** A settable property would have put a setter
+   on the public API for a deserializer's benefit. Instead it is a
+   `restorable_property`
+   ([`pyrs/utilities/restorable_property.py`](../../pyrs/utilities/restorable_property.py)):
+   assignment still raises `AttributeError`, while an I/O reader restores the
+   value through `restore(ws, "direction", value)`. So this spec's *"the viewer
+   sets `ws.direction` on each per-direction workspace before calling `write()`"*
+   becomes `restore(ws, "direction", direction)` — already done, at
+   `strainstressviewer/model.py`'s `load_hidra_project_file`, which is the single
+   funnel every direction-bearing path passes through.
+2. **It is backed by `_direction`, deliberately not by `_name`.** The viewer
+   constructs `HidraWorkspace(direction)`, so the name already carries the
+   direction on this one path — but aliasing them would make `ws.direction`
+   answer `"Combined Project Files"` for `CombineRunsModel`'s workspace. They are
+   separate, and `name` merely happens to coincide here.
+
+**F2.2** — **A compatibility shim this spec should retire.** `direction`'s getter
+falls back to the `direction` *sample log* when `_direction` is unset, so data and
+tests that predate the attribute keep working. Once this spec has every producer
+setting `_direction` explicitly, the fallback can go — and with it the only place
+where `direction` has two possible sources and a precedence rule.
+
+**F2.3** — **The config precondition this spec describes is now partly enforced
+upstream.** `_discriminator.field_names()` rejects, at configuration time, any
+field naming a read-only `HidraWorkspace` property that is neither settable nor
+restorable. That does not replace this spec's
+`"direction" in Config["nxstress.discriminator_fields"]` check — which is about
+the field being *configured at all* — but it does mean a misconfiguration naming,
+say, `reduction_masks` now fails before any file is written rather than producing
+one that cannot be read back.

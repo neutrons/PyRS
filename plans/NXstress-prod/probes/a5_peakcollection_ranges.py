@@ -9,17 +9,17 @@ Two subspecs' design weight on one paragraph is exactly the shape
 Claims under test
 -----------------
 1. ``README.md:729`` (Decisions item 17) and ``04b:37-43`` --
-   "``_Peaks.peakCollectionRanges`` (``_peaks.py:246-338``) -- the only
+   "``_Peaks.peakCollectionRanges`` (``_peaks.py:446-559``) -- the only
    reader-side splitter -- enforces only that each compound key's run is
    contiguous and ``scan_point`` increases within a run".
 2. ``README.md:335-342`` --
    "not because the schema requires global sorting (it doesn't; the reader only
-   requires each compound key's run to be contiguous, ``_peaks.py:246-338``)".
+   requires each compound key's run to be contiguous, ``_peaks.py:446-559``)".
 3. ``04b:43-45`` -- "It never checks that the runs themselves are globally
    ordered -- there is no ``searchsorted``/``argsort``/binary search anywhere in
    the module."
 4. ``README.md:729`` and ``04b:49-55`` -- "the latter is guaranteed upstream by
-   ``SubRuns.set`` (``sample_logs.py:164-166``) ... which already raises
+   ``SubRuns.set`` (``sample_logs.py:167-168``) ... which already raises
    ``"subruns are not sorted in increasing order"`` unless
    ``np.all(value[:-1] < value[1:])``".
 5. ``04c:44-53`` -- "**Append does not re-sort the file.** ... R1 and R2 still
@@ -91,7 +91,9 @@ def report(claim: str, result: str) -> None:
 def attempt(label: str, peaks: FakePeaks) -> str:
     try:
         ranges = _Peaks.peakCollectionRanges(peaks)
-        return f"{label}: ACCEPTED -> {len(ranges)} block(s) {[(r[1], r[2]) for r in ranges]}"
+        # Since 04b a range is (discriminators, key, start, end); this probe's
+        # cases configure no discriminator, so the first slot is always ().
+        return f"{label}: ACCEPTED -> {len(ranges)} block(s) {[(start, end) for _d, _k, start, end in ranges]}"
     except Exception as exc:  # noqa: BLE001 - what it raises is the result
         return f"{label}: RAISED {type(exc).__name__}: {exc}"
 

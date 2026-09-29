@@ -55,6 +55,17 @@ Like spec 06, this is **PyRS-only** and can be developed independently.
   defaulting to a documented uniform/constant value.
 - `STRESS_FIELD` shape: **blocked** — document the blocker explicitly;
   do not guess a shape.
+- **`two_theta_0`'s rotation axis: resolve a contradiction inside PyRS.**
+  `instrument_geometry.py:166` documents it as *"in rotation of detector arm
+  about X"*, while the reduction applies two-theta about **Y**
+  (`reduce_hb2b_pyrs.py::rotate_detector_2theta` → `_cal_rotation_matrix_y`)
+  after folding `two_theta_0` into the arm angle as a scalar offset
+  (`reduce_hb2b_pyrs.py:139`) rather than as a transformation of its own. The
+  code is the authority, so the comment is the thing most likely wrong — but
+  decide it, do not assume it, and fix whichever is. **Carried forward from
+  README Section 2.1 by the 04/04b/04c PR review (batch 27).** Written up as
+  [open-questions/implementation-pass/04c-questions.md](open-questions/implementation-pass/04c-questions.md) Q1. Spec 09 owns the
+  NXstress side; nothing there can be correct until this is settled.
 
 **Out of scope:**
 - Any NXstress code (that is spec 09).
@@ -213,14 +224,14 @@ strain measurements cannot stand in for a numeric stress-field *value*,
 and conflating them would be a real physics error, not a naming
 inconsistency.
 
-`_sample.py:107`'s shape/dtype question for `STRESS_FIELD` **remains fully
+`_sample.py:171`'s shape/dtype question for `STRESS_FIELD` **remains fully
 open**. This spec cannot resolve it without new information: either a real
 dataset containing a genuine numeric `"stress field"` sample log, or
 clarification of what `STRESS_FIELD` is actually meant to represent (e.g.,
 whether it's expected as a raw-data log at all, versus a value the
 stress/strain calculator computes downstream that NXstress should instead
 receive from a different source entirely). **Do not guess a shape to
-unblock this — leave `_sample.py:107`'s existing TODO in place, updated to
+unblock this — leave `_sample.py:171`'s existing TODO in place, updated to
 reflect that this was actively investigated and remains blocked**, not
 merely "never gotten to."
 
@@ -282,7 +293,7 @@ the `STRESS_FIELD` item, which remains its own tracked gap.)
 - `pytest tests/unit/pyrs/core/test_workspaces.py` — all pass.
 - Manual inspection: fit a peak on a real dataset; print the reconstructed
   spectrum; overlay with the raw data to confirm it is plausible.
-- Confirm `_sample.py:107`'s TODO comment is updated to reflect the
+- Confirm `_sample.py:171`'s TODO comment is updated to reflect the
   investigated-but-blocked status, not left as if untouched.
 
 ---
@@ -326,7 +337,7 @@ exactly on its claimed target: `peak_collection.py:399-419` →
 `def __set_fit_status`; `instrument_geometry.py:88,107` → `calibrated: bool,`
 and its `check_bool_variable` call, which together confirm the central "accepts
 but only validates, never stores" finding; `instrument_geometry.py:109-116` →
-`def apply_shift`; `_sample.py:107` → the `STRESS_FIELD` dimensions TODO.
+`def apply_shift`; `_sample.py:171` → the `STRESS_FIELD` dimensions TODO.
 
 **A4/A5 exemption for the `STRESS_FIELD` item, recorded.** The blocked
 `STRESS_FIELD` shape question is genuinely un-probeable: no file in the

@@ -1,4 +1,30 @@
-"""A5: what the landed NXstress library actually does with our data.
+"""A5 [RETIRED -- DOES NOT RUN]: what the landed NXstress library did with our data.
+
+RETIRED
+-------
+**This probe fails by design and is not evidence of a defect.** Retired to
+record by the 04b PR (`7799a673`): claim 5 pinned the *pre-04b* ``write``
+signature, and 04b changed exactly that, so re-pointing the probe at
+``write([ws], [peaks])`` would erase the one thing it is kept for. It now stops
+at ``nxs.write(ws, peaks)`` with a pydantic ``ValidationError`` -- the bare
+``HidraWorkspace`` against 04b's list signature. **Any other failure is a real
+finding.**
+
+Where each claim went (`process.md` 7.5 item 6 -- supersede, do not delete):
+
+==========  ==========================================================
+Claim 1     ``a5_discriminator_resolution.py``, ``a5_subruns_nonmonotonic.py``
+Claim 2     **no successor probe** -- read-back completeness is now test
+            coverage only (``test_workspace_read.py``,
+            ``test_multi_workspace.py``)
+Claim 3     ``a5_append_preconditions.py`` (``entry_number`` targeting)
+Claim 4     ``a5_append_preconditions.py`` -- **and the claim is now FALSE**
+Claim 5     nothing; it is history, which is why this file is kept
+==========  ==========================================================
+
+Read the claims below as *what was believed when they were written*, not as
+current behaviour. Two are now wrong, and are left unedited for the same reason
+the probe is: a log preserves what was believed.
 
 The A4/A5 boundary is **which counterparty, not which interpreter**: a claim
 about ``h5py`` is A4, a claim about ``pyrs/utilities/NXstress/`` is A5, because
@@ -14,13 +40,24 @@ Claims under test
    logs, masks, reduced diffraction data, and peak collections. It does NOT
    reconstruct raw counts unless the optional ``input_data`` group was written."
 3. ``README.md:99-102`` -- "Multiple ``NXentry`` groups per file are supported
-   (``NXstress.py:149``)."
+   (``NXstress.py:156-164``)."
 4. ``README.md:114-123`` -- "``_input_data.py:44,63`` and ``NXstress.py:151-152``
    raise on any operation that would extend an existing ``NXentry``. Each write
    must currently be a fresh entry (save-as)."
+
+   **NO LONGER TRUE.** 04c implemented the append path and Decisions row 33
+   made ``write()`` dispatch on whether the resolved entry exists, so extending
+   an existing ``NXentry`` is now the supported case. See
+   ``a5_append_preconditions.py``.
 5. ``04b:110-115`` -- the **pre-04b** baseline: "Change ``NXstress.write`` to
    accept ``list[HidraWorkspace]`` in place of a single ``HidraWorkspace``".
-   Probed here only to pin what the signature is *today*.
+   Probed here only to pin what the signature was *at the time*.
+
+   **Superseded.** This is the claim that retired the probe. Note that the one
+   statement here that still executes -- ``inspect.signature(NXstress.write)``
+   -- reports the *post*-04b signature, so its output now contradicts the claim
+   heading it prints under. The record of the old signature is this prose, not
+   that measurement.
 
 Deliberately NOT probed, and why
 --------------------------------
@@ -30,7 +67,13 @@ the point -- afterwards, "no probe was needed" and "no probe was written" look
 identical. Those claims stay A5-**uncovered** until 04b and 04c land, and the
 coverage matrix says so rather than implying they were checked.
 
-Run: ``pixi run python plans/NXstress-prod/probes/a5_nxstress_roundtrip.py``
+**All three have since landed and all three are now probed** -- by
+``a5_subruns_nonmonotonic.py``, ``a5_discriminator_resolution.py`` and
+``a5_append_preconditions.py`` respectively. The paragraph above is kept as the
+record of a gap that was stated rather than left implicit; it no longer
+describes the present.
+
+Do not run: this probe is retired (see RETIRED above).
 """
 
 from __future__ import annotations
@@ -43,6 +86,10 @@ from pathlib import Path
 
 import numpy as np
 from nexusformat.nexus import nxopen
+
+# See `plans/audit-process/process.md` 7.5 item 9. Absent means "live"; a sweep over
+# the directory must skip, or expect the failure of, any probe that sets this.
+AUDIT_STATUS = "retired"
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))

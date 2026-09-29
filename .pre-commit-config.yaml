@@ -1,4 +1,14 @@
-exclude: "^pixi.lock$"
+# `NXstress.nxdl.xml` is a VERBATIM vendored copy of an upstream artifact
+# (nexusformat/definitions). It must stay byte-identical to upstream to be
+# diffable against it; its provenance and sha256 are recorded in
+# IO_prototype.rst, beside the file.
+#
+# This key is TOP-LEVEL, so it excludes the file from *every* hook, not only the
+# ones that would rewrite it. That is deliberate but worth stating plainly: the
+# read-only hooks skip it too, so `check-xml` never parses it and
+# `detect-secrets` never scans it. The guarantee is upstream's, not ours -- we
+# verify the copy by sha256 rather than by re-validating it here.
+exclude: "^(pixi\\.lock|docs/developer/source/design/nexus/NXstress\\.nxdl\\.xml)$"
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0

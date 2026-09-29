@@ -1,37 +1,103 @@
 <!-- ===== UPDATE BEFORE EACH NEW SUBSPEC: edit these four fields ===== -->
 
-    SUBSPEC              04
+    SUBSPEC              05
                          The subspec to implement this session. Its document is
-                         plans/NXstress-prod/04-nxstress-internal-cleanup.md
+                         plans/NXstress-prod/05-strain-stress-viewer.md
 
-    LANDED THROUGH       03
+    LANDED THROUGH       04c
                          Everything at or below this number has shipped. If
                          SUBSPEC depends on something above this, stop and say so
                          -- see README.md's "## Sub-specifications" table, whose
                          `Depends on` column was corrected by this audit.
+                         (05 depends on 01, 04 and 04b. All have landed, as has
+                         04c. 05 is unblocked.)
 
-    AUDIT BASE           7a5ef73f
+    AUDIT BASE           eb5457b16dab
                          The `git.base_commit` currently in
                          plans/NXstress-prod/audit.toml. Used as
-                         `base_commit..HEAD`, which should span **exactly the
-                         previous subspec's changes** -- so it is the commit
-                         preceding that subspec's first commit, never its merge
-                         commit. Advanced each time a subspec lands (step 9).
-                         Paired with `base_subject` and checked at load, so
-                         update BOTH or every tool exits 2.
-                         NOTE: the current value is this branch's point of
-                         divergence, set so the first audit pass could see all
-                         of 01-03 at once. The first application of step 9 will
-                         narrow it to the one-subspec convention.
+                         `base_commit..HEAD`, which must span **every landed
+                         change this subspec must see**. That is usually the
+                         previous subspec alone -- but not when a series was
+                         implemented and reviewed as one unit, which is the case
+                         here. Never a merge commit: that leaves an empty range
+                         and `landing_trigger.py` reports clean while claims go
+                         stale. Too wide is the benign direction. Paired with
+                         `base_subject` and checked at load, so update BOTH or
+                         every tool exits 2.
 
-    LAST AUDIT PASS      2026-09-25 / 2026-09-26 (first seven-axis pass)
+                         This value precedes subspec 04's first commit, so the
+                         range spans the WHOLE 04 series -- 04, 04b, 04c -- plus
+                         the 32-batch human PR review of all three: 43 commits.
+
+                         Measured, so you are not surprised by it:
+                         `landing_trigger.py` reports **390 citations into 24
+                         changed files, across 17 documents**. That is an order
+                         of magnitude more than previous passes and it is the
+                         range working, not a fault. Most of it is confirmation
+                         that a citation still resolves. Triage by file: the
+                         heaviest are `_peaks.py` (74), `_fit.py` (47),
+                         `_instrument.py` (45), `file_object.py` (45),
+                         `_sample.py` (33).
+
+    LAST AUDIT PASS      2026-10-16 (human PR review of 04 + 04b + 04c,
+                         32 batches over 66 files)
                          Claims verified before this date may have gone stale.
 
-    NOTE: `LANDED THROUGH` and `AUDIT BASE` are second copies of values that
-    live in plans/NXstress-prod/audit.toml. That is deliberate, and step 0 makes
-    them self-checking rather than merely duplicated -- a header that disagrees
-    with the manifest means one of the two was not updated, which is exactly
-    what you want to find out before you start rather than after.
+                         **05 was NOT re-audited during that review.** Its own
+                         documents were untouched; what moved was the code
+                         underneath them. The review landed 70 defects and 38
+                         observations, and the items below are the ones that
+                         change what 05 is planning to build. Read them before
+                         the spec, not after.
+
+                         - **`HidraWorkspace.direction` is READ-ONLY, not
+                           settable.** Decisions row 9 says 05 gets "a settable
+                           `direction` `@property` (get/set)". That is **no
+                           longer what the code does** -- see Decisions row 42,
+                           which supersedes it. `direction` is read-only and
+                           carries `@restores("_direction")`; a reader puts the
+                           value back with
+                           `pyrs.utilities.restorable_property.restore(ws,
+                           "direction", value)`. Assignment raises
+                           `AttributeError`, and mypy flags it. Any part of 05
+                           written against `ws.direction = ...` must change.
+                         - **`nxstress.discriminator_fields` is still `[]`.**
+                           Row 9's other half -- flipping the default to
+                           `["direction"]` -- is 05's work and is NOT done.
+                           `_discriminator.field_names()` validates the
+                           configured names and refuses a read-only property
+                           that is not marked restorable, so the flip is only
+                           safe because `direction` is marked.
+                         - **`_discriminator.apply()` now raises** for a
+                           read-only, unmarked property instead of quietly
+                           writing a sample log. If 05 configures a new
+                           discriminator field, mark its getter or expect a
+                           clear `TypeError`.
+                         - **`read()` returns `list[HidraWorkspace]`**, not one
+                           workspace (04b, Decisions row 28), and `write` takes
+                           `list[list[PeakCollection]]` -- a workspace with no
+                           fits is `[[]]`, not `[]`.
+                         - **Append exists** as a library capability (04c), and
+                           a second `NXentry` is the alternative to it. Neither
+                           has a GUI entry point. See
+                           `docs/developer/source/design/nexus/IO_prototype.rst`,
+                           which now documents the multi-workspace, multi-entry
+                           and append calling signatures.
+
+                         New since the last prompt, and worth knowing:
+                         - `open-questions/implementation-pass/` holds questions
+                           raised *after* code shipped, as opposed to the
+                           planning-stage files beside it. One entry so far:
+                           04c Q1, `two_theta_zero`'s rotation axis.
+                         - `plans/PR_review/deferred-defects.md` holds defects
+                           that are real, reproduced, and deliberately not fixed.
+                           DD-1 concerns `Config` validation after a runtime
+                           override.
+                         - Each subspec now carries a note above its Overview:
+                           read the `## Follow-up` sections first; where they
+                           disagree with the body, the Follow-up wins. Superseded
+                           body text is marked inline where it was found, but
+                           that marking is a convenience, not a guarantee.
 
 <!-- ===== end UPDATE ===== -->
 
@@ -54,11 +120,16 @@ disagree, **the Follow-up wins.**
 
 **So read your subspec's Follow-ups first, and look specifically for items that
 strike, supersede or re-scope something in the body above them.** They exist:
-the first audit pass found a subspec whose entire `## PyRS Changes` section
+the first audit pass found that subspec 04's entire `## PyRS Changes` section
 scheduled work that had already been done upstream -- removed by the very commit
 the plan's claims were written against. An implementer reading only the body
 would have done it twice. Assume yours may contain the same shape until you have
 checked.
+
+04's implementation pass then found the same shape twice more, so treat this as
+the norm rather than a one-off: its instrument-name item named a workspace field
+that does not exist anywhere in PyRS, and its rotation-order TODO turned out to
+sit beside a larger defect than the TODO described. Both are in 04's Follow-up 7.
 
 The single exception is a `path:LINE` citation, which is a pointer rather than a
 belief: those were corrected in place, so the body's line numbers were accurate
@@ -106,8 +177,10 @@ as of LAST AUDIT PASS. They drift again as code moves, which is what
    - `plans/NXstress-prod/probes/README.md` -- the Disposition column tells you
      which probes this PR is expected to promote into tests, and the
      failure-modes table tells you how these probes have misled people before.
-   - `README.md`'s `## 4. Decisions Log`. Rows 19-23 came out of the audit and
-     supersede parts of several subspec bodies.
+   - `README.md`'s `## 4. Decisions Log`. Rows 19-27 came out of the audit and
+     the 04 implementation pass, and supersede parts of several subspec bodies.
+     Note row 25 **supersedes row 23**, and rows 24-27 are new numbers, not a
+     revival of the 24/25 that Follow-up 6 F6.1 collapsed into 23.
    - `open-questions/<same number>.md`, if one exists. It is a stakeholder Q&A
      record, not specification -- but some entries carry the verification
      writeup a Decisions Log row rests on, so read it when a decision affecting
@@ -242,10 +315,24 @@ as of LAST AUDIT PASS. They drift again as code moves, which is what
    step 0 is for. Saying so here is the difference between a caught omission and
    a silently wrong base.
 
-10. **Ground truths.** If a probe turns up something true of PyRS generally
-    rather than of one document -- an installed library's real behaviour, an
-    environment constraint -- it belongs in `docs/ground_truths.md` in that
-    file's `**Why this matters going forward:**` form, with the probe linked.
+10. **Where a finding goes -- read this before writing one up.**
+    Findings go in an **append-only `## Follow-up N` section of the document
+    being audited** (`CLAUDE.md` lines 357-363). A finding about one of this
+    plan's documents goes in that document's Follow-up; a series-wide finding
+    goes in `README.md`'s. Nowhere else, in full.
+
+    `CLAUDE.md` line 12 separately says to ALWAYS record key findings in
+    `docs/ground_truths.md`, and that pulls the other way. **It misled the 04
+    pass**, which wrote two findings there in full, duplicating what 04's
+    Follow-up 7 already held -- the drift mechanism `process.md` section 9
+    rejects. Those were reverted.
+
+    The rule this series follows, and why, is `README.md`'s Follow-up 3 F3.4:
+    `docs/ground_truths.md` may carry at most a short durable fact POINTING AT
+    the Follow-up that holds the evidence -- never a copy of the finding. Note
+    `CLAUDE.md` is shared with the instrument scientist, who maintains a
+    separate one, so do not edit it to resolve this; the tension is known and
+    recorded.
 
 
 ## Working agreements
@@ -277,3 +364,14 @@ as of LAST AUDIT PASS. They drift again as code moves, which is what
 - **"Accepted without raising" is not "harmless".** Report the resulting state,
   not just the absence of an exception -- an HDF5 name containing `/` raises
   nothing and silently creates a nested group.
+- **Do not describe an array from its first few values.** The 04 pass printed
+  `log[:5]`, saw five identical numbers, and wrote "this log is constant" into a
+  Follow-up as evidence. Over all 150 values it varied by 60 mm; the five matched
+  only because they were one row of a nested scan. A test caught it. The
+  conclusion survived, the evidence did not -- print `min`/`max`/`ptp` and a
+  count of distinct values before characterising real data.
+- **A grep over the source is not a probe of the output.** Reading the order of
+  the transformations `_instrument.py` writes told an earlier pass what was
+  written; it could not show that seven of the eight were unreachable. Build the
+  artifact and traverse it. (More of these in `probes/README.md`'s failure-modes
+  table -- read it, per step 1.)

@@ -39,6 +39,19 @@ three items are unaffected by that block and proceed normally.
   Phase 2/3 bridge, well before this Phase 5 spec) — the real shape to
   resize to is the *total* concatenated scan-point count across all input
   workspaces, not one workspace's count. See "Multi-workspace scope" below.
+- **Emit `two_theta_zero` about the axis spec 08 settles.** The detector
+  transformation chain currently writes it about `ex`
+  (`_instrument.py`, the `two_theta_zero` entry), which follows
+  `instrument_geometry.py:166`'s comment rather than the reduction's own code —
+  see spec 08's scope item. The rotation *order* of the chain is settled and
+  tested (`test_instrument.py::TestDetectorRotationOrder`, which composes the
+  written sub-chain against `generate_rotation_matrix`); this is the one
+  remaining question about the detector chain. Also decide whether
+  `two_theta_zero` belongs in the chain as an independent link at all, given the
+  reduction treats it as an offset added to the arm angle before a single Y
+  rotation. **Carried forward from README Section 2.1 by the 04/04b/04c PR
+  review (batch 27).** Written up as
+  [open-questions/implementation-pass/04c-questions.md](open-questions/implementation-pass/04c-questions.md) Q1.
 - Fix the L2 arm-shift round-trip in `_instrument.py:132-150` (the
   calibrated/uncalibrated branch; the specific TODO + `distance =
   geom.arm_length` line is at `:138-140`, unchanged from the earlier
@@ -66,7 +79,7 @@ three items are unaffected by that block and proceed normally.
   stays in place; it remains a real, current limitation.
 
 **Out of scope:**
-- `_sample.py:107` `STRESS_FIELD` dimensions — **blocked**, carried over
+- `_sample.py:171` `STRESS_FIELD` dimensions — **blocked**, carried over
   unresolved from spec 08 (see Overview). Do not attempt to guess a shape
   here; leave the existing TODO in place, updated only if spec 08's
   blocker resolves in the meantime.
@@ -170,7 +183,7 @@ across all of `wss` in the same order as the rest of the scan-point
 family; do **not** validate it for cross-workspace equality the way
 geometry/shift are (above).
 
-### `pyrs/utilities/NXstress/_sample.py` — STRESS_FIELD shape (L107) — BLOCKED
+### `pyrs/utilities/NXstress/_sample.py` — STRESS_FIELD shape (L171) — BLOCKED
 
 **Do not touch this code in this spec.** Spec 08 investigated this item and
 found it genuinely blocked — no file anywhere in the repository contains a
@@ -260,7 +273,7 @@ investigated and remains blocked, not left untouched by oversight.
   update it to use the newly-populated fit-spectrum, calibration, and
   beam-profile output and confirm it runs cleanly. `STRESS_FIELD` remains
   unaddressed by design; confirm the demo script doesn't assert against it.
-- Confirm `_sample.py:107`'s TODO comment reads as investigated-and-blocked,
+- Confirm `_sample.py:171`'s TODO comment reads as investigated-and-blocked,
   not silently unchanged from spec 08.
 
 ---

@@ -57,7 +57,7 @@ sets `_exclude_list[i] = True` (currently only non-finite `chi2` does).
 
 ## Q3 — BLOCKED: What is the actual (confirmed) `STRESS_FIELD` shape?
 
-`_sample.py:107`'s comment was originally paraphrased here as *"No example
+`_sample.py:171`'s comment was originally paraphrased here as *"No example
 data existed when the writer was drafted"* — **correction: that's not the
 literal comment text.** The actual comment reads: *"we don't have an
 example of these entries, so the dimensions may not be correct!"* (verified
@@ -82,7 +82,7 @@ at. Treating it as equivalent would be a physics error, not a naming fix.
 
 **Still needed, from Chris or the instrument-science team directly:**
 either (a) a real dataset containing a genuine numeric `"stress field"`
-sample log, so `_sample.py:107`'s shape/dtype can actually be verified, or
+sample log, so `_sample.py:171`'s shape/dtype can actually be verified, or
 (b) clarification of what `STRESS_FIELD` is actually meant to represent —
 e.g., is it expected as a raw-data log written during reduction at all, or
 is it a value the stress/strain calculator computes downstream, which

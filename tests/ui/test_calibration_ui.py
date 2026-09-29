@@ -15,16 +15,14 @@ wait = 200
 plot_wait = 100
 
 
-@pytest.fixture(scope="session")
-def calibration_window(my_qtbot):
-    r"""
-    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
-    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
-    """
+@pytest.fixture
+def calibration_window(qtbot):
+    """A fresh detector calibration window for each test, closed afterwards (see `tests/ui/conftest.py`)."""
     model = DetectorCalibrationModel(pyrscore.PyRsCore())
     ctrl = DetectorCalibrationCrtl(model)
     window = DetectorCalibrationViewer(model, ctrl)
-    return window, my_qtbot
+    qtbot.addWidget(window)
+    return window, qtbot
 
 
 def test_detector_calibration(calibration_window, tmp_path):
