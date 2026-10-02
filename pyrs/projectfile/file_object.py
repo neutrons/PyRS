@@ -418,14 +418,31 @@ class HidraProjectFile:
             1D vector for unified 2theta vector for all sub runs
             2D array for possibly various 2theta vector for each
 
+        Raises
+        ------
+        KeyError
+            If this project file's "REDUCED_DATA" group is empty -- a legitimate,
+            common case (no reduction step was ever run/saved; the group itself is
+            always created up front, regardless of whether reduction ever happens).
+        RuntimeError
+            If "REDUCED_DATA" is non-empty (e.g. has intensity datasets) but has no
+            "TWO_THETA" coordinate dataset -- the file was written with an older,
+            unsupported schema (e.g. a legacy capitalized "2Theta" key) and must be
+            re-reduced/migrated.
         """
-        if HidraConstants.TWO_THETA not in self._project_h5[HidraConstants.REDUCED_DATA]:
-            # FIXME - This is a patch for 'legacy' data.  It will be removed after codes are stable
-            tth_key = "2Theta"
-        else:
-            tth_key = HidraConstants.TWO_THETA
-
-        two_theta_vec = self._project_h5[HidraConstants.REDUCED_DATA][tth_key][()]
+        try:
+            two_theta_vec = self._project_h5[HidraConstants.REDUCED_DATA][HidraConstants.TWO_THETA][()]
+        except KeyError as key_err:
+            if len(self._project_h5[HidraConstants.REDUCED_DATA].keys()) == 0:
+                # REDUCED_DATA group exists (always created up front) but is empty:
+                # legitimately no reduced data has ever been written to this file.
+                raise
+            err_msg = (
+                'Project file {} has a non-empty "{}" entry but no "{}" coordinate dataset within it. '
+                "Its format is not up-to-date and must be re-reduced before it can be read "
+                "by this version of PyRS."
+            ).format(self._file_name, HidraConstants.REDUCED_DATA, HidraConstants.TWO_THETA)
+            raise RuntimeError("{}\nFYI: {}".format(err_msg, key_err))
 
         return two_theta_vec
 
@@ -506,14 +523,9 @@ class HidraProjectFile:
         """
         masks = list(self._project_h5[HidraConstants.REDUCED_DATA].keys())
 
-        # Clean up data entry '2theta' (or '2Theta')
+        # Clean up TWO_THETA from the data entry
         if HidraConstants.TWO_THETA in masks:
             masks.remove(HidraConstants.TWO_THETA)
-
-        # FIXME - Remove when Hidra-16_Log.h5 is fixed with correction entry name as '2theta'
-        # (aka HidraConstants.TWO_THETA)
-        if "2Theta" in masks:
-            masks.remove("2Theta")
 
         # Variance datasets are stored alongside intensity datasets with a '_var' suffix
         # (e.g. 'main_var' alongside 'main').  They are not masks and must be excluded so

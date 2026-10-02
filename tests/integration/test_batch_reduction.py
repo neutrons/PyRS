@@ -14,11 +14,7 @@ import tempfile
 import numpy as np
 import pytest
 
-from pyrs.interface.manual_reduction.manual_reduction_model import (
-    ManualReductionModel,
-    is_run_specification,
-    parse_run_numbers,
-)
+from pyrs.interface.manual_reduction.manual_reduction_model import ManualReductionModel
 
 NEXUS_DIR = "/HFIR/HB2B/IPTS-22731/nexus"
 RUN_A = 1017
@@ -35,32 +31,13 @@ pytestmark = pytest.mark.skipif(not hfir_available(), reason="HFIR archive not a
 
 
 # ---------------------------------------------------------------------------
-# parse_run_numbers / is_run_specification — pure-logic tests, no HFIR needed
-# ---------------------------------------------------------------------------
-
-
-def test_parse_run_numbers_range():
-    """A dash range is expanded to inclusive list."""
-    assert parse_run_numbers("1017-1019") == [1017, 1018, 1019]
-
-
-def test_parse_run_numbers_comma_and_range():
-    """Mixed comma and range parses correctly."""
-    assert parse_run_numbers("1017,1019-1021") == [1017, 1019, 1020, 1021]
-
-
-def test_is_run_specification_run_numbers():
-    assert is_run_specification("1017")
-    assert is_run_specification("1017-1019")
-    assert is_run_specification("1017, 1019")
-
-
-def test_is_run_specification_rejects_path():
-    assert not is_run_specification(NEXUS_A)
-
-
-# ---------------------------------------------------------------------------
 # reduce_runs — integration tests against real HB2B data
+#
+# The pure-logic tests for parse_run_numbers / is_run_specification that used to
+# live here moved to tests/unit/pyrs/interface/test_manual_reduction_runspec.py,
+# joining the near-duplicate tests of those same two functions that lived in
+# tests/ui/.  They need neither HFIR access nor a Qt display, so the whole module
+# skip below (and the `gui` tier) was hiding them for no reason.
 # ---------------------------------------------------------------------------
 
 
@@ -77,6 +54,7 @@ def model():
     return ManualReductionModel()
 
 
+@pytest.mark.integration
 def test_reduce_runs_two_files_returns_two_labels(model, output_dir):
     """reduce_runs on two NeXus files returns exactly two labels."""
     jobs = [(str(RUN_A), NEXUS_A), (str(RUN_B), NEXUS_B)]
@@ -84,6 +62,7 @@ def test_reduce_runs_two_files_returns_two_labels(model, output_dir):
     assert labels == [str(RUN_A), str(RUN_B)]
 
 
+@pytest.mark.integration
 def test_reduce_runs_stores_both_workspaces(model, output_dir):
     """Both workspaces are stored and accessible via set_current_run."""
     jobs = [(str(RUN_A), NEXUS_A), (str(RUN_B), NEXUS_B)]
@@ -96,6 +75,7 @@ def test_reduce_runs_stores_both_workspaces(model, output_dir):
         assert len(sub_runs) > 0, f"Run {label} has no sub-runs after reduction"
 
 
+@pytest.mark.integration
 def test_reduce_runs_first_run_is_current_after_reduction(model, output_dir):
     """After reduce_runs, the first run's workspace is active."""
     jobs = [(str(RUN_A), NEXUS_A), (str(RUN_B), NEXUS_B)]
@@ -106,6 +86,7 @@ def test_reduce_runs_first_run_is_current_after_reduction(model, output_dir):
     assert len(sub_runs) > 0
 
 
+@pytest.mark.integration
 def test_reduce_runs_output_files_created(model, output_dir):
     """A .h5 project file is written for each reduced run."""
     jobs = [(str(RUN_A), NEXUS_A), (str(RUN_B), NEXUS_B)]
@@ -115,6 +96,7 @@ def test_reduce_runs_output_files_created(model, output_dir):
     assert len(h5_files) == 2, f"Expected 2 .h5 files, found: {h5_files}"
 
 
+@pytest.mark.integration
 def test_reduce_runs_powder_pattern_is_sensible(model, output_dir):
     """Reduced powder pattern has finite intensities in a plausible 2theta range."""
     jobs = [(str(RUN_A), NEXUS_A)]
@@ -130,6 +112,7 @@ def test_reduce_runs_powder_pattern_is_sensible(model, output_dir):
     assert vec_2theta.min() > 40 and vec_2theta.max() < 140
 
 
+@pytest.mark.integration
 def test_reduce_runs_single_run_succeeds(model, output_dir):
     """reduce_runs works with a single-item job list."""
     jobs = [(str(RUN_A), NEXUS_A)]
@@ -138,6 +121,7 @@ def test_reduce_runs_single_run_succeeds(model, output_dir):
     assert len(model.get_sub_runs()) > 0
 
 
+@pytest.mark.integration
 def test_reduce_runs_empty_job_list(model, output_dir):
     """reduce_runs with no jobs returns an empty list and leaves no workspaces."""
     labels = model.reduce_runs([], output_dir, progressbar=None)

@@ -1,0 +1,18 @@
+# Default PyRS application configuration, loaded via `neutrons_standard.Config`.
+#
+# Override an individual value by setting the `env` OS environment variable to the
+# name (or path) of a `.yml` file whose contents will be deep-merged on top of this
+# file -- see `pyrs/utilities/config.py` for how PyRS loads this.
+
+nxstress:
+  # Whether NXstress-format (.nxs) output is written.
+  enable: true
+  extension: ".nxs"
+  # Set to true once the nexusformat validator bug affecting production-case field
+  # names is resolved.
+  use_production_names: false
+
+legacy_io:
+  # Whether legacy HidraProject (.h5) output is written.
+  enable: true
+  extension: ".h5"
