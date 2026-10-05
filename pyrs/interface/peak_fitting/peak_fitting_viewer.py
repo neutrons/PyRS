@@ -319,33 +319,35 @@ class PeakFittingViewer(QMainWindow):
     # ------------------------------------------------------------------
     def fit_peaks(self):
         QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            peak_range_list = [tuple(_range) for _range in self._ui_graphicsView_fitSetup.list_peak_ranges]
+            peak_center_list = [np.mean([left, right]) for (left, right) in peak_range_list]
+            peak_tag_list = ["peak{}".format(_index) for _index, _ in enumerate(peak_center_list)]
+            peak_function_name = str(self.ui.comboBox_peakType.currentText())
+            peak_background_name = str(self.ui.comboBox_backgroundType.currentText())
 
-        peak_range_list = [tuple(_range) for _range in self._ui_graphicsView_fitSetup.list_peak_ranges]
-        peak_center_list = [np.mean([left, right]) for (left, right) in peak_range_list]
-        peak_tag_list = ["peak{}".format(_index) for _index, _ in enumerate(peak_center_list)]
-        peak_function_name = str(self.ui.comboBox_peakType.currentText())
-        peak_background_name = str(self.ui.comboBox_backgroundType.currentText())
+            peak_xmin_list = [left for (left, _) in peak_range_list]
+            peak_xmax_list = [right for (_, right) in peak_range_list]
 
-        peak_xmin_list = [left for (left, _) in peak_range_list]
-        peak_xmax_list = [right for (_, right) in peak_range_list]
+            fit_result = self._model.fit_diff_peaks(
+                peak_tag_list, peak_xmin_list, peak_xmax_list, peak_function_name, peak_background_name
+            )
+            if fit_result is None:
+                return
 
-        fit_result = self._model.fit_diff_peaks(
-            peak_tag_list, peak_xmin_list, peak_xmax_list, peak_function_name, peak_background_name
-        )
+            self.populate_fit_result_table(fit_result=fit_result)
 
-        self.populate_fit_result_table(fit_result=fit_result)
+            o_gui = GuiUtilities(parent=self)
+            o_gui.set_1D_2D_axis_comboboxes(with_clear=True, fill_raw=True, fill_fit=True)
+            o_gui.initialize_combobox()
+            o_gui.enabled_export_csv_widgets(enabled=True)
+            o_gui.enabled_2dplot_widgets(enabled=True)
 
-        o_gui = GuiUtilities(parent=self)
-        o_gui.set_1D_2D_axis_comboboxes(with_clear=True, fill_raw=True, fill_fit=True)
-        o_gui.initialize_combobox()
-        o_gui.enabled_export_csv_widgets(enabled=True)
-        o_gui.enabled_2dplot_widgets(enabled=True)
+            self._do_plot_2d()
 
-        self._do_plot_2d()
-
-        QApplication.restoreOverrideCursor()
-
-        self.individual_or_list_sub_runs()
+            self.individual_or_list_sub_runs()
+        finally:
+            QApplication.restoreOverrideCursor()
 
     def individual_or_list_sub_runs(self):
         if self.ui.radioButton_individualSubRuns.isChecked():

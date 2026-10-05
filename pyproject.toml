@@ -69,6 +69,7 @@ channels = [
   "mantid-ornl/label/nightly",              # ORNL-specific nightly builds
   "mantid/label/main",                      # Primary source for stable Mantid releases
   "mantid/label/nightly",                   # Upstream nightly builds
+  "neutrons",                               # neutrons_standard (shared Config/Singleton/time utilities)
   "https://prefix.dev/pixi-build-backends",
 ]
 platforms = ["linux-64"]
@@ -88,6 +89,7 @@ nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
 h5glance = ">=0.9,<0.10"
 py-rattler = "==0.24.0"
+neutrons_standard = "*"
 
 [tool.pixi.pypi-dependencies]
 # PyPI dependencies, including this package to allow local editable installs
@@ -108,6 +110,7 @@ pandas = "*"
 types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
+neutrons_standard = "*"
 
 
 # ------------------------------- #
@@ -117,6 +120,7 @@ pydantic = ">=2.7.3,<3"
 pytest = "*"
 pytest-qt = "*"
 pytest-cov = "*"
+pytest-timeout = "*"
 mypy = "*"
 
 [tool.pixi.feature.package.dependencies]
@@ -304,6 +308,9 @@ docs-autobuild = { cmd = "sphinx-autobuild docs/user/source docs/_build/user --h
 
 # Testing tasks
 test = { cmd = "python scripts/development/run_tests.py --cov=pyrs --cov-report=xml --cov-report=term ./tests", description = "Run the tests with coverage" }
+test-unit = { cmd = "python scripts/development/run_tests.py -m 'not integration and not gui' ./tests", description = "Run fast tests only: no file I/O, no GUI" }
+test-integration = { cmd = "python scripts/development/run_tests.py -m 'integration and not gui' ./tests", description = "Run tests that read/write real data" }
+test-gui = { cmd = "python scripts/development/run_tests.py -m gui ./tests", env = { QT_QPA_PLATFORM = "offscreen" }, description = "Run tests that drive Qt widgets (offscreen; no windows appear)" }
 test-import-framework = { cmd = "python -c 'import pyrs'; python -c 'import qtpy'; python -c 'import mantidqt'", description = "Test import of main dependencies" }
 
 # MISC
@@ -321,7 +328,19 @@ ignore_missing_imports = true
 namespace_packages = true
 
 [tool.pytest.ini_options]
-norecursedirs = ["tests/scripts/cis_tests"]
+# By-hand smoke-test scripts, never collected -- see tests/scripts/cis_tests/README.rst
+norecursedirs = ["tests/scripts"]
+addopts = "--strict-markers"
+# No test may hang. `thread` (not the `signal` default) is required: a test blocked
+# inside Qt's C++ event loop never returns to the interpreter, so SIGALRM would never
+# be delivered -- the watchdog thread dumps every thread's stack and exits instead.
+# 300s is ~7x the slowest test observed (41.8s), so it leaves ample room on slow CI.
+timeout = 300
+timeout_method = "thread"
+markers = [
+  "integration: exercises real file I/O (tests/data, /HFIR archive) or a multi-component workflow",
+  "gui: constructs or drives Qt widgets; requires a display (xvfb or offscreen)",
+]
 
 [tool.ruff]
 line-length = 119
@@ -333,7 +352,7 @@ select = ["E4", "E7", "E9", "F"]
 
 [tool.ruff.lint.per-file-ignores]
 # WARNING: there are multiple `conftest.py` files!
-"**/conftest.py" = ["F401"]
+"**/conftest.py" = ["F401", "F811"]
 
 [tool.ruff.format]
 line-ending = "lf"

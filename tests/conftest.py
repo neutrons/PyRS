@@ -1,7 +1,10 @@
 from copy import deepcopy
+import atexit
 import numpy as np
 import os
 import pytest
+import shutil
+import tempfile
 
 from pyrs.dataobjects.fields import StrainField, StrainFieldSingle, StressField
 from pyrs.dataobjects.sample_logs import _coerce_to_ndarray, PointList
@@ -9,6 +12,20 @@ from pyrs.core.peak_profile_utility import get_parameter_dtype
 from pyrs.peaks.peak_collection import PeakCollection
 from pytestqt.qtbot import QtBot
 from pytestqt.exceptions import format_captured_exceptions, capture_exceptions
+
+# Point Qt's QSettings (native file dialogs, etc.) at a private, disposable
+# config directory instead of the developer's real ~/.config. Without this,
+# any test that opens a QFileDialog shares the *same* ~/.config/QtProject.conf
+# and its QLockFile with a real PyRS GUI instance the developer may have open
+# at the same time; the two processes racing to acquire/release that lock is
+# what produces "Could not remove our own lock file ... .lock.rmlock" /
+# Permission denied. Must be set before any QApplication/QSettings is created,
+# so this runs at module import time, before pytest-qt's `qapp` fixture body
+# ever executes (importing the modules above does not itself create a
+# QApplication, so setting this after them is still early enough).
+_QT_TEST_CONFIG_DIR = tempfile.mkdtemp(prefix="pyrs-test-qtconfig-")
+os.environ["XDG_CONFIG_HOME"] = _QT_TEST_CONFIG_DIR
+atexit.register(shutil.rmtree, _QT_TEST_CONFIG_DIR, ignore_errors=True)
 
 # set to True when running on build servers
 ON_GITHUB_ACTIONS = bool(os.environ.get("GITHUB_ACTIONS", False))

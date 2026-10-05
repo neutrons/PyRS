@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.projectfile import HidraProjectFile  # type: ignore
@@ -13,6 +14,7 @@ class TestHidraWorkspace:
         workspace.set_sample_log("vx", subruns, vx, "mm")
         assert workspace.get_sample_log_units("vx") == "mm"
 
+    @pytest.mark.integration
     def test_append_projectfiels(self):
         # import data file: detector ID and file name
         test_data = [

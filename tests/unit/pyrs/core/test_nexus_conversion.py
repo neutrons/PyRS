@@ -14,6 +14,8 @@ def converter_HB2B_938(test_data_dir):
 
 
 class TestNeXusConvertingApp:
+    pytestmark = pytest.mark.integration
+
     def test_split_sample_logs(self, converter_HB2B_938):
         converter_HB2B_938.split_sample_logs(subruns=np.zeros(1, dtype=int))
         sample_logs = converter_HB2B_938._hidra_workspace._sample_logs

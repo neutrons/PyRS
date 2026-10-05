@@ -16,6 +16,7 @@ unify them without also rewriting the peak-fitting data path.
 
 import json
 import os
+import traceback
 from shutil import copyfile
 
 from qtpy.QtCore import QObject, Signal  # type:ignore
@@ -158,13 +159,18 @@ class PeakFittingModel(QObject):
             background_function_name: Background function (e.g. ``"Linear"``).
 
         Returns:
-            The fit result object produced by the fit engine.
+            The fit result object produced by the fit engine, or ``None`` if the
+            fit failed (``failureMsg`` is emitted in that case).
         """
-        wavelength = self.hidra_workspace.get_wavelength(True, True)
-        fit_engine = PeakFitEngineFactory.getInstance(
-            self.hidra_workspace, peak_function_name, background_function_name, wavelength=wavelength
-        )
-        fit_result = fit_engine.fit_multiple_peaks(peak_tags, x_mins, x_maxs)
+        try:
+            wavelength = self.hidra_workspace.get_wavelength(True, True)
+            fit_engine = PeakFitEngineFactory.getInstance(
+                self.hidra_workspace, peak_function_name, background_function_name, wavelength=wavelength
+            )
+            fit_result = fit_engine.fit_multiple_peaks(peak_tags, x_mins, x_maxs)
+        except Exception as e:  # noqa: BLE001
+            self.failureMsg.emit("Failed to fit peaks", str(e), traceback.format_exc())
+            return None
 
         self.fit_result = fit_result
         return fit_result

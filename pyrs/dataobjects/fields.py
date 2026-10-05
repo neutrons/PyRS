@@ -1549,7 +1549,7 @@ class StrainField(_StrainField):
 
     @staticmethod
     def fuse_strains(
-        *args: "StrainField", resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = "min_error"
+        *args: "_StrainField", resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = "min_error"
     ) -> "_StrainField":
         r"""
         Bring in together several strains measured along the same direction. Overlaps are resolved
@@ -1874,8 +1874,14 @@ class Direction(Enum):
                 return Direction.Z
             try:
                 return Direction(str(direction).upper())
-            except KeyError:  # give clearer error message
-                raise KeyError('Cannot determine direction type from "{}"'.format(direction))
+            except ValueError:
+                # `Enum.__call__` raises `ValueError` (not `KeyError`) on a bad value, so `ValueError`
+                # is what this lookup must both catch and re-raise.  `from None` suppresses exception
+                # chaining: the caught exception ("'FOO' is not a valid Direction") says nothing this
+                # message does not, so chaining would only bury the actionable message under a
+                # "During handling of the above exception..." traceback.  Where a caught exception
+                # *does* add context, use `raise ... from <exc>` instead -- see `convertdatatypes.py`.
+                raise ValueError('Cannot determine direction type from "{}"'.format(direction)) from None
 
     @property
     def ii(self) -> str:
@@ -1971,7 +1977,9 @@ class StressField:
         poisson_ratio: float,
         stress_type: Union[StressType, str] = StressType.DIAGONAL,
     ) -> None:
-        self.stress11, self.stress22, self.stress33 = None, None, None
+        self.stress11: Optional[ScalarFieldSample] = None
+        self.stress22: Optional[ScalarFieldSample] = None
+        self.stress33: Optional[ScalarFieldSample] = None
 
         self._youngs_modulus = youngs_modulus
         self._poisson_ratio = poisson_ratio

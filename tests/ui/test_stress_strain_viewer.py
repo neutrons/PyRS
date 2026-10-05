@@ -19,6 +19,7 @@ wait = 100
 
 
 # This is a test of the model component of the strain/stress viewer
+@pytest.mark.integration
 def test_model(tmpdir, test_data_dir):
     model = Model()
 
@@ -335,6 +336,7 @@ def test_model(tmpdir, test_data_dir):
     model.e11 is not None
 
 
+@pytest.mark.integration
 def test_model_multiple_files(tmpdir, test_data_dir):
     model = Model()
 
@@ -501,6 +503,7 @@ def test_model_multiple_files(tmpdir, test_data_dir):
     assert len(open(filename).readlines()) == 318
 
 
+@pytest.mark.integration
 def test_model_from_json(tmpdir, test_data_dir):
     model_json = dict()
     model_json["stress_case"] = "in-plane-stress"
@@ -616,6 +619,8 @@ def strain_stress_window(my_qtbot):
 
 # changes to SliceViewer from Mantid in the version 5.1 is needed for the stress/strain viewer to run
 @pytest.mark.skipif(old_mantid, reason="Need mantid version >= 5.1")
+@pytest.mark.gui
+@pytest.mark.integration
 def test_stress_strain_viewer(strain_stress_window):
     window, qtbot = strain_stress_window
 
