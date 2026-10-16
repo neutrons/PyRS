@@ -108,8 +108,8 @@ jobs:
           cp *.conda ${{ runner.temp }}/local-channel/linux-64
 
       - name: Install package
-        id: installed
-        uses: neutrons/conda-actions/pkg-install@v2
+        id: install
+        uses: neutrons/gh-actions/pkg-install@46e28a74c8872901c571e0493d26871afe2662fb # v2.1
         with:
           package-name: ${{ env.PKG_NAME }}
           local-channel: ${{ runner.temp }}/local-channel/
@@ -117,10 +117,10 @@ jobs:
           extra-channels: mantid-ornl/label/rc neutrons mantid
 
       - name: Verify conda package
-        uses: neutrons/conda-actions/pkg-verify@v2
+        uses: neutrons/gh-actions/pkg-verify@46e28a74c8872901c571e0493d26871afe2662fb # v2.1
         with:
           package-name: ${{ env.PKG_NAME }}
-          conda-env-name: ${{ steps.installed.outputs.conda_env }}
+          conda-env-name: ${{ steps.install.outputs.conda-env }}
           module-name: ${{ env.MODULE_NAME }}
           extra-commands: |
             python -c "import mantid"
@@ -153,18 +153,18 @@ jobs:
       - name: List package directory
         run: ls -l ${{ steps.download.outputs.download-path }}
       - name: Upload package to anaconda
-        uses: neutrons/conda-actions/publish@v2
+        uses: neutrons/gh-actions/publish@46e28a74c8872901c571e0493d26871afe2662fb # v2.1
         with:
           anaconda-token: ${{ secrets.ANACONDA_TOKEN }}
           organization: ${{ env.CONDA_ORG }}
           package-path: ${{ steps.download.outputs.download-path }}/${{ env.PKG_NAME }}-*.conda
       - name: Remove old packages
         if: github.ref == 'refs/heads/next'
-        uses: neutrons/conda-actions/pkg-remove@v2
+        uses: neutrons/gh-actions/pkg-remove@46e28a74c8872901c571e0493d26871afe2662fb # v2.1
         with:
-          anaconda_token: ${{ secrets.ANACONDA_TOKEN }}
+          anaconda-token: ${{ secrets.ANACONDA_TOKEN }}
           organization: ${{ env.CONDA_ORG }}
-          package_name: ${{ env.PKG_NAME }}
+          package-name: ${{ env.PKG_NAME }}
           label: ${{ env.CONDA_LABEL }}
           keep: 5
 
@@ -175,7 +175,7 @@ jobs:
     if: github.ref == 'refs/heads/next' && github.event_name != 'schedule'
     steps:
       - name: Get Environment Name
-        uses: neutrons/branch-mapper@main
+        uses: neutrons/gh-actions/branch-mapper@46e28a74c8872901c571e0493d26871afe2662fb # v2.1
         id: env_name
         with:
           prefix: ${{ env.PKG_NAME }}
