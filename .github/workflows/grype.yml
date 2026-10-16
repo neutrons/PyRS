@@ -70,8 +70,8 @@ jobs:
           echo "dir=${LOCAL_CHANNEL}" >> "$GITHUB_OUTPUT"
 
       - name: Install package
-        id: installed
-        uses: neutrons/conda-actions/pkg-install@v2
+        id: install
+        uses: neutrons/gh-actions/pkg-install@46e28a74c8872901c571e0493d26871afe2662fb # v2.1
         with:
           package-name: ${{ env.PKG_NAME }}
           local-channel: ${{ runner.temp }}/local-channel/
@@ -86,6 +86,6 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Run the Grype scan action
-        uses: neutrons/conda-actions/grype@v2
+        uses: neutrons/gh-actions/grype@46e28a74c8872901c571e0493d26871afe2662fb # v2.1
         with:
-          path: ${{ steps.installed.outputs.install_dir }}
+          path: ${{ steps.install.outputs.conda-install-dir }}
