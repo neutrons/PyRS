@@ -1073,6 +1073,9 @@ class HidraWorkspace:
             sample_log_value = self.get_sample_log_values(sample_log_name=log_name, sub_runs=sub_runs)
             sample_log_units = self.get_sample_log_units(log_name)
 
+            if b"" in sample_log_value:
+                sample_log_value = np.where(sample_log_value == b"", b"None", sample_log_value)
+
             # Add log value to project file
             hidra_project.append_experiment_log(log_name, sample_log_value, units=sample_log_units)
         # END-FOR
