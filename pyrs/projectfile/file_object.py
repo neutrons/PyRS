@@ -238,6 +238,7 @@ class HidraProjectFile:
                     log_name, log_value_array, type(log_value_array), type_err
                 )
             )
+
         if units:
             data_set.attrs["units"] = units
 
