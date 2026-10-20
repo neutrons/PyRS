@@ -770,3 +770,21 @@ A quiet, single-process, offscreen repro will not reproduce (a)/(b), and
 won't reproduce (c) either unless it specifically kills the process
 mid-lock and relaunches — a clean repro passing is not evidence the fix
 works under real crash/network conditions.
+
+## Mantid `FitPeaks` `HighBackground` is per-engine, default `True` (2026-10)
+
+`MantidPeakFitEngine` (and `FitEngineFactory.getInstance`) take
+`high_background: bool = True`, forwarded to Mantid `FitPeaks` as
+`HighBackground`, alongside `FindBackgroundSigma=1` (Mantid's default, so
+a no-op kept for explicitness).
+
+- `True` — background fitted first, then the peak. Upstream default since
+  `ab3dd7d5` (2019-10-15, "Peak fitting pytests are passed"); every normal
+  PyRS fit (GUI, reduction, strain/stress) relies on it.
+- `False` — peak and background fitted together. Used only by pixel-position
+  calibration ([pixel_pos_calibration.py](../pyrs/calibration/pixel_pos_calibration.py)).
+
+**Why this matters:** the calibration branch originally hard-coded `False`
+in `mantid_fit_peak.py`, which silently changed fitting for all of PyRS.
+Change the behaviour for a caller by passing the flag, never by editing the
+`FitPeaks` call.

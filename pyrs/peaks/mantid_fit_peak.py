@@ -13,7 +13,15 @@ DEBUG = False  # Flag for debugging mode
 class MantidPeakFitEngine(PeakFitEngine):
     """Peak fitting engine by calling mantid"""
 
-    def __init__(self, hidraworkspace, peak_function_name, background_function_name, out_of_plane_angle, wavelength):
+    def __init__(
+        self,
+        hidraworkspace,
+        peak_function_name,
+        background_function_name,
+        out_of_plane_angle,
+        wavelength,
+        high_background: bool = True,
+    ):
         super(MantidPeakFitEngine, self).__init__(
             hidraworkspace,
             peak_function_name,
@@ -28,7 +36,13 @@ class MantidPeakFitEngine(PeakFitEngine):
         :param float wavelength: neutron wavelength used to measure diffraction data
         :param out_of_plane_angle: out-of-plane angle used for texture analysis
         :type out_of_plane_angle: float, optional
+        :param bool high_background: passed to FitPeaks as HighBackground. True fits the background
+            before the peak (suited to peaks on a large background); False fits peak and background
+            together. Pixel-position calibration uses False.
         """
+        if not isinstance(high_background, bool):
+            raise TypeError(f"high_background must be a bool, got {type(high_background).__name__}")
+        self._high_background = high_background
 
         # configure logging for this class
         self._log = Logger(__name__)
@@ -65,7 +79,8 @@ class MantidPeakFitEngine(PeakFitEngine):
             InputWorkspace=self._mtd_wksp,
             PeakFunction=str(self._peak_function),
             BackgroundType=str(self._background_function),
-            HighBackground=False,
+            FindBackgroundSigma=1,
+            HighBackground=self._high_background,
             PeakCenters=peak_center,
             FitWindowBoundaryList=(x_min, x_max),
             # ConstrainPeakPositions=True,  TODO should this be turned on?
