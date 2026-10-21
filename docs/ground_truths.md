@@ -833,3 +833,69 @@ covariance inverse can return negative variances.
 
 HB2B_4971 layout (from `Calib_Testing/HB2B_4971.h5` logs): arms 76, 80 (Ni), 78, 80, 82, 86 (Fe),
 89, 93, 97 (Ni), 99, 103 (Fe); it sees Ni 220/311/222 and Fe 211/220, each at 2–4 arm positions.
+
+## What 2θ₀ (TTH_0) represents on HB2B (2026-10)
+
+`TTH_0` is not only an arm-encoder zero error: it is the combination of the encoder offset and a
+**monochromator misalignment** (the incident beam leaving the monochromator slightly off its nominal
+direction). Turning the incident beam about the sample's vertical axis is physically equivalent to
+turning the detector arm the other way, so both appear as the same constant 2θ offset, and at a fixed
+L2 both are also degenerate with Rot_y + Shift_x (see the degeneracy entry above).
+
+**Decision (user, 2026-10-21):** `TTH_0` and `Lambda` are refined as **independent** parameters.
+2θ₀ is *not* inferred from, or constrained by, the monochromator setting or take-off geometry, even
+though a beam misalignment would in principle shift λ as well.
+
+## 2θ₀ is a virtual swing: the ring fit cannot measure it, so it is set, not fitted (2026-10)
+
+**Physics (user, 2026-10-21).** The detector arm does not move. 2θ₀ (beam misalignment from the
+monochromator plus any encoder error) turns the *incident beam* relative to the fixed detector.
+Seen from the beam this is a **virtual** swing of the detector about the sample, with four effects
+on the detector image, all set by the one angle α:
+
+| Effect | Exact size (L = sample–detector distance) | α = 0.656°, L = 0.985 m |
+|---|---|---|
+| uniform ring offset | α | 0.656° |
+| sideways move of the beam centre | L·tan α | 11.28 mm (38.5 px) |
+| distance change along the nominal ray | L·(1/cos α − 1) | +65 µm |
+| rotation of the detector face | α | 0.656° |
+
+`build_instrument` already models exactly this (it rotates the detector about the sample by
+2θ + 2θ₀ in the beam frame), so **no change to the TTH_0 math** was made in reduction or calibration.
+
+**Exact hand-back is a null move.** Those effects are, at one L2, exactly a change of the detector's
+rotations and shifts: R → Ry(−Δ)·R (re-split into Rot_x/y/z), Shift_x by L·tan Δ, Shift_z by
+L·(1/cos Δ − 1). Changing 2θ₀ and handing its virtual swing back this way changes no pixel's 2θ or η
+(5.7e-14° at arms 60–120°). So **at a single L2 the ring data cannot determine 2θ₀** — every value,
+with its handed-back shifts and rotations, fits identically. Its value must come from outside the
+fit (beam/encoder alignment, or a convention), or from a scan at two distances (where L·tan α no
+longer matches a real shift). `DetectorModel.with_two_theta_0` / `PixelCalibration.set_two_theta_0`
+implement the exact swap (tests pin the L·tan α, L·(1/cos α − 1), α forms and map invariance).
+
+Partial hand-backs are *not* null and are not the same thing: handing back only the position
+(re-solving shifts to keep the detector centre fixed) leaves a pure face turn, which is close to but
+**not** equal to Rot_y — they differ by 7e-4° (GUI-like geometry) to 2.3e-3° (Rot_x −1°, Rot_z 2°)
+per 0.5° step, because Rot_y turns about the detector's own (tilted) axis and pivots about the
+unshifted centre.
+
+**Iterative workflow.** The production recipe is staged — CalibrateShift → CalibrateRotation →
+calibrate_wave_shift, repeated — now `PixelCalibration.iterate()` (fixed passes or until no change
+> 1e-3 mm/deg/mÅ, then an optional joint polish = `FullCalibration`). Study
+(`tests/scripts/ring_calibration_degeneracy_study.py`, 4971 layout, 0.01° scatter, 20 trials):
+
+- λ's residual pattern is 0.990 similar to TTH_0's and Shift_x's (a near-uniform ring offset over
+  76–98°). **λ must be refined in the same stage as the parameter that carries the ring offset** —
+  the recipe's λ+2θ₀ stage does that.
+- Recipe with everything free (A): noise-free exact after ~13 passes by tolerance; **3 passes +
+  polish reaches the optimum** (map error 8e-14°, 58 evaluations, ~0.8 s).
+- Fixing a parameter in a staged recipe makes it crawl: Rot_y = 0 stalls at a 0.014° map error;
+  TTH_0 = 0 is still 0.3° off after 50 passes; Shift_x = 0 needs ~30 passes. The coupled pair then
+  sits in different stages. A final polish rescues all of them.
+- Compensating TTH_0 steps to keep the detector centre fixed ("G") is as bad as TTH_0 = 0 (0.74°
+  after one pass): it strips TTH_0 of the ring offset, leaving λ to fight Shift_x across stages.
+  Rejected.
+- One-shot fits give the same 2θ map for every convention (median error 0.018° at 0.01° scatter).
+
+**Decisions (user, 2026-10-21):** Rot_y is not fixed; TTH_0 keeps its virtual-swing meaning and is
+refined independently of λ (not inferred from the monochromator); `iterate()` leaves the
+2θ₀/pose split where the recipe puts it, and `set_two_theta_0` re-expresses it only when called.

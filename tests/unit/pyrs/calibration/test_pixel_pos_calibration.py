@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from pyrs.calibration.pixel_pos_calibration import (
+    DEFAULT_RECIPE,
     PARAMETER_NAMES,
     DetectorModel,
     PixelCalibration,
@@ -401,3 +402,156 @@ def test_ring_points_nonpositive_d_spacing_raises():
 def test_ring_points_default_sigma_is_nan():
     points = RingPoints([1], [0.0], [0.0], [85.0], [0.985], [1.2], [8], ["Ni"])
     assert np.isnan(points.sigma).all()
+
+
+# ---------------------------------------------------------------- 2theta_0 re-expression
+
+
+LARGE_PARAMS = np.array([-0.012, 0.006, 0.040, -1.0, 1.5, 2.0, -1.5, 1.5250])
+
+
+@pytest.mark.parametrize("params", [TRUE_PARAMS, LARGE_PARAMS], ids=["gui-like", "large"])
+@pytest.mark.parametrize("new_two_theta_0", [0.0, 1.2])
+def test_with_two_theta_0_keeps_two_theta_map(hb2b, params, new_two_theta_0):
+    """2theta_0 is a virtual swing: trading it for rotations + shifts leaves every pixel unchanged"""
+    # Arrange
+    model = DetectorModel(hb2b)
+    calibration = DENEXDetectorShift(*params[:7])
+
+    # Act
+    swapped = model.with_two_theta_0(calibration, new_two_theta_0, 0.985)
+
+    # Assert
+    assert swapped.two_theta_0 == new_two_theta_0
+    swapped_params = [
+        swapped.center_shift_x,
+        swapped.center_shift_y,
+        swapped.center_shift_z,
+        swapped.rotation_x,
+        swapped.rotation_y,
+        swapped.rotation_z,
+        swapped.two_theta_0,
+    ]
+    for arm in (60.0, 90.0, 120.0):
+        np.testing.assert_allclose(
+            _two_theta_map(model, swapped_params, arm), _two_theta_map(model, params, arm), atol=1e-10
+        )
+        grid = np.meshgrid(np.arange(0, NUM_PIXELS, 16), np.arange(0, NUM_PIXELS, 16), indexing="ij")
+        np.testing.assert_allclose(
+            model.eta(*grid, -arm, 0.985, swapped), model.eta(*grid, -arm, 0.985, calibration), atol=1e-9
+        )
+
+
+def test_with_two_theta_0_round_trip(hb2b):
+    # Arrange
+    model = DetectorModel(hb2b)
+    original = DENEXDetectorShift(*LARGE_PARAMS[:7])
+
+    # Act
+    back = model.with_two_theta_0(model.with_two_theta_0(original, 0.0, 0.985), LARGE_PARAMS[6], 0.985)
+
+    # Assert
+    for name in ("center_shift_x", "center_shift_y", "center_shift_z", "rotation_x", "rotation_y", "rotation_z"):
+        assert getattr(back, name) == pytest.approx(getattr(original, name), abs=1e-10)
+
+
+def test_with_two_theta_0_virtual_swing_size(hb2b):
+    """From the nominal geometry, alpha of 2theta_0 is exactly its virtual swing: beam-centre move
+    L*tan(alpha), distance change L*(1/cos(alpha) - 1) and a face rotation alpha"""
+    # Arrange
+    alpha, arm_l2 = 0.5, 0.985
+
+    # Act
+    swapped = DetectorModel(hb2b).with_two_theta_0(DENEXDetectorShift(0, 0, 0, 0, 0, 0, alpha), 0.0, arm_l2)
+
+    # Assert
+    alpha_rad = np.deg2rad(alpha)
+    assert swapped.rotation_y == pytest.approx(alpha, abs=1e-12)
+    assert swapped.center_shift_x == pytest.approx(arm_l2 * np.tan(alpha_rad), rel=1e-9)
+    assert swapped.center_shift_z == pytest.approx(arm_l2 * (1 / np.cos(alpha_rad) - 1), rel=1e-6)
+    assert swapped.rotation_x == pytest.approx(0.0, abs=1e-12)
+    assert swapped.rotation_z == pytest.approx(0.0, abs=1e-12)
+
+
+def test_with_two_theta_0_bad_calibration_raises(hb2b):
+    with pytest.raises(TypeError, match="DENEXDetectorShift"):
+        DetectorModel(hb2b).with_two_theta_0([0.0] * 7, 0.0, 0.985)
+
+
+def test_set_two_theta_0_keeps_fit(hb2b, true_rings):
+    # Arrange
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+    calibration.set_calibration_array(TRUE_PARAMS)
+    before = calibration.residual(TRUE_PARAMS)
+
+    # Act
+    stage = calibration.set_two_theta_0(0.0)
+
+    # Assert
+    after = calibration.calibration_array
+    assert after[6] == 0.0
+    assert after[7] == TRUE_PARAMS[7]
+    np.testing.assert_allclose(calibration.residual(after), before, atol=1e-10)
+    assert np.all(calibration.calibration_error_array[:7] == -1.0)
+    assert stage.name == "set_two_theta_0" and calibration.stages[-1] is stage
+
+
+# ---------------------------------------------------------------- iterate()
+
+
+def test_iterate_fixed_passes_runs_recipe(hb2b, true_rings):
+    # Arrange
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+
+    # Act
+    n_pass = calibration.iterate(passes=2, polish=False)
+
+    # Assert
+    assert n_pass == 2
+    assert [stage.name for stage in calibration.stages] == list(DEFAULT_RECIPE) * 2
+
+
+def test_iterate_with_polish_reaches_true_map(hb2b, true_rings):
+    # Arrange
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+    model = DetectorModel(hb2b)
+
+    # Act
+    n_pass = calibration.iterate(passes=3)
+
+    # Assert
+    assert n_pass == 3
+    assert calibration.stages[-1].name == "FullCalibration"
+    assert calibration.calibration_array[7] == pytest.approx(TRUE_PARAMS[7], abs=1e-6)
+    for arm in (76.0, 103.0):
+        np.testing.assert_allclose(
+            _two_theta_map(model, calibration.calibration_array, arm),
+            _two_theta_map(model, TRUE_PARAMS, arm),
+            atol=1e-5,
+        )
+
+
+def test_iterate_tolerance_stops_before_max(hb2b, true_rings):
+    # Arrange
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+
+    # Act
+    n_pass = calibration.iterate(tolerance=1e-3, max_passes=50, polish=False)
+
+    # Assert
+    assert 1 < n_pass < 50
+    assert calibration.stages[-1].rmse < 1e-3
+
+
+def test_iterate_not_converged_warns(hb2b, true_rings):
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+    with pytest.warns(UserWarning, match="not converged"):
+        calibration.iterate(tolerance=1e-12, max_passes=2, polish=False)
+
+
+@pytest.mark.parametrize(
+    "kwargs", [{"recipe": ["CalibrateShift", "no_such_stage"]}, {"recipe": []}, {"passes": 0}, {"tolerance": 0.0}]
+)
+def test_iterate_invalid_arguments_raise(hb2b, true_rings, kwargs):
+    with pytest.raises(ValueError):
+        PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH).iterate(**kwargs)

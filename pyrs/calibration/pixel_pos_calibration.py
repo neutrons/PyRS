@@ -15,18 +15,23 @@ equivalence is pinned by a unit test; see docs/ground_truths.md.
 Typical workflow:
 
 1. Extract ring points (fractional pixel positions of fitted rings) into a :class:`RingPoints`.
-2. Refine the geometry with :class:`PixelCalibration` stages, e.g. ``CalibrateShift()`` then
-   ``CalibrateRotation()`` then ``calibrate_wave_shift()``.
-3. Read the result from ``calibration_array`` / ``calibration_error_array``.
+2. Refine the geometry with :meth:`PixelCalibration.iterate` (repeated ``CalibrateShift`` ->
+   ``CalibrateRotation`` -> ``calibrate_wave_shift`` passes, then a joint polish), or with
+   individual stage methods.
+3. Optionally fix the 2theta_0 / detector-pose split with :meth:`PixelCalibration.set_two_theta_0`:
+   at one sample-detector distance the ring fit cannot determine it (2theta_0 is a virtual swing
+   of the detector, see docs/ground_truths.md).
+4. Read the result from ``calibration_array`` / ``calibration_error_array``.
 
 Example::
 
     calibration = PixelCalibration(ring_points, hidra_ws.get_instrument_setup(), wavelength=1.54)
-    calibration.CalibrateShift()
-    calibration.calibrate_wave_shift()
+    calibration.iterate(passes=3)            # Shift -> Rotation -> lambda+2theta_0, x3, then polish
+    calibration.set_two_theta_0(0.0)         # optional: same detector, described with 2theta_0 = 0
     shift_x, shift_y, shift_z, rot_x, rot_y, rot_z, two_theta_0, wavelength = calibration.calibration_array
 """
 
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple, Union
@@ -38,10 +43,35 @@ from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorSh
 from pyrs.core.reduce_hb2b_pyrs import ResidualStressInstrument
 from pyrs.utilities.convertdatatypes import to_float
 
-__all__ = ["DetectorModel", "RingPoints", "PixelCalibration", "StageResult", "PARAMETER_NAMES"]
+__all__ = [
+    "DetectorModel",
+    "RingPoints",
+    "PixelCalibration",
+    "StageResult",
+    "PARAMETER_NAMES",
+    "DEFAULT_RECIPE",
+    "DEFAULT_TOLERANCE",
+]
 
 # order of the calibration vector, matching FitCalibration and the calibration JSON keys
 PARAMETER_NAMES = ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda")
+
+# PixelCalibration.iterate(): the production-style staged workflow and its convergence test
+DEFAULT_RECIPE = ("CalibrateShift", "CalibrateRotation", "calibrate_wave_shift")
+DEFAULT_TOLERANCE = 1e-3  # per pass, in mm (shifts), degrees (angles) and mA (wavelength)
+_REPORT_UNITS = np.array([1e3, 1e3, 1e3, 1.0, 1.0, 1.0, 1.0, 1e3])
+_RECIPE_STAGES = (
+    "calibrate_wave_length",
+    "calibrate_wave_shift",
+    "calibrate_shiftx",
+    "calibrate_shifty",
+    "calibrate_distance",
+    "calibrate_tth0",
+    "CalibrateShift",
+    "CalibrateRotation",
+    "CalibrateGeometry",
+    "FullCalibration",
+)
 
 
 class DetectorModel:
@@ -160,6 +190,74 @@ class DetectorModel:
         positions = self.lab_positions(index_0, index_1, two_theta, l2, calibration)
         eta = 180.0 - np.arctan2(positions[..., 1], positions[..., 0]) * 180 / np.pi
         return np.where(eta > 180.0, eta - 360, eta)
+
+    def centre_position(self, calibration: Optional[DENEXDetectorShift], l2: float) -> np.ndarray:
+        """Lab position (m) of the detector centre at arm angle 0 (the arm rotation is common to every split)."""
+        num_rows, num_columns = self.instrument_setup.detector_size
+        return self.lab_positions((num_columns - 1) / 2, (num_rows - 1) / 2, 0.0, l2, calibration)
+
+    def with_two_theta_0(self, calibration: DENEXDetectorShift, two_theta_0: float, l2: float) -> DENEXDetectorShift:
+        """The same detector described with a different 2theta_0.
+
+        The arm is fixed; 2theta_0 (beam misalignment plus encoder error) turns the incident beam
+        relative to the detector, which looks like a *virtual* swing of the detector about the
+        sample: a uniform ring offset, a sideways move of the beam centre, a small distance change
+        and a slight rotation. At one sample-detector distance that swing is exactly a change of
+        the detector's rotations and shifts, so 2theta_0 can be traded for them without changing
+        any pixel's 2theta or eta. This hands the virtual swing of the 2theta_0 change exactly to
+        the rotations (``R -> Ry(-delta) @ R``, re-decomposed as ``Rx @ Ry @ Rz``) and re-solves
+        the shifts so the detector centre stays where it was. See docs/ground_truths.md.
+
+        Args:
+            calibration: Current detector calibration.
+            two_theta_0: New 2theta_0 (degrees).
+            l2: Sample-detector distance (m) at which the equivalence is exact.
+
+        Returns:
+            Calibration with ``two_theta_0`` and compensated shifts and rotations.
+
+        Raises:
+            TypeError: If ``calibration`` is not a DENEXDetectorShift.
+            ValueError: If the new rotation is at the Rx/Ry/Rz gimbal singularity (|Rot_y| = 90 deg).
+        """
+        if not isinstance(calibration, DENEXDetectorShift):
+            raise TypeError(f"calibration must be a DENEXDetectorShift, got {type(calibration).__name__}")
+        two_theta_0 = to_float("2theta_0", two_theta_0)
+        old = np.array(
+            [
+                calibration.center_shift_x,
+                calibration.center_shift_y,
+                calibration.center_shift_z,
+                calibration.rotation_x,
+                calibration.rotation_y,
+                calibration.rotation_z,
+                calibration.two_theta_0,
+            ]
+        )
+        delta = np.deg2rad(two_theta_0 - old[6])
+        rotation = self._instrument._cal_rotation_matrix_y(-delta) @ self._instrument.generate_rotation_matrix(
+            *np.deg2rad(old[3:6])
+        )
+        if abs(rotation[0, 2]) > np.sin(np.deg2rad(89.0)):
+            raise ValueError("compensated rotation is at the Rot_y = +/-90 deg singularity")
+
+        new = old.copy()
+        new[3] = np.rad2deg(np.arctan2(-rotation[1, 2], rotation[2, 2]))
+        new[4] = np.rad2deg(np.arcsin(rotation[0, 2]))
+        new[5] = np.rad2deg(np.arctan2(-rotation[0, 1], rotation[0, 0]))
+        new[6] = two_theta_0
+
+        # with the angles fixed the centre is affine in the three shifts, so one linear solve is exact
+        target = self.centre_position(calibration, l2)
+        base = self.centre_position(DENEXDetectorShift(*new), l2)
+        columns = []
+        for k in range(3):
+            moved = new.copy()
+            moved[k] += 1e-3
+            columns.append((self.centre_position(DENEXDetectorShift(*moved), l2) - base) / 1e-3)
+        new[:3] += np.linalg.solve(np.array(columns).T, target - base)
+
+        return DENEXDetectorShift(*new)
 
 
 _RING_FIELDS = ("sub_run", "index_0", "index_1", "det_2theta", "l2", "d_spacing", "hkl_squared", "powder", "sigma")
@@ -367,6 +465,50 @@ class PixelCalibration:
             raise ValueError(f"wavelength must be positive, got {params[7]}")
         self._calib = params.copy()
 
+    def set_two_theta_0(self, two_theta_0: float, l2: Optional[float] = None) -> StageResult:
+        """Re-express the current calibration with a chosen 2theta_0, keeping the same detector.
+
+        The ring fit cannot tell 2theta_0 apart from the shifts and rotations it implies (see
+        :meth:`DetectorModel.with_two_theta_0`), so its value has to come from outside the fit,
+        e.g. an independent beam-alignment measurement, or a convention such as 0. The wavelength
+        and every ring point's 2theta are unchanged. Errors of the shifts, rotations and 2theta_0
+        are reset to -1 because they referred to the old split; re-run a stage with TTH_0 held
+        (e.g. ``refine("errors", [0, 1, 2, 3, 4, 5, 7], ...)``) to get uncertainties for this one.
+
+        Args:
+            two_theta_0: The 2theta_0 (degrees) to describe the detector with.
+            l2: Distance (m) at which the swap is exact; default: the ring points' L2. Sub-runs at
+                other distances see a slightly different detector (that is what breaks the
+                degeneracy in a two-distance scan).
+
+        Returns:
+            A :class:`StageResult` recorded in :attr:`stages` (no refinement, ``nfev = 0``).
+        """
+        if l2 is None:
+            l2 = float(np.median(self.ring_points.l2))
+        calibration = self._model.with_two_theta_0(DENEXDetectorShift(*self._calib[:7]), two_theta_0, l2)
+        self._calib[:7] = [
+            calibration.center_shift_x,
+            calibration.center_shift_y,
+            calibration.center_shift_z,
+            calibration.rotation_x,
+            calibration.rotation_y,
+            calibration.rotation_z,
+            calibration.two_theta_0,
+        ]
+        self._caliberr[:7] = -1.0
+        stage = StageResult(
+            name="set_two_theta_0",
+            free_parameters=(),
+            values=np.array([]),
+            errors=np.array([]),
+            status=self._status,
+            rmse=float(np.sqrt(np.mean(self.residual(self._calib) ** 2))),
+            nfev=0,
+        )
+        self.stages.append(stage)
+        return stage
+
     def model_two_theta(self, params: Sequence[float]) -> np.ndarray:
         """2theta (degrees) of every ring point's pixel for calibration vector ``params``."""
         calibration = DENEXDetectorShift(*params[:7])
@@ -545,3 +687,55 @@ class PixelCalibration:
             [0.05, 0.05, 0.15, 5.0, 5.0, 5.0, 5.0, wl + 0.05],
             initalGuess,
         )
+
+    def iterate(
+        self,
+        recipe: Sequence[str] = DEFAULT_RECIPE,
+        passes: Optional[int] = None,
+        tolerance: float = DEFAULT_TOLERANCE,
+        max_passes: int = 50,
+        polish: bool = True,
+    ) -> int:
+        """Run a staged recipe repeatedly, then optionally one joint refinement of everything.
+
+        This is the iterative calibration workflow: e.g. shifts, then rotations, then wavelength and
+        2theta_0, repeated. Each stage holds the others' parameters, so later passes re-identify the
+        shifts and rotations after 2theta_0 and the wavelength have moved. The final ``polish``
+        (:meth:`FullCalibration`) settles directions the stages only creep along.
+
+        Args:
+            recipe: Stage method names run in order in each pass.
+            passes: Run exactly this many passes; None repeats until no parameter changes by more
+                than ``tolerance`` between passes.
+            tolerance: Convergence threshold in mm (shifts), degrees (angles) and mA (wavelength).
+            max_passes: Upper limit when ``passes`` is None.
+            polish: Finish with :meth:`FullCalibration`.
+
+        Returns:
+            Number of passes run (excluding the polish).
+
+        Raises:
+            ValueError: On an unknown stage name or a non-positive pass count or tolerance.
+        """
+        unknown = [name for name in recipe if name not in _RECIPE_STAGES]
+        if unknown or not recipe:
+            raise ValueError(f"recipe stages must be from {sorted(_RECIPE_STAGES)}, got {list(recipe)}")
+        if passes is not None and passes < 1:
+            raise ValueError(f"passes must be at least 1, got {passes}")
+        if not tolerance > 0 or max_passes < 1:
+            raise ValueError("tolerance must be positive and max_passes at least 1")
+
+        n_pass = 0
+        for n_pass in range(1, (passes or max_passes) + 1):
+            before = self._calib.copy()
+            for name in recipe:
+                getattr(self, name)()
+            if passes is None and np.max(np.abs(self._calib - before) * _REPORT_UNITS) < tolerance:
+                break
+        else:
+            if passes is None:
+                warnings.warn(f"iterate: not converged to {tolerance} after {max_passes} passes", stacklevel=2)
+
+        if polish:
+            self.FullCalibration()
+        return n_pass
