@@ -955,3 +955,38 @@ Other notes:
   public loader in core used by both, proposed separately.
 - The ~290 `readX()/readY()` deprecation warnings in these tests come from the existing
   `PeakFitEngine._guess_center`, not from the extraction code.
+
+## Ring extraction is two-pass: locate on all strips, then fit each strip (2026-10)
+
+`PeakFitEngine._guess_center` starts every fit at (almost exactly) the **middle of the fit window**:
+it takes the first moment of `y + |max(y)|`, and adding the maximum swamps the peak. Measured on
+synthetic strips the guess was within 0.03° of the window centre whatever the data, and 0.27–0.34°
+(about one FWHM) from the real peak. In extraction the window is centred on the ring *expected* from
+the starting λ and geometry, so a wrong start put every fit's start off the ring. (This is existing
+peak-engine code, also used by production fitting; not changed here.)
+
+`extract_ring_points` therefore runs two passes per sub-run and reflection, all inside the
+calibration module: (1) **locate** — one fit on all unmasked strips combined (high statistics); its
+centre (if significant) becomes the target; (2) **measure** — the side-edge prediction and every
+strip's window are centred on that target, so each fit starts on the ring. `StripFit.start_center`
+records the located value (NaN when pass 1 found nothing and the expectation was used).
+
+Synthetic HB2B_4971 run (true λ 1.5308), one-pass (commit 41fba32f) vs two-pass:
+
+| start λ | one-pass | two-pass |
+|---|---|---|
+| 1.5308, 1.540 | 195 pts, 13/13 rings, ≤ 0.17 px | 195 pts, 13/13, ≤ 0.16 px |
+| 1.555 | 193 pts, one point 2.3 px off | 195 pts, 13/13, ≤ 0.16 px |
+| 1.565 | crash (ZeroDivisionError) | 90 pts, 6/13, ≤ 0.14 px |
+| 1.520 | crash | 47 pts, 7/13, one point 13 px off |
+| ≥ 1.575, 1.505 | crash | 1–2 pts, 200–300 px off |
+
+- Two-pass is clean up to an apparent ring offset of ~1° — real starts (mono setting 1.540 vs
+  fitted 1.5308, 0.6 %) are well inside that.
+- The one-pass crash: its significance used plain Python floats (`np.errstate` does not guard them)
+  and a fit reported a zero intensity error. The shared helper divides NumPy arrays (inf/NaN, no
+  crash).
+- **Limitation, not yet guarded:** with a larger start error the expected ring leaves its ±2° window
+  and the window captures a *different* reflection or a noise bump, accepted as a confident, wrongly
+  labelled point. Per-ring outlier rejection cannot see it (the wrong ring is self-consistent). Next:
+  a coarse global alignment of all expected reflections before pass 1, and a mis-assignment guard.

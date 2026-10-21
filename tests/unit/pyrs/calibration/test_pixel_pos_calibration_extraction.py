@@ -317,13 +317,37 @@ def test_ring_predicted_inside_margin_not_fitted(hb2b):
 
 
 def test_fitted_ring_inside_margin_rejected(hb2b):
-    """The prediction uses the starting wavelength and geometry; the fitted ring is checked again"""
-    # Act - arm 68.5: predicted ~965-971 (inside a 45 px margin), fitted beyond 1023 - 45
-    points, diagnostics = _single_ring_extraction(hb2b, 68.5, side_margin=45)
+    """The window is placed from one located 2theta, but the true ring is tilted (Rot_z): the fitted
+    point of each band is checked against the margin again"""
+    # Act - arm 84: predicted columns ~64.6-70.6 (all >= 63), fitted 55.6-74.0
+    points, diagnostics = _single_ring_extraction(hb2b, 84.0, side_margin=63)
+
+    # Assert - the two bands whose fitted ring lies inside 63 px are dropped after the fit
+    assert len(points) == STRIPS - 2
+    assert np.all(points.index_0 >= 63)
+    assert _reasons(diagnostics) == {"fitted ring within 63 px of the side edge"}
+
+
+def test_ring_located_despite_wrong_start_wavelength(hb2b):
+    """Two-pass extraction: a starting wavelength of 1.572 A (true 1.5308) puts the expected ring ~1.4 deg
+    (4-5 peak widths) from where it appears; the all-bands fit finds it and the band windows are centred
+    on it"""
+    # Arrange
+    workspace = synthetic_calibration_workspace(hb2b, TRUE_PARAMS, [76.0], [NI])
+    diagnostics = []
+
+    # Act
+    points = extract_ring_points(workspace, 1.572, strips=STRIPS, diagnostics=diagnostics)
 
     # Assert
-    assert points is None
-    assert _reasons(diagnostics) == {"fitted ring within 45 px of the side edge"}
+    centers = np.array([d.center for d in diagnostics])
+    start = diagnostics[0].start_center
+    assert np.all(np.abs(diagnostics[0].bragg_two_theta - centers) > 1.0)  # the expectation really is far off
+    # with the uncalibrated geometry the ring's apparent 2theta varies by band; the start is their mean
+    assert start == pytest.approx(centers.mean(), abs=0.05)
+    assert np.all(np.abs(centers - start) < 0.3)  # every band's fit starts within a peak width
+    assert len(points) == STRIPS
+    assert np.abs(points.index_0 - _true_columns(hb2b, points)).max() < 0.15
 
 
 def test_window_too_clipped_rejected(hb2b):

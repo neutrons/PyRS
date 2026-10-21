@@ -759,6 +759,8 @@ class StripFit:
         powder: Powder standard name.
         hkl_squared: ``h^2 + k^2 + l^2`` of the reflection.
         bragg_two_theta: Expected 2theta (deg) at the starting wavelength.
+        start_center: Ring 2theta (deg) found by the first, all-bands fit, on which the band's window
+            was centred; NaN if that fit found no ring and the window was placed on the expectation.
         two_theta: Bin centres (deg) of the strip histogram.
         intensity: Strip histogram, counts per pixel (or per vanadium count).
         center: Fitted ring 2theta (deg); NaN if the fit failed.
@@ -774,6 +776,7 @@ class StripFit:
     powder: str
     hkl_squared: int
     bragg_two_theta: float
+    start_center: float
     two_theta: np.ndarray
     intensity: np.ndarray
     center: float
@@ -828,6 +831,70 @@ def _reject_outliers(points: List[dict], threshold: float, smooth: bool) -> None
                 point["index_0"] = float(fitted)
 
 
+def _fit_band_histograms(
+    name: str,
+    pixel_sets: Sequence[Tuple[np.ndarray, np.ndarray, np.ndarray]],
+    edges: np.ndarray,
+    peak_function: str,
+    background_function: str,
+    wavelength: float,
+) -> Tuple[np.ndarray, List[np.ndarray], np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Histogram each pixel set on ``edges`` (per-pixel normalised) and fit one peak in all of them.
+
+    Each set is ``(2theta, weighted counts, weighted efficiency)`` of the pixels of one band (or of
+    several bands combined). All sets share the bin grid, so a single Mantid ``FitPeaks`` call fits
+    them all, one spectrum per set, over the whole grid.
+
+    Returns:
+        Bin centres, the histograms, and per set: fitted centre, centre error, significance
+        (intensity / its error) and the fit-exclusion flag.
+    """
+    from pyrs.core.workspaces import HidraWorkspace
+    from pyrs.peaks import FitEngineFactory  # type: ignore
+    from mantid.simpleapi import DeleteWorkspace, mtd
+
+    centres = 0.5 * (edges[:-1] + edges[1:])
+    fit_ws = HidraWorkspace(name)
+    fit_ws.set_sub_runs(list(range(1, len(pixel_sets) + 1)))
+    histograms = []
+    for spectrum, (tth, weighted_counts, weighted_efficiency) in enumerate(pixel_sets, start=1):
+        summed = np.histogram(tth, edges, weights=weighted_counts)[0]
+        norm = np.histogram(tth, edges, weights=weighted_efficiency)[0]
+        with np.errstate(invalid="ignore", divide="ignore"):
+            intensity = np.where(norm > 0, summed / norm, 0.0)
+            variance = np.where(norm > 0, np.maximum(summed, 1.0) / norm**2, 0.0)
+        histograms.append(intensity)
+        fit_ws.set_reduced_diffraction_data(spectrum, None, centres, intensity, variance)
+
+    engine = FitEngineFactory.getInstance(
+        fit_ws,
+        peak_function,
+        background_function,
+        wavelength=wavelength,
+        out_of_plane_angle=None,
+        high_background=False,
+    )
+    result = engine.fit_multiple_peaks([name], [edges[0]], [edges[-1]])
+    values, errors = result.peakcollections[0].get_effective_params()
+    excluded = np.asarray(result.peakcollections[0].exclude, dtype=bool)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        significance = np.asarray(values["Intensity"], dtype=float) / np.asarray(errors["Intensity"], dtype=float)
+
+    # FitPeaks leaves its workspaces in Mantid's data service
+    for workspace_name in [engine._mtd_wksp.name()] + [str(ws) for ws in (result.fitted, result.difference)]:
+        if workspace_name in mtd:
+            DeleteWorkspace(workspace_name)
+
+    return (
+        centres,
+        histograms,
+        np.asarray(values["Center"], dtype=float),
+        np.asarray(errors["Center"], dtype=float),
+        significance,
+        excluded,
+    )
+
+
 def extract_ring_points(
     workspace,
     wavelength: float,
@@ -856,9 +923,10 @@ def extract_ring_points(
     For each sub-run the detector is cut into ``strips`` bands along ``index_1`` (rows ``edge`` to
     ``n_rows - edge``). Each band is histogrammed in 2theta using ``calibration`` and normalised by
     the number of pixels (or the vanadium counts) per bin, so the varying pixel density across a
-    curved ring does not skew the peak. Every reflection of the sub-run's powder standard is used in
-    every band where its ring is predicted at least ``side_margin`` pixels from the left and right
-    edges; its fit window is clipped to the band's coverage, and needs ``min_window_side`` degrees
+    curved ring does not skew the peak. Each reflection of the sub-run's powder standard is first
+    located by one fit on all bands together (high statistics), which puts the band windows on the
+    observed ring even when the starting wavelength or geometry is off; it is then used in every
+    band where that ring crosses at least ``side_margin`` pixels from the left and right edges; its fit window is clipped to the band's coverage, and needs ``min_window_side`` degrees
     of data on each side of the peak. Bands sharing a window are fitted together (Mantid
     ``FitPeaks`` with ``HighBackground=False``), and each fitted 2theta is converted back to a
     column on the band's centre row *with the same geometry*, which makes the ring point nearly
@@ -905,9 +973,6 @@ def extract_ring_points(
         ValueError: On invalid arguments, or if no ring point is found.
     """
     from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
-    from pyrs.core.workspaces import HidraWorkspace
-    from pyrs.peaks import FitEngineFactory  # type: ignore
-    from mantid.simpleapi import DeleteWorkspace, mtd
 
     if not wavelength > 0:
         raise ValueError(f"wavelength must be positive, got {wavelength}")
@@ -964,11 +1029,35 @@ def extract_ring_points(
                 )
             )
 
+        combined = tuple(np.concatenate([pixels[j] for pixels in band_pixels]) for j in range(3))
+
+        def window(centre: float, tth: np.ndarray) -> Optional[Tuple[int, int]]:
+            """Fit window around ``centre`` clipped to the pixels' coverage, on whole bins; None if
+            either side keeps less than ``min_window_side`` of data."""
+            low = int(np.ceil(max(centre - fit_half_width, tth.min()) / bin_width))
+            high = int(np.floor(min(centre + fit_half_width, tth.max()) / bin_width))
+            if centre - low * bin_width < min_window_side or high * bin_width - centre < min_window_side:
+                return None
+            return low, high
+
         for hkl2, bragg in zip(standard.hkl_squared, standard.two_theta(wavelength)):
-            # choose bands per reflection: a curved ring can be near the side edge in some bands only
+            # pass 1: locate the ring on all unmasked bands together, where the signal is strongest,
+            # so the strip windows (and the fits' starting centre: the window middle) sit on it even
+            # when the starting wavelength or geometry puts the prediction a peak width or more off
+            target, located = bragg, False
+            locate_window = window(bragg, combined[0]) if combined[0].size else None
+            if locate_window is not None:
+                edges = np.arange(locate_window[0], locate_window[1] + 1) * bin_width
+                _, _, centre, _, significance, excluded = _fit_band_histograms(
+                    f"ring_{sub_run}_{hkl2}_locate", [combined], edges, peak_function, background_function, wavelength
+                )
+                if not excluded[0] and significance[0] >= min_significance and edges[0] < centre[0] < edges[-1]:
+                    target, located = float(centre[0]), True
+
+            # pass 2: choose bands for this reflection: a curved ring can be near the side edge in some only
             records, groups = {}, {}
             for k in range(strips):
-                predicted = _column_at_two_theta(model, bragg, rows_centre[k], arm, l2, calibration)
+                predicted = _column_at_two_theta(model, target, rows_centre[k], arm, l2, calibration)
                 if not np.isfinite(predicted):
                     continue  # the ring does not cross this band
                 records[k] = {
@@ -982,7 +1071,7 @@ def extract_ring_points(
                     "sigma": np.nan,
                     "index_0": np.nan,
                     "reject": "",
-                    "fit": (k, bragg, np.array([]), np.array([]), np.nan),
+                    "fit": (k, bragg, target if located else np.nan, np.array([]), np.array([]), np.nan),
                 }
                 tth = band_pixels[k][0]
                 if tth.size == 0:
@@ -991,54 +1080,32 @@ def extract_ring_points(
                 if not side_margin <= predicted <= num_columns - 1 - side_margin:
                     records[k]["reject"] = f"ring predicted within {side_margin} px of the side edge"
                     continue
-                # window clipped to the band's coverage, kept on whole bins inside it
-                low = np.ceil(max(bragg - fit_half_width, tth.min()) / bin_width)
-                high = np.floor(min(bragg + fit_half_width, tth.max()) / bin_width)
-                if bragg - low * bin_width < min_window_side or high * bin_width - bragg < min_window_side:
+                band_window = window(target, tth)
+                if band_window is None:
                     records[k]["reject"] = "fit window clipped by the detector edge"
                     continue
-                groups.setdefault((int(low), int(high)), []).append(k)
+                groups.setdefault(band_window, []).append(k)
 
             # bands with the same window are fitted together (one FitPeaks call, bands as spectra)
             for (low, high), members in groups.items():
                 edges = np.arange(low, high + 1) * bin_width
-                centres = 0.5 * (edges[:-1] + edges[1:])
-                fit_ws = HidraWorkspace(f"ring_{sub_run}_{hkl2}_{low}")
-                fit_ws.set_sub_runs(list(range(1, len(members) + 1)))
-                histograms = []
-                for spectrum, k in enumerate(members, start=1):
-                    tth, weighted_counts, weighted_efficiency = band_pixels[k]
-                    summed = np.histogram(tth, edges, weights=weighted_counts)[0]
-                    norm = np.histogram(tth, edges, weights=weighted_efficiency)[0]
-                    with np.errstate(invalid="ignore", divide="ignore"):
-                        intensity = np.where(norm > 0, summed / norm, 0.0)
-                        variance = np.where(norm > 0, np.maximum(summed, 1.0) / norm**2, 0.0)
-                    histograms.append(intensity)
-                    fit_ws.set_reduced_diffraction_data(spectrum, None, centres, intensity, variance)
-
-                engine = FitEngineFactory.getInstance(
-                    fit_ws,
+                centres, histograms, centre, centre_error, significance, excluded = _fit_band_histograms(
+                    f"ring_{sub_run}_{hkl2}_{low}",
+                    [band_pixels[k] for k in members],
+                    edges,
                     peak_function,
                     background_function,
-                    wavelength=wavelength,
-                    out_of_plane_angle=None,
-                    high_background=False,
+                    wavelength,
                 )
-                result = engine.fit_multiple_peaks([f"ring_{sub_run}_{hkl2}"], [edges[0]], [edges[-1]])
-                values, errors = result.peakcollections[0].get_effective_params()
-                excluded = np.asarray(result.peakcollections[0].exclude, dtype=bool)
-
                 for i, k in enumerate(members):
                     point = records[k]
-                    center, error = float(values["Center"][i]), float(errors["Center"][i])
-                    with np.errstate(invalid="ignore", divide="ignore"):
-                        significance = float(values["Intensity"][i]) / float(errors["Intensity"][i])
+                    center, error = float(centre[i]), float(centre_error[i])
                     point["sigma"] = error
-                    point["fit"] = (k, bragg, centres, histograms[i], center)
+                    point["fit"] = (k, bragg, target if located else np.nan, centres, histograms[i], center)
                     if excluded[i] or not np.isfinite(center) or not np.isfinite(error) or error <= 0:
                         point["reject"] = "fit failed"
-                    elif not significance >= min_significance:
-                        point["reject"] = f"peak not significant ({significance:.1f} < {min_significance} sigma)"
+                    elif not significance[i] >= min_significance:
+                        point["reject"] = f"peak not significant ({significance[i]:.1f} < {min_significance} sigma)"
                     elif error > max_center_error:
                         point["reject"] = f"centre error {error:.3f} > {max_center_error} deg"
                     elif not edges[0] < center < edges[-1]:
@@ -1049,13 +1116,8 @@ def extract_ring_points(
                         if not np.isfinite(column):
                             point["reject"] = "ring off the detector on this row"
                         elif not side_margin <= column <= num_columns - 1 - side_margin:
-                            # the prediction used the starting wavelength and geometry; check the fit too
+                            # the window was placed from pass 1 or the prediction; check the fitted point too
                             point["reject"] = f"fitted ring within {side_margin} px of the side edge"
-
-                # FitPeaks leaves its workspaces in Mantid's data service
-                for name in [engine._mtd_wksp.name()] + [str(ws) for ws in (result.fitted, result.difference)]:
-                    if name in mtd:
-                        DeleteWorkspace(name)
 
             points.extend(records[k] for k in sorted(records))
 
@@ -1063,7 +1125,7 @@ def extract_ring_points(
 
     if diagnostics is not None:
         for p in points:
-            k, bragg, centres, intensity, center = p["fit"]
+            k, bragg, start_center, centres, intensity, center = p["fit"]
             diagnostics.append(
                 StripFit(
                     sub_run=p["sub_run"],
@@ -1072,6 +1134,7 @@ def extract_ring_points(
                     powder=p["powder"],
                     hkl_squared=p["hkl_squared"],
                     bragg_two_theta=bragg,
+                    start_center=start_center,
                     two_theta=centres,
                     intensity=intensity,
                     center=center,
