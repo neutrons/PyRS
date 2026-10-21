@@ -808,3 +808,28 @@ The matrices are now float64 (user-approved change to reduction code). Effect on
 from 1.5e-8 to 1e-2 gives the same derivative (Rot_y, the weakest, to ~1.5e-4 at the smallest
 step), so `PixelCalibration` uses scipy's default step (`diff_step=None`).
 `test_scipy_default_step_gives_accurate_angle_derivative` fails if the matrices go back to float32.
+
+## Ring calibration: Shift_x/Rot_y/TTH_0 are exactly degenerate; Shift_y is weak (2026-10)
+
+Found with synthetic ring points (`tests/util/ring_calibration_helpers.py`) on the real HB2B_4971
+scan layout. The SVD of the residual Jacobian (units: mm, deg, mÅ) shows:
+
+- **Exact degeneracy** (singular value ~5e-10): 1 mm of `Shift_x` ≙ 0.057° of `Rot_y` and −0.057°
+  of `TTH_0`. Turning the arm about the sample by −α, turning the detector about its own vertical
+  axis by +α and shifting it sideways by L·sin α (L = 0.985 m, so 1 mm ↔ 0.058°) describe the same
+  detector. Every geometry along this line gives the **same 2θ and η on every pixel** (checked to
+  ~1e-6° at arms 60–120°), so **reduction is unaffected**, but the three values are individually
+  meaningless when refined together: `CalibrateGeometry` and `FullCalibration` (here and in
+  `FitCalibration`) do exactly that. Fixing any one of them (e.g. Rot_y = 0) makes all the others
+  recoverable. Which one to fix is an open scientific convention.
+- **Shift_y is weak** (0.0075° residual per mm, summed over 130 points): rings are symmetric about
+  the horizontal plane, so a vertical shift moves 2θ only to second order. With 0.01° ring scatter
+  it is uncertain to about ±1 mm.
+- The evenly spaced arm layout behaves almost identically; walking each ring across the detector
+  (as 4971 does) does not remove either effect.
+
+Errors for an undetermined parameter are reported as **-2** (not NaN): along the degeneracy the
+covariance inverse can return negative variances.
+
+HB2B_4971 layout (from `Calib_Testing/HB2B_4971.h5` logs): arms 76, 80 (Ni), 78, 80, 82, 86 (Fe),
+89, 93, 97 (Ni), 99, 103 (Fe); it sees Ni 220/311/222 and Fe 211/220, each at 2–4 arm positions.
