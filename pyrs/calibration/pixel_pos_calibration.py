@@ -14,7 +14,8 @@ equivalence is pinned by a unit test; see docs/ground_truths.md.
 
 Typical workflow:
 
-1. Extract ring points (fractional pixel positions of fitted rings) into a :class:`RingPoints`.
+1. Extract ring points (fractional pixel positions of fitted rings) with :func:`extract_ring_points`,
+   which fits every ring in strips of each sub-run's raw detector image.
 2. Refine the geometry with :meth:`PixelCalibration.iterate` (repeated ``CalibrateShift`` ->
    ``CalibrateRotation`` -> ``calibrate_wave_shift`` passes, then a joint polish), or with
    individual stage methods.
@@ -25,6 +26,7 @@ Typical workflow:
 
 Example::
 
+    ring_points = extract_ring_points(hidra_ws, wavelength=1.54)   # e.g. from NeXusConvertingApp
     calibration = PixelCalibration(ring_points, hidra_ws.get_instrument_setup(), wavelength=1.54)
     calibration.iterate(passes=3)            # Shift -> Rotation -> lambda+2theta_0, x3, then polish
     calibration.set_two_theta_0(0.0)         # optional: same detector, described with 2theta_0 = 0
@@ -51,6 +53,8 @@ __all__ = [
     "PARAMETER_NAMES",
     "DEFAULT_RECIPE",
     "DEFAULT_TOLERANCE",
+    "StripFit",
+    "extract_ring_points",
 ]
 
 # order of the calibration vector, matching FitCalibration and the calibration JSON keys
@@ -739,3 +743,306 @@ class PixelCalibration:
         if polish:
             self.FullCalibration()
         return n_pass
+
+
+# ---------------------------------------------------------------- ring extraction
+
+
+@dataclass
+class StripFit:
+    """Diagnostics of one ring fitted in one detector strip (see :func:`extract_ring_points`).
+
+    Attributes:
+        sub_run: Sub-run.
+        strip: Strip number, counted along ``index_1``.
+        row: Strip-centre ``index_1``, where the ring point is placed.
+        powder: Powder standard name.
+        hkl_squared: ``h^2 + k^2 + l^2`` of the reflection.
+        bragg_two_theta: Expected 2theta (deg) at the starting wavelength.
+        two_theta: Bin centres (deg) of the strip histogram.
+        intensity: Strip histogram, counts per pixel (or per vanadium count).
+        center: Fitted ring 2theta (deg); NaN if the fit failed.
+        center_error: Its uncertainty (deg); NaN if unknown.
+        index_0: Fractional column of the ring point; NaN if rejected.
+        accepted: Whether the point is in the returned RingPoints.
+        reason: Why it was rejected (empty if accepted).
+    """
+
+    sub_run: int
+    strip: int
+    row: float
+    powder: str
+    hkl_squared: int
+    bragg_two_theta: float
+    two_theta: np.ndarray
+    intensity: np.ndarray
+    center: float
+    center_error: float
+    index_0: float = np.nan
+    accepted: bool = False
+    reason: str = ""
+
+
+def _column_at_two_theta(
+    model: DetectorModel, target: float, row: float, arm_two_theta: float, l2: float, calibration
+) -> float:
+    """Fractional ``index_0`` on row ``row`` whose 2theta is ``target``; NaN if it is off the detector."""
+    num_rows, num_columns = model.instrument_setup.detector_size
+    columns = np.arange(num_columns, dtype=float)
+    profile = model.two_theta(columns, row, arm_two_theta, l2, calibration)
+    order = np.argsort(profile)
+    if not profile[order[0]] <= target <= profile[order[-1]]:
+        return np.nan
+    column = float(np.interp(target, profile[order], columns[order]))
+    # two secant refinements make the linear interpolation exact to well below 1e-6 pixel
+    for _ in range(2):
+        here, step = model.two_theta(column, row, arm_two_theta, l2, calibration), 1e-3
+        slope = (model.two_theta(column + step, row, arm_two_theta, l2, calibration) - here) / step
+        column -= float((here - target) / slope)
+    return column
+
+
+def _reject_outliers(points: List[dict], threshold: float, smooth: bool) -> None:
+    """Flag points far from a quadratic ``index_0(index_1)`` through each ring; optionally smooth."""
+    rings = {}
+    for point in points:
+        rings.setdefault((point["sub_run"], point["hkl_squared"]), []).append(point)
+    for ring in rings.values():
+        if len(ring) < 4:
+            continue
+        rows = np.array([p["index_1"] for p in ring])
+        columns = np.array([p["index_0"] for p in ring])
+        # robust (soft L1) quadratic: a plain least-squares fit is dragged towards the outlier it
+        # should expose, shrinking that point's residual and inflating everyone else's
+        scaled = (rows - rows.mean()) / max(np.ptp(rows), 1.0)
+        start = np.polyfit(scaled, columns, 2)
+        fit = least_squares(lambda c: np.polyval(c, scaled) - columns, start, loss="soft_l1", f_scale=0.5)
+        smooth_columns = np.polyval(fit.x, scaled)
+        residual = columns - smooth_columns
+        # floor so a near-perfect ring (simulated, noise-free) does not reject on rounding scatter
+        scale = max(1.4826 * np.median(np.abs(residual - np.median(residual))), 0.1)
+        for point, res, fitted in zip(ring, residual, smooth_columns):
+            if abs(res) > threshold * scale:
+                point["reject"] = f"outlier ({res:+.2f} px from the ring)"
+            elif smooth:
+                point["index_0"] = float(fitted)
+
+
+def extract_ring_points(
+    workspace,
+    wavelength: float,
+    calibration: Optional[DENEXDetectorShift] = None,
+    standards: Sequence = None,
+    sub_runs: Optional[Sequence[int]] = None,
+    strips: int = 15,
+    edge: int = 40,
+    bin_width: float = 0.03,
+    fit_half_width: float = 2.0,
+    peak_function: str = "PseudoVoigt",
+    background_function: str = "Linear",
+    max_center_error: float = 0.05,
+    outlier_threshold: float = 5.0,
+    smooth: bool = False,
+    mask: Optional[np.ndarray] = None,
+    vanadium: Optional[np.ndarray] = None,
+    diagnostics: Optional[List[StripFit]] = None,
+) -> RingPoints:
+    """Find where each powder ring crosses the detector, in fractional pixel coordinates.
+
+    For each sub-run the detector is cut into ``strips`` bands along ``index_1`` (rows ``edge`` to
+    ``n_rows - edge``). Each band is histogrammed in 2theta using ``calibration`` and normalised by
+    the number of pixels (or the vanadium counts) per bin, so the varying pixel density across a
+    curved ring does not skew the peak. Every reflection of the sub-run's powder standard whose
+    fit window lies on the detector is fitted in all bands at once (Mantid ``FitPeaks`` with
+    ``HighBackground=False``), and each fitted 2theta is converted back to a column on the band's
+    centre row *with the same geometry*, which makes the ring point nearly independent of how good
+    ``calibration`` is. Failed or imprecise fits are dropped, and one pass of outlier rejection per
+    ring removes points far from a smooth ring.
+
+    Args:
+        workspace: HidraWorkspace with raw counts and the ``2theta``, ``sy`` (and optionally
+            ``L2``) sample logs, e.g. from ``NeXusConvertingApp``.
+        wavelength: Wavelength (A) used to place the expected reflections.
+        calibration: Current geometry estimate (None: nominal).
+        standards: Powder standards (default: ``HB2B_STANDARDS``); sub-runs whose ``sy`` matches
+            none are skipped with a warning.
+        sub_runs: Sub-runs to use (default: all).
+        strips: Number of bands per sub-run.
+        edge: Pixels excluded at the detector's top and bottom edges.
+        bin_width: Histogram bin width (deg).
+        fit_half_width: Half-width (deg) of the fit window around each expected reflection.
+        peak_function: Peak shape for the fit.
+        background_function: Background for the fit.
+        max_center_error: Reject fits whose centre uncertainty exceeds this (deg).
+        outlier_threshold: Reject points further than this many robust sigmas (min 0.1 px) from a
+            quadratic through their ring.
+        smooth: Replace each accepted point's column by that quadratic (same rows; no resampling).
+        mask: Detector mask in pixel-ID order, 1 = use, 0 = ignore (default: the workspace's
+            default mask, if any).
+        vanadium: Vanadium counts in pixel-ID order for efficiency normalisation.
+        diagnostics: If a list is given, one :class:`StripFit` per band and reflection is appended.
+
+    Returns:
+        RingPoints, with ``sigma`` set to each fit's centre uncertainty (deg).
+
+    Raises:
+        ValueError: On invalid arguments, or if no ring point is found.
+    """
+    from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
+    from pyrs.core.workspaces import HidraWorkspace
+    from pyrs.peaks import FitEngineFactory  # type: ignore
+    from mantid.simpleapi import DeleteWorkspace, mtd
+
+    if not wavelength > 0:
+        raise ValueError(f"wavelength must be positive, got {wavelength}")
+    if strips < 1 or edge < 0 or not bin_width > 0 or not fit_half_width > 0:
+        raise ValueError("strips must be >= 1, edge >= 0, and bin_width and fit_half_width positive")
+    standards = HB2B_STANDARDS if standards is None else standards
+
+    setup = workspace.get_instrument_setup()
+    model = DetectorModel(setup)
+    num_rows, num_columns = setup.detector_size
+    if 2 * edge + strips > num_rows:
+        raise ValueError(f"{strips} strips do not fit between edges of {edge} pixels")
+    if mask is None:
+        mask = workspace.get_detector_mask(True)
+    weights = np.ones(num_columns * num_rows) if mask is None else np.asarray(mask, dtype=float).copy()
+    efficiency = np.ones_like(weights) if vanadium is None else np.asarray(vanadium, dtype=float)
+    if weights.size != num_columns * num_rows or efficiency.size != weights.size:
+        raise ValueError("mask and vanadium must have one value per detector pixel")
+    weights[efficiency <= 0] = 0.0
+    weights = weights.reshape(num_columns, num_rows)
+    efficiency = efficiency.reshape(num_columns, num_rows)
+
+    grid = np.meshgrid(np.arange(num_columns), np.arange(num_rows), indexing="ij")
+    bounds = np.linspace(edge, num_rows - edge, strips + 1).round().astype(int)
+    rows_centre = (bounds[:-1] + bounds[1:] - 1) / 2.0
+
+    points: List[dict] = []
+    for sub_run in workspace.get_sub_runs() if sub_runs is None else sub_runs:
+        sub_run = int(sub_run)
+        standard = standard_for_sy(float(workspace.get_sample_log_value("sy", sub_run)), standards)
+        if standard is None:
+            warnings.warn(f"sub-run {sub_run}: sy matches no powder standard; skipped", stacklevel=2)
+            continue
+        det_2theta = float(workspace.get_detector_2theta(sub_run))
+        l2 = workspace.get_l2(sub_run)
+        l2 = setup.arm_length if l2 is None else float(l2)
+        arm = -det_2theta
+        counts = workspace.get_detector_counts(sub_run).astype(float).reshape(num_columns, num_rows)
+        two_theta = model.two_theta(*grid, arm, l2, calibration)
+
+        # one bin grid shared by all bands: the 2theta range every band covers
+        bands = [slice(lo, hi) for lo, hi in zip(bounds[:-1], bounds[1:])]
+        covered = [two_theta[:, band][weights[:, band] > 0] for band in bands]
+        covered = [c for c in covered if c.size]  # a fully masked band contributes no range
+        if not covered:
+            warnings.warn(f"sub-run {sub_run}: every band is masked; skipped", stacklevel=2)
+            continue
+        low = max(c.min() for c in covered)
+        high = min(c.max() for c in covered)
+        edges = np.arange(low, high + bin_width, bin_width)
+        centres = 0.5 * (edges[:-1] + edges[1:])
+
+        histograms, variances = [], []
+        for band in bands:
+            tth, w = two_theta[:, band].ravel(), weights[:, band].ravel()
+            summed = np.histogram(tth, edges, weights=w * counts[:, band].ravel())[0]
+            norm = np.histogram(tth, edges, weights=w * efficiency[:, band].ravel())[0]
+            with np.errstate(invalid="ignore", divide="ignore"):
+                histograms.append(np.where(norm > 0, summed / norm, 0.0))
+                variances.append(np.where(norm > 0, np.maximum(summed, 1.0) / norm**2, 0.0))
+        # only bands with unmasked pixels are fitted; one workspace spectrum per band
+        fitted_bands = [k for k in range(strips) if np.any(histograms[k])]
+        fit_ws = HidraWorkspace(f"ring_strips_{sub_run}")
+        fit_ws.set_sub_runs(list(range(1, len(fitted_bands) + 1)))
+        for spectrum, k in enumerate(fitted_bands, start=1):
+            fit_ws.set_reduced_diffraction_data(spectrum, None, centres, histograms[k], variances[k])
+
+        reflections = [
+            (hkl2, bragg)
+            for hkl2, bragg in zip(standard.hkl_squared, standard.two_theta(wavelength))
+            if low + fit_half_width <= bragg <= high - fit_half_width
+        ]
+        if not reflections:
+            continue
+
+        engine = FitEngineFactory.getInstance(
+            fit_ws,
+            peak_function,
+            background_function,
+            wavelength=wavelength,
+            out_of_plane_angle=None,
+            high_background=False,
+        )
+        tags = [f"ring_{sub_run}_{hkl2}" for hkl2, _ in reflections]
+        result = engine.fit_multiple_peaks(
+            tags, [b - fit_half_width for _, b in reflections], [b + fit_half_width for _, b in reflections]
+        )
+        for (hkl2, bragg), collection in zip(reflections, result.peakcollections):
+            values, errors = collection.get_effective_params()
+            excluded = np.asarray(collection.exclude, dtype=bool)
+            spectrum_of = {k: i for i, k in enumerate(fitted_bands)}
+            for k in range(strips):
+                i = spectrum_of.get(k)
+                center = np.nan if i is None else float(values["Center"][i])
+                error = np.nan if i is None else float(errors["Center"][i])
+                point = {
+                    "sub_run": sub_run,
+                    "index_1": rows_centre[k],
+                    "det_2theta": det_2theta,
+                    "l2": l2,
+                    "d_spacing": standard.lattice_a / np.sqrt(hkl2),
+                    "hkl_squared": int(hkl2),
+                    "powder": standard.name,
+                    "sigma": error,
+                    "index_0": np.nan,
+                    "reject": "",
+                    "fit": (k, bragg, centres, histograms[k], center),
+                }
+                if i is None:
+                    point["reject"] = "band has no unmasked pixels"
+                elif excluded[i] or not np.isfinite(center) or not np.isfinite(error) or error <= 0:
+                    point["reject"] = "fit failed"
+                elif error > max_center_error:
+                    point["reject"] = f"centre error {error:.3f} > {max_center_error} deg"
+                elif abs(center - bragg) >= fit_half_width:
+                    point["reject"] = "centre outside the fit window"
+                else:
+                    point["index_0"] = _column_at_two_theta(model, center, rows_centre[k], arm, l2, calibration)
+                    if not np.isfinite(point["index_0"]):
+                        point["reject"] = "ring off the detector on this row"
+                points.append(point)
+
+        # FitPeaks leaves its workspaces in Mantid's data service
+        for name in [engine._mtd_wksp.name()] + [str(ws) for ws in (result.fitted, result.difference)]:
+            if name in mtd:
+                DeleteWorkspace(name)
+
+    _reject_outliers([p for p in points if not p["reject"]], outlier_threshold, smooth)
+
+    if diagnostics is not None:
+        for p in points:
+            k, bragg, centres, intensity, center = p["fit"]
+            diagnostics.append(
+                StripFit(
+                    sub_run=p["sub_run"],
+                    strip=k,
+                    row=p["index_1"],
+                    powder=p["powder"],
+                    hkl_squared=p["hkl_squared"],
+                    bragg_two_theta=bragg,
+                    two_theta=centres,
+                    intensity=intensity,
+                    center=center,
+                    center_error=p["sigma"],
+                    index_0=np.nan if p["reject"] else p["index_0"],
+                    accepted=not p["reject"],
+                    reason=p["reject"],
+                )
+            )
+
+    accepted = [p for p in points if not p["reject"]]
+    if not accepted:
+        raise ValueError("no ring points found: check the wavelength, sy logs and fit settings")
+    return RingPoints(**{name: [p[name] for p in accepted] for name in _RING_FIELDS})

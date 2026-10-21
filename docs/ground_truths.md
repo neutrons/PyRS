@@ -886,8 +886,11 @@ calibrate_wave_shift, repeated — now `PixelCalibration.iterate()` (fixed passe
 - λ's residual pattern is 0.990 similar to TTH_0's and Shift_x's (a near-uniform ring offset over
   76–98°). **λ must be refined in the same stage as the parameter that carries the ring offset** —
   the recipe's λ+2θ₀ stage does that.
-- Recipe with everything free (A): noise-free exact after ~13 passes by tolerance; **3 passes +
-  polish reaches the optimum** (map error 8e-14°, 58 evaluations, ~0.8 s).
+- Recipe with everything free (A): noise-free exact after ~11–13 passes by tolerance for small and
+  GUI-like misalignments, but for a large one (Rot_x −1°, Rot_z 2°, 2θ₀ −1.5°) it had **not
+  converged after 50 passes** (2e-3° map error). **3 passes + polish reaches the optimum for all
+  three** (map error ≤ 2e-10°, 43–73 evaluations, ≤ 1.2 s), which is why `iterate()` polishes by
+  default.
 - Fixing a parameter in a staged recipe makes it crawl: Rot_y = 0 stalls at a 0.014° map error;
   TTH_0 = 0 is still 0.3° off after 50 passes; Shift_x = 0 needs ~30 passes. The coupled pair then
   sits in different stages. A final polish rescues all of them.
@@ -899,3 +902,38 @@ calibrate_wave_shift, repeated — now `PixelCalibration.iterate()` (fixed passe
 **Decisions (user, 2026-10-21):** Rot_y is not fixed; TTH_0 keeps its virtual-swing meaning and is
 refined independently of λ (not inferred from the monochromator); `iterate()` leaves the
 2θ₀/pose split where the recipe puts it, and `set_two_theta_0` re-expresses it only when called.
+
+## Ring extraction: normalise strips per pixel, map back with the same geometry (2026-10)
+
+`extract_ring_points` (`pyrs/calibration/pixel_pos_calibration.py`) turns raw detector images into
+ring points. Two design rules, both verified on synthetic images rendered from a known geometry
+(`tests/util/ring_calibration_helpers.py::synthetic_calibration_workspace`, HB2B_4971 layout,
+pseudo-Voigt rings with FWHM 0.3°, Poisson counts):
+
+1. **Each strip histogram is divided by the number of pixels (or vanadium counts) per 2θ bin.**
+   Across a strip the pixel count per bin varies (curved rings, varying pixel density), so a plain
+   sum of counts skews the peak and biases its centre. With a pixel efficiency falling 4× across the
+   detector, passing the vanadium removes the resulting bias
+   (`test_vanadium_normalisation_removes_efficiency_bias`).
+2. **The fitted 2θ is converted back to a pixel column with the same geometry used to histogram.**
+   Then a wrong starting geometry largely cancels: points extracted with the *nominal* geometry and
+   wavelength agree with those from the true geometry to < 0.05 px. So extraction can start
+   uncalibrated; re-extracting after refinement gives only a small gain.
+
+Results on the synthetic 4971 run (15 strips, 11 sub-runs, ~6 s): all 13 ring observations found
+(both Ni 311 and 222 at arms 93/97 — the draft and `FitCalibration` fit only the first peak),
+points within 0.06 px RMS of the true rings with no bias; extract → `iterate(passes=3)` from the
+nominal start reproduces the true 2θ map to 0.0008° and λ exactly (0.0005° after one re-extraction).
+
+Other notes:
+
+- All strips of a sub-run share one 2θ bin grid (the range every strip covers), so one Mantid
+  `FitPeaks` call fits a reflection in all strips at once (strips = workspace spectra), instead of
+  one fit per strip.
+- Outlier rejection per ring uses a **robust** (soft-L1) quadratic `index_0(index_1)`: a plain
+  least-squares quadratic is dragged towards a single bad point, shrinking its residual so it
+  escaped rejection (`test_reject_outliers_flags_far_point` failed before the change).
+- Fully masked strips are not sent to the fitter (they produced divide-by-zero warnings) and are
+  reported in the diagnostics as "band has no unmasked pixels".
+- The ~290 `readX()/readY()` deprecation warnings in these tests come from the existing
+  `PeakFitEngine._guess_center`, not from the extraction code.

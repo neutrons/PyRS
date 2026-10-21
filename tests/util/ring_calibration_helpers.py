@@ -1,8 +1,8 @@
 """
 tests/util/ring_calibration_helpers.py
 
-Synthetic ring points for testing the ring-based detector calibration
-(:mod:`pyrs.calibration.pixel_pos_calibration`) without real data or Mantid.
+Synthetic ring points and synthetic detector images for testing the ring-based detector
+calibration (:mod:`pyrs.calibration.pixel_pos_calibration`) without real data.
 """
 
 from typing import Optional, Sequence
@@ -13,6 +13,9 @@ from scipy.optimize import brentq
 from pyrs.calibration.pixel_pos_calibration import DetectorModel, RingPoints
 from pyrs.calibration.powder_standards import HB2B_STANDARDS, PowderStandard
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
+from pyrs.core.peak_profile_utility import pseudo_voigt
+from pyrs.core.workspaces import HidraWorkspace
+from pyrs.dataobjects.constants import HidraConstants
 
 NI, FE, _MO = HB2B_STANDARDS
 
@@ -96,3 +99,87 @@ def synthetic_ring_points(
         powder=columns[7],
         sigma=np.full(len(records), noise_deg),
     )
+
+
+def synthetic_detector_image(
+    instrument_setup: DENEXDetectorGeometry,
+    true_params: Sequence[float],
+    det_2theta: float,
+    powder: PowderStandard,
+    l2: float = 0.985,
+    fwhm: float = 0.3,
+    peak_height: float = 40.0,
+    mixing: float = 0.5,
+    background: float = 5.0,
+    background_slope: float = 0.2,
+    poisson: bool = True,
+    rng: Optional[np.random.Generator] = None,
+) -> np.ndarray:
+    """Counts of one sub-run's powder exposure, rendered from a known detector geometry.
+
+    Each pixel's 2theta comes from :class:`DetectorModel` with ``true_params``; every reflection
+    of ``powder`` near the detector adds a pseudo-Voigt ring of the given height (counts per
+    pixel) and FWHM (deg) at its Bragg angle, on a background sloping by ``background_slope``
+    counts per degree across the detector.
+
+    Args:
+        instrument_setup: Detector geometry.
+        true_params: Calibration vector ``[sx, sy, sz, rx, ry, rz, tth0, wavelength]``.
+        det_2theta: Arm angle (DAS convention).
+        powder: Powder standard in the beam.
+        l2: Sample-detector distance (m).
+        fwhm: Peak FWHM in 2theta (deg).
+        peak_height: Peak height above background, in counts per pixel.
+        mixing: Pseudo-Voigt Lorentzian fraction.
+        background: Background at the arm angle, counts per pixel.
+        background_slope: Background change per degree of 2theta.
+        poisson: Draw Poisson counts; otherwise return the expected counts.
+        rng: Random generator for the Poisson draw.
+
+    Returns:
+        1D counts in pixel-ID order (``index_0 * n_rows + index_1``).
+    """
+    model = DetectorModel(instrument_setup)
+    num_rows, num_columns = instrument_setup.detector_size
+    grid = np.meshgrid(np.arange(num_columns), np.arange(num_rows), indexing="ij")
+    two_theta = model.two_theta(*grid, -det_2theta, l2, DENEXDetectorShift(*true_params[:7]))
+
+    # pseudo_voigt takes the integrated intensity; convert from the requested peak height
+    height_per_intensity = mixing * 2 / (np.pi * fwhm) + (1 - mixing) * np.sqrt(4 * np.log(2) / np.pi) / fwhm
+    expected = background + background_slope * (two_theta - det_2theta)
+    for bragg in powder.two_theta(true_params[7]):
+        if two_theta.min() - 3 * fwhm < bragg < two_theta.max() + 3 * fwhm:
+            expected = expected + pseudo_voigt(two_theta, peak_height / height_per_intensity, fwhm, mixing, bragg)
+    expected = np.clip(expected, 0.0, None)
+
+    if poisson:
+        rng = rng if rng is not None else np.random.default_rng(0)
+        expected = rng.poisson(expected).astype(float)
+    return expected.reshape(-1)
+
+
+def synthetic_calibration_workspace(
+    instrument_setup: DENEXDetectorGeometry,
+    true_params: Sequence[float],
+    det_2theta: Sequence[float] = RUN_4971_ARMS,
+    powders: Sequence[PowderStandard] = RUN_4971_POWDERS,
+    l2: float = 0.985,
+    **image_kwargs,
+) -> HidraWorkspace:
+    """A HidraWorkspace like a converted calibration run: one synthetic image per sub-run.
+
+    Sub-runs are numbered from 1 and carry the ``2theta``, ``sy`` (the powder's position) and
+    ``L2`` sample logs; ``image_kwargs`` go to :func:`synthetic_detector_image`.
+    """
+    workspace = HidraWorkspace("synthetic_calibration")
+    sub_runs = np.arange(1, len(det_2theta) + 1)
+    workspace.set_instrument_geometry(instrument_setup)
+    workspace.set_sub_runs(sub_runs)
+    workspace.set_sample_log(HidraConstants.TWO_THETA, sub_runs, np.asarray(det_2theta, dtype=float))
+    workspace.set_sample_log("sy", sub_runs, np.array([powder.sy for powder in powders]))
+    workspace.set_sample_log(HidraConstants.L2, sub_runs, np.full(sub_runs.size, l2))
+    rng = image_kwargs.pop("rng", None) or np.random.default_rng(0)
+    for sub_run, arm, powder in zip(sub_runs, det_2theta, powders):
+        counts = synthetic_detector_image(instrument_setup, true_params, arm, powder, l2=l2, rng=rng, **image_kwargs)
+        workspace.set_raw_counts(int(sub_run), counts)
+    return workspace
