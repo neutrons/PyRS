@@ -282,7 +282,7 @@ class ResidualStressInstrument:
                 [0.0, np.cos(angle_rad), -np.sin(angle_rad)],
                 [0.0, np.sin(angle_rad), np.cos(angle_rad)],
             ],
-            dtype=np.float32,
+            dtype=np.float64,
         )
 
         return rotate_matrix
@@ -301,7 +301,7 @@ class ResidualStressInstrument:
                 [0.0, 1.0, 0.0],
                 [-np.sin(angle_rad), 0.0, np.cos(angle_rad)],
             ],
-            dtype=np.float32,
+            dtype=np.float64,
         )
 
         return rotate_matrix
@@ -320,7 +320,7 @@ class ResidualStressInstrument:
                 [np.sin(angle_rad), np.cos(angle_rad), 0.0],
                 [0.0, 0.0, 1.0],
             ],
-            dtype=np.float32,
+            dtype=np.float64,
         )
 
         return rotate_matrix

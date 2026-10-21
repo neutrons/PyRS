@@ -788,3 +788,23 @@ a no-op kept for explicitness).
 in `mantid_fit_peak.py`, which silently changed fitting for all of PyRS.
 Change the behaviour for a caller by passing the flag, never by editing the
 `FitPeaks` call.
+
+## Detector rotation matrices are float64; float32 made angle derivatives zero (2026-10)
+
+`ResidualStressInstrument._cal_rotation_matrix_x/y/z` (`pyrs/core/reduce_hb2b_pyrs.py`) built
+their matrices as **float32**. Their entries carry ~7 significant digits, so any rotation angle
+— the arm 2θ, 2θ₀, Rot_x/y/z — only resolved to ~3e-6°. For reduction that is irrelevant, but
+calibration differentiates the residual numerically, and scipy's default finite-difference steps
+sit at or below that resolution:
+
+- `jac="2-point"` (used with `method="lm"`) steps by `sqrt(eps) ≈ 1.5e-8`: the 2θ₀ and rotation
+  derivatives came out **exactly zero**, so `lm` never moved 2θ₀.
+- `jac="3-point"` (trf/dogbox) steps by `eps**(1/3) ≈ 6e-6`: per-point angle derivatives were off
+  by up to ~10–50 %, corrupting convergence and the error bars (they come from the same Jacobian).
+  `FitCalibration` uses the same default step, so it was affected too.
+
+The matrices are now float64 (user-approved change to reduction code). Effect on reduction: pixel
+2θ/η move by ≤ 4.5e-7°; the unit and integration suites are unchanged. With float64 every step
+from 1.5e-8 to 1e-2 gives the same derivative (Rot_y, the weakest, to ~1.5e-4 at the smallest
+step), so `PixelCalibration` uses scipy's default step (`diff_step=None`).
+`test_scipy_default_step_gives_accurate_angle_derivative` fails if the matrices go back to float32.
