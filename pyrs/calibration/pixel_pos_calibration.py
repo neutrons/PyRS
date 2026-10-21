@@ -844,6 +844,7 @@ def extract_ring_points(
     outlier_threshold: float = 5.0,
     smooth: bool = False,
     mask: Optional[np.ndarray] = None,
+    apply_default_mask: bool = True,
     vanadium: Optional[np.ndarray] = None,
     diagnostics: Optional[List[StripFit]] = None,
 ) -> RingPoints:
@@ -877,8 +878,11 @@ def extract_ring_points(
         outlier_threshold: Reject points further than this many robust sigmas (min 0.1 px) from a
             quadratic through their ring.
         smooth: Replace each accepted point's column by that quadratic (same rows; no resampling).
-        mask: Detector mask in pixel-ID order, 1 = use, 0 = ignore (default: the workspace's
-            default mask, if any).
+        mask: Detector mask in pixel-ID order, 1 = use, 0 = ignore. Takes precedence over the
+            workspace's default mask.
+        apply_default_mask: Without ``mask``, use the workspace's default mask, if it has one. To
+            apply the instrument mask, give its XML file to ``NeXusConvertingApp`` when converting
+            the run, which stores it as that default mask. False uses every pixel.
         vanadium: Vanadium counts in pixel-ID order for efficiency normalisation.
         diagnostics: If a list is given, one :class:`StripFit` per band and reflection is appended.
 
@@ -904,7 +908,7 @@ def extract_ring_points(
     num_rows, num_columns = setup.detector_size
     if 2 * edge + strips > num_rows:
         raise ValueError(f"{strips} strips do not fit between edges of {edge} pixels")
-    if mask is None:
+    if mask is None and apply_default_mask:
         mask = workspace.get_detector_mask(True)
     weights = np.ones(num_columns * num_rows) if mask is None else np.asarray(mask, dtype=float).copy()
     efficiency = np.ones_like(weights) if vanadium is None else np.asarray(vanadium, dtype=float)

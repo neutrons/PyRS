@@ -225,3 +225,45 @@ def test_reject_outliers_flags_far_point():
 def test_invalid_arguments_raise(workspace, kwargs, match):
     with pytest.raises(ValueError, match=match):
         extract_ring_points(workspace, **{"wavelength": NOMINAL_WAVELENGTH, **kwargs})
+
+
+# ---------------------------------------------------------------- masks
+
+
+def _first_band_mask():
+    """Mask (1 = keep) hiding the first of 8 bands, rows 40-157"""
+    mask = np.ones(1024 * 1024)
+    mask.reshape(1024, 1024)[:, 40:158] = 0.0
+    return mask
+
+
+@pytest.fixture()
+def masked_workspace(hb2b):
+    workspace = synthetic_calibration_workspace(hb2b, TRUE_PARAMS, ARMS[:1], POWDERS[:1], poisson=False)
+    workspace.set_detector_mask(_first_band_mask(), is_default=True)
+    return workspace
+
+
+def test_default_mask_applied(masked_workspace):
+    # Act
+    points = extract_ring_points(masked_workspace, NOMINAL_WAVELENGTH, strips=STRIPS)
+
+    # Assert
+    assert len(points) == STRIPS - 1
+    assert points.index_1.min() > 158
+
+
+def test_default_mask_ignored_when_disabled(masked_workspace):
+    # Act
+    points = extract_ring_points(masked_workspace, NOMINAL_WAVELENGTH, strips=STRIPS, apply_default_mask=False)
+
+    # Assert
+    assert len(points) == STRIPS
+
+
+def test_mask_array_overrides_default_mask(masked_workspace):
+    # Act - the explicit mask hides nothing, so it must replace (not combine with) the default mask
+    points = extract_ring_points(masked_workspace, NOMINAL_WAVELENGTH, strips=STRIPS, mask=np.ones(1024 * 1024))
+
+    # Assert
+    assert len(points) == STRIPS

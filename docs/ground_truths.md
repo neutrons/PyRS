@@ -935,5 +935,12 @@ Other notes:
   escaped rejection (`test_reject_outliers_flags_far_point` failed before the change).
 - Fully masked strips are not sent to the fitter (they produced divide-by-zero warnings) and are
   reported in the diagnostics as "band has no unmasked pixels".
+- **Masks come from reduction's own path, not a second loader.** The instrument mask XML is given
+  to `NeXusConvertingApp(nexus, mask_file)`, which stores it as the workspace's default mask
+  (1 = keep); `extract_ring_points` uses that default mask (`apply_default_mask=True`), or an
+  explicit `mask=` array instead. A calibration-side copy of the XML loading was written and then
+  removed (user, 2026-10-21): `NeXusConvertingApp.__load_mask` is private and needs the converter's
+  event workspace, so if a mask must ever be applied to an already-converted workspace, the fix is a
+  public loader in core used by both, proposed separately.
 - The ~290 `readX()/readY()` deprecation warnings in these tests come from the existing
   `PeakFitEngine._guess_center`, not from the extraction code.
