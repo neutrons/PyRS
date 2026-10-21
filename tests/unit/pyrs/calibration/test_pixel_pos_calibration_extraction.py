@@ -220,6 +220,10 @@ def test_reject_outliers_flags_far_point():
         ({"bin_width": 0.0}, "bin_width"),
         ({"strips": 1000}, "do not fit"),
         ({"mask": np.ones(10)}, "one value per detector pixel"),
+        ({"side_margin": -1}, "side_margin"),
+        ({"min_window_side": 0.0}, "min_window_side"),
+        ({"min_window_side": 3.0}, "min_window_side"),
+        ({"min_significance": -1.0}, "min_significance"),
     ],
 )
 def test_invalid_arguments_raise(workspace, kwargs, match):
@@ -267,3 +271,83 @@ def test_mask_array_overrides_default_mask(masked_workspace):
 
     # Assert
     assert len(points) == STRIPS
+
+
+# ---------------------------------------------------------------- side-edge margin and peak significance
+
+
+def _single_ring_extraction(hb2b, arm, **kwargs):
+    """Extract Ni 220 from one synthetic sub-run at the given arm angle; returns (points or None, diagnostics)"""
+    workspace = synthetic_calibration_workspace(hb2b, TRUE_PARAMS, [arm], [NI])
+    diagnostics = []
+    try:
+        points = extract_ring_points(workspace, NOMINAL_WAVELENGTH, strips=STRIPS, diagnostics=diagnostics, **kwargs)
+    except ValueError:
+        points = None
+    return points, diagnostics
+
+
+def _reasons(diagnostics):
+    return {d.reason for d in diagnostics if not d.accepted}
+
+
+def test_ring_near_edge_with_clipped_window_is_accurate(hb2b):
+    """Arm 84: Ni 220 sits ~1 deg from the side edge, so its fit window is clipped on one side"""
+    # Act
+    points, diagnostics = _single_ring_extraction(hb2b, 84.0, side_margin=40)
+
+    # Assert - all bands used, columns within the margin and unbiased by the one-sided window
+    assert points is not None and len(points) == STRIPS
+    assert np.all(points.index_0 >= 40)
+    assert np.abs(points.index_0 - _true_columns(hb2b, points)).max() < 0.15
+    # the window really is clipped (the full one reaches 2 deg on both sides of the expected peak)
+    assert any(
+        min(d.bragg_two_theta - d.two_theta.min(), d.two_theta.max() - d.bragg_two_theta) < 1.5 for d in diagnostics
+    )
+
+
+def test_ring_predicted_inside_margin_not_fitted(hb2b):
+    # Act - Ni 220 is predicted at columns ~80-86 for arm 83.5
+    points, diagnostics = _single_ring_extraction(hb2b, 83.5, side_margin=120)
+
+    # Assert
+    assert points is None
+    assert _reasons(diagnostics) == {"ring predicted within 120 px of the side edge"}
+    assert all(d.two_theta.size == 0 for d in diagnostics)  # never histogrammed or fitted
+
+
+def test_fitted_ring_inside_margin_rejected(hb2b):
+    """The prediction uses the starting wavelength and geometry; the fitted ring is checked again"""
+    # Act - arm 68.5: predicted ~965-971 (inside a 45 px margin), fitted beyond 1023 - 45
+    points, diagnostics = _single_ring_extraction(hb2b, 68.5, side_margin=45)
+
+    # Assert
+    assert points is None
+    assert _reasons(diagnostics) == {"fitted ring within 45 px of the side edge"}
+
+
+def test_window_too_clipped_rejected(hb2b):
+    points, diagnostics = _single_ring_extraction(hb2b, 84.0, side_margin=40, min_window_side=1.5)
+    assert points is None
+    assert _reasons(diagnostics) == {"fit window clipped by the detector edge"}
+
+
+def test_noise_fit_with_small_error_needs_significance(hb2b):
+    """A fit to pure noise can report a small centre error; the significance check removes it"""
+    # Arrange - an invisible ring on a high background
+    workspace = synthetic_calibration_workspace(hb2b, TRUE_PARAMS, [76.0], [NI], peak_height=0.02, background=500.0)
+    lenient = []
+
+    # Act
+    try:
+        extract_ring_points(workspace, NOMINAL_WAVELENGTH, strips=STRIPS, min_significance=0.0, diagnostics=lenient)
+    except ValueError:
+        pass
+    strict = []
+    with pytest.raises(ValueError, match="no ring points"):
+        extract_ring_points(workspace, NOMINAL_WAVELENGTH, strips=STRIPS, diagnostics=strict)
+
+    # Assert - without the check a noise "ring" point slips through, tens of pixels off
+    slipped = [d for d in lenient if d.accepted]
+    assert slipped and all(d.center_error <= 0.05 for d in slipped)
+    assert any(r.startswith("peak not significant") for r in _reasons(strict))

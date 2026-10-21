@@ -927,9 +927,20 @@ nominal start reproduces the true 2θ map to 0.0008° and λ exactly (0.0005° a
 
 Other notes:
 
-- All strips of a sub-run share one 2θ bin grid (the range every strip covers), so one Mantid
-  `FitPeaks` call fits a reflection in all strips at once (strips = workspace spectra), instead of
-  one fit per strip.
+- **Rings are chosen per strip by a pixel margin from the side edges** (`side_margin`, default
+  40 px), not per sub-run by a 2θ range: a curved ring can be near the edge in the corner strips
+  only. The ring's crossing of each strip's centre row is *predicted* with the starting geometry
+  and wavelength to decide whether to fit it, and the *fitted* point is checked again, because a
+  wrong starting λ/2θ₀ moves rings by ~20 px (seen: predicted columns 80–86, fitted 86–104).
+- **Fit windows are clipped to each strip's coverage** and need `min_window_side` (0.75°) of data
+  on each side of the peak. A ring ~1° from the edge (one-sided window) is still extracted to
+  < 0.07 px of the true ring, so clipping causes no measurable bias. Strips with identical windows
+  (all of them, for rings well inside the detector) share one Mantid `FitPeaks` call, strips as
+  spectra; for the 4971 layout nothing changed (same 195 points, 0.06 px RMS, ~6 s).
+- **Mantid's centre uncertainty is unreliable at low signal**: fits to pure noise reported centre
+  errors of 0.02–0.03° while the "rings" they found were 41–65 px off. A significance check (peak
+  intensity ≥ `min_significance` = 5 × its error) removes them. Rings at 4 % contrast (height 2 on a
+  background of 50) fail it — their points scattered by 0.5–5 px, against 0.06 px for normal rings.
 - Outlier rejection per ring uses a **robust** (soft-L1) quadratic `index_0(index_1)`: a plain
   least-squares quadratic is dragged towards a single bad point, shrinking its residual so it
   escaped rejection (`test_reject_outliers_flags_far_point` failed before the change).
