@@ -15,7 +15,8 @@ equivalence is pinned by a unit test; see docs/ground_truths.md.
 Typical workflow:
 
 1. Extract ring points (fractional pixel positions of fitted rings) with :func:`extract_ring_points`,
-   which fits every ring in strips of each sub-run's raw detector image.
+   which first aligns all expected reflections with the data (:func:`align_expected_rings`) and then
+   fits every ring in strips of each sub-run's raw detector image.
 2. Refine the geometry with :meth:`PixelCalibration.iterate` (repeated ``CalibrateShift`` ->
    ``CalibrateRotation`` -> ``calibrate_wave_shift`` passes, then a joint polish), or with
    individual stage methods.
@@ -55,6 +56,8 @@ __all__ = [
     "DEFAULT_TOLERANCE",
     "StripFit",
     "extract_ring_points",
+    "RingAlignment",
+    "align_expected_rings",
 ]
 
 # order of the calibration vector, matching FitCalibration and the calibration JSON keys
@@ -831,6 +834,212 @@ def _reject_outliers(points: List[dict], threshold: float, smooth: bool) -> None
                 point["index_0"] = float(fitted)
 
 
+def _pixel_weights(
+    workspace, mask: Optional[np.ndarray], apply_default_mask: bool, vanadium: Optional[np.ndarray]
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Per-pixel weights (mask; 0 also where the vanadium is empty) and efficiencies, shaped like the detector.
+
+    ``mask`` takes precedence over the workspace's default mask (used when ``apply_default_mask``).
+    """
+    num_rows, num_columns = workspace.get_instrument_setup().detector_size
+    if mask is None and apply_default_mask:
+        mask = workspace.get_detector_mask(True)
+    weights = np.ones(num_columns * num_rows) if mask is None else np.asarray(mask, dtype=float).copy()
+    efficiency = np.ones_like(weights) if vanadium is None else np.asarray(vanadium, dtype=float)
+    if weights.size != num_columns * num_rows or efficiency.size != weights.size:
+        raise ValueError("mask and vanadium must have one value per detector pixel")
+    weights[efficiency <= 0] = 0.0
+    return weights.reshape(num_columns, num_rows), efficiency.reshape(num_columns, num_rows)
+
+
+@dataclass(frozen=True)
+class RingAlignment:
+    """Coarse alignment of the expected reflections with the observed patterns.
+
+    The expected ring of a reflection with d-spacing ``d`` is placed at
+    ``2 asin(wavelength / 2d) + two_theta_offset`` in the frame of the geometry the alignment was
+    computed with. The two values are effective, not calibrated, quantities: the offset absorbs
+    2theta_0 and the sideways detector shift, and they are only meant to place fit windows (and seed
+    a refinement).
+
+    Attributes:
+        wavelength: Effective wavelength (A).
+        two_theta_offset: Overall 2theta offset (deg).
+        score: Summed (normalised, background-removed) pattern at all predicted rings.
+        ambiguity: Best score of an alignment that moves some ring by more than a peak width,
+            relative to ``score``; near 1 means another ring assignment fits about as well.
+        sub_runs: Sub-runs used.
+        reflections: Number of (sub-run, reflection) pairs predicted on the detector.
+    """
+
+    wavelength: float
+    two_theta_offset: float
+    score: float
+    ambiguity: float
+    sub_runs: Tuple[int, ...]
+    reflections: int
+
+    def starting_calibration(self, calibration: Optional[DENEXDetectorShift] = None) -> DENEXDetectorShift:
+        """``calibration`` (default nominal) with the offset added to its 2theta_0: the geometry in which
+        the expected rings sit where the alignment found them, e.g. to start :class:`PixelCalibration`."""
+        if calibration is None:
+            calibration = DENEXDetectorShift(0, 0, 0, 0, 0, 0, 0)
+        return DENEXDetectorShift(
+            calibration.center_shift_x,
+            calibration.center_shift_y,
+            calibration.center_shift_z,
+            calibration.rotation_x,
+            calibration.rotation_y,
+            calibration.rotation_z,
+            calibration.two_theta_0 + self.two_theta_offset,
+        )
+
+
+def align_expected_rings(
+    workspace,
+    wavelength: float,
+    calibration: Optional[DENEXDetectorShift] = None,
+    standards: Sequence = None,
+    sub_runs: Optional[Sequence[int]] = None,
+    edge: int = 40,
+    mask: Optional[np.ndarray] = None,
+    apply_default_mask: bool = True,
+    vanadium: Optional[np.ndarray] = None,
+    wavelength_range: float = 0.04,
+    wavelength_step: float = 0.0005,
+    offset_range: float = 3.0,
+    offset_step: float = 0.01,
+    bin_width: float = 0.02,
+    peak_width: float = 0.15,
+    background_width: float = 1.5,
+    distinct_shift: float = 0.3,
+) -> RingAlignment:
+    """Find the wavelength and 2theta offset that line up all expected reflections with the data.
+
+    Each sub-run's whole detector (rows ``edge`` to ``n_rows - edge``, unmasked pixels) is reduced to
+    one 1D pattern with ``calibration``, its smooth background is removed (running median over
+    ``background_width`` deg), its peaks are widened (Gaussian of ``peak_width`` deg) and it is scaled
+    to a maximum of 1. A grid search over an effective wavelength (``wavelength`` +/-
+    ``wavelength_range``, relative) and an overall offset (+/- ``offset_range`` deg) maximises the
+    summed pattern at every expected reflection of every sub-run. Because a wavelength error moves
+    each reflection differently while the offset moves all of them, the joint search does not
+    lock onto a wrong ring the way a fit window around one expected ring can. When the data cannot
+    separate the two (e.g. a single ring), the wavelength closest to ``wavelength`` is chosen.
+
+    Args:
+        workspace: HidraWorkspace as for :func:`extract_ring_points`.
+        wavelength: Starting wavelength (A), e.g. the monochromator setting.
+        calibration: Starting geometry (None: nominal).
+        standards: Powder standards (default: ``HB2B_STANDARDS``).
+        sub_runs: Sub-runs to use (default: all with a matching powder).
+        edge: Rows excluded at the top and bottom.
+        mask: Detector mask (1 = use); see :func:`extract_ring_points`.
+        apply_default_mask: Use the workspace's default mask when ``mask`` is None.
+        vanadium: Vanadium counts for efficiency normalisation.
+        wavelength_range: Relative half-range of the wavelength search.
+        wavelength_step: Relative wavelength step.
+        offset_range: Half-range (deg) of the offset search.
+        offset_step: Offset step (deg).
+        bin_width: Pattern bin width (deg).
+        peak_width: Gaussian smoothing (deg), widening the score's capture range.
+        background_width: Running-median window (deg) for background removal.
+        distinct_shift: An alternative counts as a different assignment if it moves some ring by
+            more than this (deg); used for :attr:`RingAlignment.ambiguity`.
+
+    Returns:
+        The best :class:`RingAlignment`. A warning is issued if it lies on the edge of the search
+        range (the true values may be outside it).
+
+    Raises:
+        ValueError: On invalid arguments, or if no sub-run has a powder standard and rings in range.
+    """
+    from scipy.ndimage import gaussian_filter1d, median_filter
+
+    from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
+
+    if not wavelength > 0:
+        raise ValueError(f"wavelength must be positive, got {wavelength}")
+    positive = (wavelength_range, wavelength_step, offset_range, offset_step, bin_width, peak_width, background_width)
+    if not all(value > 0 for value in positive) or not distinct_shift > 0:
+        raise ValueError("alignment ranges, steps and widths must be positive")
+    standards = HB2B_STANDARDS if standards is None else standards
+    setup = workspace.get_instrument_setup()
+    model = DetectorModel(setup)
+    num_rows, num_columns = setup.detector_size
+    weights, efficiency = _pixel_weights(workspace, mask, apply_default_mask, vanadium)
+    rows = slice(edge, num_rows - edge)
+    grid = np.meshgrid(np.arange(num_columns), np.arange(num_rows)[rows], indexing="ij")
+
+    wavelengths = wavelength * (1 + np.arange(-wavelength_range, wavelength_range + 1e-12, wavelength_step))
+    offsets = np.arange(-offset_range, offset_range + 1e-12, offset_step)
+    score = np.zeros((wavelengths.size, offsets.size))
+    predictions, used = [], []
+    for sub_run in workspace.get_sub_runs() if sub_runs is None else sub_runs:
+        sub_run = int(sub_run)
+        standard = standard_for_sy(float(workspace.get_sample_log_value("sy", sub_run)), standards)
+        if standard is None:
+            continue
+        l2 = workspace.get_l2(sub_run)
+        l2 = setup.arm_length if l2 is None else float(l2)
+        two_theta = model.two_theta(*grid, -float(workspace.get_detector_2theta(sub_run)), l2, calibration)
+        keep = weights[:, rows] > 0
+        tth = two_theta[keep]
+        if tth.size == 0:
+            continue
+        counts = workspace.get_detector_counts(sub_run).astype(float).reshape(num_columns, num_rows)[:, rows]
+        edges = np.arange(tth.min(), tth.max() + bin_width, bin_width)
+        summed = np.histogram(tth, edges, weights=(weights[:, rows] * counts)[keep])[0]
+        norm = np.histogram(tth, edges, weights=(weights[:, rows] * efficiency[:, rows])[keep])[0]
+        with np.errstate(invalid="ignore", divide="ignore"):
+            pattern = np.where(norm > 0, summed / norm, 0.0)
+        pattern = pattern - median_filter(pattern, size=max(int(background_width / bin_width), 3))
+        pattern = gaussian_filter1d(np.clip(pattern, 0.0, None), peak_width / bin_width)
+        if not pattern.max() > 0:
+            continue
+        pattern /= pattern.max()  # every sub-run weighs the same
+        centres = 0.5 * (edges[:-1] + edges[1:])
+
+        with np.errstate(invalid="ignore"):
+            bragg = 2 * np.degrees(np.arcsin(wavelengths[:, None] / (2 * standard.d_spacings()[None, :])))
+        positions = bragg[:, :, None] + offsets[None, None, :]  # (wavelength, reflection, offset)
+        on_detector = (positions > centres[0] + 2 * peak_width) & (positions < centres[-1] - 2 * peak_width)
+        score += np.where(on_detector, np.interp(np.nan_to_num(positions), centres, pattern), 0.0).sum(axis=1)
+        predictions.append(np.where(on_detector, positions, np.nan))
+        used.append(sub_run)
+
+    if not used or not score.max() > 0:
+        raise ValueError("ring alignment found no rings: check the wavelength, sy logs and mask")
+
+    # where the data cannot tell the wavelength from the offset (one ring, or a flat ridge), prefer the
+    # wavelength closest to the start; the penalty (<= 5 % of one ring's score) cannot outvote real data
+    penalty = 0.05 * np.abs(wavelengths / wavelength - 1)[:, None] / wavelength_range
+    best = np.unravel_index(np.argmax(score - penalty), score.shape)
+
+    moved = np.zeros_like(score)
+    for prediction in predictions:
+        reference = prediction[best[0], :, best[1]][None, :, None]
+        with np.errstate(invalid="ignore"), warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)  # all-NaN columns: no ring of that kind on the detector
+            moved = np.fmax(moved, np.nanmax(np.abs(prediction - reference), axis=1))
+    different = moved > distinct_shift
+    ambiguity = float(score[different].max() / score[best]) if np.any(different) else 0.0
+
+    if best[0] in (0, wavelengths.size - 1) or best[1] in (0, offsets.size - 1):
+        warnings.warn(
+            "ring alignment is at the edge of its search range; widen wavelength_range/offset_range",
+            stacklevel=2,
+        )
+
+    return RingAlignment(
+        wavelength=float(wavelengths[best[0]]),
+        two_theta_offset=float(offsets[best[1]]),
+        score=float(score[best]),
+        ambiguity=ambiguity,
+        sub_runs=tuple(used),
+        reflections=int(sum(np.isfinite(p[best[0], :, best[1]]).sum() for p in predictions)),
+    )
+
+
 def _fit_band_histograms(
     name: str,
     pixel_sets: Sequence[Tuple[np.ndarray, np.ndarray, np.ndarray]],
@@ -916,9 +1125,15 @@ def extract_ring_points(
     mask: Optional[np.ndarray] = None,
     apply_default_mask: bool = True,
     vanadium: Optional[np.ndarray] = None,
+    align: Union[bool, "RingAlignment"] = True,
+    max_ambiguity: float = 0.9,
     diagnostics: Optional[List[StripFit]] = None,
 ) -> RingPoints:
     """Find where each powder ring crosses the detector, in fractional pixel coordinates.
+
+    First (``align=True``), :func:`align_expected_rings` lines up *all* expected reflections with
+    the observed patterns at once, so the windows below are placed on the right rings even when the
+    starting wavelength or geometry is a few percent off; an ambiguous alignment raises.
 
     For each sub-run the detector is cut into ``strips`` bands along ``index_1`` (rows ``edge`` to
     ``n_rows - edge``). Each band is histogrammed in 2theta using ``calibration`` and normalised by
@@ -964,13 +1179,18 @@ def extract_ring_points(
             apply the instrument mask, give its XML file to ``NeXusConvertingApp`` when converting
             the run, which stores it as that default mask. False uses every pixel.
         vanadium: Vanadium counts in pixel-ID order for efficiency normalisation.
+        align: True: run :func:`align_expected_rings` first and place the windows from its
+            wavelength and 2theta offset; a :class:`RingAlignment`: use that one; False: place the
+            windows from ``wavelength`` and ``calibration`` as given.
+        max_ambiguity: Raise if the alignment's ambiguity ratio exceeds this.
         diagnostics: If a list is given, one :class:`StripFit` per band and reflection is appended.
 
     Returns:
         RingPoints, with ``sigma`` set to each fit's centre uncertainty (deg).
 
     Raises:
-        ValueError: On invalid arguments, or if no ring point is found.
+        ValueError: On invalid arguments, an ambiguous alignment, or if no ring point is found.
+        TypeError: If ``align`` is not a bool or a RingAlignment.
     """
     from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
 
@@ -989,15 +1209,32 @@ def extract_ring_points(
     num_rows, num_columns = setup.detector_size
     if 2 * edge + strips > num_rows:
         raise ValueError(f"{strips} strips do not fit between edges of {edge} pixels")
-    if mask is None and apply_default_mask:
-        mask = workspace.get_detector_mask(True)
-    weights = np.ones(num_columns * num_rows) if mask is None else np.asarray(mask, dtype=float).copy()
-    efficiency = np.ones_like(weights) if vanadium is None else np.asarray(vanadium, dtype=float)
-    if weights.size != num_columns * num_rows or efficiency.size != weights.size:
-        raise ValueError("mask and vanadium must have one value per detector pixel")
-    weights[efficiency <= 0] = 0.0
-    weights = weights.reshape(num_columns, num_rows)
-    efficiency = efficiency.reshape(num_columns, num_rows)
+    weights, efficiency = _pixel_weights(workspace, mask, apply_default_mask, vanadium)
+
+    if align is True:
+        align = align_expected_rings(
+            workspace,
+            wavelength,
+            calibration,
+            standards=standards,
+            sub_runs=sub_runs,
+            edge=edge,
+            mask=mask,
+            apply_default_mask=apply_default_mask,
+            vanadium=vanadium,
+        )
+    if isinstance(align, RingAlignment):
+        if align.ambiguity > max_ambiguity:
+            raise ValueError(
+                f"ring alignment is ambiguous (a different ring assignment scores {align.ambiguity:.2f} of the best,"
+                f" limit {max_ambiguity}): give a better starting wavelength/geometry, or align=False"
+            )
+        # place the windows from the alignment; histogramming and mapping back use the same geometry,
+        # so this moves the windows, not the ring points
+        wavelength = align.wavelength
+        calibration = align.starting_calibration(calibration)
+    elif align is not False:
+        raise TypeError(f"align must be True, False or a RingAlignment, got {type(align).__name__}")
 
     grid = np.meshgrid(np.arange(num_columns), np.arange(num_rows), indexing="ij")
     bounds = np.linspace(edge, num_rows - edge, strips + 1).round().astype(int)
