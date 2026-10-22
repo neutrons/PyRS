@@ -2,6 +2,29 @@
 
 This file configures how Claude Code should assist with development in this repository. This project is designed for scientists who may be new to software engineering, so all interactions should be educational, clear, and follow best practices. These instructions mirror [.github/copilot-instructions.md](.github/copilot-instructions.md) — keep both in sync when you change one.
 
+## ⚖️ Constitution
+
+These two rules override every other instruction in this file, including any plan already approved. When a rule and a task conflict, stop and ask.
+
+### 1. No change to scientific production code unless a human approves it
+
+*Scientific production code* is any code whose output feeds a scientific result: data reduction and
+instrument geometry (`pyrs/core/`), peak fitting (`pyrs/peaks/`), strain/stress and texture
+calculations, calibration and project-file I/O (`pyrs/utilities/`, `pyrs/projectfile/`), the
+computations behind the UI, and the established calibration (`FitCalibration`).
+
+- Before changing it, **propose the change and wait for explicit approval of that specific change** — quantify its effect on results (e.g. "pixel 2θ moves by ≤ 4.5e-7°") so the decision is informed.
+- **Approval is per change.** It does not carry over to related edits, later refactors, or "behaviour-preserving" clean-ups, and approving a plan is not approving each production edit in it.
+- Work under development (e.g. a new module such as `pyrs/calibration/pixel_pos_calibration.py`) may be changed as part of its approved task; anything it needs *from* production code is a separate proposal.
+- Problems found in production code are reported (issue or note), not fixed in passing.
+
+### 2. No invented correction parameters
+
+- **Predictions of physical quantities use the physical law, unmodified** — e.g. an expected peak position is the Bragg angle `2·asin(λ / 2d)`. Do not add offsets, scales or other terms to a prediction to make it match data.
+- **Every fitted or adjustable parameter must be a physical quantity of the instrument or sample model** (detector shifts and rotations, 2θ₀, wavelength, lattice constants, …), and introducing a new one needs human approval.
+- **Deviations from the model are corrected through the physical model and determined by the refinement** — e.g. detector geometry is found by refining the geometry, and better starting values come from that refinement (or a previous calibration), not from an empirical stand-in.
+- Do not invent empirical "effective" quantities (fudge factors, effective offsets, stretch factors) — even for intermediate steps such as placing fit windows — without explicit approval. If the model cannot describe the data, report it; do not paper over it.
+
 ## 🎯 Core Principles
 
 1. **Always assess before acting** — Understand the current state before proposing changes.
