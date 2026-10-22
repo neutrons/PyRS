@@ -555,3 +555,70 @@ def test_iterate_not_converged_warns(hb2b, true_rings):
 def test_iterate_invalid_arguments_raise(hb2b, true_rings, kwargs):
     with pytest.raises(ValueError):
         PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH).iterate(**kwargs)
+
+
+# ---------------------------------------------------------------- error estimate and calibration file
+
+
+@pytest.fixture(scope="module")
+def refined_noisy(hb2b):
+    rings = synthetic_ring_points(hb2b, TRUE_PARAMS, strips=20, noise_deg=0.01, rng=np.random.default_rng(5))
+    calibration = PixelCalibration(rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+    calibration.iterate(passes=3)
+    return calibration
+
+
+def test_estimate_errors_holds_two_theta_0(refined_noisy):
+    # Arrange
+    calibration = refined_noisy
+    before = calibration.calibration_array
+    assert np.all(calibration.calibration_error_array[[0, 4, 6]] == -2.0)  # the degenerate set after FullCalibration
+
+    # Act
+    stage = calibration.estimate_errors()
+
+    # Assert - 2theta_0 marked "not refined", the other seven get real errors, values barely move
+    errors = calibration.calibration_error_array
+    assert stage.free_parameters == ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "Lambda")
+    assert errors[6] == -1.0
+    assert np.all(np.isfinite(errors[[0, 1, 2, 3, 4, 5, 7]])) and np.all(errors[[0, 1, 2, 3, 4, 5, 7]] > 0)
+    assert np.all(
+        np.abs(calibration.calibration_array - before)[[0, 1, 2, 3, 4, 5, 7]] < errors[[0, 1, 2, 3, 4, 5, 7]]
+    )
+    assert calibration.calibration_array[6] == before[6]
+
+
+def test_estimate_errors_wavelength_error_is_realistic(refined_noisy):
+    # Act
+    refined_noisy.estimate_errors()
+
+    # Assert - the true wavelength lies within 4 sigma of the fit
+    fitted, sigma = refined_noisy.calibration_array[7], refined_noisy.calibration_error_array[7]
+    assert abs(fitted - TRUE_PARAMS[7]) < 4 * sigma
+
+
+def test_write_calibration_round_trip(tmp_path, refined_noisy):
+    # Arrange
+    import json
+
+    from pyrs.utilities.calibration_file_io import check_calibration_status, read_calibration_json_file
+
+    refined_noisy.estimate_errors()
+    path = tmp_path / "pixel_calibration.json"
+
+    # Act
+    refined_noisy.write_calibration(path)
+
+    # Assert - reduction's own reader and status check accept the file
+    shift, shift_error, wavelength, wavelength_error, status = read_calibration_json_file(str(path))
+    check_calibration_status(status)
+    values, errors = refined_noisy.calibration_array, refined_noisy.calibration_error_array
+    assert (shift.center_shift_x, shift.center_shift_z, shift.rotation_y) == pytest.approx(values[[0, 2, 4]])
+    assert wavelength == pytest.approx(values[7]) and wavelength_error == pytest.approx(errors[7])
+    raw = json.loads(path.read_text())  # TTH_0 checked in the file itself: the reader drops it (#1021)
+    assert raw["TTH_0"] == pytest.approx(values[6]) and raw["error_TTH_0"] == -1.0
+
+
+def test_write_calibration_unrefined_raises(tmp_path, hb2b, true_rings):
+    with pytest.raises(RuntimeError, match="nothing has been refined"):
+        PixelCalibration(true_rings, hb2b, wavelength=1.54).write_calibration(tmp_path / "x.json")

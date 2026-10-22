@@ -10,6 +10,7 @@ readme = "README.rst"
 [project.scripts]
 pyrsplot = "scripts.pyrsplot:main"
 pyrs-calibration = "scripts.pyrs_calibration:main"
+pyrs-pixel-calibration = "scripts.pyrs_pixel_calibration:main"
 pyrs-calibration-correlation = "scripts.pyrs_calibration_correlation:main"
 create-mask = "scripts.create_mask:main"
 
@@ -312,6 +313,9 @@ test-unit = { cmd = "python scripts/development/run_tests.py -m 'not integration
 test-integration = { cmd = "python scripts/development/run_tests.py -m 'integration and not gui' ./tests", description = "Run tests that read/write real data" }
 test-gui = { cmd = "python scripts/development/run_tests.py -m gui ./tests", env = { QT_QPA_PLATFORM = "offscreen" }, description = "Run tests that drive Qt widgets (offscreen; no windows appear)" }
 test-import-framework = { cmd = "python -c 'import pyrs'; python -c 'import qtpy'; python -c 'import mantidqt'", description = "Test import of main dependencies" }
+
+# Calibration
+pyrs-pixel-calibration = { cmd = "python scripts/pyrs_pixel_calibration.py", description = "Ring-based detector calibration from a NeXus run (see --help)" }
 
 # MISC
 audit-deps = { cmd = "pip-audit --local -s osv --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-34073", description = "Audit the package dependencies for vulnerabilities" }

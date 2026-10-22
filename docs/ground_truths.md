@@ -1075,3 +1075,19 @@ actual Ni/Fe/Mo standards would be the final check. `FitCalibration` (production
 Remaining: sub-run-level ring-mean residuals of ~0.015° (≈ 4× their statistical error), largest
 sub-run 4 Fe 211 (+0.035°) and sub-run 10 Fe 220 (+0.026°, the weakest ring); not explained by powder
 or 2θ — possibly arm-positioning repeatability (untested).
+
+## Ring-calibration driver, and why its files are not yet safe for reduction (2026-10)
+
+`pixi run pyrs-pixel-calibration RUN.nxs.h5 -o CAL.json [--mask XML | --no-mask]`
+(`scripts/pyrs_pixel_calibration.py`): NeXusConvertingApp (mask → default mask; default
+`/HFIR/HB2B/shared/CALIBRATION/HB2B_Mask_Latest.xml`) → `extract_ring_points` (5 strips) →
+`iterate(passes=3)` + polish → `estimate_errors()` with **2θ₀ held** (its error written as −1;
+user decision 2026-10-22) → `write_calibration` (standard JSON via `write_calibration_to_json`).
+On HB2B_3510 (19 s): 60 points / 12 rings, RMS 0.0175°, λ = 1.53058 ± 0.00023 Å,
+Shift_z = −74.7 ± 1.4 mm, Shift_y = −2.0 ± 3.0 mm (weak), 2θ₀ = 1.455° (held).
+
+**Hazard:** the file carries a non-zero TTH_0, and `read_calibration_json_file` drops TTH_0
+(#1021). Read by current reduction, the detector would be placed ~1.45° off in 2θ (Shift_x/Rot_y
+are applied without the 2θ₀ that balances them). Do not use these files for reduction until #1021
+is fixed (production change, needs approval), or write them re-expressed with 2θ₀ = 0
+(`set_two_theta_0(0)`, the same detector) as a stopgap.

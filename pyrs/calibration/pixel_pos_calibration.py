@@ -692,6 +692,54 @@ class PixelCalibration:
             initalGuess,
         )
 
+    def estimate_errors(self, hold: Sequence[Union[int, str]] = ("TTH_0",)) -> StageResult:
+        """Uncertainties of the calibration at its current values, with ``hold`` fixed.
+
+        Shift_x, Rot_y and TTH_0 are exactly degenerate at one detector distance (see :meth:`refine`),
+        so a refinement of all eight parameters cannot give their errors (they are flagged -2). This
+        refines every parameter except ``hold``, starting from the current values (normally the
+        optimum, so the values barely move), to get their one-sigma errors. The held parameters'
+        errors are set to -1 ("not refined"): their values are a choice along the degenerate set, not
+        a measurement (docs/ground_truths.md).
+
+        Args:
+            hold: Parameters (indices or :data:`PARAMETER_NAMES`) kept fixed; default 2theta_0.
+
+        Returns:
+            The :class:`StageResult` of the error refinement, recorded in :attr:`stages`.
+        """
+        held = [PARAMETER_NAMES.index(p) if isinstance(p, str) else int(p) for p in hold]
+        free = [i for i in range(8) if i not in held]
+        # bounds around the current values: the start is always inside, and wide enough not to bind
+        span = np.array([0.05, 0.05, 0.15, 5.0, 5.0, 5.0, 5.0, 0.05])[free]
+        current = self._calib[free]
+        stage = self.refine("estimate_errors", free, current - span, current + span)
+        self._caliberr[held] = -1.0
+        return stage
+
+    def write_calibration(self, file_name: Union[str, Path]) -> None:
+        """Write the calibration in the standard calibration JSON format (``write_calibration_to_json``).
+
+        Values and errors are :attr:`calibration_array` and :attr:`calibration_error_array`; ``Status``
+        is the scipy status of the last stage.
+
+        Raises:
+            RuntimeError: If nothing has been refined yet (reduction rejects ``Status`` < 0).
+        """
+        from pyrs.utilities.calibration_file_io import write_calibration_to_json
+
+        if self._status < 0:
+            raise RuntimeError("nothing has been refined: refusing to write a calibration with Status -1")
+        values, errors = self._calib, self._caliberr
+        write_calibration_to_json(
+            DENEXDetectorShift(*values[:7]),
+            DENEXDetectorShift(*errors[:7]),
+            float(values[7]),
+            float(errors[7]),
+            int(self._status),
+            str(file_name),
+        )
+
     def iterate(
         self,
         recipe: Sequence[str] = DEFAULT_RECIPE,
