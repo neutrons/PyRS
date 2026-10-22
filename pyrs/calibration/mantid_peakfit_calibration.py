@@ -61,7 +61,7 @@ class FitCalibration:
         self._keep_subrun_list = None
 
         if nexus_file is not None:
-            self._reduce_diffraction_data(nexus_file)
+            self._reduce_diffraction_data(nexus_file, self.mask_file)
         else:
             self._hidra_ws = reduction_engine
 
@@ -158,7 +158,7 @@ class FitCalibration:
             sub_runs=None,
             instrument_file=None,
             calibration_file=None,
-            mask=self.mask_file,
+            mask=None,  # the mask file is applied by NeXusConvertingApp as the workspace's default mask
             num_bins=self.bins,
             eta_step=self.eta_slices,
             van_file=self.vanadium,
@@ -173,7 +173,7 @@ class FitCalibration:
             sub_runs=self.sub_runs[np.array(self._keep_subrun_list)],
             instrument_file=None,
             calibration_file=None,
-            mask=self.mask_file,
+            mask=None,  # the mask file is applied by NeXusConvertingApp as the workspace's default mask
             num_bins=self.bins,
             eta_step=self.eta_slices,
             van_file=self.vanadium,

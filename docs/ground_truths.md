@@ -770,3 +770,19 @@ A quiet, single-process, offscreen repro will not reproduce (a)/(b), and
 won't reproduce (c) either unless it specifically kills the process
 mid-lock and relaunches — a clean repro passing is not evidence the fix
 works under real crash/network conditions.
+
+## FitCalibration ignored its mask file and then crashed (2026-10, #1024)
+
+`FitCalibration(nexus_file=..., mask_file=...)` stored `mask_file` but called
+`_reduce_diffraction_data(nexus_file)` without it, so `NeXusConvertingApp` ran unmasked; it then
+passed the mask **path** to `ReductionApp.reduce_data(mask=...)`, which treats a string as the ID of
+an already-loaded mask, so `HB2BReductionManager.get_mask_vector` raised `ValueError`. Any masked
+production calibration (`scripts/pyrs_calibration.py` with `"mask"` in its JSON) crashed; the UI
+never passes a mask, so UI calibrations are unmasked.
+
+Fix (user-approved production change): pass `self.mask_file` to the conversion, which stores it as
+the workspace's default mask, and call `reduce_data(mask=None)` — with `mask=None` the reduction
+manager uses the default mask, and the per-evaluation `reduce_data()` only clears the η-wedge masks,
+not the default mask. Unmasked calibrations take the identical code path (the existing
+`test_peakfit_calibration` gold-file tests are unchanged); `test_mask_file_is_applied` failed with
+the original `ValueError` before the fix. Open: whether the UI should offer the instrument mask.
