@@ -798,3 +798,11 @@ ring-based calibration work on `detector_calib_v3`, commit 095c7980 there). The 
 float64 (user-approved). Effect on reduction: pixel 2θ/η move by ≤ 4.5e-7°; unit, reduction and
 calibration integration tests unchanged. `test_rotation_matrix_resolves_tiny_angle_change` fails
 with float32.
+
+## `FindBackgroundSigma` is ignored by Mantid `FitPeaks` (2026-10)
+
+The Mantid in this environment logs `FitPeaks property "FindBackgroundSigma" is deprecated and will
+be ignored` for every call. `MantidPeakFitEngine.fit_peaks` passed `FindBackgroundSigma=1`; it was
+removed (user-approved). Verified: `FitPeaks` on the same synthetic spectra gives bit-identical
+fitted parameters with and without the property, for `HighBackground=True` and `False`; peak-fitting
+and FitCalibration tests unchanged.
