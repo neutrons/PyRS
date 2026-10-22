@@ -7,12 +7,10 @@ from scipy.optimize import brentq
 from pyrs.calibration.pixel_pos_calibration import (
     DetectorModel,
     PixelCalibration,
-    RingAlignment,
     _reject_outliers,
-    align_expected_rings,
     extract_ring_points,
 )
-from pyrs.calibration.powder_standards import HB2B_STANDARDS, PowderStandard
+from pyrs.calibration.powder_standards import HB2B_STANDARDS
 from pyrs.core.instrument_geometry import DENEXDetectorShift
 from tests.util.instrument_helpers import default_hb2b_geometry
 from tests.util.ring_calibration_helpers import synthetic_calibration_workspace, synthetic_detector_image
@@ -195,9 +193,9 @@ def test_weak_rings_rejected_then_raises(hb2b):
     workspace = synthetic_calibration_workspace(hb2b, TRUE_PARAMS, [76.0], [NI], peak_height=0.02, background=500.0)
     diagnostics = []
 
-    # Act / Assert - per-strip rejection on its own (with align=True the alignment already refuses it)
+    # Act / Assert
     with pytest.raises(ValueError, match="no ring points"):
-        extract_ring_points(workspace, NOMINAL_WAVELENGTH, strips=STRIPS, align=False, diagnostics=diagnostics)
+        extract_ring_points(workspace, NOMINAL_WAVELENGTH, strips=STRIPS, diagnostics=diagnostics)
     assert diagnostics and not any(d.accepted for d in diagnostics)
 
 
@@ -331,15 +329,15 @@ def test_fitted_ring_inside_margin_rejected(hb2b):
 
 
 def test_ring_located_despite_wrong_start_wavelength(hb2b):
-    """Two-pass extraction on its own (align=False): a starting wavelength of 1.572 A (true 1.5308) puts the
-    expected ring ~1.4 deg (4-5 peak widths) from where it appears; the all-bands fit finds it and the band
-    windows are centred on it"""
+    """Two-pass extraction: a starting wavelength of 1.572 A (true 1.5308) puts the expected ring ~1.4 deg
+    (4-5 peak widths) from where it appears; the all-bands fit finds it and the band windows are centred
+    on it"""
     # Arrange
     workspace = synthetic_calibration_workspace(hb2b, TRUE_PARAMS, [76.0], [NI])
     diagnostics = []
 
     # Act
-    points = extract_ring_points(workspace, 1.572, strips=STRIPS, align=False, diagnostics=diagnostics)
+    points = extract_ring_points(workspace, 1.572, strips=STRIPS, diagnostics=diagnostics)
 
     # Assert
     centers = np.array([d.center for d in diagnostics])
@@ -366,125 +364,14 @@ def test_noise_fit_with_small_error_needs_significance(hb2b):
 
     # Act
     try:
-        extract_ring_points(
-            workspace, NOMINAL_WAVELENGTH, strips=STRIPS, align=False, min_significance=0.0, diagnostics=lenient
-        )
+        extract_ring_points(workspace, NOMINAL_WAVELENGTH, strips=STRIPS, min_significance=0.0, diagnostics=lenient)
     except ValueError:
         pass
     strict = []
     with pytest.raises(ValueError, match="no ring points"):
-        extract_ring_points(workspace, NOMINAL_WAVELENGTH, strips=STRIPS, align=False, diagnostics=strict)
+        extract_ring_points(workspace, NOMINAL_WAVELENGTH, strips=STRIPS, diagnostics=strict)
 
     # Assert - without the check a noise "ring" point slips through, tens of pixels off
     slipped = [d for d in lenient if d.accepted]
     assert slipped and all(d.center_error <= 0.05 for d in slipped)
     assert any(r.startswith("peak not significant") for r in _reasons(strict))
-
-
-# ---------------------------------------------------------------- global ring alignment
-
-
-@pytest.fixture(scope="module")
-def observed_rings(workspace):
-    """Where each ring appears in the nominal-geometry frame: pass-1 centres from a good start"""
-    diagnostics = []
-    extract_ring_points(workspace, TRUE_PARAMS[7], strips=STRIPS, align=False, diagnostics=diagnostics)
-    return {(d.sub_run, d.hkl_squared): (d.start_center, d.bragg_two_theta) for d in diagnostics}
-
-
-@pytest.mark.parametrize("start_wavelength", [1.505, 1.540, 1.585])
-def test_alignment_places_every_ring(workspace, observed_rings, start_wavelength):
-    # Act
-    alignment = align_expected_rings(workspace, start_wavelength)
-
-    # Assert - each expected ring, moved by the alignment, lands on the observed ring
-    assert alignment.sub_runs == (1, 2, 3, 4)
-    assert alignment.reflections == 5
-    powder_of = dict(zip((1, 2, 3, 4), POWDERS))
-    for (sub_run, hkl2), (observed, _) in observed_rings.items():
-        d = powder_of[sub_run].lattice_a / np.sqrt(hkl2)
-        predicted = 2 * np.degrees(np.arcsin(alignment.wavelength / (2 * d))) + alignment.two_theta_offset
-        assert predicted == pytest.approx(observed, abs=0.1)
-    assert alignment.ambiguity < 0.9
-
-
-def test_extract_with_alignment_from_bad_start(hb2b, workspace):
-    """Without alignment this start (3.5 % off) captured wrong rings; with it every ring is found"""
-    # Act
-    points = extract_ring_points(workspace, 1.585, strips=STRIPS)
-
-    # Assert
-    assert sorted(set(zip(points.sub_run.tolist(), points.hkl_squared.tolist()))) == [
-        (1, 8),
-        (2, 6),
-        (3, 11),
-        (3, 12),
-        (4, 8),
-    ]
-    assert len(points) == 5 * STRIPS
-    assert np.abs(points.index_0 - _true_columns(hb2b, points)).max() < 0.2
-
-
-def test_precomputed_alignment_is_used(workspace):
-    # Arrange
-    alignment = align_expected_rings(workspace, 1.585)
-    diagnostics = []
-
-    # Act
-    extract_ring_points(workspace, 1.585, strips=STRIPS, align=alignment, diagnostics=diagnostics)
-
-    # Assert - windows are placed from the alignment's wavelength, not the starting one
-    first = diagnostics[0]
-    d = NI.lattice_a / np.sqrt(first.hkl_squared)
-    assert first.bragg_two_theta == pytest.approx(2 * np.degrees(np.arcsin(alignment.wavelength / (2 * d))))
-
-
-def test_stray_ring_makes_alignment_ambiguous(hb2b):
-    """One expected ring plus an equally strong unexpected one 1 deg away: no way to tell them apart"""
-    # Arrange - a foreign FCC phase whose 220 lies ~1 deg below Ni 220
-    stray = PowderStandard("stray", "FCC", 3.568, NI.sy)
-    workspace = synthetic_calibration_workspace(hb2b, TRUE_PARAMS, [76.0], [NI], poisson=False)
-    image = workspace.get_detector_counts(1) + synthetic_detector_image(
-        hb2b, TRUE_PARAMS, 76.0, stray, background=0.0, background_slope=0.0, poisson=False
-    )
-    workspace.set_raw_counts(1, image)
-
-    # Act
-    alignment = align_expected_rings(workspace, NOMINAL_WAVELENGTH)
-
-    # Assert
-    assert alignment.ambiguity > 0.9
-    with pytest.raises(ValueError, match="ambiguous"):
-        extract_ring_points(workspace, NOMINAL_WAVELENGTH, strips=STRIPS, align=alignment)
-
-
-def test_alignment_at_range_edge_warns(workspace):
-    with pytest.warns(UserWarning, match="edge of its search range"):
-        align_expected_rings(workspace, 1.585, wavelength_range=0.002, offset_range=0.05)
-
-
-def test_starting_calibration_adds_offset():
-    # Arrange
-    alignment = RingAlignment(
-        wavelength=1.53, two_theta_offset=0.9, score=5.0, ambiguity=0.5, sub_runs=(1,), reflections=1
-    )
-    base = DENEXDetectorShift(0.001, 0.002, 0.003, 0.1, 0.2, 0.3, 0.25)
-
-    # Act
-    nominal, shifted = alignment.starting_calibration(), alignment.starting_calibration(base)
-
-    # Assert
-    assert nominal.two_theta_0 == pytest.approx(0.9) and nominal.center_shift_x == 0.0
-    assert shifted.two_theta_0 == pytest.approx(1.15)
-    assert (shifted.center_shift_x, shifted.rotation_z) == (0.001, 0.3)
-
-
-@pytest.mark.parametrize("kwargs", [{"wavelength": 0.0}, {"wavelength_step": 0.0}, {"offset_range": -1.0}])
-def test_align_invalid_arguments_raise(workspace, kwargs):
-    with pytest.raises(ValueError):
-        align_expected_rings(workspace, **{"wavelength": NOMINAL_WAVELENGTH, **kwargs})
-
-
-def test_extract_invalid_align_raises(workspace):
-    with pytest.raises(TypeError, match="align"):
-        extract_ring_points(workspace, NOMINAL_WAVELENGTH, strips=STRIPS, align="yes")

@@ -986,31 +986,7 @@ Synthetic HB2B_4971 run (true λ 1.5308), one-pass (commit 41fba32f) vs two-pass
 - The one-pass crash: its significance used plain Python floats (`np.errstate` does not guard them)
   and a fit reported a zero intensity error. The shared helper divides NumPy arrays (inf/NaN, no
   crash).
-- **Limitation (now handled by the global alignment below):** with a larger start error the expected
-  ring leaves its ±2° window and the window captures a *different* reflection or a noise bump,
-  accepted as a confident, wrongly labelled point. Per-ring outlier rejection cannot see it (the wrong
-  ring is self-consistent).
-
-## Ring extraction starts with a global alignment of all expected reflections (2026-10)
-
-`align_expected_rings` reduces each sub-run's detector to one 1D pattern (background removed by a
-1.5° running median, widened by a 0.15° Gaussian, scaled to 1) and grid-searches an effective
-wavelength λ′ (start ±4 %) and an overall offset δ (±3°) that maximise the pattern at **every
-expected reflection of every sub-run at once**. A wavelength error moves each reflection by a
-different amount (∝ tan θ) while δ moves all of them, so a wrong-ring match that works in one window
-does not line up across the run. `extract_ring_points(align=True)` (default) then places its windows
-with λ′ and 2θ₀ + δ (`RingAlignment.starting_calibration`); histogramming and mapping use the same
-geometry, so this moves windows, not ring points.
-
-- Synthetic HB2B_4971 run, starts λ = 1.505–1.585 (±3 %, true 1.5308): λ′ = 1.5306–1.5313,
-  δ = +0.85–0.91° (≈ 2θ₀ 0.656° + Shift_x 4 mm / 0.985 m); every ring predicted within 0.064°;
-  extraction 195 points, 13/13 rings, ≤ 0.19 px (vs 1–2 wrong points at 200–300 px without it);
-  `iterate(3)` from the alignment → 2θ map ≤ 0.0007° and λ = 1.53080 every time. Cost ≈ 3 s.
-- **Mis-assignment guard:** `ambiguity` = best score of an alignment that moves some ring by > 0.3°,
-  relative to the best (0.76 for 4971). Extraction raises above `max_ambiguity` = 0.9. Tested with a
-  stray, equally strong ring 1° from the only expected one (ambiguity > 0.9 → refused).
-- λ′ and δ trade off almost exactly (both shift rings nearly uniformly over 76–98°), so the score has
-  a ridge; ties along it are broken towards the starting wavelength (penalty ≤ 5 % of one ring's
-  score). A warning is issued if the best value lies on the edge of the search range.
-- Synthetic only so far: real data may have stray peaks (holders, oxides) or textured rings; the
-  ambiguity margin has to be checked on real runs (#1016).
+- **Limitation, not yet guarded:** with a larger start error the expected ring leaves its ±2° window
+  and the window captures a *different* reflection or a noise bump, accepted as a confident, wrongly
+  labelled point. Per-ring outlier rejection cannot see it (the wrong ring is self-consistent). Next:
+  a coarse global alignment of all expected reflections before pass 1, and a mis-assignment guard.
