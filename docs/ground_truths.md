@@ -963,7 +963,7 @@ it takes the first moment of `y + |max(y)|`, and adding the maximum swamps the p
 synthetic strips the guess was within 0.03° of the window centre whatever the data, and 0.27–0.34°
 (about one FWHM) from the real peak. In extraction the window is centred on the ring *expected* from
 the starting λ and geometry, so a wrong start put every fit's start off the ring. (This is existing
-peak-engine code, also used by production fitting; not changed here.)
+peak-engine code, also used by production fitting; not changed here — investigation tracked in #1023.)
 
 `extract_ring_points` therefore runs two passes per sub-run and reflection, all inside the
 calibration module: (1) **locate** — one fit on all unmasked strips combined (high statistics); its
@@ -990,3 +990,37 @@ Synthetic HB2B_4971 run (true λ 1.5308), one-pass (commit 41fba32f) vs two-pass
   and the window captures a *different* reflection or a noise bump, accepted as a confident, wrongly
   labelled point. Per-ring outlier rejection cannot see it (the wrong ring is self-consistent). Next:
   a coarse global alignment of all expected reflections before pass 1, and a mis-assignment guard.
+
+
+## A global ring alignment was tried and removed; first real-data observations (2026-10)
+
+**What was removed and why.** To place fit windows when the starting λ/geometry is far off, an
+alignment step grid-searched an effective wavelength plus an empirical 2θ offset (and then a
+"scale") *added to the predicted ring position*. It worked on synthetic data, but it violates the
+constitution in `CLAUDE.md`: a predicted ring position is the Bragg angle `2·asin(λ/2d)`, and
+detector geometry (2θ₀, distance, …) is determined by the refinement, not by an empirical stand-in.
+It was reverted (9d18115c). The underlying problem remains documented above: with a large starting
+error one window per expected ring can capture a different reflection. The intended remedies are
+physical — start from the previous calibration, and extract → refine → re-extract with the refined
+geometry.
+
+**HB2B_3510 (real, `tests/data/calibration_tests`, mask `HB2B_Mask_12-18-19.xml`)** — same scan
+layout as 4971 without the 82° sub-run (10 sub-runs, Ni/Fe, Si422 at 1.540 Å, no L2 log), and very
+sparse: 5–9×10⁴ counts per sub-run, ~0.07 counts/pixel, at most 3–10 per pixel.
+
+- With the *nominal* geometry the same reflection appears at a 2θ that depends on where it falls on
+  the detector: Ni 220 at 75.73° (arm 76) / 76.03° (arm 80); Fe 211 at 81.36° / 81.51° / 81.91°
+  (arms 78 / 80 / 86); Fe 220 at 98.06° / 98.38° (arms 99 / 103) — about 0.07° per degree of
+  distance from the detector centre. That pattern is what a sample–detector distance error does
+  (about 7 % short of 0.985 m); the GUI calibration of 4971 has Shift_z = −44 ± 31 mm and
+  λ = 1.53078 Å.
+- A refinement of those ring points (all 12 reflections on the detector, 179 points) left a
+  systematic split by powder: every Ni ring +0.02 to +0.07° (mean +0.039°), every Fe ring −0.03 to
+  −0.08° (mean −0.055°), at all arm angles. Open question: the Ni/Fe lattice-constant *ratio* (the
+  draft's 3.523799 / 2.866398 differ from the production 3.526314 / 2.865579 by about the needed
+  −0.1 %) or sample displacement (the powders sit at different `sy`). A lattice error scales with
+  tan θ, displacement roughly with cos θ, so a refit can tell them apart.
+- After `FullCalibration` every error except λ is flagged −2: the exact Shift_x/Rot_y/2θ₀
+  degeneracy makes the covariance singular. Meaningful uncertainties need a final refinement with
+  one member of the set held.
+- `NeXusConvertingApp.convert()` of this 17 MB file peaks at ~3.3 GB of memory.
