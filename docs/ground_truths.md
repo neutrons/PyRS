@@ -999,10 +999,17 @@ alignment step grid-searched an effective wavelength plus an empirical 2θ offse
 "scale") *added to the predicted ring position*. It worked on synthetic data, but it violates the
 constitution in `CLAUDE.md`: a predicted ring position is the Bragg angle `2·asin(λ/2d)`, and
 detector geometry (2θ₀, distance, …) is determined by the refinement, not by an empirical stand-in.
-It was reverted (9d18115c). The underlying problem remains documented above: with a large starting
-error one window per expected ring can capture a different reflection. The intended remedies are
-physical — start from the previous calibration, and extract → refine → re-extract with the refined
-geometry.
+It was reverted (9d18115c). With a large starting error one window per expected ring can capture
+a different reflection (documented above); this is handled by an assumption, not by code:
+
+**Design assumption (user, 2026-10-22): the starting geometry is never badly wrong.** It is the
+nominal geometry or the previous calibration, close enough that every ring lies inside its ±2° fit
+window (HB2B_3510 from the nominal geometry: every ring located −0.24 to −1.09° from its Bragg
+angle). The workflow is therefore **one extraction, then the refinement** — no alignment and no
+extract → refine → re-extract loop. Ring points are meant to be geometry independent (the same
+geometry bins the pixels and maps the fitted 2θ back), so re-extracting with a refined geometry
+should not change them; when it does, the strip fits are unreliable (next entry), which is a fit
+problem, not a geometry one.
 
 **HB2B_3510 (real, `tests/data/calibration_tests`, mask `HB2B_Mask_12-18-19.xml`)** — same scan
 layout as 4971 without the 82° sub-run (10 sub-runs, Ni/Fe, Si422 at 1.540 Å, no L2 log), and very
@@ -1024,3 +1031,20 @@ sparse: 5–9×10⁴ counts per sub-run, ~0.07 counts/pixel, at most 3–10 per 
   degeneracy makes the covariance singular. Meaningful uncertainties need a final refinement with
   one member of the set held.
 - `NeXusConvertingApp.convert()` of this 17 MB file peaks at ~3.3 GB of memory.
+
+
+## Strip fits on sparse real data are unstable and their uncertainties are meaningless (2026-10)
+
+On HB2B_3510 (~0.07 counts/pixel, 15 strips) re-extracting with a slightly different geometry —
+which only re-bins the same counts — moved some ring points by 2–36 px, while the fitted centres
+reported uncertainties of 0.0004–0.001°. Example, sub-run 10 Fe 220 (arm 103°, the faintest ring),
+strip 7 over three geometries: 98.397 / 98.521 / 97.885° (±0.0007 / 0.0009 / 0.0005°) → columns
+240.8 / 264.3 / 228.3. The 2θ→column conversion was verified exact (fitted − mapped = 0.0000°,
+2θ monotonic along every row), so the jumps are the fits landing on different noise features.
+
+- The reported Mantid centre uncertainty is ~1000× too small here, so `max_center_error`,
+  `min_significance` and `RingPoints.sigma` do not detect these fits.
+- Affected rings: Fe 220 (sub-run 10), Ni 222 (sub-runs 7, 8), Ni 311 (sub-run 8) — the weakest.
+- The refinement results from such points are suspect; the per-strip counts are too low for 15
+  strips. Open: measure point reliability from the data (geometry-perturbation test, scatter about
+  each ring) and choose the strip count from it.
