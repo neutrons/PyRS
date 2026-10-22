@@ -47,3 +47,29 @@ def test_generate_rotation_matrix_single_axis_matches_axis_matrix():
 
     # Assert
     np.testing.assert_allclose(rotation_matrix, expected, atol=1e-6)
+
+
+def test_rotation_matrix_resolves_tiny_angle_change():
+    """Regression: float32 matrices could not resolve angle changes below ~3e-6 deg, which made
+    numerical derivatives of the calibration residual with respect to angles zero.
+    See docs/ground_truths.md.
+    """
+    # Arrange
+    instrument = _make_instrument()
+    arm_angle_rad = np.deg2rad(85.0)
+    delta_rad = 1e-9
+
+    # Act
+    before = instrument._cal_rotation_matrix_y(arm_angle_rad)
+    after = instrument._cal_rotation_matrix_y(arm_angle_rad + delta_rad)
+
+    # Assert - the change is the analytic derivative times delta, not rounding noise
+    assert before.dtype == np.float64
+    derivative = np.array(
+        [
+            [-np.sin(arm_angle_rad), 0.0, np.cos(arm_angle_rad)],
+            [0.0, 0.0, 0.0],
+            [-np.cos(arm_angle_rad), 0.0, -np.sin(arm_angle_rad)],
+        ]
+    )
+    np.testing.assert_allclose((after - before) / delta_rad, derivative, atol=1e-5)

@@ -786,3 +786,15 @@ manager uses the default mask, and the per-evaluation `reduce_data()` only clear
 not the default mask. Unmasked calibrations take the identical code path (the existing
 `test_peakfit_calibration` gold-file tests are unchanged); `test_mask_file_is_applied` failed with
 the original `ValueError` before the fix. Open: whether the UI should offer the instrument mask.
+
+## Detector rotation matrices are float64; float32 limited angles to ~3e-6° (2026-10)
+
+`ResidualStressInstrument._cal_rotation_matrix_x/y/z` (`pyrs/core/reduce_hb2b_pyrs.py`) built their
+matrices as float32 (~7 significant digits), so every rotation angle — arm 2θ, 2θ₀, Rot_x/y/z —
+resolved only to ~3e-6°. For reduction that is irrelevant, but calibration differentiates its
+residual numerically: scipy's default finite-difference steps (1.5e-8 for 2-point, ~6e-6 for
+3-point) sit at or below that resolution, giving zero or noisy angle derivatives (found in the
+ring-based calibration work on `detector_calib_v3`, commit 095c7980 there). The matrices are now
+float64 (user-approved). Effect on reduction: pixel 2θ/η move by ≤ 4.5e-7°; unit, reduction and
+calibration integration tests unchanged. `test_rotation_matrix_resolves_tiny_angle_change` fails
+with float32.
