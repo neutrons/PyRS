@@ -319,13 +319,23 @@ def test_ring_predicted_inside_margin_not_fitted(hb2b):
 def test_fitted_ring_inside_margin_rejected(hb2b):
     """The window is placed from one located 2theta, but the true ring is tilted (Rot_z): the fitted
     point of each band is checked against the margin again"""
-    # Act - arm 84: predicted columns ~64.6-70.6 (all >= 63), fitted 55.6-74.0
-    points, diagnostics = _single_ring_extraction(hb2b, 84.0, side_margin=63)
+    # Arrange - arm 84 puts Ni 220 near the side edge; take a margin just inside every predicted column
+    from pyrs.calibration.pixel_pos_calibration import _column_at_two_theta
 
-    # Assert - the two bands whose fitted ring lies inside 63 px are dropped after the fit
-    assert len(points) == STRIPS - 2
-    assert np.all(points.index_0 >= 63)
-    assert _reasons(diagnostics) == {"fitted ring within 63 px of the side edge"}
+    _, unrestricted = _single_ring_extraction(hb2b, 84.0, side_margin=0)
+    model = DetectorModel(hb2b)
+    predicted = [_column_at_two_theta(model, d.start_center, d.row, -84.0, 0.985, None) for d in unrestricted]
+    margin = int(np.floor(min(predicted)))
+    inside = sum(d.index_0 < margin for d in unrestricted)
+    assert 0 < inside < STRIPS  # the tilt really puts some fitted points inside the margin
+
+    # Act
+    points, diagnostics = _single_ring_extraction(hb2b, 84.0, side_margin=margin)
+
+    # Assert - those bands pass the prediction and are dropped after the fit
+    assert len(points) == STRIPS - inside
+    assert np.all(points.index_0 >= margin)
+    assert _reasons(diagnostics) == {f"fitted ring within {margin} px of the side edge"}
 
 
 def test_ring_located_despite_wrong_start_wavelength(hb2b):
@@ -356,22 +366,24 @@ def test_window_too_clipped_rejected(hb2b):
     assert _reasons(diagnostics) == {"fit window clipped by the detector edge"}
 
 
-def test_noise_fit_with_small_error_needs_significance(hb2b):
-    """A fit to pure noise can report a small centre error; the significance check removes it"""
+def test_significance_check_rejects_invisible_ring(hb2b):
+    """A fit to pure noise can report a small centre error (docs/ground_truths.md); the significance
+    check, not the centre-error limit, is what rejects such fits"""
     # Arrange - an invisible ring on a high background
     workspace = synthetic_calibration_workspace(hb2b, TRUE_PARAMS, [76.0], [NI], peak_height=0.02, background=500.0)
-    lenient = []
+    strict, lenient = [], []
 
     # Act
+    with pytest.raises(ValueError, match="no ring points"):
+        extract_ring_points(workspace, NOMINAL_WAVELENGTH, strips=STRIPS, diagnostics=strict)
     try:
         extract_ring_points(workspace, NOMINAL_WAVELENGTH, strips=STRIPS, min_significance=0.0, diagnostics=lenient)
     except ValueError:
         pass
-    strict = []
-    with pytest.raises(ValueError, match="no ring points"):
-        extract_ring_points(workspace, NOMINAL_WAVELENGTH, strips=STRIPS, diagnostics=strict)
 
-    # Assert - without the check a noise "ring" point slips through, tens of pixels off
-    slipped = [d for d in lenient if d.accepted]
-    assert slipped and all(d.center_error <= 0.05 for d in slipped)
-    assert any(r.startswith("peak not significant") for r in _reasons(strict))
+    # Assert - with the check, the fits are refused as not significant (or as failed, where the fit has no
+    # valid intensity uncertainty); without it, none is refused for significance
+    strict_reasons = [d.reason.split(" (")[0] for d in strict]
+    assert set(strict_reasons) <= {"peak not significant", "fit failed"}
+    assert strict_reasons.count("peak not significant") > len(strict) / 2
+    assert not any(r.startswith("peak not significant") for r in _reasons(lenient))

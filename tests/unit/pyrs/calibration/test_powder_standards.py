@@ -8,10 +8,10 @@ from pyrs.calibration.powder_standards import HB2B_STANDARDS, PowderStandard, st
 NI, FE, MO = HB2B_STANDARDS
 
 
-def test_hb2b_standards_match_fitcalibration():
-    """The shared standards must equal the production FitCalibration reference values"""
+def test_hb2b_standards_are_2020_reference_values():
+    """The standards are the 2020 reference set (d6cd5e04), not FitCalibration's 2023 fitted values"""
     # Arrange
-    expected = {"Ni": ("FCC", 3.526314, 62), "Fe": ("BCC", 2.865579, 12), "Mo": ("BCC", 3.147664, -13)}
+    expected = {"Ni": ("FCC", 3.523799438, 62), "Fe": ("BCC", 2.8663982, 12), "Mo": ("BCC", 3.14719963, -13)}
 
     # Act
     actual = {s.name: (s.structure, s.lattice_a, s.sy) for s in HB2B_STANDARDS}

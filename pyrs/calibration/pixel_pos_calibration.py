@@ -1102,9 +1102,10 @@ def extract_ring_points(
                     center, error = float(centre[i]), float(centre_error[i])
                     point["sigma"] = error
                     point["fit"] = (k, bragg, target if located else np.nan, centres, histograms[i], center)
-                    if excluded[i] or not np.isfinite(center) or not np.isfinite(error) or error <= 0:
+                    failed = excluded[i] or not np.isfinite(center) or not np.isfinite(error) or error <= 0
+                    if failed or not np.isfinite(significance[i]):  # no valid intensity uncertainty
                         point["reject"] = "fit failed"
-                    elif not significance[i] >= min_significance:
+                    elif significance[i] < min_significance:
                         point["reject"] = f"peak not significant ({significance[i]:.1f} < {min_significance} sigma)"
                     elif error > max_center_error:
                         point["reject"] = f"centre error {error:.3f} > {max_center_error} deg"

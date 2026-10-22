@@ -9,8 +9,11 @@ that every calibration uses the same reference values. Typical use:
 2. Get its expected d-spacings with :meth:`PowderStandard.d_spacings`, or its expected peak
    positions for a wavelength with :meth:`PowderStandard.two_theta`.
 
-The values match :class:`pyrs.calibration.mantid_peakfit_calibration.FitCalibration`, except that
-the FCC 400 reflection, missing there, is included.
+Lattice constants are the 2020 set (commit d6cd5e04, ``scripts/pyrs_calibration.py``), which
+appear to be standard room-temperature reference values (Ni 3.5238, alpha-Fe 2.8664, Mo 3.1472 A).
+They differ from the values ``FitCalibration`` uses since 2023 (3.526314 / 2.865579 / 3.147664,
+fitted from HB2B data), whose Fe/Ni ratio is ~0.1 % off the ratio HB2B_3510 shows; see
+docs/ground_truths.md. The FCC 400 reflection, missing in ``FitCalibration``, is included.
 """
 
 from dataclasses import dataclass
@@ -38,9 +41,9 @@ class PowderStandard:
         sy: Sample stage ``sy`` position (mm) at which this powder is in the beam.
 
     Example:
-        >>> ni = PowderStandard("Ni", "FCC", 3.526314, 62.0)
+        >>> ni = PowderStandard("Ni", "FCC", 3.523799438, 62.0)
         >>> round(float(ni.d_spacings()[0]), 4)  # (111)
-        2.0359
+        2.0345
     """
 
     name: str
@@ -83,9 +86,9 @@ class PowderStandard:
 
 
 HB2B_STANDARDS = (
-    PowderStandard("Ni", "FCC", 3.526314, 62.0),
-    PowderStandard("Fe", "BCC", 2.865579, 12.0),
-    PowderStandard("Mo", "BCC", 3.147664, -13.0),
+    PowderStandard("Ni", "FCC", 3.523799438, 62.0),
+    PowderStandard("Fe", "BCC", 2.8663982, 12.0),
+    PowderStandard("Mo", "BCC", 3.14719963, -13.0),
 )
 
 

@@ -1048,3 +1048,30 @@ strip 7 over three geometries: 98.397 / 98.521 / 97.885° (±0.0007 / 0.0009 / 0
 - The refinement results from such points are suspect; the per-strip counts are too low for 15
   strips. Open: measure point reliability from the data (geometry-perturbation test, scatter about
   each ring) and choose the strip count from it.
+
+## Calibration lattice constants: the 2020 set, not the 2023 fitted values (2026-10)
+
+`git log -S` on the values shows three sets, none citing a source:
+
+| date / commit | Ni | Fe | Mo | note |
+|---|---|---|---|---|
+| 2020-04-29 `d6cd5e04` | 3.523799438 | 2.8663982 | 3.14719963 | `scripts/pyrs_calibration.py` materials table (with Ge 5.657568977, Si 5.4307); match common room-temperature reference values (Ni 3.5238, α-Fe 2.8664, Mo 3.1472 Å) |
+| 2023-07-18 `7a6068b5` | 3.523421 | 2.866355 | 3.147664 | "refine detector calibration" |
+| 2023-08-13 `47d1e558` | 3.526314 | 2.865579 | 3.147664 | "modified lattice based on newly calibrated data" — current `FitCalibration` |
+
+The 2023 sets appear to have been fitted from HB2B data, which is circular for a calibration (only
+λ/a is measured, and a fitted lattice constant also absorbs per-powder displacement). Their Fe/Ni
+ratio (0.81263) is ~0.1 % off the 2020 ratio (0.81344) and off what HB2B_3510 shows (≈ 0.81335).
+
+**Decision (user, 2026-10-22): `powder_standards.HB2B_STANDARDS` uses the 2020 set.** On
+HB2B_3510 (5 strips, nominal start, `iterate(3)`): RMS 0.050° → **0.0175°**; per-powder mean
+residual Ni/Fe +0.040/−0.056° → **−0.006/+0.009°**; λ 1.53122 → 1.53058 Å. With the 2020 values
+the per-powder models (offset, lattice error, 2-direction sample displacement) no longer improve the
+fit (ring-mean RMS 0.0155 → 0.014°), so there is no evidence for a sample displacement and it is not
+added. The absolute λ rests on these lattice constants (only λ/a is measured); a certificate for the
+actual Ni/Fe/Mo standards would be the final check. `FitCalibration` (production) still uses the
+2023-08 set — changing it needs separate approval (#1022).
+
+Remaining: sub-run-level ring-mean residuals of ~0.015° (≈ 4× their statistical error), largest
+sub-run 4 Fe 211 (+0.035°) and sub-run 10 Fe 220 (+0.026°, the weakest ring); not explained by powder
+or 2θ — possibly arm-positioning repeatability (untested).
