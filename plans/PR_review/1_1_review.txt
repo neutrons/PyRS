@@ -1,0 +1,32 @@
+We've just completed the implementation for 'plans_/NXstress-prod/01-config-and-test-infra-PR.md';
+these changes include those from commit hash 6368e3fe45ef.
+There are several PR review comments that we need to address.
+We need to provide summary lists over some of the changes, and also to note (as a response to the comment[s])
+where any codebase convention is being applied.  Please discuss any changes with me before you implement them.
+
+PR review comments for 1_1:
+---------------------------
+
+1. RE 'pyrs/core/workspaces.py': '_load_reduced_diffraction_data', '_append_reduced_diffraction_data':
+   Why is 'print' being used for warning output here, and not 'log'?
+
+2. RE '.../dataobjects/fields.py': What is the purpose of 'from None' in the following?
+
+```
+            except ValueError:  # `ValueError` is canonical here, not `KeyError`.
+                raise ValueError('Cannot determine direction type from "{}"'.format(direction)) from None
+```
+
+3. RE 'tests/plot_sample_points.py': why was this script deleted?
+
+4. RE 'test_fields.py' (and *all* other files in the changed set):
+   We need separate lists of:
+     (1) Any files moved or renamed, and why;
+     (1) Any added "TODO" comments;
+     (2) Any specific tests which were moved or split, by file and test name;
+     (3) Any added 'xfail' markers, with explanations for each.
+   These will be added as a sub-section to the PR comments.  Otherwise the reviewer[s] are going to be confused!
+
+5. RE 'tests/unit/pyrs/test_trigger.py' why was this file deleted?
+
+6. Several of the new test *names* need to be significantly *shorter*!

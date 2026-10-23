@@ -1,0 +1,279 @@
+<!-- ===== UPDATE BEFORE EACH NEW SUBSPEC: edit these four fields ===== -->
+
+    SUBSPEC              04
+                         The subspec to implement this session. Its document is
+                         plans/NXstress-prod/04-nxstress-internal-cleanup.md
+
+    LANDED THROUGH       03
+                         Everything at or below this number has shipped. If
+                         SUBSPEC depends on something above this, stop and say so
+                         -- see README.md's "## Sub-specifications" table, whose
+                         `Depends on` column was corrected by this audit.
+
+    AUDIT BASE           7a5ef73f
+                         The `git.base_commit` currently in
+                         plans/NXstress-prod/audit.toml. Used as
+                         `base_commit..HEAD`, which should span **exactly the
+                         previous subspec's changes** -- so it is the commit
+                         preceding that subspec's first commit, never its merge
+                         commit. Advanced each time a subspec lands (step 9).
+                         Paired with `base_subject` and checked at load, so
+                         update BOTH or every tool exits 2.
+                         NOTE: the current value is this branch's point of
+                         divergence, set so the first audit pass could see all
+                         of 01-03 at once. The first application of step 9 will
+                         narrow it to the one-subspec convention.
+
+    LAST AUDIT PASS      2026-09-25 / 2026-09-26 (first seven-axis pass)
+                         Claims verified before this date may have gone stale.
+
+    NOTE: `LANDED THROUGH` and `AUDIT BASE` are second copies of values that
+    live in plans/NXstress-prod/audit.toml. That is deliberate, and step 0 makes
+    them self-checking rather than merely duplicated -- a header that disagrees
+    with the manifest means one of the two was not updated, which is exactly
+    what you want to find out before you start rather than after.
+
+<!-- ===== end UPDATE ===== -->
+
+---
+
+We are implementing a NeXus-compliant, NXstress-schema I/O feature for PyRS. The
+backend is complete (`pyrs/utilities/NXstress/`); this work connects it to the
+PyRS GUI. The plan is `plans/NXstress-prod/`.
+
+This series has been through a **seven-axis audit**, and that changes how you
+must read it. Do not begin implementing until you have done steps 0 through 2.
+
+
+## The one thing most likely to mislead you
+
+**Each subspec's body is NOT necessarily current.** Audit findings are recorded
+in append-only `## Follow-up N` sections at the end of each document, and the
+body is deliberately left as the record of what was believed. Where the two
+disagree, **the Follow-up wins.**
+
+**So read your subspec's Follow-ups first, and look specifically for items that
+strike, supersede or re-scope something in the body above them.** They exist:
+the first audit pass found a subspec whose entire `## PyRS Changes` section
+scheduled work that had already been done upstream -- removed by the very commit
+the plan's claims were written against. An implementer reading only the body
+would have done it twice. Assume yours may contain the same shape until you have
+checked.
+
+The single exception is a `path:LINE` citation, which is a pointer rather than a
+belief: those were corrected in place, so the body's line numbers were accurate
+as of LAST AUDIT PASS. They drift again as code moves, which is what
+`landing_trigger.py` in step 2 exists to detect.
+
+
+## Before writing any code
+
+0. **Check the header against the manifest**, before trusting either:
+
+   ```
+   grep -E 'base_commit|base_subject' plans/NXstress-prod/audit.toml
+   grep -A3 'freshness_only'          plans/NXstress-prod/audit.toml
+   ```
+
+   `AUDIT BASE` must equal `git.base_commit`. Every subspec at or below
+   `LANDED THROUGH` must appear in `[scope] freshness_only`. **If either
+   disagrees, stop and resolve it** -- the manifest is authoritative, and a
+   disagreement means a previous session finished without doing step 9.
+
+   Sanity-check the base's *position*, not just its value:
+
+   ```
+   git log --oneline <AUDIT BASE>..HEAD
+   ```
+
+   **That range should span exactly the previous subspec's changes** -- the
+   landing pass looks only at what the most-recent subspec before this one did.
+   Two ways it goes wrong, and they fail in opposite directions:
+   - **Range too large** (it reaches back past the previous subspec): the base
+     was never advanced. `landing_trigger.py` still works, but buries the
+     signal in changes that were already audited when they landed.
+   - **Range too small or empty** (the base sits at or after the previous
+     subspec's merge): the base was advanced too far. The tool reports clean
+     while the claims it should have flagged go stale -- the failure mode that
+     matters, because it is silent.
+
+1. **Read, in this order:**
+   - `CLAUDE.md`, section "Auditing a Plan or Subspec"
+   - the subspec named in SUBSPEC -- **including every `## Follow-up N` section**
+   - `plans/NXstress-prod/review/findings.md` **section 0, the coverage matrix**.
+     Find the SUBSPEC row. Any axis marked `~` or `✗` was **not fully verified**;
+     claims on those axes are unconfirmed, not true.
+   - `plans/NXstress-prod/probes/README.md` -- the Disposition column tells you
+     which probes this PR is expected to promote into tests, and the
+     failure-modes table tells you how these probes have misled people before.
+   - `README.md`'s `## 4. Decisions Log`. Rows 19-23 came out of the audit and
+     supersede parts of several subspec bodies.
+   - `open-questions/<same number>.md`, if one exists. It is a stakeholder Q&A
+     record, not specification -- but some entries carry the verification
+     writeup a Decisions Log row rests on, so read it when a decision affecting
+     your subspec cites it. Treat a "RESOLVED" heading there as history, and the
+     Decisions Log as current.
+
+2. **Run the pre-pass** (seconds, and it bounds how much reading you need):
+
+   ```
+   pixi run python plans/audit-process/tools/check_links.py      plans/NXstress-prod
+   pixi run python plans/audit-process/tools/check_citations.py  plans/NXstress-prod
+   pixi run python plans/audit-process/tools/check_ownership.py  plans/NXstress-prod
+   pixi run python plans/audit-process/tools/landing_trigger.py  plans/NXstress-prod
+   ```
+
+   Exit 0 = clean, 1 = findings, 2 = manifest or usage error. A 2 means the
+   manifest is wrong -- fix that first; it is never "no findings".
+
+   `landing_trigger.py` is the one that matters here: it intersects
+   `git diff --name-only <AUDIT BASE>..HEAD` with the repo paths each document
+   cites, giving you exactly the claims that may have gone stale since the last
+   pass. **Check its hits against the subspec you are about to implement.**
+
+   **Not every finding is new.** Some are known and deliberately left standing --
+   citations the tools correctly refuse to guess at, and ownership rows
+   `process.md` section 7.4 predicts as boilerplate. `review/findings.md`
+   section 2 records the accepted residue as of the last pass; compare against it
+   rather than treating every line as yours to fix. Anything *not* in that
+   section appeared since, and is yours.
+
+
+## While implementing
+
+3. **Promote the probes and invariants this PR owns.** The principle is that **a
+   finding which can be expressed as a test must be**, and the prose becomes a
+   comment on the test: a paragraph is re-read once per audit, a test is checked
+   on every commit. A probe is not itself a test -- it tests a design assumption
+   before the code exists. Promoting means writing a real test that carries the
+   same guarantee.
+
+   **This list is deliberately not repeated here.** It lives in three places,
+   each authoritative for a different thing, and copying it into this prompt
+   would create a fourth copy that drifts -- the mechanism `process.md` section 9
+   rejects. Read them:
+   - the subspec's own `## Follow-up N` sections, under **"Invariants flagged,
+     not written"** -- the invariant, its owner PR, and its tier;
+   - `probes/README.md`'s **Disposition** column -- which probe each one comes
+     from, and whether it is `promote` / `retire to record` / `stays a probe`;
+   - `review/findings.md` section 5 -- the same set as one table, with an
+     "Owner PR" and "Possible from" column, so you can see at a glance what this
+     PR owns and what it merely unblocks.
+
+   If those three disagree, that is itself a finding: record it rather than
+   picking one.
+
+   Two rules when you write them:
+   - Place it by `CLAUDE.md`'s tier table. A test that constructs or drives a Qt
+     widget is `tests/ui/` and needs **both** `@pytest.mark.gui` and
+     `@pytest.mark.integration` -- `gui` alone drops it from the integration tier.
+   - Where a probe reproduces a counterparty's logic **locally** rather than
+     importing it (`a5_peakcollection_ranges.py` does), carry that property into
+     the test. A test that imports the counterparty's own rule passes vacuously.
+
+4. **When implementation falsifies a claim, that is expected, not a failure.**
+   `process.md` section 5.6 budgets a document-correction pass per PR as normal
+   cost. Append a new `## Follow-up N` to the subspec -- **N increments, earlier
+   Follow-ups are never edited** -- stating the claim, the real evidence, and the
+   correction. If it forces a design change, the *decision* goes to the Decisions
+   Log and the Follow-up holds the evidence.
+
+5. **Probe before asserting.** If you are about to rely on third-party behaviour
+   (A4) or on how another in-repo module treats your output (A5), and the
+   coverage matrix shows that axis uncovered for this subspec, **write a probe
+   under `plans/NXstress-prod/probes/`** rather than reasoning about it. Name it
+   `a4_*.py` / `a5_*.py`, never `test_*` (there is no `testpaths` setting, so a
+   bare `pytest` at the repo root would collect it). Paste its real output into
+   the document at the claim, and add a row to `probes/README.md`.
+
+   A probe never modifies `pyproject.toml` or `pixi.lock`. If it needs a package
+   the environment lacks, **that absence is the finding.**
+
+   This is where the remaining gaps are, and the coverage matrix is the record
+   of them -- several A5 axes are marked uncovered purely because the code that
+   would make them probeable had not been written. **If this subspec writes that
+   code, those claims become probeable, and checking them is part of this PR.**
+   Do not infer which ones from memory or from this prompt; read the matrix row
+   for SUBSPEC and for anything SUBSPEC depends on.
+
+
+## Follow-on pass, before you call the work done
+
+6. **Run the subspec's own `## Verification` section.** That is this PR's
+   definition of done, and it is distinct from everything above: a probe tests a
+   design assumption *before* implementation and its failure means the document
+   is wrong; `## Verification` demonstrates the shipped thing works end to end
+   and its failure means the PR is not finished. Do both; do not substitute one
+   for the other.
+
+   If a Verification step turns out to be unrunnable -- it depends on an
+   artifact that is not in the repo, say -- that is a finding, not a step to
+   skip. Record it as a Follow-up.
+
+7. **Re-run the toolkit** from step 2. `check_citations.py` reads `## Follow-up`
+   sections too, so **your own new line numbers are checked by the same tool**.
+   An audit that cites line numbers generates exactly the artifact it exists to
+   catch; expect to fix a few of your own.
+
+8. **Update the coverage matrix** in `review/findings.md` for any axis this PR
+   closed -- typically an A5 row that moves from `~` to `✓` because the code it
+   needed now exists. Do this now; it does not depend on the PR merging.
+
+9. **Write the hand-off.** Two manifest updates belong to this work but
+   **cannot be done in this session**, because they need the merge commit's hash
+   and this session does not commit. Do not guess at them and do not edit
+   `audit.toml` speculatively. Instead, state both explicitly in your final
+   message, ready to apply once the PR merges:
+
+   - `git.base_commit` -> **the commit immediately BEFORE this subspec's first
+     commit** -- *not* its merge commit -- with `git.base_subject` set to that
+     commit's exact subject line. The intent is what the next session will
+     check in step 0: `base_commit..HEAD` should then span **exactly this
+     subspec's changes**, because the landing pass looks only at the most-recent
+     subspec before the one being implemented. Pointing the base at the merge
+     commit instead would leave an empty range, and the tool would report clean
+     while the claims went stale. The two keys are cross-checked at load, so a
+     mismatch makes every tool exit 2 -- deliberate, because a stale base is the
+     one manifest error that otherwise fails silently, reporting a plausible
+     diff over the wrong range.
+   - move SUBSPEC from `[scope] full` to `[scope] freshness_only`.
+
+   If they are missed, the **next** session's step 0 catches it -- that is what
+   step 0 is for. Saying so here is the difference between a caught omission and
+   a silently wrong base.
+
+10. **Ground truths.** If a probe turns up something true of PyRS generally
+    rather than of one document -- an installed library's real behaviour, an
+    environment constraint -- it belongs in `docs/ground_truths.md` in that
+    file's `**Why this matters going forward:**` form, with the probe linked.
+
+
+## Working agreements
+
+- **Do not `git commit` and do not stage.** Leave the working tree for review;
+  commit messages are written by hand.
+- Everything runs through **pixi** (`pixi run test-unit`, `pixi run pyrs`, ...).
+  Never hand-roll a build or a launcher script.
+- `plans/` is linted: pre-commit runs `ruff-check` and `ruff-format` over it, so
+  probes and tools must be ruff-clean. Note `target-version = "py311"` -- f-string
+  nesting that is legal at 3.13 will fail.
+- Test tiers: `pixi run test-unit` / `test-integration` / `test-gui`. The full
+  `pixi run test` does **not** set `QT_QPA_PLATFORM=offscreen`; export it
+  yourself on a workstation with a real display, or the GUI tier hangs until the
+  300-second timeout -- see `docs/ground_truths.md`.
+
+
+## Anti-patterns, from the audit that produced these documents
+
+- **Re-reading a claim and finding it plausible is not verification.**
+  Plausibility is what a stale claim has in abundance.
+- **"The code that uses it does not exist yet" is not a reason to leave a
+  third-party claim unprobed.** That reasoning was used once in this audit, and
+  it was wrong -- the claims were about an installed package and existing source,
+  executable all along.
+- **A drifted line number does not imply a stale claim**, and an accurate one
+  does not imply a true claim. Ten citations in the README's architecture tables
+  were wrong while every sentence around them was correct.
+- **"Accepted without raising" is not "harmless".** Report the resulting state,
+  not just the absence of an exception -- an HDF5 name containing `/` raises
+  nothing and silently creates a nested group.

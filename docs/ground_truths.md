@@ -770,3 +770,90 @@ A quiet, single-process, offscreen repro will not reproduce (a)/(b), and
 won't reproduce (c) either unless it specifically kills the process
 mid-lock and relaunches — a clean repro passing is not evidence the fix
 works under real crash/network conditions.
+
+## `neutrons_standard.Config` has two undocumented side effects, one of which breaks under a test environment (2026-09)
+
+Found while probing this repo's config layer during the first seven-axis audit
+of `plans/NXstress-prod/`. Both are properties of the installed
+`neutrons_standard` 0.1.0 package, not of PyRS's own code, and neither is
+mentioned in its documentation or in PyRS's plan documents. Probe:
+[`plans/NXstress-prod/probes/a4_neutrons_standard_config.py`](../plans/NXstress-prod/probes/a4_neutrons_standard_config.py).
+
+**1. Importing the config module writes to the user's home directory.**
+`_Config.__init__` calls `persistBackup()`, which does
+`self._userHome().mkdir(parents=True, exist_ok=True)` and then writes
+`~/.pyrs/application.yml.bak` — on *every* load. Observed: the file's mtime
+changes from nothing more than
+
+```python
+import neutrons_standard
+
+neutrons_standard.init("pyrs")
+from neutrons_standard.config import Config
+```
+
+Since `pyrs/utilities/config.py` performs exactly that at import time, **any**
+import of PyRS's config layer touches `$HOME`. Harmless on a workstation;
+not harmless on a read-only home, in a container with no `$HOME`, or anywhere
+concurrent processes share one.
+
+**2. Under a test environment the config resources root resolves *outside* the
+repository.** `_find_root_dir()` returns `MODULE_ROOT.parent.parent / "tests"`
+whenever `isTestEnv()` is true — that is, when the `env` OS environment variable
+contains the string `"test"` **and** `conftest` is in `sys.modules`. For this
+repo's layout `MODULE_ROOT` is `<repo>/pyrs`, so `.parent.parent` is the
+directory *containing* the repo:
+
+```console
+  CLAIM   with env containing 'test' AND conftest imported, the resources root
+          moves to <repo>/tests/
+  RESULT  FileNotFoundError: [Errno 2] No such file or directory:
+          '/home/ux0/workspaces/tests/resources/application.yml'
+```
+
+Note the path — `workspaces/tests`, not `PyRS/tests`. The upstream intent is
+clearly `<repo>/tests`, but it is off by one level for a `repo/package/` layout,
+so the lookup lands outside the repository entirely and raises.
+
+**Why this matters going forward:** the documented `neutrons_standard` idiom for
+per-tier test configuration is to set `env` to a file whose name contains
+`"test"` (for example `integration_test.yml`, so unit and integration tiers can
+differ). **Do not adopt that idiom in this repo without checking this first** —
+under pytest, `conftest` is always imported, so the "test" substring alone flips
+`isTestEnv()` and config loading fails with a `FileNotFoundError` naming a
+directory above the repo root. A test that merely sets `env=<something>_test.yml`
+will fail for a reason that has nothing to do with what it is testing. Either
+avoid `"test"` in the `env` value, or raise the off-by-one with the
+`neutrons_standard` maintainers.
+
+## An uncaught exception in a Qt slot aborts PyRS; an NXstress write truncates its target on open (2026-10)
+
+Found while hooking NXstress saving into the PeakFitting and TextureFitting
+viewers. PyRS runs on PyQt6 (`qtpy.API_NAME == "PyQt6"`), which calls
+`qFatal()` for any Python exception that escapes a slot, and PyRS installs no
+`sys.excepthook` that would change that. Observed, offscreen:
+
+```python
+def slot():
+    raise RuntimeError("boom")
+
+
+app = QApplication([])
+a = QAction("x")
+a.triggered.connect(slot)
+QTimer.singleShot(0, a.trigger)
+app.exec()
+# -> traceback, then "dumped core", exit status 134 (SIGABRT)
+```
+
+Separately, `NXstress(path, "w")` truncates `path` on open, before anything is
+validated: a write that then fails (e.g. a peak tag that does not parse as
+`<phase> <hkl>`) leaves an ~800-byte file, and an existing file at that path is
+already gone.
+
+**Why this matters going forward:** a GUI slot that can raise must catch and
+report, not merely let the error propagate — "it prints a traceback" is not
+what happens; the whole application exits. And an NXstress save must write to a
+temporary file and rename it on success, never write in place. Both are done by
+`pyrs.interface.gui_helper.write_nxstress_or_report`; reuse it for any new
+NXstress save action.
