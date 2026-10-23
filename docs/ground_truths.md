@@ -770,3 +770,392 @@ A quiet, single-process, offscreen repro will not reproduce (a)/(b), and
 won't reproduce (c) either unless it specifically kills the process
 mid-lock and relaunches — a clean repro passing is not evidence the fix
 works under real crash/network conditions.
+
+## `neutrons_standard.Config` has two undocumented side effects, one of which breaks under a test environment (2026-09)
+
+Found while probing this repo's config layer during the first seven-axis audit
+of `plans/NXstress-prod/`. Both are properties of the installed
+`neutrons_standard` 0.1.0 package, not of PyRS's own code, and neither is
+mentioned in its documentation or in PyRS's plan documents. Probe:
+[`plans/NXstress-prod/probes/a4_neutrons_standard_config.py`](../plans/NXstress-prod/probes/a4_neutrons_standard_config.py).
+
+**1. Importing the config module writes to the user's home directory.**
+`_Config.__init__` calls `persistBackup()`, which does
+`self._userHome().mkdir(parents=True, exist_ok=True)` and then writes
+`~/.pyrs/application.yml.bak` — on *every* load. Observed: the file's mtime
+changes from nothing more than
+
+```python
+import neutrons_standard
+
+neutrons_standard.init("pyrs")
+from neutrons_standard.config import Config
+```
+
+Since `pyrs/utilities/config.py` performs exactly that at import time, **any**
+import of PyRS's config layer touches `$HOME`. Harmless on a workstation;
+not harmless on a read-only home, in a container with no `$HOME`, or anywhere
+concurrent processes share one.
+
+**2. Under a test environment the config resources root resolves *outside* the
+repository.** `_find_root_dir()` returns `MODULE_ROOT.parent.parent / "tests"`
+whenever `isTestEnv()` is true — that is, when the `env` OS environment variable
+contains the string `"test"` **and** `conftest` is in `sys.modules`. For this
+repo's layout `MODULE_ROOT` is `<repo>/pyrs`, so `.parent.parent` is the
+directory *containing* the repo:
+
+```console
+  CLAIM   with env containing 'test' AND conftest imported, the resources root
+          moves to <repo>/tests/
+  RESULT  FileNotFoundError: [Errno 2] No such file or directory:
+          '/home/ux0/workspaces/tests/resources/application.yml'
+```
+
+Note the path — `workspaces/tests`, not `PyRS/tests`. The upstream intent is
+clearly `<repo>/tests`, but it is off by one level for a `repo/package/` layout,
+so the lookup lands outside the repository entirely and raises.
+
+**Why this matters going forward:** the documented `neutrons_standard` idiom for
+per-tier test configuration is to set `env` to a file whose name contains
+`"test"` (for example `integration_test.yml`, so unit and integration tiers can
+differ). **Do not adopt that idiom in this repo without checking this first** —
+under pytest, `conftest` is always imported, so the "test" substring alone flips
+`isTestEnv()` and config loading fails with a `FileNotFoundError` naming a
+directory above the repo root. A test that merely sets `env=<something>_test.yml`
+will fail for a reason that has nothing to do with what it is testing. Either
+avoid `"test"` in the `env` value, or raise the off-by-one with the
+`neutrons_standard` maintainers.
+
+---
+
+## Two data-model limits that bite any multi-record NeXus write (2026-09)
+
+Both found while implementing `plans/NXstress-prod/`'s subspec 04b. Recorded
+here as pointers only — the evidence, the probe output and the corrections live
+in that subspec's
+[Follow-up 2](../plans/NXstress-prod/04b-multi-workspace-nxstress.md#follow-up-2--2026-09-30-implementation-pass),
+so there is one copy to keep true rather than two.
+
+**1. A NumPy fixed-width unicode array (`<U`) cannot be written to HDF5.**
+This is a constraint on a dataset's *values*, independent of its name —
+NXstress's `allowed_identifier` already encodes any PV-log key totally and
+reversibly, and a plain name fails just the same. `np.array(["11", "22"])` raises
+`TypeError: No conversion path for dtype: dtype('<U2')` — an h5py limitation,
+not a NeXus rule. The variable-length UTF-8 dtype (`FIELD_DTYPE.STRING`) holds
+the same values, **but reads back as `bytes`**, so a string does not survive a
+round trip as the same Python object. Probe:
+[`a4_string_log_dtypes.py`](../plans/NXstress-prod/probes/a4_string_log_dtypes.py).
+
+**2. `SubRuns` rejects a non-monotonic array, so concatenated scan points
+cannot be held by `SampleLogs` or `HidraWorkspace` at all.** `SubRuns.set`
+raises `"subruns are not sorted in increasing order"`, and `SubRuns.__init__`
+calls it — while `SubRuns.append` bypasses it. Two workspaces with scan points
+`[1,3,5]` and `[2,4,6]` concatenate to something no PyRS container can
+represent. Separately, `HidraWorkspace.append_hidra_project` takes a
+`HidraProjectFile` rather than a workspace and **renumbers** appended subruns
+to 1..N. Probe:
+[`a5_subruns_nonmonotonic.py`](../plans/NXstress-prod/probes/a5_subruns_nonmonotonic.py).
+
+**Why this matters going forward:** any future code that merges several
+workspaces into one on-disk record has to concatenate at the array level and
+split before rebuilding PyRS objects — a merged in-memory workspace is not an
+available intermediate — and has to normalise string values explicitly at both
+ends, or string-keyed lookups will stop matching after a round trip without
+raising.
+
+---
+
+## Loading a project file modified it on disk, because the mode came from permissions (2026-09-30)
+
+Found while closing out subspec 04b: committed fixtures under `tests/data/`
+kept appearing in `git status` as modified, with no test that writes to them.
+
+`ReductionManager.load_hidra_project` chose its HDF5 mode from
+`os.access(project_file_name, os.W_OK)` — the file's *permissions* rather than
+what the operation needed — so loading any **writable** project file opened it
+in append mode. HDF5 marks the superblock on a read-write open, so the bytes
+change the moment the file is opened, and change back only when the handle is
+closed. The same method also failed to close the handle when loading raised, so
+for an unreadable file the modification persisted for as long as something kept
+the frame alive. Under pytest that is the rest of the session, because the
+traceback retained by a failure report retains the frame.
+
+That combination is why it looked non-deterministic: whether the file was still
+modified when you ran `git status` depended on whether the leaked handle had
+been garbage-collected yet.
+
+```console
+writable on disk: True
+load: RAISED RuntimeError: ... non-empty "reduced diffraction data" entry ...
+bytes changed immediately after the raise: True     # before the fix
+bytes changed after gc.collect():          False    # ... and then not
+```
+
+Fixed by opening `READONLY` unconditionally in that method — it only reads, and
+every genuine save path opens its own `READWRITE` handle by filename — and by
+closing in a `finally`. Pinned by
+`tests/integration/test_pyrscore.py::TestLoadDoesNotModifyTheFile`, which
+covers the succeeding and the raising path separately, since only the latter
+leaked.
+
+**Why this matters going forward:** choose an HDF5 mode from what the operation
+does, never from what the filesystem permits — `os.access(..., os.W_OK)` says a
+write is *allowed*, not that one is *intended*. And a read path that can raise
+needs its handle closed in a `finally`, or a failed read leaves the file marked
+as open-for-write. A fixture showing up in `git status` after a test run is the
+symptom to look for.
+
+---
+
+## An HDF5 dataset written without `maxshape` can never be appended to (2026-10-01)
+
+NXstress's append mode (`pyrs/utilities/NXstress/`) grows an `NXentry` already
+on disk by resizing each per-scan-point dataset and writing after its current
+end. That only works for a dataset created with `maxshape` and `chunks`: without
+them HDF5 lays the dataset out contiguously, `NXfield.resize` raises
+`NeXusError: Shape incompatible with current NXfield`, and no mechanism can
+extend it. Half of NXstress's own per-scan-point fields were written that way
+and had to be changed; `_definitions.growable(rank)` now supplies the kwargs and
+`tail_append` refuses a dataset that lacks them, naming it.
+
+**Why this matters going forward:** decide at *creation* whether a dataset will
+ever grow — it cannot be decided later, and a file already written cannot be
+retrofitted. Note also that a fixed-width `|S` string column is sized by the
+longest value present when it is created, so appending a longer one truncates it
+**silently**; store string data as the variable-length UTF-8 dtype if it will
+ever be appended to. The evidence, the probes and the full per-dataset
+measurement are in
+[plans/NXstress-prod/04c-nxstress-append.md](../plans/NXstress-prod/04c-nxstress-append.md)'s
+Follow-up 2 (F2.1, F2.2).
+
+## A string sample log's dtype used to depend on where the workspace came from (2026-10-09)
+
+`SampleLogs` stored whatever numpy dtype it was handed, and nothing normalized
+string values at any boundary, so the in-memory dtype of a string log was an
+accident of provenance:
+
+| source | string log value |
+|---|---|
+| `HidraProjectFile.read_sample_logs` — `data_set[()]`, straight from h5py | `bytes` |
+| `NXstress._sample._Sample.sampleLogsFromNexus` | `bytes` (except `name` and `chemical_formula`, decoded one-off) |
+| built in memory from a `<U` array, e.g. `set_sample_log("direction", pts, np.array(["11", ...]))` | `str` |
+
+Consumers each invented a policy. Some were tolerant
+(`summary_generator`, `peak_profile_utility`, `NXstress._discriminator._as_text`,
+`HidraWorkspace.direction`); some assumed `bytes` and called `.decode()`
+unconditionally. The latter crashed on a workspace built in memory —
+`NXstress._entryTimes` raised `AttributeError: 'numpy.str_' object has no
+attribute 'decode'` from inside a `try` that catches only `ValueError`, the
+clause that exists to substitute `NO_LOG` for an unparseable timestamp, so the
+fallback could not catch it. Even the test fixtures carried the split: the
+NXstress conftest `.encode("utf-8")`s `start_time`/`end_time`/`Filename` with a
+comment explaining that it must match h5py, and writes `direction` as a plain
+`<U` array four lines later.
+
+The rule is now **`bytes` on disk, `str` in memory**, with one conversion —
+`pyrs/utilities/convertdatatypes.py`'s `to_text`, `to_text_array` and the
+`is_text_array` predicate, alongside the existing `to_int`/`to_float` — applied
+at the two boundaries and at the nine sites that previously hand-rolled it:
+
+- `SampleLogs.__setitem__` converts a string array to `<U` on store, so *both*
+  file readers normalize without either one having to decode for itself.
+- `HidraProjectFile.add_sample_log` converts back at the HDF5 boundary. This is
+  not optional: **h5py has no conversion path for numpy's `<U` dtype**, so a
+  project file cannot be written at all without it.
+  `NXstress._sample._Sample._writable` was already doing the equivalent.
+
+**Two things that are easy to get wrong, both found by getting them wrong:**
+
+*Three dtypes mean "array of strings", and the one that matters is `object`.*
+The first version of this change tested `dtype.kind == "S"`, which catches only
+**fixed-width** byte arrays. HDF5 does not produce those: h5py and `nexusformat`
+both hand back an **object** array of Python `bytes` for the variable-length
+UTF-8 dtype, whose kind is `"O"`. The check therefore passed every test tier
+while doing nothing whatsoever for `start_time`, `end_time`, `Filename` or any
+discriminator column — and looked correct, because the unit fixture had been
+built with `np.array([b"11", ...])`, which *is* `|S`. A test for this kind of
+normalization has to construct the dtype the real reader yields, not the one the
+literal syntax happens to give.
+
+*Encode to variable-length, never to fixed-width.* `numpy.char.encode` produces
+`|S`, whose width is fixed by the longest value present at creation; a longer
+value written later is truncated **silently** (see the `maxshape` entry below for
+the same hazard in NXstress). Worse, since `HidraProjectFile` re-saves a
+workspace it previously read, encoding that way would quietly convert an existing
+file's variable-length columns to fixed-width on every save. The target is
+`h5py.string_dtype(encoding="utf-8")`.
+
+Both directions were built and measured against all three tiers before choosing.
+Normalizing toward **`bytes`** in memory cost one real regression — the CSV
+exporter wrote `# string1 = b'a constant string'` into a user-facing header —
+plus two test failures, and would have put the burden on every display consumer,
+most of them untested. Normalizing toward **`str`** produced 83 failures that
+were all the *same* defect (the unconditional `.decode()`, in two places), and
+once those were fixed every tier passed. The asymmetry is the argument: writers
+that must encode are few and already do it; readers that must decode are many
+and mostly invisible.
+
+`to_text_array` **raises** on an array that is not strings, rather than
+returning it unchanged — with one deliberate exception, an **empty `object`
+array**, which is accepted as an empty string column. That is safe because an
+empty HDF5 dataset keeps its own dtype on read and only a variable-length string
+comes back as `object`; an empty `float64` array still raises. Note the trap it
+replaces: `np.array([])` is `float64`, so a conversion that builds its result
+from a comprehension turns an empty string column into an empty array of
+*numbers* unless it names `dtype=np.str_`. A caller that may hold either kind — `SampleLogs`, whose
+logs are mostly numeric, and `_Peaks._decoded`, whose discriminator column is
+whatever the configured log holds — asks `is_text_array` first. A pass-through
+would make a misdirected call look like a working one, and the symptom would
+surface later as a `bytes` value in whichever consumer did not expect one, which
+is the failure this whole invariant exists to end.
+
+**Why this matters going forward:** when a value crosses between HDF5 and memory,
+pick the representation for each side *once*, put the conversion in **one**
+function, and call it at the boundary — do not let the type be decided by which
+loader ran, and do not hand-roll `isinstance(v, bytes)` at the point of use. The
+nine sites that did had drifted into four different behaviours: some handling
+`numpy.bytes_` and some not, some coercing the non-bytes branch to `str` and some
+returning it untouched. The failure mode of not doing so is
+not a crash at the boundary, where you would see it, but a crash or a wrong
+string far downstream in whichever consumer happens to meet the spelling it did
+not expect. Pinned by
+`tests/unit/pyrs/dataobjects/test_sample_logs.py::TestStringLogsAreTextInMemory`
+and
+`tests/unit/pyrs/projectfile/test_sample_logs.py::TestStringLogsAreBytesOnDisk`,
+which reference each other so neither half can be removed as redundant.
+
+---
+
+## PyRS's sample stage convention is recoverable from `rotate_project_q`, offset included (2026-10-14)
+
+`PoleFigureCalculator.rotate_project_q` (`pyrs/core/polefigurecalculator.py:186`)
+is the only place PyRS applies the three sample stage angles, and it applies them
+as the closed-form pole-figure projection of Bob He, *Two-Dimensional X-ray
+Diffraction*, ch. 8.3 — sines and cosines, with no matrix in it. There is no axis
+vector anywhere in the source to copy, which is why the sample-frame convention
+was for a long time recorded as "not located" rather than as a value.
+
+It is recoverable without touching the function's internals. Its `theta`/`eta`
+arguments fix the probe vector it rotates; choosing them aims that vector along
+each basis vector in turn, so three calls read off three columns of the matrix it
+implements, and its `(90 - alpha, beta)` return inverts to `(h1, h2)` exactly.
+The two rows it exposes are orthonormal, so the third is their cross product. The
+result, exact to `5.8e-14` over 200 random angle triples:
+
+```
+sample -> lab  ==  M0 @ R_omega(0,-1,0) @ R_chi(1,0,0) @ R_phi(0,0,-1)
+M0 = diag(1, -1, -1), i.e. 180 degrees about +x
+```
+
+`M0` is the load-bearing part. **The projection is not the identity at
+`omega = chi = phi = 0`** — there is a constant 180-degree offset between its
+output frame and the lab frame. The lab frame itself is right-handed with
+conventional axes, which `reduce_hb2b_pyrs.py::generate_rotation_matrix`
+(`Rx @ Ry @ Rz` about `+x/+y/+z`) confirms from the detector side, so the
+negative sample axes above are a real feature of the stage.
+
+`mrot` is present in every real HB2B file in `tests/data` alongside the three
+angles and does **not** appear in this decomposition, because `rotate_project_q`
+does not take it. Anything claiming to describe the full sample placement has to
+settle what `mrot` does first.
+
+**Why this matters going forward:** a decomposition that comes back
+*underdetermined* is as likely to mean the candidate space is too small as it is
+to mean the referent is genuinely ambiguous, and **the result alone cannot tell
+you which**. A first attempt here enumerated stage rotations only, found two
+survivors differing by a handedness sign, and was almost written up as an
+irreducible ambiguity for a stakeholder to settle — when the real answer was that
+no composition of three stage rotations can match one that carries a constant
+factor. Before reporting "ambiguous", add the constant term and re-run; before
+reporting "unrecoverable", check whether the function can simply be *driven* as a
+black box instead of read. Probe:
+[`plans/NXstress-prod/probes/a5_sample_rotation_axes.py`](../plans/NXstress-prod/probes/a5_sample_rotation_axes.py).
+Pinned by
+`tests/unit/pyrs/utilities/NXstress/test_sample.py::TestSampleTransformationChain::test_the_rotations_compose_in_write_order`,
+which composes the chain PyRS writes and compares it against `rotate_project_q`
+itself, so the two cannot drift apart silently.
+
+---
+
+## An uncaught exception in a Qt slot aborts PyRS; an NXstress write truncates its target on open (2026-10)
+
+Found while hooking NXstress saving into the PeakFitting and TextureFitting
+viewers. PyRS runs on PyQt6 (`qtpy.API_NAME == "PyQt6"`), which calls
+`qFatal()` for any Python exception that escapes a slot, and PyRS installs no
+`sys.excepthook` that would change that. Observed, offscreen:
+
+```python
+def slot():
+    raise RuntimeError("boom")
+
+
+app = QApplication([])
+a = QAction("x")
+a.triggered.connect(slot)
+QTimer.singleShot(0, a.trigger)
+app.exec()
+# -> traceback, then "dumped core", exit status 134 (SIGABRT)
+```
+
+Separately, `NXstress(path, "w")` truncates `path` on open, before anything is
+validated: a write that then fails (e.g. a peak tag that does not parse as
+`<phase> <hkl>`) leaves an ~800-byte file, and an existing file at that path is
+already gone.
+
+**Why this matters going forward:** a GUI slot that can raise must catch and
+report, not merely let the error propagate — "it prints a traceback" is not
+what happens; the whole application exits. And an NXstress save must write to a
+temporary file and rename it on success, never write in place. Both are done by
+`pyrs.interface.gui_helper.write_nxstress_or_report`; reuse it for any new
+NXstress save action.
+
+---
+
+## Sub-run order is enforced but not needed; sub-run numbers are not positions (2026-10-20)
+
+Found while assembling the phase-2 NXstress PR. Recorded here as a pointer only:
+the full survey, the reproductions and the xfail tests are in
+[DD-2](../plans/PR_review/deferred-defects.md#dd-2--the-sub-run-ordering-requirement-is-arbitrary-and-should-be-dropped),
+so there is one copy to keep true.
+
+`SubRuns.set` requires strictly increasing values, but the only code that uses
+the order is `SubRuns.get_indices`, which binary-searches (`np.searchsorted`).
+That lookup is wrong without raising on an unsorted axis (which `SubRuns.append`
+can produce), and on a sorted one whenever a query value inside the range is
+missing: `SubRuns([1, 2, 4]).get_indices([1, 3, 4])` → `[0, 2, 2]`. Separately,
+about ten sites treat a sub-run number as an array position (`sub_run - 1`), so
+they break on any workspace whose sub-runs do not run 1..N, sorted or not.
+
+**Why this matters going forward:** don't rely on `get_indices` for a
+multi-value query unless every value is known to be present. Never index an
+array by a sub-run number; look up the position. And don't sort scan points to
+satisfy `SubRuns`: in NXstress the on-disk row order is the inputs' order, and
+sorting it breaks the round trip. That is why `NXstress` refuses an
+out-of-order write rather than sorting it.
+
+---
+
+## `neutrons_standard` adds sections of its own to the configuration document (2026-10-21)
+
+Found while making `validate_config` refuse unknown keys (Decisions Log row 46 in
+[`plans/NXstress-prod/README.md`](../plans/NXstress-prod/README.md)). The merged
+document in `Config._config` holds more than `application.yml` and the override
+file: neutrons_standard 0.1.0 adds `environment` (the loaded override's name, in
+`_Config.refresh`), `module.root` and `version.default` (in `_Config.reload`), and,
+when `~/.pyrs/pyrs-user.yml` is in use, `application.version` (written by
+`_Config.swapToUserYml`). The shipped default loads as:
+
+```
+nxstress, legacy_io, environment: application, module: {root: .../pyrs}, version: {default: -1}
+```
+
+It also has no public way to list the keys a configuration holds, only
+`Config[...]` and `Config.exists(...)` for a key already known.
+
+**Why this matters going forward:** a check of the whole document must allow these
+sections, and `NEUTRONS_STANDARD_SECTIONS` in `pyrs/utilities/config.py` lists them.
+A neutrons_standard upgrade that adds another would stop PyRS starting;
+`test_config.py::TestUnknownKeysAreRefused::test_a_load_adds_no_unlisted_section`
+fails first and names it. Before row 46, `validate_config` read only the keys
+`ConfigSchema` declares, so an unknown key, misspelled or left over from a removed
+setting, was silently ignored.

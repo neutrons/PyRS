@@ -1,0 +1,360 @@
+================================================================================
+PR: Subspec 04 -- NXstress Internal Cleanup (Phase 2 TODOs)
+Plan:   plans/NXstress-prod/04-nxstress-internal-cleanup.md
+Branch: EWM12484_NXstress_hookup_PR_2
+================================================================================
+
+WHAT THIS PR DOES
+--------------------------------------------------------------------------------
+Closes spec 04's six NXstress-internal TODOs. Five went roughly as specified; one
+turned out to be a different and larger defect than the TODO beside it described,
+and the spec's premise for two others was wrong. Details below -- the deviations
+are the part worth reviewing.
+
+  1. allowed_identifier  -- reversible, injective encoder against the real NeXus
+                            name rule; replaces a many-to-one `:` -> `_` swap
+                            that could silently drop a log.
+  2. peaks/sx,sy,sz      -- filled from the vx/vy/vz sample coordinates,
+                            subrun-subset indexed per PeakCollection, tagged with
+                            `local_name`. Previously written as NaN.
+  3. mask naming         -- the DEFAULT_TAG <-> None correspondence hoisted to a
+                            single definition; was re-derived inline at 3 sites.
+  4. instrument name     -- now configuration, not a hardcoded "HB2B".
+  5. rotation order      -- the order was already correct; the CHAIN WAS NOT
+                            CONNECTED. See "Defect found" below.
+  6. file_object.py      -- confirmed no-op per Decisions item 19; guarded by
+                            tests so it cannot silently regress.
+
+Also: the NXstress schema is vendored into the repo, and a test fixture was built
+so spec 04's own Verification step can actually run.
+
+
+THE DEFECT FOUND WHILE IMPLEMENTING (please review this first)
+--------------------------------------------------------------------------------
+_instrument.py wrote eight NXtransformations and then set the detector's
+`depends_on` to `translation_x` -- the FIRST link, whose own `depends_on` is "."
+-- so the chain terminated immediately.
+
+    reachable before:  1 of 8   -> composed transform = a bare x-translation,
+                                   identity rotation
+    reachable after:   8 of 8   -> translation=[0.01, 0.02, 2.03], rotation real
+
+All three rotations and two_theta_zero were written to the file and excluded from
+the geometry. Any schema-aware consumer read a mis-oriented instrument.
+
+Two things about this are worth noting for review:
+
+  * The written ORDER was already right. Traversed from the last link, the
+    rotation sub-chain composes to Rx @ Ry @ Rz, matching
+    reduce_hb2b_pyrs.py:257::generate_rotation_matrix. The fix is the entry
+    point, one line.
+
+  * PyRS could not have noticed. instrumentFromNexus reads each transformation
+    BY NAME and never walks the chain -- so a write/read round trip through our
+    own reader is completely insensitive to whether the chain is connected. Spec
+    04's `## Tests` section had specified exactly that round trip to validate the
+    rotations; it would have passed throughout. The replacement test walks the
+    chain and requires every written transformation to be reached.
+
+Probe: plans/NXstress-prod/probes/a5_transformations_chain.py
+
+
+DEVIATIONS FROM THE SPEC / APPROVED PLAN -- all deliberate, all recorded
+--------------------------------------------------------------------------------
+[1] Decision 23 (identifier policy) is SUPERSEDED, by new Decisions row 25.
+
+    Follow-up 4 F4.2 rejected `.` as an escape marker as "unverifiable" and
+    adopted the Python-identifier rule specifically because no authoritative
+    NeXus rule could be found. The rule exists: `validItemName` in nxdl.xsd of
+    the NeXus definitions repository --
+
+        [a-zA-Z0-9_]([a-zA-Z0-9_.]*[a-zA-Z0-9_])?   maxLength 63
+
+    It was missed because only the installed `nexusformat` PACKAGE was searched;
+    the rule belongs to the NXDL schema, which the package does not ship.
+
+    Consequences: `.` is legal in the interior (the unsourced comment in
+    _definitions.py was right all along), and a LEADING DIGIT is legal -- so the
+    real log names `2theta`/`2thetaSetpoint` needed no encoding at all, where
+    Decision 23's rule emitted `__32theta`.
+
+    The `__` escape introducer and its forms are UNCHANGED; only the alphabet
+    widens. 118 of 185 real names now encode verbatim (was 116); injective over
+    3905 tested inputs; all 185 round-trip.
+
+    What Decision 23 got right and keeps: its stated virtue was being "strictly
+    narrower than any plausible NeXus rule, so it stays valid whatever the schema
+    says". That held exactly -- its output was always conformant, just not
+    minimal.
+
+[2] A 63-CHARACTER CAP is newly enforced. Nothing in the series had accounted for
+    it, and encoding lengthens names (worst case 96 for the longest real name; no
+    real name currently reaches the cap). allowed_identifier raises rather than
+    emitting a name NeXus will reject.
+
+[3] `/` is ENCODED (`a/b` -> `a__2Fb`), not rejected -- contrary to the approved
+    plan, which carried forward Follow-up 3 F3.2's "raise on `/`".
+
+    That rationale does not survive the encoding. F2.2's silent-nesting result is
+    about an UNENCODED slash; under a total encoding `/` round-trips and creates
+    exactly one group. Raising would discard an entire reduction's output over
+    one unanticipated PV name -- the failure mode F3.2 itself rejected when it
+    chose "restrict the output alphabet" over "reject the input".
+
+    Empty input and the length overflow still raise: neither is representable.
+
+    *** Reviewer: this is the one place I overrode the approved plan on my own
+        judgement. Recorded as Follow-up 7 F7.4; easy to reverse if you disagree.
+
+[4] The instrument name CANNOT come from the workspace, as the spec assumed.
+    PyRS records no instrument name anywhere -- the Hidra `instrument` group holds
+    only calibration, efficiency calibration, geometry setup and monochromator
+    settings, and no sample log carries a beamline name. A new workspace attribute
+    would be a data-model change, which spec 04 puts out of scope.
+
+    Resolved via the config mechanism spec 01 already shipped:
+    `nxstress.instrument_name` / `nxstress.instrument_short_name`, with a logged
+    fallback to "HB2B". Meets the goal (usable at another beamline without a code
+    change) and touches no data model.
+
+[5] open-questions/04 Q2's answer cites `file_object.py:generate_rotation_matrix`.
+    That symbol is not in file_object.py -- it is reduce_hb2b_pyrs.py:257, where
+    the `@` fix described has landed with regression tests. No action needed, but
+    the citation should be corrected if that document is reused.
+
+
+peaks/sx,sy,sz -- WHY THE VALUES COME FROM vx/vy/vz
+--------------------------------------------------------------------------------
+The NXstress schema REQUIRES peaks/sx,sy,sz (minOccurs="1", dimension n_Peaks) and
+documents each as "component of the sample position in the sample reference
+frame". In PyRS that quantity is PointList.(vx, vy, vz). The identically-spelled
+sx/sy/sz logs are stage positions, which open-questions/04 Q3 confirms the
+stress/strain workflow does not use.
+
+The field names are NOT renamed -- sx/sy/sz is what the schema mandates. Because
+the field name and the value's source therefore disagree by design, each field
+carries `local_name` = 'vx'/'vy'/'vz', with the reason stated as a comment at the
+code and as Decisions row 24.
+
+This also resolves two doubts already recorded in
+docs/developer/source/design/nexus/IO_prototype.rst, both now updated in place:
+    "(sx, sy, sz) are included from the logs, but mostly just because the logs
+     had the same variable names -- this is probably incorrect!"
+    "Using PointList.(vx, vy, vz) as the sample positions? Is this correct?"
+
+Measured on real data (HB2B_1327), the two families are NOT interchangeable, and
+not unrelated either -- they are the same motion in different frames:
+
+    sx vs vx:  corr = +1.0000,  offset ~22 mm
+    sy vs vy:  corr =  0.6378,  encoder readback (58 values) vs a 3-point grid
+    sz vs vz:  corr = -1.0000,  the stage z axis runs OPPOSITE the sample z axis
+
+Writing the stage logs would have stored an offset, partly SIGN-FLIPPED coordinate
+in a field defined as the sample position -- silently inverting a strain gradient
+along z for any external consumer, and invisible to any "is it NaN" check.
+
+
+>>> OPEN QUESTION -- NOT RESOLVED BY THIS PR, PLEASE DO NOT LOSE <<<
+--------------------------------------------------------------------------------
+    peaks/sx,sy,sz are defined by the schema as being expressed in the SAMPLE
+    REFERENCE FRAME, which the schema says is defined by SAMPLE_DESCRIPTION's
+    NXtransformations group.
+
+    PyRS DOES NOT WRITE THAT GROUP.
+
+    _sample.py writes name, chemical_formula, scan_point, vx/vy/vz, optionally
+    temperature and stress_field, and a `logs` collection -- no NXtransformations,
+    no depends_on. So the frame our values are expressed in is stated NOWHERE in
+    the file.
+
+    Why it matters: for PyRS-to-PyRS round trips this is invisible, because we
+    write and read the same convention implicitly. For an external NXstress
+    consumer -- the entire point of writing the format -- the positions are
+    numerically correct and semantically unanchored. It is the same class of
+    defect as the detector depends_on chain fixed in this PR, differing only in
+    that the detector chain was WRONG whereas this one is ABSENT.
+
+    The sz anti-correlation above makes it concrete rather than theoretical: the
+    offset-and-inversion between the stage and sample frames is exactly what that
+    NXtransformations group is for.
+
+    Why it is not fixed here: writing the group means asserting a goniometer and
+    sample-stage convention -- which axes, in which order, relative to what -- and
+    this spec has no referent for it. The detector side had one
+    (reduce_hb2b_pyrs.py); no sample-side equivalent was located. Guessing would
+    produce a file that is confidently wrong rather than honestly silent.
+
+    Tracked as: plans/NXstress-prod/open-questions/04-nxstress-internal-cleanup.md
+                Q5  (awaiting a response from Chris)
+    Pinned by:  test_stage_and_sample_axes_differ_in_frame -- so if the two frames
+                ever coincide, the test fails and the question is re-raised rather
+                than lapsing quietly.
+    Suggested home if not done standalone: spec 08/09's calibration-fidelity work.
+--------------------------------------------------------------------------------
+
+
+NEW TEST FIXTURE (and why it was needed)
+--------------------------------------------------------------------------------
+Spec 04's Verification step 2 -- "write a .nxs from a real HB2B dataset ... confirm
+sx/sy/sz are non-NaN" -- was NOT RUNNABLE. The requirements are split across two
+disjoint sets of files:
+
+    writing NXstress at all      needs geometry + a parseable peak tag
+    non-NaN sample positions     needs finite vx/vy/vz
+    files with BOTH              none
+
+Added tests/data/HB2B_1327_with_instrument.h5 (2.72 MB), built reproducibly by
+tests/scripts/make_nxstress_sample_position_fixture.py. What is real and what was
+supplied, in full:
+
+  REAL, untouched:  vx/vy/vz and every other sample log, the reduced diffraction
+                    data, the fit results -- all copied verbatim from
+                    HB2B_1327.h5. The quantity under test is NOT synthesised;
+                    a fixture whose coordinates were invented would make the
+                    test circular, which is why this base file was chosen.
+
+  SUPPLIED (1):     instrument/geometry setup/detector. The group EXISTS in the
+                    source but is EMPTY -- its three datasets are simply absent,
+                    which is why get_instrument_setup() returned None. Filled from
+                    HB2B_938_peak.h5, another real HB2B file in this repo, so the
+                    values are real instrument parameters.
+
+  SUPPLIED (2):     peak tags peak0/peak1 -> peak000/peak111, because
+                    _parse_peak_tag needs a digit run of length divisible by 3.
+                    Gives phase "peak" with Miller indices (0,0,0) and (1,1,1).
+                    THESE CARRY NO PHYSICAL CLAIM, and nothing real is lost: the
+                    source records `d reference` as 1.0 for one peak and NaN for
+                    the other, so those tags never identified a reflection.
+
+  DROPPED:          the `mask` group -- 8.4 MB of the source's 11 MB, which would
+                    breach pre-commit's 8 MB ceiling. NXstress generates a default
+                    mask when a workspace carries none.
+
+*** ACTION REQUIRED BEFORE COMMITTING ***
+    The fixture is IGNORED by .gitignore line 7 (`HB2B_*.h5`) and will NOT be
+    picked up by a plain `git add`. It must be force-added:
+
+        git add -f tests/data/HB2B_1327_with_instrument.h5
+
+    This is how the other fixtures got there -- 43 `HB2B_*.h5` files are already
+    tracked under tests/data/ despite that rule. The pattern is aimed at stray
+    HB2B files that test runs drop in the working directory, not at the curated
+    fixtures. Flagged because a silent omission here leaves the new integration
+    test failing on a fresh clone with a file-not-found, which reads as a broken
+    test rather than a missing commit.
+
+Reviewer question: is adding a derived fixture to tests/data acceptable here, or
+would you rather this test be skipped until a genuine dual-purpose dataset is
+available? The generator script makes it reproducible either way.
+
+
+FILES CHANGED
+--------------------------------------------------------------------------------
+Production:
+  pyrs/utilities/NXstress/_definitions.py   encoder/decoder + mask-key helpers;
+                                            the validItemName rule as a sourced
+                                            comment beside the code
+  pyrs/utilities/NXstress/_peaks.py         sample positions, subset-indexed
+  pyrs/utilities/NXstress/_instrument.py    chain entry point; config-driven name
+  pyrs/utilities/NXstress/_fit.py           mask-key mapping via the shared helper
+  pyrs/resources/application.yml            nxstress.instrument_name/_short_name
+
+Tests (+19 over the tier baselines):
+  tests/unit/pyrs/utilities/NXstress/test_definitions.py      rule/round-trip/injectivity
+  tests/unit/pyrs/utilities/NXstress/test_instrument.py       chain reachability, name config
+  tests/unit/pyrs/utilities/NXstress/test_peaks.py            positions, subset, NaN fallback
+  tests/unit/pyrs/utilities/NXstress/test_sample.py           escaped log-name expectation
+  tests/unit/pyrs/utilities/NXstress/test_workspace_read.py   default+named mask round trip
+  tests/unit/pyrs/projectfile/test_file_object.py             NEW -- source-scan guards
+  tests/integration/test_nxstress_sample_position.py          NEW -- real-data verification
+  tests/scripts/make_nxstress_sample_position_fixture.py      NEW -- fixture generator
+  tests/data/HB2B_1327_with_instrument.h5                     NEW -- fixture (2.72 MB)
+
+Docs / plan:
+  docs/developer/source/design/nexus/NXstress.nxdl.xml        NEW -- vendored schema
+  docs/developer/source/design/nexus/IO_prototype.rst         provenance + 2 doubts resolved
+  .pre-commit-config.yaml                                     exclude the vendored schema
+  plans/NXstress-prod/04-...md                                Follow-up 7 (F7.1-F7.11)
+  plans/NXstress-prod/README.md                               Decisions rows 24-27, Follow-up 3
+  plans/NXstress-prod/10-flip-defaults.md                     Follow-up 2
+  plans/NXstress-prod/open-questions/04-...md                 Q5 (see above)
+  plans/NXstress-prod/probes/                                 2 new probes + register update
+  plans/NXstress-prod/review/findings.md                      coverage matrix, invariants 6-11
+
+TESTS PINNING REPLACED BEHAVIOUR (expected to change, not regressions):
+  test_allowed_identifier              pinned the many-to-one `:` -> `_` conversion
+  test_Instrument_transformations_chain pinned detector depends_on = translation_x,
+                                        i.e. asserted the broken chain as correct
+  test_Peaks_sxyz_nan                  pinned sx/sy/sz being NaN
+  test_Sample_extra_logs               pinned 'HB2B_CS_CustomValue'
+
+
+VERIFICATION RUN
+--------------------------------------------------------------------------------
+  pixi run test-unit          315 passed, 147 deselected   (baseline 298; +17)
+  pixi run test-integration   101 passed, 28 skipped, 2 xfailed
+                                                            (baseline 94; +7, the
+                                                             new real-data suite)
+  pixi run test-gui            16 passed                    (baseline identical)
+  pre-commit (all changed)    all hooks pass
+  pixi run pyrs               starts clean (offscreen)
+
+  audit toolkit:
+    check_links       0 findings                              exit 0
+    check_citations   3 problems / 358 citations              -- the 3 that
+                      review/findings.md section 2 records as accepted, all in
+                      open-questions/06. This PR's own Follow-ups generated ZERO.
+    check_ownership   9 findings                              -- unchanged; the
+                      boilerplate process.md section 7.4 predicts.
+    landing_trigger   unchanged (it diffs committed history only)
+
+  probes (real output pasted into the spec at each claim):
+    a4_validitemname_rule.py      NEW -- reads the rule live; fails if it drifts
+    a5_transformations_chain.py   NEW -- found the chain defect
+    a5_identifier_policy.py       updated for the validItemName alphabet
+
+NOTE ON WHERE FINDINGS LIVE
+--------------------------------------------------------------------------------
+Every finding from this pass is in an append-only `## Follow-up N` section of the
+document it corrects, per CLAUDE.md lines 357-363, with decisions in the Decisions
+Log and the evidence in the Follow-up. An earlier draft of this PR also copied two
+findings into docs/ground_truths.md; that was reverted. `process.md` -- the audit
+definition -- specifies no ground-truths destination, and a second copy of a
+finding is the drift mechanism section 9 rejects.
+
+Worth a reviewer's awareness: CLAUDE.md line 12 states as a core principle that
+key findings should ALWAYS be recorded in docs/ground_truths.md, which pulls
+against CLAUDE.md lines 357-363. That tension is in the instructions rather than
+in this series, and CLAUDE.md is shared, so this PR neither edits it nor assumes
+how it should be settled. The rule this series follows, and why, is written up in
+README.md's Follow-up 3 F3.4 -- read that before reaching for ground_truths.md in
+a later subspec.
+
+
+POST-MERGE, CANNOT BE DONE IN THE IMPLEMENTING SESSION
+--------------------------------------------------------------------------------
+plans/NXstress-prod/audit.toml needs both of these, together:
+
+  1. git.base_commit  -> the commit IMMEDIATELY BEFORE this subspec's first
+                         commit. NOT the merge commit.
+     git.base_subject -> that commit's exact subject line.
+
+     The two are cross-checked at load, so a mismatch makes every tool exit 2 --
+     deliberate. Pointing the base at the merge commit instead leaves an EMPTY
+     range, and the next landing pass reports clean while claims go stale. That
+     is the one manifest error that fails silently.
+
+  2. move "04-*.md" from [scope] full to [scope] freshness_only.
+
+If missed, the next session's step 0 catches it -- that is what step 0 is for.
+
+
+A NOTE ON THE COVERAGE MATRIX
+--------------------------------------------------------------------------------
+Spec 04's A4 and A5 were both marked covered before this PR, and both were
+re-opened by it -- A4 because the schema turned out to exist, A5 because the
+transformations claim had been probed by READING SOURCE, which cannot see that a
+chain is unreachable. Marked "✓✓" in review/findings.md section 0 with the reason
+stated. Neither earlier verdict was careless; each was scoped more narrowly than
+it was reported. It is the axis-coverage form of "audited is not a terminal
+state": both axes were covered, and both were wrong.

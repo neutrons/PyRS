@@ -63,11 +63,13 @@ def roundtrip_nxstress(minimal_HidraWorkspace, createPeakCollection, tmp_path):
     # Write to NXstress file
     nxstress_file = tmp_path / "test_roundtrip.nxs"
     with NXstress(nxstress_file, mode="w") as nxs:
-        nxs.write(ws_original, peaks_original)
+        nxs.write([ws_original], [peaks_original])
 
     # Re-open and read back
     with NXstress(nxstress_file, mode="r") as nxs:
-        ws_readback, peaks_readback = nxs.read()
+        # `read` returns one entry's workspaces and their peak collections,
+        # parallel lists; this file was written from a single workspace.
+        (ws_readback,), (peaks_readback,) = nxs.read()
 
     yield ws_original, peaks_original, ws_readback, peaks_readback
 
@@ -221,6 +223,23 @@ class TestWorkspaceRoundtrip:
             # Verify subruns match
             assert np.array_equal(peak_orig._sub_run_array.raw_copy(), peak_read._sub_run_array.raw_copy())
 
+    def test_roundtrip_without_masks_reads_back(self, minimal_HidraWorkspace, tmp_path):
+        """A workspace with no mask of its own gets a generated default mask on
+        write; that default must be 1-D, or `set_detector_mask` refuses it on read."""
+        # Arrange
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=False)
+        nxstress_file = tmp_path / "no_masks.nxs"
+        with NXstress(nxstress_file, mode="w") as nxs:
+            nxs.write([ws], [[]])
+
+        # Act
+        with NXstress(nxstress_file, mode="r") as nxs:
+            (ws_readback,), _ = nxs.read()
+
+        # Assert
+        nrows, ncols = ws.get_instrument_setup().detector_size
+        assert ws_readback.get_detector_mask(True).shape == (nrows * ncols,)
+
 
 class TestReadErrors:
     """Test error handling in read operations"""
@@ -231,7 +250,7 @@ class TestReadErrors:
 
         nxstress_file = tmp_path / "test_nonexistent.nxs"
         with NXstress(nxstress_file, mode="w") as nxs:
-            nxs.write(ws, [])
+            nxs.write([ws], [[]])
 
         with pytest.raises(NeXusError, match=r".*Invalid path.*"):
             with NXstress(nxstress_file, mode="r") as nxs:
@@ -244,7 +263,7 @@ class TestReadErrors:
 
         nxstress_file = tmp_path / "test_outside_context.nxs"
         with NXstress(nxstress_file, mode="w") as nxs:
-            nxs.write(ws, [])
+            nxs.write([ws], [[]])
 
         # Now try to read without context manager
         nxs = NXstress(nxstress_file, mode="r")
@@ -377,3 +396,98 @@ class TestStandaloneMethods:
         assert "mask_A" in mask_dict
         assert "mask_B" in mask_dict
         assert len(mask_dict) == 2
+
+
+@pytest.fixture
+def roundtrip_named_masks(minimal_HidraWorkspace, createPeakCollection, tmp_path):
+    """Round-trip a workspace carrying BOTH the default mask and named masks.
+
+    The other round-trip fixture uses `with_masks=True` but no `mask_names`, so it
+    only ever exercises the default mask. The default is the case that differs:
+    PyRS keys it as `None` while NXstress must name it `DEFAULT_TAG`, and that
+    correspondence used to be re-derived at each call site.
+    """
+    ws_original = minimal_HidraWorkspace(
+        with_instrument=True,
+        with_masks=True,
+        mask_names=("front_half", "back_half"),
+        with_raw_counts=True,
+        with_reduced_diffraction=True,
+    )
+
+    subruns = ws_original._sample_logs.subruns.raw_copy()
+    peak = createPeakCollection(
+        peak_tag="Al 111",
+        peak_profile="Gaussian",
+        background_type="Linear",
+        wavelength=1.486,
+        projectfilename="test.h5",
+        runnumber=1017,
+        N_subrun=len(subruns),
+    )
+
+    nxstress_file = tmp_path / "test_named_masks.nxs"
+    with NXstress(nxstress_file, mode="w") as nxs:
+        nxs.write([ws_original], [[peak]])
+
+    with NXstress(nxstress_file, mode="r") as nxs:
+        # `read` returns one entry's workspaces and their peak collections,
+        # parallel lists; this file was written from a single workspace. Only the
+        # workspaces are yielded -- this fixture is about mask naming.
+        (ws_readback,), _ = nxs.read()
+
+    yield ws_original, ws_readback
+
+
+class TestMaskNamingConvention:
+    """Default and named masks must be addressed identically, writer and reader."""
+
+    def test_named_masks_roundtrip(self, roundtrip_named_masks):
+        """Verify every named mask survives the round trip with its own values"""
+        # Arrange
+        ws_original, ws_readback = roundtrip_named_masks
+
+        # Act / Assert
+        for mask_id in ("front_half", "back_half"):
+            original = ws_original.get_detector_mask(is_default=False, mask_id=mask_id)
+            readback = ws_readback.get_detector_mask(is_default=False, mask_id=mask_id)
+            assert readback is not None, f"named mask {mask_id!r} missing after round trip"
+            assert np.array_equal(original, readback)
+
+    def test_default_mask_roundtrip_alongside_named(self, roundtrip_named_masks):
+        """Verify the default mask still round-trips when named masks are present"""
+        # Arrange
+        ws_original, ws_readback = roundtrip_named_masks
+
+        # Act
+        original = ws_original.get_detector_mask(is_default=True)
+        readback = ws_readback.get_detector_mask(is_default=True)
+
+        # Assert
+        assert readback is not None
+        assert np.array_equal(original, readback)
+
+    def test_default_mask_keyed_as_none_not_by_tag(self, roundtrip_named_masks):
+        """Verify the read side restores the default under PyRS's `None` key.
+
+        `DEFAULT_TAG` is the NXstress spelling and must not leak back into the
+        workspace as a mask name of its own -- that would make the default
+        addressable two ways, which is exactly the inconsistency this convention
+        was introduced to remove.
+        """
+        # Arrange
+        _, ws_readback = roundtrip_named_masks
+
+        # Act / Assert
+        assert DEFAULT_TAG not in ws_readback._mask_dict
+        assert DEFAULT_TAG not in ws_readback._diff_data_set
+
+    def test_diffraction_data_keyed_consistently(self, roundtrip_named_masks):
+        """Verify reduced data comes back under the same keys it was written with"""
+        # Arrange
+        ws_original, ws_readback = roundtrip_named_masks
+
+        # Act / Assert
+        assert set(ws_readback._diff_data_set) == set(ws_original._diff_data_set)
+        for mask_id, original in ws_original._diff_data_set.items():
+            np.testing.assert_allclose(ws_readback._diff_data_set[mask_id], original)

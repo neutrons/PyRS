@@ -1,0 +1,147 @@
+# Audit manifest for the NXstress-prod plan series.
+#
+# Consumed ONLY via plans/audit-process/tools/manifest.py -- no tool parses this
+# file itself, so validation cannot be skipped by a tool that forgot.
+#
+# Every key below is REQUIRED, and a wrong value fails at LOAD, not at use.
+# Unknown keys are an error, not a no-op. See plans/audit-process/process.md
+# section 7.2 for the full failure table and the reasoning.
+
+[series]
+name = "NXstress-prod"
+readme = "README.md"
+earlier_draft = "archive/overview.md" # "" means none; ABSENT is an error
+subspecs = "[0-9]*.md"                # the 12 subspecs; excludes README.md
+open_questions = "open-questions/"
+probes = "probes/"
+findings = "review/findings.md"
+
+[series.ownership]
+# The table naming which document owns which file.
+heading = "## 5. Files to be Modified"
+spec_column = 1
+file_columns = [2, 3]
+spec_pattern = '\(?(\d+[a-z]?)\)?'     # "2/3 (04b)" -> 04b ; "3 (05)" -> 05 ; "1" -> phase
+brace_expand = true                    # "{_peaks,_fit}.py" is pervasive in that table
+
+[series.dependencies]
+marker = "**Depends on:**"
+# Takes three shapes in this series, all of which the parser must handle:
+#   inline link ......... 02, 03, 04, 04c, 10
+#   bullet list below ... 04b, 05, 09
+#   em dash + prose ..... 01, 06, 07, 08
+wraps = true
+
+[series.subspec_sections]
+# Non-uniform across this series -- itself an A2 finding, to be surfaced and not
+# papered over: "## NXstress / GUI Changes" in 02 and 03, "## NXstress Changes"
+# in 04, 04b, 04c, 05, 07 and 09.
+change_headings = [
+  "## PyRS Changes",
+  "## NXstress Changes",
+  "## NXstress / GUI Changes",
+]
+verification = "## Verification"
+followup_prefix = "## Follow-up" # scanned by check_citations.py; see section 7.7
+
+[git]
+main_branch = "next"
+base_commit = "eb5457b16dab"
+base_subject = "Working subspec-implementation prompt, now *applying* the audit process."
+# `base_subject` is the defense against the one manifest error that would
+# otherwise fail SILENTLY: a hash from another branch will exist, and may even be
+# an ancestor, but will not match the subject a human wrote down beside it.
+#
+# THE RULE: `base_commit..HEAD` must span **every landed change the next subspec
+# must see** -- not "the previous subspec's changes". Usually those are the same
+# thing, which is why this was previously written the narrower way. They are not
+# the same when a series is implemented and reviewed as one unit.
+#
+# Never a merge commit: that leaves an EMPTY range, and `landing_trigger.py`
+# would report clean while the claims went stale. Too wide is the benign
+# direction -- it reports citations into files that were already audited, which
+# is noise; too narrow hides citations into files that changed, which is a
+# missed finding. When in doubt, go wider.
+#
+# Advanced for subspec 05 (2026-10-16): set to the commit preceding subspec 04's
+# first commit, so the range spans the ENTIRE 04 series -- 04, 04b, 04c -- plus
+# the 32-batch human PR review of all three. 43 commits. The narrow reading would
+# have pointed this at 04c's predecessor, and 05 would then never see that the
+# review changed `_discriminator.py`, `restorable_property.py`, `workspaces.py`,
+# `_sample.py` and `_instrument.py` under it. The review treated the 04 series as
+# one unit, so the base does too. Expect a correspondingly large
+# `landing_trigger.py` signal; that is the range working, not a fault.
+#
+# Previously "d69e1834e73" (".. defer PR review: subspec 04: final audit pass,
+# ready for 04b"), which spanned 04b alone and whose comment stated the narrow
+# rule superseded above. Before that "eb5457b16dab" -- this same commit, then
+# scoped to 04 only. Before that, 7a5ef73f ("Merge pull request #1000 from
+# neutrons/qt_lock_fix"), this branch's point of divergence, set wide on purpose
+# so the first audit pass could see 01-03 at once. All rationales discharged.
+#
+# The plan documents were authored on an unsquashed parent branch before plans/
+# was re-added at 5b9dfe98, so `git log <planfile>` does NOT date their claims.
+# This is the commit their prose was actually written against.
+claims_written_against = "492350bd"
+
+[scope]
+# The depth of THIS pass. Every file matched by series.subspecs must appear in
+# exactly one list below, or the loader errors -- a document nobody classified is
+# the silent gap this whole system exists to prevent.
+full = [
+  "README.md",
+  "05-*.md",
+  "06-*.md",
+  "07-*.md",
+  "08-*.md",
+  "09-*.md",
+  "10-*.md",
+]
+freshness_only = [
+  "01-*.md",
+  "02-*.md",
+  "03-*.md",
+  "04-*.md",
+  "04b-*.md",
+  "04c-*.md",
+] # landed; claims settled by shipped code
+
+[exclude]
+# Tools DISCOVER documents by walking the series directory; they do not scan only
+# what is declared above. Every *.md found must match exactly one classification
+# -- a [series] key, a [scope] entry, or a pattern here -- or the loader errors.
+# A pattern matching zero files is also an error: a stale exclude is as bad as a
+# missing one.
+paths = ["archive/*.md"]
+
+# Whole directories, excluded whether or not they hold any *.md today. A glob
+# cannot express "and anything added here later", and `prompts/` holds only
+# `.txt` right now -- so `prompts/*.md` would match zero files and fail the rule
+# above, while leaving a future `prompts/*.md` to break the loader on the day it
+# is added. The staleness check for a directory is that it exists, enforced at
+# load in the same spirit.
+#
+# `prompts/` is the author's working prompt directory: `implementation-prompt.txt`
+# is adjusted before each subspec's implementation begins. It is an input to the
+# work, not a record of it, and is not audited.
+dirs = ["prompts"]
+
+# Excluding is not hiding. archive/ holds superseded drafts: never link-checked,
+# citation-checked or landing-triggered, because a superseded draft is stale BY
+# DEFINITION and reporting its staleness would bury the live findings. But
+# check_drift.py still reads archive/overview.md through series.earlier_draft,
+# which is the entire reason it was kept rather than deleted.
+
+[code]
+# Roots a cited repo path may resolve into. A citation resolving outside these is
+# REPORTED as OUT-OF-SCOPE, never silently skipped.
+roots = [
+  "pyrs/",
+  "scripts/",
+  "tests/",
+  "docs/",
+  "plans/",
+  "pyproject.toml",
+  "pixi.lock",
+  "CLAUDE.md",
+]

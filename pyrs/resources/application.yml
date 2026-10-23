@@ -2,17 +2,53 @@
 #
 # Override an individual value by setting the `env` OS environment variable to the
 # name (or path) of a `.yml` file whose contents will be deep-merged on top of this
-# file -- see `pyrs/utilities/config.py` for how PyRS loads this.
+# file -- see `pyrs/utilities/config.py` for how PyRS loads this. A key this file
+# does not define is refused when PyRS starts, so check spelling and section.
 
 nxstress:
   # Whether NXstress-format (.nxs) output is written.
   enable: true
-  extension: ".nxs"
-  # Set to true once the nexusformat validator bug affecting production-case field
-  # names is resolved.
+  extension: "nxs"
+  # Future-facing, not yet connected: validated here, but nothing reads it yet.
+  # It is meant to select the group names used when a file is checked with the
+  # NeXus-org NXstress validator (spec 10). That validator has a bug: where the
+  # schema names a group in uppercase, such as `DIFFRACTOGRAM`, it requires that
+  # literal name. In NeXus an uppercase name means *any* name may be used for a
+  # group of that type. Set to true once the validator interprets this correctly.
   use_production_names: false
+  # Instrument identity written to the NXstress `instrument/name` field and its
+  # `short_name` attribute. These are configuration rather than data because the
+  # Hidra project format carries no instrument name at all -- its `instrument`
+  # group holds only calibration, geometry and monochromator settings. Overriding
+  # them is what makes this writer usable at a beamline other than HB2B without a
+  # code change.
+  instrument_name: "HB2B"
+  instrument_short_name: "HB2B"
+  # Names of the fields that tell input workspaces apart when more than one
+  # `HidraWorkspace` is written into a single `NXentry`. Each becomes one column on
+  # the combined peak index. A value is taken from a matching `HidraWorkspace`
+  # `@property` if one exists, otherwise from the sample log of that name -- which
+  # must be constant across the workspace's scan points.
+  #
+  # A name that matches a `HidraWorkspace` property must match a *restorable* one
+  # -- a getter marked `@restores("_<attribute>")` (see
+  # `pyrs.utilities.restorable_property`), which names the backing attribute an
+  # I/O reader may write. A plain read-only property is refused when the
+  # configuration is read, because its value would be written to
+  # the file and then silently lost on the way back: the reconstructed workspace
+  # would answer with whatever its constructor defaulted to, and nothing would
+  # raise. A name matching no property at all falls through to the sample log and
+  # is fine.
+  #
+  # A name needs no particular spelling: one that is not a Python identifier -- a
+  # PV log name such as `BL7:CS:Sample:Dir` -- is encoded reversibly for the
+  # on-disk column and recovered exactly on read.
+  #
+  # Empty, a write of more than one workspace is refused. NXstress does not merge
+  # workspaces; merge them in PyRS first, as CombineRuns does.
+  discriminator_fields: []
 
 legacy_io:
   # Whether legacy HidraProject (.h5) output is written.
   enable: true
-  extension: ".h5"
+  extension: "h5"

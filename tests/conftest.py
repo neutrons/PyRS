@@ -2,6 +2,7 @@ from copy import deepcopy
 import atexit
 import numpy as np
 import os
+import tempfile
 import pytest
 import shutil
 import tempfile
@@ -10,8 +11,6 @@ from pyrs.dataobjects.fields import StrainField, StrainFieldSingle, StressField
 from pyrs.dataobjects.sample_logs import _coerce_to_ndarray, PointList
 from pyrs.core.peak_profile_utility import get_parameter_dtype
 from pyrs.peaks.peak_collection import PeakCollection
-from pytestqt.qtbot import QtBot
-from pytestqt.exceptions import format_captured_exceptions, capture_exceptions
 
 # Point Qt's QSettings (native file dialogs, etc.) at a private, disposable
 # config directory instead of the developer's real ~/.config. Without this,
@@ -29,6 +28,52 @@ atexit.register(shutil.rmtree, _QT_TEST_CONFIG_DIR, ignore_errors=True)
 
 # set to True when running on build servers
 ON_GITHUB_ACTIONS = bool(os.environ.get("GITHUB_ACTIONS", False))
+
+
+def _presandbox_neutrons_standard_config_home() -> None:
+    """Force the first-ever import of `pyrs.utilities.config` to happen against a
+    throwaway `HOME`, not the developer's/CI's real one.
+
+    Why: `neutrons_standard.Config` is a process-wide singleton constructed at
+    module-import time (`pyrs/utilities/config.py`'s module body), and its
+    `__init__` unconditionally calls `reload()` -> `persistBackup()`, which writes
+    `~/.pyrs/application.yml.bak` to whatever `HOME` is set at that moment
+    (confirmed by reading the installed `neutrons_standard` package directly).
+    Before the NXstress GUI hookup, only `test_config.py`/the NXstress test suite
+    ever imported this module, always behind the per-test `default_config` fixture
+    (`HOME` -> `tmp_path`). Once `peak_fitting_model.py`/`texture_fitting_model.py`
+    import it as production code, any test that imports those modules --
+    including pre-existing GUI tests with no such isolation -- transitively
+    imports it too. Pytest imports test modules during collection, *before* any
+    fixture (even autouse) runs, so a fixture-based guard can't intercept
+    whichever test file's collection happens to trigger the first import.
+
+    Fix: perform that one unavoidable first import ourselves, here, at this
+    conftest's own import time (guaranteed to run before pytest starts collecting
+    any *other* test file, regardless of where in this module it's called) --
+    but only while `HOME` is redirected to a throwaway directory, restoring the
+    real `HOME` immediately after. This keeps the write off the real home
+    directory without remapping `HOME` for the whole session (which would risk
+    breaking Mantid/Qt/matplotlib config-dir assumptions elsewhere in this
+    GUI+scientific-computing suite). The resulting ambient `Config` singleton
+    reflects only the shipped, unmodified `application.yml` defaults -- harmless
+    as ambient state; any test that needs a genuinely fresh, isolated instance
+    still uses the existing `default_config` fixture
+    (`tests/unit/pyrs/utilities/conftest.py`), unaffected by this.
+    """
+    real_home = os.environ.get("HOME")
+    with tempfile.TemporaryDirectory(prefix="pyrs-conftest-presandbox-home-") as sandbox_home:
+        os.environ["HOME"] = sandbox_home
+        try:
+            import pyrs.utilities.config  # noqa: F401  (import side effect is the point)
+        finally:
+            if real_home is not None:
+                os.environ["HOME"] = real_home
+            else:
+                os.environ.pop("HOME", None)
+
+
+_presandbox_neutrons_standard_config_home()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -670,16 +715,3 @@ def strain_stress_object_1(strain_builder):
             "in-plane-stress": StressField(strain11, strain22, None, 3.0 / 2, 1.0 / 2, "in-plane-stress"),
         },
     }
-
-
-@pytest.fixture(scope="session")
-def my_qtbot(qapp, request):
-    r"""
-    Fixture to provide a QtBot instance for testing Qt-based applications with a session scope. This fixture will
-    behave like the `qtbot` fixture, but with a session scope to avoid a segmentation fault when running UI tests.
-    """
-    result = QtBot(qapp)
-    with capture_exceptions() as exceptions:
-        yield result
-    if exceptions:
-        pytest.fail(format_captured_exceptions(exceptions))

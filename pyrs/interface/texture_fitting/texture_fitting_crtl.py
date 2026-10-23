@@ -70,7 +70,10 @@ class TextureFittingCrtl:
             if str(name) == str("sub-runs"):
                 data = self._model.sub_runs
             elif fit_class.fit_result is None:
-                data = None
+                # Before any fit, the workspace's sample logs -- which the axis
+                # selectors offer from the start -- are the only data there is;
+                # a fit parameter has nothing to plot yet.
+                data = self._model.ws.get_sample_log_values(name) if name in self._model.ws.sample_log_names else None
             elif param_entry:
                 if str(name) == "microstrain":
                     data = fit_class.fit_result.peakcollections[peak - 1].get_strain(units="microstrain")
@@ -107,11 +110,17 @@ class TextureFittingCrtl:
 
         xdata = extract_data(xname, fit_object, peak)
         ydata = extract_data(yname, fit_object, peak)
+        zdata = None if zname is None else extract_data(zname, fit_object, peak)
+
+        # An axis with no data -- a fit parameter before any fit -- leaves
+        # nothing to plot. Reported as `None` for the caller to clear its plot,
+        # since `trim_data` cannot index a missing series.
+        if xdata is None or ydata is None or (zname is not None and zdata is None):
+            return None
 
         if zname is None:
             return self.trim_data(xdata, ydata, include_list=parse_split_list(include_list))
         else:
-            zdata = extract_data(zname, fit_object, peak)
             return self.trim_data(xdata, ydata, zdata, include_list=parse_split_list(include_list))
 
     def fit_peaks(self, fit_range_table, peak_function_name, background_function_name, out_of_plane_angle=None):
@@ -267,9 +276,14 @@ class TextureFittingCrtl:
         if peak_number == "":
             peak_number = 1
 
-        xdata, ydata = self.get_log_plot(
+        data = self.get_log_plot(
             xlabel, ylabel, peak=int(peak_number), fit_object=fit_object, out_of_plane=out_of_plane
         )
+        if data is None:
+            # Cleared rather than left showing the previous file's data.
+            ax_object.reset_viewer()
+            return
+        xdata, ydata = data
 
         if isinstance(ydata[0], np.ndarray):
             yerr = ydata[1]
@@ -300,7 +314,7 @@ class TextureFittingCrtl:
             peak_number = 1
 
         try:
-            xdata, ydata, zdata = self.get_log_plot(
+            data = self.get_log_plot(
                 x_label,
                 y_label,
                 zname=z_label,
@@ -309,6 +323,10 @@ class TextureFittingCrtl:
                 out_of_plane=out_of_plane,
                 include_list=include_list,
             )
+            if data is None:
+                ax_object.reset_viewer()
+                return
+            xdata, ydata, zdata = data
 
             if isinstance(zdata[0], np.ndarray):
                 zdata = zdata[0]

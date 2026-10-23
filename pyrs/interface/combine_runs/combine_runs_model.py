@@ -1,6 +1,10 @@
+from pathlib import Path
+from typing import List
+
 from qtpy.QtCore import Signal, QObject  # type:ignore
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.projectfile import HidraProjectFile  # type: ignore
+from pyrs.utilities.NXstress.NXstress import NXstress
 
 
 class CombineRunsModel(QObject):
@@ -11,7 +15,7 @@ class CombineRunsModel(QObject):
         super().__init__()
         self._hidra_ws = None
 
-    def combine_project_files(self, project_files):
+    def combine_project_files(self, project_files: List[str]) -> None:
         self._hidra_ws = HidraWorkspace("Combined Project Files")
         _project = HidraProjectFile(project_files[0])
         self._hidra_ws.load_hidra_project(_project, load_raw_counts=False, load_reduced_diffraction=True)
@@ -22,7 +26,21 @@ class CombineRunsModel(QObject):
             self._hidra_ws.append_hidra_project(_project)
             _project.close()
 
-    def export_project_files(self, fileout):
+    def export_project_files(self, fileout: str) -> None:
+        if Path(fileout).suffix == ".nxs":
+            # The peak list is always `[[]]` for this viewer -- CombineRunsModel has
+            # no PeakCollection concept, only merges/exports raw/reduced diffraction
+            # data. That shape is supported rather than merely tolerated:
+            # `_Peaks.init_group` and `_Fit.init_group` write a valid empty
+            # PEAKS/FIT group, recording the writer's `UNDEFINED_PEAK_TAG` sentinel
+            # as the fit model, and `NXstress._rejectFitModelMismatch` has a branch
+            # for an entry carrying that sentinel -- such an entry cannot be
+            # appended to, because it records no discriminator values for the rows
+            # already in it.
+            with NXstress(Path(fileout), "w") as nx:
+                nx.write([self._hidra_ws], [[]])
+            return
+
         export_project = HidraProjectFile(fileout, "w")
         self._hidra_ws.save_experimental_data(
             export_project, sub_runs=self._hidra_ws._sample_logs.subruns, ignore_raw_counts=True

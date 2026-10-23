@@ -1,11 +1,15 @@
 # Data manager
+import logging
 import numpy as np
 from mantid.kernel import Logger
 from pyrs.dataobjects import HidraConstants, SampleLogs  # type: ignore
 from pyrs.projectfile import HidraProjectFile  # type: ignore
 from pyrs.utilities import checkdatatypes
-from pyrs.utilities.convertdatatypes import to_int
+from pyrs.utilities.convertdatatypes import to_int, to_text
+from pyrs.utilities.restorable_property import restores
 from typing import Any, Optional, Tuple
+
+_logger = logging.getLogger(__name__)
 
 
 class HidraWorkspace:
@@ -47,9 +51,14 @@ class HidraWorkspace:
         # sample logs
         self._sample_logs = SampleLogs()  # sample logs: [log name, sub run] = value
 
-        # raw Hidra project file
+        # Name only, not the `HidraProjectFile` itself: the loader closes its handle
+        # before returning, and nothing ever read the object back. See
+        # `hidra_project_file`, which answers from this name.
         self._project_file_name = None
-        self._project_file = None
+
+        # Strain direction ('11', '22', '33'), when this workspace represents one.
+        # `None` until set: see the `direction` property for where the value comes from.
+        self._direction = None
 
         # Masks
         self._default_mask = None
@@ -64,12 +73,74 @@ class HidraWorkspace:
         return self._name
 
     @property
-    def hidra_project_file(self):
-        """Name of the associated HiDRA project file
+    @restores("_direction")
+    def direction(self) -> str:
+        """Strain direction this workspace represents -- `'11'`, `'22'` or `'33'`.
 
-        Returns
-        -------
+        Read-only, and **restorable**: an I/O reader rebuilding this workspace puts
+        the value back through `pyrs.utilities.restorable_property.restore`, which
+        writes `_direction`. It is deliberately not a read/write property -- the
+        direction is decided when the workspace is created, not reassigned later.
 
+        Two sources, in precedence order:
+
+        1. `_direction`, set explicitly by whoever created the workspace, or
+           restored by a reader.
+        2. **Fallback:** the `direction` sample log. This is a compatibility shim
+           for data that predates the attribute, and it is why the property can
+           still answer for a workspace nobody told. It retires once every
+           producer sets `_direction` explicitly.
+
+        Note this is *not* the same as `name`, even though
+        `StrainStressViewer` happens to construct its workspaces as
+        `HidraWorkspace(direction)`. The two are kept separate on purpose: `name`
+        is free text that only sometimes carries a direction, and aliasing them
+        would make `ws.direction` answer "Combined Project Files" for
+        `CombineRunsModel`'s workspace.
+
+        Returns:
+            The direction string.
+
+        Raises:
+            ValueError: If neither `_direction` nor a `direction` sample log is
+                present -- a workspace with no direction has none, and saying so
+                is better than returning `None` into a discriminator column.
+                Also if the fallback log is not constant across sub-runs, as in a
+                workspace merged from several directions: it has no single
+                direction either.
+        """
+        if self._direction is not None:
+            return self._direction
+        if "direction" in self.sample_log_names:
+            # Checked here rather than left to `get_sample_log_value`, whose
+            # `AssertionError` for a varying log says nothing about why.
+            distinct = sorted({to_text(value) for value in self.get_sample_log_values("direction")})
+            if len(distinct) > 1:
+                raise ValueError(
+                    f"Workspace '{self._name}' has no single direction: its `direction` log varies "
+                    f"across sub-runs ({distinct}), as in a workspace merged from several directions.\n"
+                    "  Read the per-sub-run values with `get_sample_log_values('direction')`."
+                )
+        # `SampleLogs` normalises string logs to text on store, so this is already
+        # `str`. Routed through the shared conversion anyway: a value can reach a
+        # workspace without passing through that boundary, and the cost of assuming
+        # is an `AttributeError` in whichever caller meets the other spelling.
+        return to_text(self.get_sample_log_value("direction"))
+
+    @property
+    @restores("_project_file_name")
+    def hidra_project_file(self) -> Optional[str]:
+        """Name of the associated HiDRA project file.
+
+        Read-only, and **restorable**: normally set as a side effect of
+        `load_hidra_project`, which means a workspace rebuilt from any other
+        source -- an NXstress file, say -- could not record where it came from.
+        A reader restores it through
+        `pyrs.utilities.restorable_property.restore`.
+
+        Returns:
+            The project file name, or None for a workspace that was not loaded
+            from one and has not had the value restored.
         """
         return self._project_file_name
 
@@ -470,15 +541,35 @@ class HidraWorkspace:
         # Check input
         checkdatatypes.check_type("HIDRA project file", hidra_file, HidraProjectFile)
         self._project_file_name = hidra_file.name
-        self._project_file = hidra_file
 
-        # create the spectrum map - must exist before loading the counts array
-        self._sample_logs.subruns = hidra_file.read_sub_runs()
+        # create the spectrum map - must exist before loading the counts array.
+        # NOT sorted: a file's axis is already in increasing order, and one that
+        # is not is a corrupt file rather than something to quietly repair --
+        # every array read after this is positionally paired with it.
+        self._set_subruns(hidra_file.read_sub_runs(), sort=False)
 
-        # load raw detector counts and load instrument
+        # load raw detector counts
         if load_raw_counts:
             self._load_raw_counts(hidra_file)
+
+        # Load instrument geometry independently of load_raw_counts -- these were
+        # previously (and apparently unintentionally) coupled: any project file
+        # loaded with load_raw_counts=False (e.g.
+        # CombineRunsModel.combine_project_files, PeakFittingModel's .h5 load
+        # path) silently ended up with no instrument geometry at all, which
+        # crashes NXstress.write() later (it has no None-geometry fallback).
+        # Not every project file necessarily has geometry recorded (older/legacy
+        # files may not), so tolerate its absence with a warning rather than
+        # raising -- callers that need geometry (e.g. NXstress export) must
+        # check `get_instrument_setup() is not None` themselves.
+        try:
             self._load_instrument(hidra_file)
+        except KeyError:
+            _logger.warning(
+                "No instrument geometry found in HiDRA project file '%s' -- features that require it "
+                "(e.g. NXstress export) will not be available for this workspace.",
+                hidra_file.name,
+            )
 
         # load reduced diffraction
         if load_reduced_diffraction:
@@ -504,7 +595,6 @@ class HidraWorkspace:
         # Check input
         checkdatatypes.check_type("HIDRA project file", hidra_file, HidraProjectFile)
         self._project_file_name = hidra_file.name
-        self._project_file = hidra_file
 
         # create the spectrum map - must exist before loading the counts array
         append_list = np.arange(len(hidra_file.read_sub_runs())) + 1 + self._sample_logs.subruns.size
@@ -1001,10 +1091,45 @@ class HidraWorkspace:
         if len(self._sample_logs) > 0:
             self._sample_logs.matching_subruns(sub_runs)
         else:
-            self._sample_logs.subruns = np.atleast_1d(sub_runs)
+            # NOT sorted: `log_value_array` is paired with `sub_runs` positionally,
+            # so reordering the axis alone would reattribute every value. See
+            # `_set_subruns`.
+            self._set_subruns(sub_runs, sort=False)
 
         # Set sub runs and log value, units to dictionary
         self._sample_logs[log_name, units] = np.atleast_1d(log_value_array)
+
+    def _set_subruns(self, sub_runs, *, sort: bool) -> None:
+        """The one place this workspace's sub-run axis is assigned.
+
+        Two callers need it and they need different things, which is why `sort`
+        is a required keyword rather than a default: writing it out at each call
+        site is the point.
+
+        `set_sub_runs` sets the axis alone and sorts, because there is nothing
+        for a reordering to misalign. `set_sample_log` must **not**, because the
+        values it stores are paired with `sub_runs` *positionally* -- sorting the
+        axis while leaving the values alone silently reattributes every one of
+        them:
+
+            axis as given    : sub-runs [3, 1, 2] <-> vx [30.0, 10.0, 20.0]
+            axis sorted only : sub-run 1 -> 30.0, which was measured at sub-run 3
+
+        and nothing raises, because the lengths still agree. Unsorted input there
+        is refused by `SubRuns.set` instead, which is the layer that owns the
+        increasing-order invariant and states it in its own words.
+
+        Args:
+            sub_runs: The sub-run numbers.
+            sort: Whether to order them first. False leaves the caller's order,
+                and a non-increasing one is then rejected downstream.
+
+        Raises:
+            RuntimeError: From `SubRuns.set`, if the axis is already set to
+                different values, or if `sort` is False and the input is not in
+                increasing order.
+        """
+        self._sample_logs.subruns = sorted(sub_runs) if sort else np.atleast_1d(sub_runs)
 
     def set_sub_runs(self, sub_runs):
         """Set sub runs to this workspace
@@ -1019,7 +1144,9 @@ class HidraWorkspace:
         -------
 
         """
-        self._sample_logs.subruns = sorted(sub_runs)
+        # Sorted: this method sets the axis alone, with no values to be
+        # reattributed by reordering it. See `_set_subruns`.
+        self._set_subruns(sub_runs, sort=True)
 
     def save_experimental_data(self, hidra_project, sub_runs=None, ignore_raw_counts=False):
         """Save experimental data including raw counts and sample logs to HiDRA project file
@@ -1236,6 +1363,38 @@ class HidraWorkspace:
         -------
         None
         """
+        two_theta_matrix = np.asarray(two_theta_matrix)
+        if two_theta_matrix.ndim != 2:
+            raise RuntimeError(
+                f"`two_theta_matrix` must be 2-D, (n_subruns, n_2theta); got shape {two_theta_matrix.shape}."
+            )
+
+        # Every array here is sampled on the same axes, so a disagreement is not a
+        # difference of opinion -- it is one of them being wrong. Unchecked, the
+        # mismatch is silent: NXstress takes its two-theta rows from this matrix and
+        # sizes other rows from the sub-run count, so a workspace whose arrays
+        # disagree writes a diffractogram whose rows do not correspond to its scan
+        # points. With several workspaces in one NXentry it is worse than local --
+        # one bad input shifts every later input onto the wrong rows.
+        for label, data_set in (("diff_data_set", diff_data_set), ("var_data_set", var_data_set)):
+            for mask_id, values in data_set.items():
+                shape = np.asarray(values).shape
+                if shape != two_theta_matrix.shape:
+                    raise RuntimeError(
+                        f"`{label}[{mask_id!r}]` has shape {shape}, but `two_theta_matrix` has "
+                        f"{two_theta_matrix.shape}; they are sampled on the same axes and must agree."
+                    )
+
+        # Checked only when the sub-runs are already known: some callers populate
+        # diffraction data first. When they are known, they are authoritative --
+        # `scan_point` is written from them, not from these arrays.
+        sub_runs = self._sample_logs.subruns
+        if len(sub_runs) and two_theta_matrix.shape[0] != len(sub_runs):
+            raise RuntimeError(
+                f"`two_theta_matrix` has {two_theta_matrix.shape[0]} row(s) but this workspace has "
+                f"{len(sub_runs)} sub-run(s); the first axis of the reduced data is the scan-point axis."
+            )
+
         self._2theta_matrix = np.copy(two_theta_matrix)
         self._diff_data_set = {k: np.copy(v) for k, v in diff_data_set.items()}
         self._var_data_set = {k: np.copy(v) for k, v in var_data_set.items()}

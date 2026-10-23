@@ -10,10 +10,15 @@ from qtpy.QtGui import QColor  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView, GeneralDiffDataView
-from pyrs.interface.gui_helper import pop_message
+from pyrs.interface.gui_helper import impose_extension, nxstress_save_available, pop_message, write_nxstress_or_report
+from pyrs.interface.texture_fitting.texture_fitting_crtl import TextureFittingCrtl
+from pyrs.interface.texture_fitting.texture_fitting_model import TextureFittingModel
 from pyrs.utilities import get_input_project_file  # type: ignore
+from pyrs.utilities.config import Config
 
 import numpy as np
+
+from typing import Optional
 
 # import traceback
 import os
@@ -25,7 +30,12 @@ MICROSTRAIN = "\u00b5strain"
 
 
 class FileLoad(QWidget):
-    def __init__(self, name=None, fileType="HidraProjectFile (*.h5);;All Files (*)", parent=None):
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        fileType: str = "HidraProjectFile (*.h5);;NXstress (*.nxs);;All Files (*)",
+        parent: Optional[QWidget] = None,
+    ) -> None:
         self._parent = parent
         super().__init__(parent)
         self.name = name
@@ -85,13 +95,28 @@ class FileLoad(QWidget):
 
     def load_project_plot(self):
         self._reset_fit_data()
-        self._parent.controller.load_projectfile(self._parent._project_file)
+        try:
+            self._parent.controller.load_projectfile(self._parent._project_file)
+        except (RuntimeError, TypeError, ValueError) as load_err:
+            # Previously unguarded: a load failure escaped into Qt, leaving the
+            # user a traceback on stderr and a window that looked as though
+            # nothing had happened. `loadRunNumber` above already reports its own
+            # failures this way. Everything below assumes a loaded workspace, so
+            # this returns rather than carrying on against the previous one.
+            pop_message(
+                self,
+                f"Unable to load {self._parent._project_file}",
+                detailed_message=str(load_err),
+                message_type="error",
+            )
+            return
         self._parent.update_diffraction_data_plot()
         self._parent.fit_setup.sl.setMaximum(self._parent.model.sub_runs.size - 1)
         self._parent.fit_summary.setup_out_of_plane_angle(self._parent.model.ws.reduction_masks)
         self._parent.plot_select.setup_out_of_plane_angle(self._parent.model.ws.reduction_masks)
 
         self._parent.VizSetup.enable_polar_plot(self._parent.model.ws.reduction_masks)
+        self._parent.update_nxstress_action()
 
         self._parent.update_param_plots()
 
@@ -854,7 +879,12 @@ class FitTable:
 
 
 class TextureFittingViewer(QMainWindow):
-    def __init__(self, fit_peak_model, fit_peak_ctrl, parent=None):
+    def __init__(
+        self,
+        fit_peak_model: TextureFittingModel,
+        fit_peak_ctrl: TextureFittingCrtl,
+        parent: Optional[QWidget] = None,
+    ) -> None:
         self._model = fit_peak_model
         self._ctrl = fit_peak_ctrl
         self._project_file = None
@@ -865,6 +895,13 @@ class TextureFittingViewer(QMainWindow):
 
         mainMenu = self.menuBar()
         fileMenu = mainMenu.addMenu("File")
+        # NOTE: legacy (.h5) Save/Save As are left permanently disabled here -- this
+        # predates the NXstress hookup and the original reason isn't documented
+        # anywhere; rather than guess and silently change behavior, we preserve it
+        # as-is (previously the two actions were also aliased to the same
+        # `self.saveAction` attribute, a bug fixed here so each has its own
+        # reference). Only the new Save-as-NXstress action below is wired to
+        # Config, since it's the one path this spec is actually adding.
         self.saveAction = QAction("&Save", self)
         self.saveAction.setShortcut("Ctrl+S")
         self.saveAction.setStatusTip("Save project state")
@@ -872,11 +909,18 @@ class TextureFittingViewer(QMainWindow):
         self.saveAction.setEnabled(False)
         fileMenu.addAction(self.saveAction)
 
-        self.saveAction = QAction("&Save as", self)
-        self.saveAction.setStatusTip("Save project state")
-        self.saveAction.triggered.connect(self.saveas)
-        self.saveAction.setEnabled(False)
-        fileMenu.addAction(self.saveAction)
+        self.saveAsAction = QAction("&Save as", self)
+        self.saveAsAction.setStatusTip("Save project state")
+        self.saveAsAction.triggered.connect(self.saveas)
+        self.saveAsAction.setEnabled(False)
+        fileMenu.addAction(self.saveAsAction)
+
+        self.saveAsNXstressAction = QAction("Save as NXstress...", self)
+        self.saveAsNXstressAction.setStatusTip("Save project state as NXstress (.nxs)")
+        self.saveAsNXstressAction.triggered.connect(self.save_as_nxstress)
+        # setEnabled (not setVisible): stays visible, just grayed out, when disabled.
+        self.update_nxstress_action()
+        fileMenu.addAction(self.saveAsNXstressAction)
 
         self.loadAction = QAction("&Load state", self)
         self.loadAction.setStatusTip("Load application state")
@@ -1060,14 +1104,42 @@ class TextureFittingViewer(QMainWindow):
     def update_save_peak_range_widget(self):
         self.fit_setup.export_peak_info.setEnabled(True)
 
+    # TODO: `save` and `saveas` read `self._parent`, which this window never defines
+    # (fixed in `save_as_nxstress`); harmless only while both actions stay disabled.
     def save(self):
         if self._project_file is not None:
             self.controller.save(self._project_file, self._parent.fit_summary.fit_table_operator.fit_result)
 
-    def saveas(self):
+    def saveas(self) -> None:
         filename, _ = QFileDialog.getSaveFileName(self, "Save HidraWorkspace", "", "HDF5 (*.h5);;All Files (*)")
         if filename:
+            filename = impose_extension(filename, Config["legacy_io.extension"])
             self.controller.save(filename, self._parent.fit_summary.fit_table_operator.fit_result)
+
+    def update_nxstress_action(self) -> None:
+        """Enable *Save as NXstress...* only when NXstress output is enabled in the
+        config and the loaded workspace has the instrument geometry it requires.
+
+        Disabled, not hidden: the action stays in the menu, grayed out, so the
+        save dialog never opens for a workspace that cannot be written.
+        """
+        self.saveAsNXstressAction.setEnabled(nxstress_save_available(self._model.ws))
+
+    def save_as_nxstress(self) -> None:
+        # Backstop only: the action is disabled whenever this would fail for want
+        # of instrument geometry (see `update_nxstress_action`).
+        if not self.saveAsNXstressAction.isEnabled():
+            return
+        fit_result = self.fit_summary.fit_table_operator.fit_result
+        if fit_result is None:
+            pop_message(self, "No fitted peaks to save", "Fit peaks before saving as NXstress.", "error")
+            return
+
+        filename, _ = QFileDialog.getSaveFileName(self, "Save HidraWorkspace (NXstress)", "", "NXstress (*.nxs)")
+        if not filename:
+            return  # user clicked cancel
+
+        write_nxstress_or_report(self, filename, lambda path: self.controller.save(path, fit_result))
 
     def load(self):
         filename, _ = QFileDialog.getOpenFileName(self, "Load Stress state", "", "JSON (*.json);;All Files (*)")
