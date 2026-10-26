@@ -1287,6 +1287,22 @@ checked against the data without the refinement:
   So an independent forward model, parameterisation and refinement reach the same detector. The
   −75 mm / 4–6° solution comes from the ring positions under the assumptions both models share: a
   rigid flat detector with uniform pitch, the sample on the arm axis, the Bragg law with these d.
+- **pyFAI's own control points confirm the extraction** (`tests/scripts/pyfai_control_points.py`; outputs
+  `calib_diagnostics/pyfai_control_points*.txt`). `SingleGeometry.extract_cp` from the nominal pose and mono
+  λ, as our extraction starts; pitch 0.293 mm.
+  * **On the raw images it fails silently**: HB2B images have ~1–2 counts/pixel, so nearly every pixel is a
+    local maximum and pyFAI's hill-climb stops at its seeds, which lie on the *predicted* (nominal) rings.
+    Its points then refine back to the nominal pose and mono λ (RMS 0.006°), 0.3–1.8° off the real rings.
+  * Gaussian blur 3 px: still unusable (RMS 0.25–0.39°); 6 px: 3510 usable, 3489 not. **10 px** works:
+    pyFAI's points sit on our rings (median −0.023 / +0.022°, robust σ 0.027 / 0.038°; 0 / 6 points
+    > 0.2° off for 3510 / 3489).
+  * Refined from pyFAI's points alone (blur 10, soft-L1 0.05° for 3489's outliers): 3510 dist 0.911 m,
+    poni2 91.5 mm, rot1_0 −3.61°, λ 1.53025 Å (ours 0.909 m, 79.4 mm, −4.38°, 1.53058 Å); 3489 dist 0.903 m,
+    poni2 24.6 mm, rot1_0 −7.51°, λ 1.72154 Å (ours 0.898 m, 19.4 mm, −7.91°, 1.72077 Å) — within pyFAI's
+    uncertainties (dist ± 2 / 9 mm, poni2 ± 14 / 34 mm, rot1_0 ± 0.9 / 2.2°) except λ(3489) at 2.6σ;
+    rot2_0 (about the horizontal axis) differs by 0.4–1.5°, also weakly determined.
+  So an independent point extraction gives the same short distance and large tilt: they are in the ring
+  positions on the detector, not an artefact of our strip fits.
 
 Open: the detector's position response (mm per channel across the face, and where the 300 mm active area
 falls in channel space) — the masked-grid flood measurement decides it.

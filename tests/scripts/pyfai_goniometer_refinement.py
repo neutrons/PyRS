@@ -83,6 +83,8 @@ class Run:
         self.index_0 = data[f"{name}/index_0"]
         self.index_1 = data[f"{name}/index_1"]
         self.arm = data[f"{name}/det_2theta"]
+        self.sub_run = data[f"{name}/sub_run"]
+        self.hkl = data[f"{name}/hkl_squared"]
         self.detector = Detector(pixel1=pitch, pixel2=pitch, max_shape=tuple(int(v) for v in data[f"{name}/detector_size"]))
         self.groups = [(arm, np.flatnonzero(self.arm == arm)) for arm in np.unique(self.arm)]
 
