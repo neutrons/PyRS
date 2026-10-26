@@ -806,3 +806,12 @@ be ignored` for every call. `MantidPeakFitEngine.fit_peaks` passed `FindBackgrou
 removed (user-approved). Verified: `FitPeaks` on the same synthetic spectra gives bit-identical
 fitted parameters with and without the property, for `HighBackground=True` and `False`; peak-fitting
 and FitCalibration tests unchanged.
+
+## The calibration GUI applies the production detector mask by default (2026-10)
+
+`DetectorCalibrationModel` never passed a mask, so GUI calibrations ran unmasked even after #1024.
+It now uses `/HFIR/HB2B/shared/CALIBRATION/HB2B_Mask_Latest.xml` when that file exists and no mask
+otherwise (user decision, 2026-10-26), resolved when a run is loaded, and passes it to *both* places
+it builds `FitCalibration` — changing the 2θ/η bins rebuilds the object and used to drop any mask.
+`DetectorCalibrationModel.mask_file` reports which was used. On machines without `/HFIR` (CI) the
+behaviour is unchanged. Unit tests: `tests/unit/pyrs/interface/detector_calibration/`.
