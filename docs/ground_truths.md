@@ -1270,6 +1270,23 @@ checked against the data without the refinement:
     rot1: rot2/rot3 drift by up to 0.12° / 0.06° over 27° of arm (joint fit). The tutorial's linear
     `rot1 = scale·pos + offset` goniometer model is therefore only approximate here (0.1° ≫ our 0.02°
     residuals); a pyFAI refinement of HB2B needs the exact composition (a Python `BaseTransformation`).
+- **pyFAI refinement of our ring points reproduces our refinements exactly**
+  (`tests/scripts/pyfai_ring_points_export.py` + `pyfai_goniometer_refinement.py`; output
+  `calib_diagnostics/pyfai_goniometer_refinement.txt`). pyFAI's geometry as the forward model, pyFAI's
+  six-parameter pose in the arm frame (no separate 2θ₀, so no exact degeneracy) with the arm composed
+  outside it, `R = R1(arm + δ_run)·R0`, plus λ, refined from the nominal pose in 5–6 evaluations:
+  * 3510 alone, 0.293 mm: RMS 0.01746°, λ 1.53058 Å, dist 0.90907 m, poni 152.233 / 79.405 mm,
+    rot1_0 −4.3754° — identical to our free fit to the printed digits.
+  * Joint 3510 + 3489, 0.314 mm: RMS 0.01879 / 0.03695°, λ 1.53052 / 1.72080 Å, dist 0.97008 m,
+    rot1_0 −5.958°, δ(3489) = +0.299 ± 0.033° (our 2θ₀ difference −0.30°, opposite sign convention) —
+    identical to our joint fit.
+  * At 0.314 mm every distance is exactly 1.0718× (the pitch ratio) the 0.293 mm one with the same RMS:
+    the distance/pitch degeneracy is the same in pyFAI.
+  * pyFAI's own uncertainties confirm the tilt is weakly determined: rot1_0 ± 0.91° (3510), ± 2.2° (3489);
+    poni2 ± 14 / 34 mm.
+  So an independent forward model, parameterisation and refinement reach the same detector. The
+  −75 mm / 4–6° solution comes from the ring positions under the assumptions both models share: a
+  rigid flat detector with uniform pitch, the sample on the arm axis, the Bragg law with these d.
 
 Open: the detector's position response (mm per channel across the face, and where the 300 mm active area
 falls in channel space) — the masked-grid flood measurement decides it.
