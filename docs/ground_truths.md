@@ -1091,3 +1091,161 @@ Shift_z = −74.7 ± 1.4 mm, Shift_y = −2.0 ± 3.0 mm (weak), 2θ₀ = 1.455°
 are applied without the 2θ₀ that balances them). Do not use these files for reduction until #1021
 is fixed (production change, needs approval), or write them re-expressed with 2θ₀ = 0
 (`set_two_theta_0(0)`, the same detector) as a stopgap.
+
+## HB2B_3510: the ring spacing itself says the detector is ~7% "closer" than nominal (2026-10)
+
+The refined Shift_z ≈ −75 mm (and ~3–4.4° face tilt) is not physical (user, 2026-10-22), so it was
+checked against the data without the refinement:
+
+- **2θ₀ does not cause it.** Re-expressing the refined detector with `with_two_theta_0` (identical
+  pixel 2θ/η) moves Shift_x by ≈ 16 mm and Rot_y by −1° per degree of 2θ₀, but Shift_z by only
+  ≈ 1 mm: Shift_z stays −72…−75 mm for any 2θ₀ in [−0.5°, 1.5°]. Shift_x = −24 mm is entirely 2θ₀
+  traded for a shift; Rot_y = 0 would need 2θ₀ ≈ 4.4° and Shift_x ≈ +70 mm.
+- **The ring gap is short.** Sub-runs 7 and 8 each show Ni 311 and 222 (Δ2θ = 5.43° at λ 1.5306 Å).
+  The extracted points are 299.0 / 295.6 px apart; the nominal geometry (L2 0.985 m, pixel
+  0.29297 mm = 300 mm / 1024) puts them 319 px apart — ratio **0.937 / 0.926**. That is
+  distance ÷ pixel pitch ≈ 7% below nominal: L2 ≈ 0.915 m (Shift_z ≈ −70 mm) *or* a pixel pitch
+  ≈ 0.315 mm (a ~323 mm active width). Rings alone cannot separate the two. λ cannot explain it
+  (1.5306 → 1.54 Å changes the ratio by 1.3%; a 7% change would need λ ≈ 1.43 Å).
+- Overlay figures: `tests/scripts/ring_overlay_figures.py RUN CAL.json OUTDIR --mask XML` (nominal vs
+  refined Bragg-ring contours on the masked detector image, plus the extracted points).
+
+- **`FitCalibration` agrees on the distance.** Six runs on HB2B_3510 with the mask (fix/fitcalibration-mask
+  worktree; default vs per-parameter `diff_step`; 2023 vs 2020 lattice; nominal vs perturbed start;
+  `tests/scripts/fitcalibration_stepsize_study.py`) all end at **Shift_z = −69…−71 mm**, with
+  Shift_x −5…−12 mm, 2θ₀ 0.46–0.79° and λ 1.5285–1.5295 Å. It does *not* reproduce the tilt:
+  Rot_y −0.8…+0.2° (ring calibration at the same 2θ₀: ≈ 3.7°), so the tilt is unresolved.
+  The 2020 lattice lowers its RMS 0.055 → 0.026°. The per-parameter step changed nothing material:
+  run-to-run spread is the same in both modes, and its error estimates are unusable (Shift_z ± 7–44 mm,
+  one all zero).
+
+- **HB2B_3489 (mono 1.731 Å, 12 sub-runs) says the same.** Ring calibration (mask, 5 strips): 61 points,
+  13 rings, RMS 0.036°, λ = 1.72077 ± 0.0003 Å. Head to head with HB2B_3510, both re-expressed at
+  2θ₀ = 0 (`tests/scripts/calibration_head_to_head.py`):
+
+  | at 2θ₀ = 0 | Shift_x | Shift_y | Shift_z | Rot_x | Rot_y | Rot_z | λ / mono |
+  |---|---|---|---|---|---|---|---|
+  | 3510 | −1.0 ± 0.3 | −2.1 ± 3.0 | −73.3 ± 1.4 | −0.02 ± 0.49 | 4.4 ± 0.9 | 0.18 ± 0.03 | 0.9939 |
+  | 3489 | −5.9 ± 0.35 | 0.1 ± 3.7 | −78.8 ± 5.9 | −0.44 ± 1.03 | 7.9 ± 2.2 | 0.06 ± 0.07 | 0.9941 |
+
+  (mm, deg; errors from each run's estimate, 2θ₀ held.) Shift_z, Shift_y, Rot_x, Rot_z agree within
+  ~1.5σ. The 4.9 mm Shift_x difference is ≈ 0.3° of 2θ₀ — expected, since 2θ₀ includes the monochromator
+  misalignment and the mono setting changed. Rot_y (the tilt) is large in both but poorly determined.
+  Both refined wavelengths sit 0.6% below the mono setting. Two-ring gap in 3489 sub-run 12 (Ni 311/222,
+  Δ2θ 7.37°): 398.8 px vs 432.9 px nominal, ratio **0.921** — the same ~7–8% short distance/pitch at a
+  12% different wavelength, as a geometric (wavelength-independent) cause would give. (Sub-run 11's
+  222 points from a re-extraction at the refined λ scatter 23 px and are spurious; the driver rejected
+  them.)
+
+- **2θ₀ cannot be refined from either run** (`tests/scripts/two_theta_0_profile.py`): holding 2θ₀ at
+  −1…4° and refining the rest gives the same RMS to 5 digits (3510: 0.01746°, 3489: 0.03627°); only
+  Shift_x (≈ −16 mm/deg) and Rot_y (−1°/deg) move. A joint fit of both runs with one shared pose and a
+  2θ₀ and λ per run does measure the **difference: 2θ₀(3489) − 2θ₀(3510) = −0.299 ± 0.033°** (RMS
+  0.0188 / 0.0370°, barely above the separate fits), i.e. changing the mono 1.54 → 1.731 Å turned the
+  beam by 0.3°. The absolute value needs a second detector distance or an external reference.
+- **Pixel pitch if the detector is at its nominal distance** (`tests/scripts/pixel_pitch_at_nominal_distance.py`,
+  Shift_z = 0 held, common pitch scale k scanned): RMS minimum at k = 1.0804 (3510; pitch 0.3165 mm,
+  RMS 0.01747° = the Shift_z-free fit) and k = 1.0869 (3489; 0.3184 mm) — **8.0–8.7% larger** than
+  0.29297 mm (i.e. a 324–326 mm wide detector). The exact L/p scaling predicts 0.985 / 0.9117 = 1.0804.
+  Rot_y is strongly coupled to k (3510: 1.8° at k = 1.07, 4.2° at 1.08, 8.9° at 1.09), so the tilt
+  and the pitch/distance question are one problem. The vertical pitch (along the nearly straight rings
+  near 90°) is barely constrained (ky 0.98–1.18 changes RMS ≤ 8%).
+- **The illuminated area spans ~960 channels, not 1024.** Summed over all sub-runs, unmasked, the
+  row profile (index_1, free of rings) crosses 50% of its centre level at channels 38–39 and 997 in
+  both runs (959–960 channels, edges ~10 channels wide). If those edges are the 300 mm active area,
+  the pitch is 300 / 960 = 0.3125 mm (k ≈ 1.067), which would leave Shift_z ≈ −13 mm (3510) /
+  −18 mm (3489) instead of −73/−79 mm. Unconfirmed: the edges could be a frame or window shadow, or
+  electronic edge compression; the vendor active area and the readout's channel mapping decide it.
+
+- **Laser-scanner survey (user, 2026-10-23):** the detector face is at the nominal distance and shows
+  no rotation. So Shift_z ≈ 0 and Rot ≈ 0 are measured, and the −73…−79 mm / 4–8° of the free ring fits
+  are artefacts of the model, not the detector.
+- **The mask is exactly the dead border.** `HB2B_Mask_12-18-19.xml` keeps one rectangle, index_0 34–991
+  (958 ch) × index_1 40–992 (953 ch); every masked pixel is within 40 channels of an edge and none lies
+  inside that rectangle. Masked pixels get 0.16 counts/pixel against 1.58 kept (1.5% of all counts, the
+  soft edge). The rectangle matches the illuminated area (50% edges 38–997 in index_1). If that
+  rectangle is the 300 mm active area, the pitch is 300/955 ≈ 0.314 mm (k ≈ 1.07), not 300/1024.
+- **Survey pose + one uniform pitch does not fully describe the rings**
+  (`tests/scripts/constrained_pitch_fit.py`; Shift_z = 0, Rot = 0 held; Shift_x, Shift_y, 2θ₀, λ free;
+  pitch scale optimised): nominal pitch RMS 0.24° (residuals +0.35° → −0.31° across the columns);
+  best k = 1.0835 (3510) / 1.0874 (3489) / 1.0877 joint, i.e. pitch 0.317–0.319 mm, RMS 0.0231 / 0.0371°
+  (free fit 0.0175 / 0.0363°) — but only with **Shift_x −77 to −101 mm and 2θ₀ 4.4–5.8°**: the old 4°
+  "tilt" has moved into the Shift_x/2θ₀ swing, and those values are as unphysical as the tilt. The
+  vertical pitch is unconstrained (ky 1.02–1.04, no RMS gain). So the data carry a left–right asymmetry
+  in pixels per degree that neither a tilt (excluded by the survey) nor a uniform pitch explains. The
+  two-ring ratios hint at it (3510: 0.926 at columns 246–541, 0.937 at 462–761), consistent with a
+  pitch that varies across the detector (position non-linearity of the readout) — untested.
+- **`FitCalibration` on HB2B_3489** (mask, 2020 lattice, nominal start; worktree code): per-parameter
+  step → Shift_z −71.0 mm, Shift_x −17.5, Shift_y −7.3 mm, Rot −0.90/0.22/−0.09°, 2θ₀ 0.83°,
+  λ 1.7199 Å, RMS 0.038° — the same −70 mm distance as on 3510. Default step went astray: CalibrateShift
+  stopped at Shift_z +0.4 mm, CalibrateRotation drove Rot_z to −4.5° and the polish ended at Rot_z −5.0°
+  (on its ±5° bound), RMS 0.059°, error estimate all zero. So the default step is not just noisy: on
+  3489 it changed the answer. A per-parameter `diff_step` for `FitCalibration` is a production change
+  and still needs approval.
+- **Fixed pitch 0.314 mm** (mask-implied; `tests/scripts/fixed_pitch_fit.py`, outputs in
+  `calib_diagnostics/fixed_pitch_*.txt`). Free fit: same RMS as at 0.293 mm (the L/p scaling) but
+  **Shift_z −7.8 mm (3510) / −13.7 mm (3489)** instead of −73 / −79 mm — close to the survey. The tilt is
+  unchanged (Rot_y 4.38° / 7.91° at 2θ₀ = 0): the pitch fixes the distance, not the asymmetry. With the
+  survey pose (Shift_z = 0, Rot = 0) RMS 0.0323° (3510, free 0.0175°) and 0.0461° (3489, free 0.0363°),
+  2θ₀ 1.07° / 1.37°, Shift_x −19 / −29 mm; the residuals keep a left–right gradient, +51 → −24 mdeg
+  (3510) and +43 → −17 mdeg (3489) across the columns — what Rot_y absorbs in the free fit. Separate
+  mask-edge pitches (0.3132 × 0.3148 mm) fit slightly worse. With Rot_y fixed by the survey, 2θ₀ is
+  refinable, but its value carries whatever causes that gradient.
+- **Rot_y = 2θ₀ + Rot_y_0 (user, 2026-10-23)** — the degeneracy in the 2θ₀ = 0 frame, with its shift
+  part Shift_x = Shift_x_0 − L·sin 2θ₀ (verified: 3510 at 0.314 mm, Rot_y 4.375° ↔ ΔShift_x −74.5 mm =
+  0.977 m · sin 4.375°). With the survey's Rot_y_0 = 0, the free fits would read 2θ₀ = 4.4° (3510) / 7.9°
+  (3489) — but then Shift_x_0 = −76 / −140 mm, and the two runs' 2θ₀ would differ by 3.5°, against the
+  joint fit's −0.30 ± 0.03°. Holding the whole surveyed pose (Shift_x = Shift_z = 0, Rot = 0; pitch
+  0.314 mm; Shift_y, 2θ₀, λ free): **2θ₀ = −0.04 ± 0.03° (3510), −0.34 ± 0.03° (3489)**, difference
+  −0.30° — matching the independent joint-fit difference. RMS 0.033 / 0.048°, same left–right residual
+  slope (+53 → −21 mdeg). So the free fit's Rot_y is not 2θ₀: ~4–8° of it is the unexplained asymmetry.
+  (User, 2026-10-23: the detector is not shifted sideways by ~75 mm, so Shift_x_0 ≈ 0 and the
+  surveyed-pose fit is the physical one. Also user: |2θ₀| < 0.5° on HB2B; the surveyed-pose values
+  −0.04° / −0.34° satisfy it, the free-fit readings 4.4° / 7.9° do not.)
+- **Joint fit, shared physical geometry (user's model, 2026-10-23):** one pose for 3510 and 3489
+  (Shift_x/y/z, Rot_x, Rot_y_0, Rot_z), a 2θ₀ and λ per run, each run seeing Rot_y = 2θ₀ + Rot_y_0;
+  2θ₀ bounded to ±0.5°, Rot_y_0 free (`tests/scripts/joint_calibration_fit.py`). Pitch 0.314 mm:
+  Shift_x −3.5, Shift_y 0.4, **Shift_z −9.9 ± 2.4 mm**, Rot_x −0.27, **Rot_y_0 5.82°**, Rot_z 0.12°;
+  2θ₀ +0.14 (3510) / −0.16° (3489), λ 1.53052 / 1.72080 Å; RMS 0.0188 / 0.0370° (separate free fits
+  0.0175 / 0.0363°). (Pitch 0.293 mm: identical except Shift_z −75.2 mm.) The Jacobian is singular
+  (condition 2e8): Rot_y_0 + δ with both 2θ₀ − δ fits identically, so only the difference
+  2θ₀(3489) − 2θ₀(3510) = −0.30° is measured and the reported ±0.38° are not meaningful. Within the
+  ±0.5° bound, δ ∈ [−0.36, +0.34]°, so **Rot_y_0 ∈ [5.46, 6.16]°**: with |2θ₀| < 0.5° the rings demand a
+  ~5.5–6.2° face rotation that the laser survey does not see. One shared geometry does describe both runs
+  (RMS barely above the separate fits).
+- **1D patterns under three geometries** (`tests/scripts/geometry_1d_patterns.py`, figures in
+  `calib_diagnostics/patterns_1d/`): unrefined (nominal pose, 2θ₀ = 0, 0.293 mm, mono λ) vs the joint
+  refinement at 0.293 mm and at 0.314 mm. The two refined geometries give **identical** patterns
+  (peak centres equal to 1e-4°): distance and pitch trade exactly, so 1D data cannot choose between them.
+  Refined peaks sit within ±0.05° of Bragg on 3510 (−0.047…+0.014°) and within −0.04…+0.07° on 3489
+  (one weak 222 ring at −0.13°). Unrefined peaks are −0.3…−1.0° from the mono-λ Bragg angle, mostly
+  because of λ (mono 1.54 vs refined 1.5305 Å moves Bragg by ~0.6–0.9°); the peaks themselves move by
+  only ±0.3° between geometries, with the sign depending on where the ring falls on the detector (the
+  pixel-scale error). Refined FWHM in degrees is ~8–12% larger than unrefined, mostly because the
+  refined geometry has ~8% more degrees per pixel; widths in degrees are not comparable across geometries
+  with different scales.
+- **Same joint fit and 1D patterns with the 2023 lattice** (`--lattice 2023`; `calib_diagnostics/patterns_1d_2023/`):
+  Rot_y_0 7.02° (2020: 5.79°), Shift_z −76.1 mm at 0.293 mm / −10.8 mm at 0.314 mm, 2θ₀ +0.26 / −0.19°,
+  λ 1.53113 / 1.72364 Å. The 1D peaks split by powder: peak − Bragg averages Ni +0.022° / Fe −0.081°
+  (3510) and Ni +0.057° / Fe −0.025° (3489), a ~0.08–0.10° Ni–Fe split; with the 2020 lattice the
+  same averages are Ni −0.025° / Fe −0.016° and Ni +0.029° / Fe +0.015° (split ≤ 0.015°). Confirms the
+  2020 constants; the geometry conclusions (pitch/distance, ~6–7° rotation-like asymmetry) do not
+  depend on the lattice set.
+- **The HB2B wavelengths are one Si monochromator at a fixed take-off.** Nominal settings (user,
+  2026-10-23): Si 333 / 511 1.452, 422 1.540, 331 1.731, 400 1.886, 311 2.275, 220 2.667 Å all give
+  2θ_M = 2·asin(λ / 2d_Si) = 87.97–88.00°, so λ ratios between settings equal Si d-spacing ratios.
+  Refined λ(3489)/λ(3510) = 1.12432 with the 2020 lattice (2023: 1.12573) against d331/d422 = 1.12390:
+  0.04% apart (2023: 0.16%) — independent support for the 2020 constants. The refined λ correspond to
+  2θ_M ≈ 87.32° (3510) / 87.36° (3489), i.e. the 0.6% λ deficit would be a ~0.66° take-off offset
+  (or a lattice-constant offset; only λ/a is measured). Per the user, 2θ₀ is *not* inferred from this.
+  Open tension: a fixed take-off suggests one beam direction for all settings, yet the joint fit gives
+  2θ₀(331) − 2θ₀(422) = −0.30 ± 0.03°.
+- **Lattice set Ni 3.52942 / Fe 2.8674 tried (user, 2026-10-23) — rejected by the data.** Joint fit at
+  0.314 mm: RMS 0.077 / 0.138° (3510 / 3489) against 0.052 / 0.061° (2023) and **0.019 / 0.037° (2020)**;
+  1D peaks split Ni − Fe by +0.155° in both runs (2020: −0.009 / +0.014°). The geometry runs away to absorb
+  the mismatch (Rot_y_0 −7.7°, Shift_y +5.5, Shift_z −22 mm) and 3489 gains spurious points (one −0.43°).
+  The rings test only a_Ni/a_Fe (one λ per run); the data want ≈ 1.2294 (the 2020 ratio, ±~1e-4), the
+  proposed set has 1.2309. Consistent alternatives: Fe 2.8674 → Ni ≈ 3.5251; Ni 3.52942 → Fe ≈ 2.8709.
+
+Open: the detector's position response (mm per channel across the face, and where the 300 mm active area
+falls in channel space) — the masked-grid flood measurement decides it.
