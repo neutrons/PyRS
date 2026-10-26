@@ -1252,6 +1252,24 @@ checked against the data without the refinement:
   the mismatch (Rot_y_0 −7.7°, Shift_y +5.5, Shift_z −22 mm) and 3489 gains spurious points (one −0.43°).
   The rings test only a_Ni/a_Fe (one λ per run); the data want ≈ 1.2294 (the 2020 ratio, ±~1e-4), the
   proposed set has 1.2309. Consistent alternatives: Fe 2.8674 → Ni ≈ 3.5251; Ni 3.52942 → Fe ≈ 2.8709.
+- **pyFAI cross-check of the forward model** (`tests/scripts/pyfai_forward_model_export.py` +
+  `pyfai_forward_model_check.py`, pyFAI 2026.9.0 in a throwaway `pixi exec` environment; output
+  `calib_diagnostics/pyfai_forward_model_check.txt`). Our full-detector 2θ and η maps (nominal, the free
+  fit at 0.293 mm, the joint fit at 0.314 mm; arms 76/89/103°) against pyFAI's independent geometry:
+  * **Nominal is exact with no fitting** (2θ to 3e-14°, η to 9e-14°): pyFAI dist 0.985 m, PONI at the
+    detector centre, rot1 = arm angle, rot2 = rot3 = 0; our `index_1` = pyFAI dim1, `index_0` = dim2 (no
+    flips), η = χ. Pixel size, pixel-centre convention, handedness and arm sign all agree.
+  * **Every refined map is exactly a pyFAI rigid flat detector** (2θ and η to 1e-13°), with dist and PONI
+    constant over the arm and rot1 − arm constant. Convention-free numbers: perpendicular distance
+    0.9091 m (0.293 mm pitch) / 0.9701 m (0.314 mm); the detector normal through the sample meets the
+    face 70.6 / 102.4 mm off the centre column. The tilt is a real property of the refined detectors, not
+    an artefact of our parameter conventions.
+  * pyFAI sees only **rot1 − arm = −(2θ₀ + Rot_y)**: −4.375° = −(1.455 + 2.920), −5.958° = −(0.141 + 5.817)
+    — the same Rot_y = 2θ₀ + Rot_y_0 combination (a 6-parameter rigid pose has no separate 2θ₀).
+  * pyFAI applies rot1 innermost, so with a tilted detector (Rot_x, Rot_z ≠ 0) the arm is *not* purely
+    rot1: rot2/rot3 drift by up to 0.12° / 0.06° over 27° of arm (joint fit). The tutorial's linear
+    `rot1 = scale·pos + offset` goniometer model is therefore only approximate here (0.1° ≫ our 0.02°
+    residuals); a pyFAI refinement of HB2B needs the exact composition (a Python `BaseTransformation`).
 
 Open: the detector's position response (mm per channel across the face, and where the 300 mm active area
 falls in channel space) — the masked-grid flood measurement decides it.
