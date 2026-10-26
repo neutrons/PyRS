@@ -65,7 +65,6 @@ class MantidPeakFitEngine(PeakFitEngine):
             InputWorkspace=self._mtd_wksp,
             PeakFunction=str(self._peak_function),
             BackgroundType=str(self._background_function),
-            FindBackgroundSigma=1,
             HighBackground=True,
             PeakCenters=peak_center,
             FitWindowBoundaryList=(x_min, x_max),

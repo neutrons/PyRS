@@ -771,6 +771,51 @@ won't reproduce (c) either unless it specifically kills the process
 mid-lock and relaunches — a clean repro passing is not evidence the fix
 works under real crash/network conditions.
 
+## FitCalibration ignored its mask file and then crashed (2026-10, #1024)
+
+`FitCalibration(nexus_file=..., mask_file=...)` stored `mask_file` but called
+`_reduce_diffraction_data(nexus_file)` without it, so `NeXusConvertingApp` ran unmasked; it then
+passed the mask **path** to `ReductionApp.reduce_data(mask=...)`, which treats a string as the ID of
+an already-loaded mask, so `HB2BReductionManager.get_mask_vector` raised `ValueError`. Any masked
+production calibration (`scripts/pyrs_calibration.py` with `"mask"` in its JSON) crashed; the UI
+never passes a mask, so UI calibrations are unmasked.
+
+Fix (user-approved production change): pass `self.mask_file` to the conversion, which stores it as
+the workspace's default mask, and call `reduce_data(mask=None)` — with `mask=None` the reduction
+manager uses the default mask, and the per-evaluation `reduce_data()` only clears the η-wedge masks,
+not the default mask. Unmasked calibrations take the identical code path (the existing
+`test_peakfit_calibration` gold-file tests are unchanged); `test_mask_file_is_applied` failed with
+the original `ValueError` before the fix. Open: whether the UI should offer the instrument mask.
+
+## Detector rotation matrices are float64; float32 limited angles to ~3e-6° (2026-10)
+
+`ResidualStressInstrument._cal_rotation_matrix_x/y/z` (`pyrs/core/reduce_hb2b_pyrs.py`) built their
+matrices as float32 (~7 significant digits), so every rotation angle — arm 2θ, 2θ₀, Rot_x/y/z —
+resolved only to ~3e-6°. For reduction that is irrelevant, but calibration differentiates its
+residual numerically: scipy's default finite-difference steps (1.5e-8 for 2-point, ~6e-6 for
+3-point) sit at or below that resolution, giving zero or noisy angle derivatives (found in the
+ring-based calibration work on `detector_calib_v3`, commit 095c7980 there). The matrices are now
+float64 (user-approved). Effect on reduction: pixel 2θ/η move by ≤ 4.5e-7°; unit, reduction and
+calibration integration tests unchanged. `test_rotation_matrix_resolves_tiny_angle_change` fails
+with float32.
+
+## `FindBackgroundSigma` is ignored by Mantid `FitPeaks` (2026-10)
+
+The Mantid in this environment logs `FitPeaks property "FindBackgroundSigma" is deprecated and will
+be ignored` for every call. `MantidPeakFitEngine.fit_peaks` passed `FindBackgroundSigma=1`; it was
+removed (user-approved). Verified: `FitPeaks` on the same synthetic spectra gives bit-identical
+fitted parameters with and without the property, for `HighBackground=True` and `False`; peak-fitting
+and FitCalibration tests unchanged.
+
+## The calibration GUI applies the production detector mask by default (2026-10)
+
+`DetectorCalibrationModel` never passed a mask, so GUI calibrations ran unmasked even after #1024.
+It now uses `/HFIR/HB2B/shared/CALIBRATION/HB2B_Mask_Latest.xml` when that file exists and no mask
+otherwise (user decision, 2026-10-26), resolved when a run is loaded, and passes it to *both* places
+it builds `FitCalibration` — changing the 2θ/η bins rebuilds the object and used to drop any mask.
+`DetectorCalibrationModel.mask_file` reports which was used. On machines without `/HFIR` (CI) the
+behaviour is unchanged. Unit tests: `tests/unit/pyrs/interface/detector_calibration/`.
+
 ## `HidraWorkspace` stores 2θ and intensities as float64, never the input's dtype (2026-10)
 
 `set_reduced_diffraction_data` used to create the 2θ matrix and the intensity matrix with

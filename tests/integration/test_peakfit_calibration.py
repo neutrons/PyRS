@@ -5,6 +5,7 @@ import pytest
 import time
 import os
 import json
+import numpy as np
 from pyrs.calibration import mantid_peakfit_calibration
 
 
@@ -258,3 +259,31 @@ def test_load_print_calibration():
 
 if __name__ == "__main__":
     pytest.main([__file__])
+
+
+def test_mask_file_is_applied():
+    """Regression (#1024): a mask file raised ValueError because it never reached the NeXus conversion
+    and its path was passed to reduce_data as a mask ID. It must become the default mask and be used."""
+    # Arrange
+    nexus_file = "tests/data/calibration_tests/HB2B_3510.nxs.h5"
+    mask_file = "tests/data/HB2B_Mask_12-18-19.xml"
+
+    # Act
+    masked = mantid_peakfit_calibration.FitCalibration(nexus_file=nexus_file, mask_file=mask_file)
+    unmasked = mantid_peakfit_calibration.FitCalibration(nexus_file=nexus_file)
+
+    # Assert - the file is the workspace's default mask ...
+    default_mask = masked._hidra_ws.get_detector_mask(True)
+    assert default_mask is not None and 0.5 < default_mask.mean() < 1.0
+    assert unmasked._hidra_ws.get_detector_mask(True) is None
+
+    # ... and the reduction uses it: masked and unmasked patterns of the same sub-run and wedge differ
+    wedge = masked._hidra_ws.reduction_masks[0]
+    _, masked_intensity, _ = masked.reducer.get_diffraction_data(1, mask_id=wedge)
+    _, unmasked_intensity, _ = unmasked.reducer.get_diffraction_data(1, mask_id=wedge)
+    assert masked_intensity.shape == unmasked_intensity.shape
+    assert not np.allclose(masked_intensity, unmasked_intensity, equal_nan=True)
+
+    # ... including in the calibration residual, which re-reduces the data
+    residual = masked.get_alignment_residual(np.array(masked._calib))
+    assert np.all(np.isfinite(residual))
