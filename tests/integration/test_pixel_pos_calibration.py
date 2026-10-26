@@ -1,7 +1,7 @@
 """Integration test of the ring-based calibration driver on a real calibration run"""
 
+import importlib.util
 import json
-import sys
 from pathlib import Path
 
 import pytest
@@ -17,10 +17,13 @@ MASK_FILE = REPO / "tests" / "data" / "HB2B_Mask_12-18-19.xml"
 
 @pytest.fixture(scope="module")
 def driver():
-    sys.path.insert(0, str(REPO))
-    from scripts import pyrs_pixel_calibration
-
-    return pyrs_pixel_calibration
+    # loaded by path: importing it as scripts.pyrs_pixel_calibration makes mypy see the file twice
+    spec = importlib.util.spec_from_file_location(
+        "pyrs_pixel_calibration", REPO / "scripts" / "pyrs_pixel_calibration.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_driver_calibrates_hb2b_3510(tmp_path, driver, capsys):

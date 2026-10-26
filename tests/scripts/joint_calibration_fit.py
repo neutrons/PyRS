@@ -20,6 +20,7 @@ Run from the repository root:
 import argparse
 import warnings
 from pathlib import Path
+from typing import Dict, Optional
 
 import numpy as np
 from scipy.optimize import least_squares, minimize_scalar
@@ -39,6 +40,7 @@ def standards_for(lattice: str):
     ``lattice`` is a named set (``2020``, ``2023``) or explicit values such as ``Ni=3.52942,Fe=2.8674``;
     powders not named keep their 2020 value.
     """
+    values: Optional[Dict[str, float]]
     if "=" in lattice:
         values = {name.strip(): float(a) for name, a in (item.split("=") for item in lattice.split(","))}
         unknown = set(values) - {s.name for s in HB2B_STANDARDS}

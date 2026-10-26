@@ -148,13 +148,13 @@ def main() -> None:
             for label, (_, params) in geometries.items():
                 p = params[i]
                 cal = None if not np.any(p[:7]) else DENEXDetectorShift(*p[:7])
-                tth = models[label].two_theta(*grid, arm, base_setup.arm_length, cal).ravel()
+                tth = models[label].two_theta(grid[0], grid[1], arm, base_setup.arm_length, cal).ravel()
                 x, y = histogram(tth, counts, keep)
                 bragg = standard.two_theta(p[7])
                 hkls = standard.hkl_squared[: bragg.size]
                 inside = np.isfinite(bragg) & (bragg > x.min() + 0.3) & (bragg < x.max() - 0.3)
-                bragg, hkls = bragg[inside], [HKL[int(h)] for h in hkls[inside]]
-                curves[label] = (x, y, bragg, [fit_peak(x, y, b) for b in bragg], hkls)
+                bragg, hkl_labels = bragg[inside], [HKL[int(h)] for h in hkls[inside]]
+                curves[label] = (x, y, bragg, [fit_peak(x, y, b) for b in bragg], hkl_labels)
             panels.append((sub_run, standard.name, -arm, curves))
 
         # full patterns
@@ -193,12 +193,12 @@ def main() -> None:
             centre = curves["refined, 0.293 mm"][2][k]
             hkl = curves["refined, 0.293 mm"][4][k]
             line = f"  {name} sub-run {sub_run:2d} {powder} {hkl}:"
-            for label, (x, y, bragg, fits, hkls) in curves.items():
+            for label, (x, y, bragg, fits, hkl_labels) in curves.items():
                 colour, style = STYLES[label]
                 sel = np.abs(x - centre) < CLOSE_UP
                 ax.plot(x[sel], y[sel], color=colour, ls=style, lw=1.2, label=label)
-                if hkl in hkls:
-                    j = hkls.index(hkl)
+                if hkl in hkl_labels:
+                    j = hkl_labels.index(hkl)
                     f = fits[j]
                     line += f"  {label.split(' (')[0]:18s} pred {bragg[j]:8.4f} " + (
                         f"peak-pred {f[0] - bragg[j]:+.4f} / FWHM {f[1]:.4f}" if f else "   fit failed                 "

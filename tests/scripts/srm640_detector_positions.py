@@ -14,6 +14,7 @@ Run from the repository root:
 
 import argparse
 from itertools import combinations
+from typing import Dict, List, Tuple
 
 import numpy as np
 
@@ -82,7 +83,7 @@ def main() -> None:
             inside = tuple(i for i, (_, t, _) in enumerate(peaks) if lo < t < hi)
             captured.append(inside)
         # maximal sets with >= min_peaks: report the arm range for each distinct set
-        groups = {}
+        groups: Dict[Tuple[int, ...], List[float]] = {}
         for arm, inside in zip(arms, captured):
             if len(inside) >= args.min_peaks:
                 groups.setdefault(inside, []).append(arm)

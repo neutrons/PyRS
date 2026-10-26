@@ -89,14 +89,14 @@ def synthetic_ring_points(
         raise ValueError("no ring crosses the detector for these arm angles and powders")
     columns = list(zip(*records))
     return RingPoints(
-        sub_run=columns[0],
-        index_0=columns[1],
-        index_1=columns[2],
-        det_2theta=columns[3],
-        l2=columns[4],
-        d_spacing=columns[5],
-        hkl_squared=columns[6],
-        powder=columns[7],
+        sub_run=np.asarray(columns[0]),
+        index_0=np.asarray(columns[1]),
+        index_1=np.asarray(columns[2]),
+        det_2theta=np.asarray(columns[3]),
+        l2=np.asarray(columns[4]),
+        d_spacing=np.asarray(columns[5]),
+        hkl_squared=np.asarray(columns[6]),
+        powder=np.asarray(columns[7]),
         sigma=np.full(len(records), noise_deg),
     )
 
@@ -142,7 +142,7 @@ def synthetic_detector_image(
     model = DetectorModel(instrument_setup)
     num_rows, num_columns = instrument_setup.detector_size
     grid = np.meshgrid(np.arange(num_columns), np.arange(num_rows), indexing="ij")
-    two_theta = model.two_theta(*grid, -det_2theta, l2, DENEXDetectorShift(*true_params[:7]))
+    two_theta = model.two_theta(grid[0], grid[1], -det_2theta, l2, DENEXDetectorShift(*true_params[:7]))
 
     # pseudo_voigt takes the integrated intensity; convert from the requested peak height
     height_per_intensity = mixing * 2 / (np.pi * fwhm) + (1 - mixing) * np.sqrt(4 * np.log(2) / np.pi) / fwhm

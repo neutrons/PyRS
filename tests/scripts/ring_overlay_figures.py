@@ -76,8 +76,8 @@ def main() -> None:
                 standard=standard,
                 det_2theta=-arm,
                 counts=counts,
-                nominal=model.two_theta(*grid, arm, l2, None),
-                refined=model.two_theta(*grid, arm, l2, refined),
+                nominal=model.two_theta(grid[0], grid[1], arm, l2, None),
+                refined=model.two_theta(grid[0], grid[1], arm, l2, refined),
                 points=points.select(points.sub_run == sub_run),
             )
         )

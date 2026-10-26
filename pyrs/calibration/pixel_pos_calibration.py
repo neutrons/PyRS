@@ -36,7 +36,7 @@ Example::
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from scipy.optimize import least_squares
@@ -299,7 +299,7 @@ class RingPoints:
     d_spacing: np.ndarray
     hkl_squared: np.ndarray
     powder: np.ndarray
-    sigma: np.ndarray = field(default=None)  # type: ignore[assignment]
+    sigma: Optional[np.ndarray] = field(default=None)
 
     def __post_init__(self) -> None:
         self.sub_run = np.asarray(self.sub_run, dtype=int)
@@ -460,14 +460,14 @@ class PixelCalibration:
         """Sum of squared 2theta residuals (degrees^2) after each stage."""
         return [stage.rmse**2 * len(self.ring_points) for stage in self.stages]
 
-    def set_calibration_array(self, params: Sequence[float]) -> None:
+    def set_calibration_array(self, params: Union[Sequence[float], np.ndarray]) -> None:
         """Set the starting calibration vector (8 values, :data:`PARAMETER_NAMES` order)."""
-        params = np.asarray(params, dtype=float)
-        if params.shape != (8,):
-            raise ValueError(f"calibration array must have 8 values, got shape {params.shape}")
-        if not params[7] > 0:
-            raise ValueError(f"wavelength must be positive, got {params[7]}")
-        self._calib = params.copy()
+        values = np.asarray(params, dtype=float)
+        if values.shape != (8,):
+            raise ValueError(f"calibration array must have 8 values, got shape {values.shape}")
+        if not values[7] > 0:
+            raise ValueError(f"wavelength must be positive, got {values[7]}")
+        self._calib = values.copy()
 
     def set_two_theta_0(self, two_theta_0: float, l2: Optional[float] = None) -> StageResult:
         """Re-express the current calibration with a chosen 2theta_0, keeping the same detector.
@@ -513,7 +513,7 @@ class PixelCalibration:
         self.stages.append(stage)
         return stage
 
-    def model_two_theta(self, params: Sequence[float]) -> np.ndarray:
+    def model_two_theta(self, params: Union[Sequence[float], np.ndarray]) -> np.ndarray:
         """2theta (degrees) of every ring point's pixel for calibration vector ``params``."""
         calibration = DENEXDetectorShift(*params[:7])
         two_theta = np.empty(len(self.ring_points))
@@ -524,17 +524,17 @@ class PixelCalibration:
             )
         return two_theta
 
-    def residual(self, params: Sequence[float]) -> np.ndarray:
+    def residual(self, params: Union[Sequence[float], np.ndarray]) -> np.ndarray:
         """Per-point 2theta residual (degrees): pixel 2theta minus Bragg angle.
 
         Fixed length (one entry per ring point) and free of side effects, as ``least_squares``
         requires.
         """
-        params = np.asarray(params, dtype=float)
+        values = np.asarray(params, dtype=float)
         # clipped so an extreme trial wavelength gives a large residual rather than NaN
-        sin_theta = np.clip(params[7] / (2 * self.ring_points.d_spacing), -1.0, 1.0)
+        sin_theta = np.clip(values[7] / (2 * self.ring_points.d_spacing), -1.0, 1.0)
         bragg_two_theta = 2 * np.rad2deg(np.arcsin(sin_theta))
-        return self.model_two_theta(params) - bragg_two_theta
+        return self.model_two_theta(values) - bragg_two_theta
 
     def refine(
         self,
@@ -573,15 +573,17 @@ class PixelCalibration:
             free = np.array([PARAMETER_NAMES.index(p) if isinstance(p, str) else int(p) for p in free_parameters])
         except ValueError:
             raise ValueError(f"{name}: free parameters must be indices or names from {PARAMETER_NAMES}")
-        lower = np.asarray(lower, dtype=float)
-        upper = np.asarray(upper, dtype=float)
+        lower_bounds = np.asarray(lower, dtype=float)
+        upper_bounds = np.asarray(upper, dtype=float)
         x0 = self._calib[free] if initial_guess is None else np.asarray(initial_guess, dtype=float)
-        if not (x0.shape == lower.shape == upper.shape == free.shape):
+        if not (x0.shape == lower_bounds.shape == upper_bounds.shape == free.shape):
             raise ValueError(f"{name}: initial guess and bounds must have {free.size} values")
         if len(self.ring_points) <= free.size:
             raise ValueError(f"{name}: needs more ring points ({len(self.ring_points)}) than free parameters")
         if self._method != "lm":
-            outside = [PARAMETER_NAMES[i] for i, x, lo, up in zip(free, x0, lower, upper) if not lo <= x <= up]
+            outside = [
+                PARAMETER_NAMES[i] for i, x, lo, up in zip(free, x0, lower_bounds, upper_bounds) if not lo <= x <= up
+            ]
             if outside:
                 raise ValueError(f"{name}: starting value outside bounds for {outside}")
 
@@ -600,7 +602,7 @@ class PixelCalibration:
             out = least_squares(
                 stage_residual,
                 x0,
-                bounds=(lower, upper),
+                bounds=(lower_bounds, upper_bounds),
                 method=self._method,
                 jac="3-point",
                 diff_step=self._diff_step,
@@ -855,7 +857,7 @@ def _column_at_two_theta(
 
 def _reject_outliers(points: List[dict], threshold: float, smooth: bool) -> None:
     """Flag points far from a quadratic ``index_0(index_1)`` through each ring; optionally smooth."""
-    rings = {}
+    rings: Dict[Tuple[Any, Any], List[dict]] = {}
     for point in points:
         rings.setdefault((point["sub_run"], point["hkl_squared"]), []).append(point)
     for ring in rings.values():
@@ -947,7 +949,7 @@ def extract_ring_points(
     workspace,
     wavelength: float,
     calibration: Optional[DENEXDetectorShift] = None,
-    standards: Sequence = None,
+    standards: Optional[Sequence] = None,
     sub_runs: Optional[Sequence[int]] = None,
     strips: int = 15,
     edge: int = 40,
@@ -1063,7 +1065,7 @@ def extract_ring_points(
         l2 = setup.arm_length if l2 is None else float(l2)
         arm = -det_2theta
         counts = workspace.get_detector_counts(sub_run).astype(float).reshape(num_columns, num_rows)
-        two_theta = model.two_theta(*grid, arm, l2, calibration)
+        two_theta = model.two_theta(grid[0], grid[1], arm, l2, calibration)
 
         bands = [slice(lo, hi) for lo, hi in zip(bounds[:-1], bounds[1:])]
         band_pixels = []  # per band: 2theta, counts and efficiency of its unmasked pixels
@@ -1103,7 +1105,8 @@ def extract_ring_points(
                     target, located = float(centre[0]), True
 
             # pass 2: choose bands for this reflection: a curved ring can be near the side edge in some only
-            records, groups = {}, {}
+            records: Dict[int, dict] = {}
+            groups: Dict[Tuple[int, int], List[int]] = {}
             for k in range(strips):
                 predicted = _column_at_two_theta(model, target, rows_centre[k], arm, l2, calibration)
                 if not np.isfinite(predicted):
@@ -1197,4 +1200,4 @@ def extract_ring_points(
     accepted = [p for p in points if not p["reject"]]
     if not accepted:
         raise ValueError("no ring points found: check the wavelength, sy logs and fit settings")
-    return RingPoints(**{name: [p[name] for p in accepted] for name in _RING_FIELDS})
+    return RingPoints(**{name: np.asarray([p[name] for p in accepted]) for name in _RING_FIELDS})
