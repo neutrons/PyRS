@@ -1306,3 +1306,31 @@ checked against the data without the refinement:
 
 Open: the detector's position response (mm per channel across the face, and where the 300 mm active area
 falls in channel space) — the masked-grid flood measurement decides it.
+
+## Slit scan: measuring the detector position response directly (2026-10)
+
+The ring data cannot separate distance from pixel pitch, and the ~6° rotation-like asymmetry they
+demand is excluded by the laser survey (see the HB2B_3510/3489 entries; independently confirmed with
+pyFAI on branch `pyfai-comparison`). A **bright-line slit scan** measures the position response
+directly: an absorbing sheet with one narrow slit just in front of the window, lit by an incoherent
+scatterer (vanadium) at the sample position, stepped across the face; channel against known slit position,
+row by row (the bright-line equivalent of a tube "bar scan", Mantid `Calibration/tube.py`).
+
+* **Analysis:** `pyrs/calibration/slit_scan.py` — `find_line_centres` (Poisson maximum-likelihood
+  Gaussian + background per band of rows, raw counts with the summed pixel efficiency as exposure;
+  a chi-square with a one-count variance floor rejected real lines below ~10 counts/row and biased the
+  pitch by +0.03%), `fit_position_response` (position = M · stage, polynomial in channel per band),
+  `active_edges`, `source_distance_from_two_gaps`.
+* **Projection:** the line is projected from the source, M = (L + z)/(L − s), s the slit-to-window gap,
+  z the mean conversion depth: 0.5–1% at s, z ≈ 5 mm. Two scans at different gaps give L independently of
+  pitch and z (simulated: 984.9 ± 1.0 mm for 985).
+* **Simulation** (`tests/util/slit_scan_helpers.py`, study `tests/scripts/slit_scan_simulation.py`,
+  figures `calib_diagnostics/slit_scan/`; 1024 rows, 21 positions over ±140 mm, 0.75 mm slit, bands of
+  32 rows, truth 0.314 mm with a 1.5% gradient ≈ the tilt-equivalent): **~2 counts/row in the line per
+  position** (≈ a 0.8 counts/pixel flood through the slit) gives pitch ± 0.006% and gradient ± 0.0003;
+  1 count/row is marginal, 0.5 fails. Systematics at 5 counts/row: conversion depth wrong by ± 2 mm →
+  pitch +0.23 / −0.18%; slit gap wrong by 1 mm → +0.12%; slant 0.5°, source 20 mm off-normal, 5% pixel
+  efficiency spread, 10× background → ≤ 0.02%. **The gradient is unaffected by all of them.** Residual
+  bias with everything known: +0.016% (exponential depth tail).
+* **Needed at the instrument:** the DENEX conversion depth (or gas gap) to ± 1–2 mm, a stage carrying a
+  ~650 mm absorber within ~5 mm of the window, and the flood rate (sets the count time per position).
