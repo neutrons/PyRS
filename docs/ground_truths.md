@@ -815,3 +815,13 @@ otherwise (user decision, 2026-10-26), resolved when a run is loaded, and passes
 it builds `FitCalibration` — changing the 2θ/η bins rebuilds the object and used to drop any mask.
 `DetectorCalibrationModel.mask_file` reports which was used. On machines without `/HFIR` (CI) the
 behaviour is unchanged. Unit tests: `tests/unit/pyrs/interface/detector_calibration/`.
+
+## `HidraWorkspace` stores 2θ and intensities as float64, never the input's dtype (2026-10)
+
+`set_reduced_diffraction_data` used to create the 2θ matrix and the intensity matrix with
+`intensity_array.dtype`. Integer intensities (e.g. an unweighted `np.histogram`) therefore truncated
+**2θ** to whole degrees (75.79° → 75°) without warning, and float32 rounded it (~1e-5° at 100°); a
+mask added later took its first sub-run's dtype, so later float intensities into an integer array
+were truncated too. Both matrices are now always float64 (both branches). Every caller at the time
+(reduction, `FitCalibration`, the ring calibration, tests) already passed float64, so results are
+bit-identical; regression tests in `tests/unit/pyrs/core/test_workspaces.py`.
