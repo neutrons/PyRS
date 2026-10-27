@@ -825,3 +825,24 @@ mask added later took its first sub-run's dtype, so later float intensities into
 were truncated too. Both matrices are now always float64 (both branches). Every caller at the time
 (reduction, `FitCalibration`, the ring calibration, tests) already passed float64, so results are
 bit-identical; regression tests in `tests/unit/pyrs/core/test_workspaces.py`.
+
+## `FitCalibration` uses per-parameter finite-difference steps (2026-10, #1030)
+
+`FitCalibration`'s residual is not smooth on small scales: every evaluation re-bins the data and re-fits
+the peaks, leaving a noise floor of ~1e-3° per residual. Its stages call `least_squares(jac="3-point")`,
+whose default relative step is ε^(1/3) ≈ 6e-6 (6 µm, 6e-6°, ~9e-6 Å) — deep in that noise. A step scan on
+HB2B_3510 (mask applied) found derivatives stable only from ~1 mm (Shift_z), ≥ 3e-4 (TTH_0) and above
+~3e-3° (rotations); Shift_y was noise at every step.
+
+Every stage now passes `diff_step = DIFF_STEP[free]` (`mantid_peakfit_calibration.DIFF_STEP`, user-approved):
+5e-4 for the shifts, 1e-2 for the angles, 1e-4 for λ. scipy's absolute step is `diff_step · max(1, |x|)`,
+so 0.5 mm for the shifts (always < 1 m), 0.01° for angles below 1° (growing with the angle above it, e.g.
+0.05° at the ±5° bound), ~1.5e-4 Å for λ; it follows the current value during a refinement (user decision:
+keep scipy's relative `diff_step`, not fixed absolute steps).
+
+**Effect** (full recipe, 2020 lattice, mask; `tests/scripts/fitcalibration_stepsize_study.py`):
+HB2B_3510 RMS 0.0261 → 0.0259°, pixel 2θ change ≤ 0.042° with TTH_0 applied; HB2B_3489 changes from a
+failed fit (Rot_z on its −5° bound, RMS 0.059°, error estimate all zero) to RMS 0.038° with rotations
+−0.90 / 0.22 / −0.09° (pixel 2θ up to 1.2° different). Run time similar or shorter. The gold-file tests
+(1–3 evaluations) still pass (max difference 6.8e-4 against a 5e-3 tolerance). The error estimates still
+come from the Jacobian and remain unreliable. Tests: `tests/unit/pyrs/calibration/test_fitcalibration_diff_step.py`.
