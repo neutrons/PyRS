@@ -1094,6 +1094,12 @@ is fixed (production change, needs approval), or write them re-expressed with 2�
 
 ## HB2B_3510: the ring spacing itself says the detector is ~7% "closer" than nominal (2026-10)
 
+*The by-hand diagnostic scripts cited in this and the following entries (`tests/scripts/ring_overlay_figures.py`,
+`calibration_head_to_head.py`, `two_theta_0_profile.py`, `pixel_pitch_at_nominal_distance.py`,
+`constrained_pitch_fit.py`, `fixed_pitch_fit.py`, `joint_calibration_fit.py`, `geometry_1d_patterns.py`,
+`srm640_detector_positions.py`) live on the `calibration-diagnostics` branch, with the pyFAI cross-checks and
+the slit-scan simulation; they are not part of the calibration itself.*
+
 The refined Shift_z ≈ −75 mm (and ~3–4.4° face tilt) is not physical (user, 2026-10-22), so it was
 checked against the data without the refinement:
 
