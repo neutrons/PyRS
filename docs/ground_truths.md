@@ -825,3 +825,27 @@ mask added later took its first sub-run's dtype, so later float intensities into
 were truncated too. Both matrices are now always float64 (both branches). Every caller at the time
 (reduction, `FitCalibration`, the ring calibration, tests) already passed float64, so results are
 bit-identical; regression tests in `tests/unit/pyrs/core/test_workspaces.py`.
+
+## Calibration files' 2θ offset (`TTH_0`) is now read by reduction (2026-10, #1021)
+
+`DENEXDetectorShift.convert_to_dict` (and so `FitCalibration` and every calibration file) writes the
+2θ offset as **`TTH_0`**, but `read_calibration_json_file` — the path reduction uses, via
+`PowderPattern` — read **`two_theta_0`**, and `check_calibration_dictionary` filled the missing key with
+0. Reduction therefore applied **2θ₀ = 0 for every calibration file**, whatever the calibration found.
+(NXstress files and `FitCalibration.get_archived_calibration` already used the right key.)
+
+Fix (user-approved): read `TTH_0` / `error_TTH_0`; accept the legacy `two_theta_0` /
+`error_two_theta_0`; raise `ValueError` if a file gives both with different values; no key → 0 with
+error −1, as before; `TTH_0` without `error_TTH_0` still loads (error −1).
+
+**Effect on results:** files with `TTH_0 = 0` — every file in this repository — are bit-identical. A file
+with `TTH_0 = δ` now shifts every reduced pattern by δ in 2θ (δ on the detector's centre row, 0.982–1.000 δ
+over the face at arms 60–120°), an absolute d-spacing / strain change of (δ/2)·cot θ: for δ = 0.1°,
+1511 / 873 / 504 µε at 2θ = 60 / 90 / 120°. `FitCalibration` refines TTH_0 jointly with the shifts and
+rotations (`wavelength_tth0`, `full` stages), so such a file describes a geometry that reduction applied
+only partly; the fix applies what the calibration found. Strains relative to a d₀ reduced with the same
+file largely cancel; absolute d-spacings and lattice parameters do not.
+
+**Audit the archive before relying on old reductions:** `tests/scripts/audit_calibration_tth0.py`
+(default `/HFIR/HB2B/shared/CALIBRATION`) lists every calibration file's 2θ offset and the strain change.
+Regression tests: `tests/unit/pyrs/utilities/test_calibration_file_io.py`.
