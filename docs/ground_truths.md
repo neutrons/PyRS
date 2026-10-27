@@ -1087,11 +1087,15 @@ user decision 2026-10-22) → `write_calibration` (standard JSON via `write_cali
 On HB2B_3510 (19 s): 60 points / 12 rings, RMS 0.0175°, λ = 1.53058 ± 0.00023 Å,
 Shift_z = −74.7 ± 1.4 mm, Shift_y = −2.0 ± 3.0 mm (weak), 2θ₀ = 1.455° (held).
 
-**Hazard:** the file carries a non-zero TTH_0, and `read_calibration_json_file` drops TTH_0
-(#1021). Read by current reduction, the detector would be placed ~1.45° off in 2θ (Shift_x/Rot_y
-are applied without the 2θ₀ that balances them). Do not use these files for reduction until #1021
-is fixed (production change, needs approval), or write them re-expressed with 2θ₀ = 0
-(`set_two_theta_0(0)`, the same detector) as a stopgap.
+**TTH_0 hazard — resolved (#1021, merged in #1031):** the file carries a non-zero TTH_0, which
+`read_calibration_json_file` used to drop, placing the detector ~1.45° off in 2θ (Shift_x/Rot_y
+applied without the 2θ₀ that balances them). Reduction now reads `TTH_0`, so these files load as
+written.
+
+**Still not for production use:** the refined geometry itself is in doubt — on HB2B_3510/3489 it needs
+a ~7–8% larger pixel pitch or a ~75 mm shorter distance than surveyed, and a ~6° rotation-like
+asymmetry the survey excludes (entries below). Do not reduce production data with these files until
+the detector position response is measured (slit scan, `calibration-diagnostics` branch).
 
 ## HB2B_3510: the ring spacing itself says the detector is ~7% "closer" than nominal (2026-10)
 
@@ -1298,3 +1302,47 @@ mask added later took its first sub-run's dtype, so later float intensities into
 were truncated too. Both matrices are now always float64 (both branches). Every caller at the time
 (reduction, `FitCalibration`, the ring calibration, tests) already passed float64, so results are
 bit-identical; regression tests in `tests/unit/pyrs/core/test_workspaces.py`.
+
+## Calibration files' 2θ offset (`TTH_0`) is now read by reduction (2026-10, #1021)
+
+`DENEXDetectorShift.convert_to_dict` (and so `FitCalibration` and every calibration file) writes the
+2θ offset as **`TTH_0`**, but `read_calibration_json_file` — the path reduction uses, via
+`PowderPattern` — read **`two_theta_0`**, and `check_calibration_dictionary` filled the missing key with
+0. Reduction therefore applied **2θ₀ = 0 for every calibration file**, whatever the calibration found.
+(NXstress files and `FitCalibration.get_archived_calibration` already used the right key.)
+
+Fix (user-approved): read `TTH_0` / `error_TTH_0`; accept the legacy `two_theta_0` /
+`error_two_theta_0`; raise `ValueError` if a file gives both with different values; no key → 0 with
+error −1, as before; `TTH_0` without `error_TTH_0` still loads (error −1).
+
+**Effect on results:** files with `TTH_0 = 0` — every file in this repository — are bit-identical. A file
+with `TTH_0 = δ` now shifts every reduced pattern by δ in 2θ (δ on the detector's centre row, 0.982–1.000 δ
+over the face at arms 60–120°), an absolute d-spacing / strain change of (δ/2)·cot θ: for δ = 0.1°,
+1511 / 873 / 504 µε at 2θ = 60 / 90 / 120°. `FitCalibration` refines TTH_0 jointly with the shifts and
+rotations (`wavelength_tth0`, `full` stages), so such a file describes a geometry that reduction applied
+only partly; the fix applies what the calibration found. Strains relative to a d₀ reduced with the same
+file largely cancel; absolute d-spacings and lattice parameters do not.
+
+**Audit the archive before relying on old reductions:** `tests/scripts/audit_calibration_tth0.py`
+(default `/HFIR/HB2B/shared/CALIBRATION`) lists every calibration file's 2θ offset and the strain change.
+Regression tests: `tests/unit/pyrs/utilities/test_calibration_file_io.py`.
+## `FitCalibration` uses per-parameter finite-difference steps (2026-10, #1030)
+
+`FitCalibration`'s residual is not smooth on small scales: every evaluation re-bins the data and re-fits
+the peaks, leaving a noise floor of ~1e-3° per residual. Its stages call `least_squares(jac="3-point")`,
+whose default relative step is ε^(1/3) ≈ 6e-6 (6 µm, 6e-6°, ~9e-6 Å) — deep in that noise. A step scan on
+HB2B_3510 (mask applied) found derivatives stable only from ~1 mm (Shift_z), ≥ 3e-4 (TTH_0) and above
+~3e-3° (rotations); Shift_y was noise at every step.
+
+Every stage now passes `diff_step = DIFF_STEP[free]` (`mantid_peakfit_calibration.DIFF_STEP`, user-approved):
+5e-4 for the shifts, 1e-2 for the angles, 1e-4 for λ. scipy's absolute step is `diff_step · max(1, |x|)`,
+so 0.5 mm for the shifts (always < 1 m), 0.01° for angles below 1° (growing with the angle above it, e.g.
+0.05° at the ±5° bound), ~1.5e-4 Å for λ; it follows the current value during a refinement (user decision:
+keep scipy's relative `diff_step`, not fixed absolute steps).
+
+**Effect** (full recipe, 2020 lattice, mask; `tests/scripts/fitcalibration_stepsize_study.py`):
+HB2B_3510 RMS 0.0261 → 0.0259°, pixel 2θ change ≤ 0.042° with TTH_0 applied; HB2B_3489 changes from a
+failed fit (Rot_z on its −5° bound, RMS 0.059°, error estimate all zero) to RMS 0.038° with rotations
+−0.90 / 0.22 / −0.09° (pixel 2θ up to 1.2° different). Run time similar or shorter. The gold-file tests
+(1–3 evaluations) still pass (max difference 6.8e-4 against a 5e-3 tolerance). The error estimates still
+come from the Jacobian and remain unreliable. Tests: `tests/unit/pyrs/calibration/test_fitcalibration_diff_step.py`.
