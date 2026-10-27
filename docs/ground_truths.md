@@ -775,8 +775,8 @@ works under real crash/network conditions.
 
 `MantidPeakFitEngine` (and `FitEngineFactory.getInstance`) take
 `high_background: bool = True`, forwarded to Mantid `FitPeaks` as
-`HighBackground`, alongside `FindBackgroundSigma=1` (Mantid's default, so
-a no-op kept for explicitness).
+`HighBackground`. (`FindBackgroundSigma=1` was passed alongside it until #1029; Mantid ignores it,
+see the `FindBackgroundSigma` entry below.)
 
 - `True` — background fitted first, then the peak. Upstream default since
   `ab3dd7d5` (2019-10-15, "Peak fitting pytests are passed"); every normal
@@ -807,7 +807,8 @@ The matrices are now float64 (user-approved change to reduction code). Effect on
 2θ/η move by ≤ 4.5e-7°; the unit and integration suites are unchanged. With float64 every step
 from 1.5e-8 to 1e-2 gives the same derivative (Rot_y, the weakest, to ~1.5e-4 at the smallest
 step), so `PixelCalibration` uses scipy's default step (`diff_step=None`).
-`test_scipy_default_step_gives_accurate_angle_derivative` fails if the matrices go back to float32.
+`test_scipy_default_step_gives_accurate_angle_derivative` and (from #1029)
+`test_rotation_matrix_resolves_tiny_angle_change` fail if the matrices go back to float32.
 
 ## Ring calibration: Shift_x/Rot_y/TTH_0 are exactly degenerate; Shift_y is weak (2026-10)
 
@@ -1255,3 +1256,45 @@ checked against the data without the refinement:
 
 Open: the detector's position response (mm per channel across the face, and where the 300 mm active area
 falls in channel space) — the masked-grid flood measurement decides it.
+## FitCalibration ignored its mask file and then crashed (2026-10, #1024)
+
+`FitCalibration(nexus_file=..., mask_file=...)` stored `mask_file` but called
+`_reduce_diffraction_data(nexus_file)` without it, so `NeXusConvertingApp` ran unmasked; it then
+passed the mask **path** to `ReductionApp.reduce_data(mask=...)`, which treats a string as the ID of
+an already-loaded mask, so `HB2BReductionManager.get_mask_vector` raised `ValueError`. Any masked
+production calibration (`scripts/pyrs_calibration.py` with `"mask"` in its JSON) crashed; the UI
+never passes a mask, so UI calibrations are unmasked.
+
+Fix (user-approved production change): pass `self.mask_file` to the conversion, which stores it as
+the workspace's default mask, and call `reduce_data(mask=None)` — with `mask=None` the reduction
+manager uses the default mask, and the per-evaluation `reduce_data()` only clears the η-wedge masks,
+not the default mask. Unmasked calibrations take the identical code path (the existing
+`test_peakfit_calibration` gold-file tests are unchanged); `test_mask_file_is_applied` failed with
+the original `ValueError` before the fix. Open: whether the UI should offer the instrument mask.
+
+## `FindBackgroundSigma` is ignored by Mantid `FitPeaks` (2026-10)
+
+The Mantid in this environment logs `FitPeaks property "FindBackgroundSigma" is deprecated and will
+be ignored` for every call. `MantidPeakFitEngine.fit_peaks` passed `FindBackgroundSigma=1`; it was
+removed (user-approved). Verified: `FitPeaks` on the same synthetic spectra gives bit-identical
+fitted parameters with and without the property, for `HighBackground=True` and `False`; peak-fitting
+and FitCalibration tests unchanged.
+
+## The calibration GUI applies the production detector mask by default (2026-10)
+
+`DetectorCalibrationModel` never passed a mask, so GUI calibrations ran unmasked even after #1024.
+It now uses `/HFIR/HB2B/shared/CALIBRATION/HB2B_Mask_Latest.xml` when that file exists and no mask
+otherwise (user decision, 2026-10-26), resolved when a run is loaded, and passes it to *both* places
+it builds `FitCalibration` — changing the 2θ/η bins rebuilds the object and used to drop any mask.
+`DetectorCalibrationModel.mask_file` reports which was used. On machines without `/HFIR` (CI) the
+behaviour is unchanged. Unit tests: `tests/unit/pyrs/interface/detector_calibration/`.
+
+## `HidraWorkspace` stores 2θ and intensities as float64, never the input's dtype (2026-10)
+
+`set_reduced_diffraction_data` used to create the 2θ matrix and the intensity matrix with
+`intensity_array.dtype`. Integer intensities (e.g. an unweighted `np.histogram`) therefore truncated
+**2θ** to whole degrees (75.79° → 75°) without warning, and float32 rounded it (~1e-5° at 100°); a
+mask added later took its first sub-run's dtype, so later float intensities into an integer array
+were truncated too. Both matrices are now always float64 (both branches). Every caller at the time
+(reduction, `FitCalibration`, the ring calibration, tests) already passed float64, so results are
+bit-identical; regression tests in `tests/unit/pyrs/core/test_workspaces.py`.

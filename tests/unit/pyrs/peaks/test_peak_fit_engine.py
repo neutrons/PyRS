@@ -921,4 +921,4 @@ def test_high_background_forwarded_to_fitpeaks(monkeypatch, high_background):
     fit_engine.fit_peaks("spy", 78.75, 81.25)
 
     assert captured["HighBackground"] is high_background
-    assert captured["FindBackgroundSigma"] == 1
+    assert "FindBackgroundSigma" not in captured  # deprecated and ignored by FitPeaks (#1029)

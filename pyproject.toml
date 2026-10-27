@@ -211,8 +211,8 @@ version = "1.9.0.dev32" # placeholder, overwritten by sync-version
 [tool.pixi.package.build.backend]
 name = "pixi-build-python"
 # Unconstrained: pixi-build-python's build.dependencies (pixi-build-api-version)
-# track the protocol version of the pixi CLI itself, which advances independently
-# and isn't pinned by our CI setup (prefix-dev/setup-pixi installs "latest").
+# track the protocol version of the pixi CLI itself, which advances independently.
+# CI pins `pixi-version` in prefix-dev/setup-pixi, but developers' local pixi may differ.
 # An exact pin (e.g. "==0.5.2", requiring pixi-build-api-version >=4,<5) breaks
 # as soon as the installed pixi CLI needs a newer protocol (e.g. >=5,<6, required
 # since pixi-build-python 0.6.0) -- no channel/version combination can satisfy
