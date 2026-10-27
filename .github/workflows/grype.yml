@@ -33,8 +33,9 @@ jobs:
       - name: Check out the code
         uses: actions/checkout@v7
       - name: Setup pixi
-        uses: prefix-dev/setup-pixi@v0.10.2
+        uses: prefix-dev/setup-pixi@9dabb60412d3d2d967a8d682f7ce01317af40514 # v0.11.0
         with:
+          pixi-version: v0.81.0
           manifest-path: pyproject.toml
       - name: Build conda package
         run: |
@@ -70,8 +71,8 @@ jobs:
           echo "dir=${LOCAL_CHANNEL}" >> "$GITHUB_OUTPUT"
 
       - name: Install package
-        id: installed
-        uses: neutrons/conda-actions/pkg-install@v2
+        id: install
+        uses: neutrons/gh-actions/pkg-install@46e28a74c8872901c571e0493d26871afe2662fb # v2.1
         with:
           package-name: ${{ env.PKG_NAME }}
           local-channel: ${{ runner.temp }}/local-channel/
@@ -86,6 +87,6 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Run the Grype scan action
-        uses: neutrons/conda-actions/grype@v2
+        uses: neutrons/gh-actions/grype@46e28a74c8872901c571e0493d26871afe2662fb # v2.1
         with:
-          path: ${{ steps.installed.outputs.install_dir }}
+          path: ${{ steps.install.outputs.conda-install-dir }}
