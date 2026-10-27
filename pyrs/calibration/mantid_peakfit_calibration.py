@@ -16,6 +16,12 @@ from pyrs.core.powder_pattern import ReductionApp
 from scipy.optimize import least_squares
 from scipy.optimize import brute
 
+# Relative finite-difference step of each calibration parameter (Shift_x/y/z, Rot_x/y/z, TTH_0, Lambda);
+# scipy's absolute step is diff_step * max(1, |x|): 0.5 mm, 0.01 deg (more above 1 deg), ~1.5e-4 A.
+# The residual has a ~1e-3 deg noise floor (peaks are re-binned and re-fitted at every evaluation), so
+# scipy's default 3-point step (~6e-6 relative) gives noise-dominated derivatives (#1030).
+DIFF_STEP = np.array([5e-4, 5e-4, 5e-4, 1e-2, 1e-2, 1e-2, 1e-2, 1e-4])
+
 
 class FitCalibration:
     """
@@ -299,7 +305,11 @@ class FitCalibration:
 
         return residual
 
-    def FitDetector(self, fun, x0, jac="3-point", bounds=[], i_index=2, Brute=False):
+    def FitDetector(self, fun, x0, jac="3-point", bounds=[], i_index=2, Brute=False, free=None):
+        """Refine ``x0`` with ``least_squares``; ``free`` are the indices of the refined parameters in
+        the calibration vector, which select their finite-difference steps from ``DIFF_STEP``
+        (None: scipy's default step)."""
+        diff_step = None if free is None else DIFF_STEP[list(free)]
         if Brute:
             BOUNDS = []
             lL = bounds[1]
@@ -318,7 +328,13 @@ class FitCalibration:
 
             if self._ref_method == "lm":
                 out = least_squares(
-                    fun, x0, jac="3-point", method=self._ref_method, max_nfev=self._max_nfev, args=(Brute, i_index)
+                    fun,
+                    x0,
+                    jac="3-point",
+                    method=self._ref_method,
+                    max_nfev=self._max_nfev,
+                    diff_step=diff_step,
+                    args=(Brute, i_index),
                 )
             else:
                 out = least_squares(
@@ -328,6 +344,7 @@ class FitCalibration:
                     bounds=bounds,
                     method=self._ref_method,
                     max_nfev=self._max_nfev,
+                    diff_step=diff_step,
                     args=(Brute, i_index),
                 )
 
@@ -457,7 +474,7 @@ class FitCalibration:
         """
 
         out = self.FitDetector(
-            self.peak_alignment_single, initial_guess, jac="3-point", bounds=(LL, UL), i_index=i_index
+            self.peak_alignment_single, initial_guess, jac="3-point", bounds=(LL, UL), i_index=i_index, free=[i_index]
         )
 
         return out
@@ -504,6 +521,7 @@ class FitCalibration:
             self.peak_alignment_wave_shift,
             initial_guess,
             bounds=([-5.0, self._calib[7] - 0.025], [5.0, self._calib[7] + 0.025]),
+            free=[6, 7],
         )
 
         self.set_wave_shift(out)
@@ -598,7 +616,7 @@ class FitCalibration:
         if bounds is None:
             bounds = [[-0.05, -0.05, -0.15], [0.05, 0.05, 0.15]]
 
-        out = self.FitDetector(self.peak_alignment_shift, initalGuess, bounds=(bounds[0], bounds[1]))
+        out = self.FitDetector(self.peak_alignment_shift, initalGuess, bounds=(bounds[0], bounds[1]), free=[0, 1, 2])
 
         self.set_shift(out)
 
@@ -608,7 +626,9 @@ class FitCalibration:
         if initalGuess is None:
             initalGuess = self.get_rotation()
 
-        out = self.FitDetector(self.peak_alignment_rotation, initalGuess, bounds=([-5.0, -5.0, -5.0], [5.0, 5.0, 5.0]))
+        out = self.FitDetector(
+            self.peak_alignment_rotation, initalGuess, bounds=([-5.0, -5.0, -5.0], [5.0, 5.0, 5.0]), free=[3, 4, 5]
+        )
 
         self.set_rotation(out)
 
@@ -622,6 +642,7 @@ class FitCalibration:
             self.peak_alignment_geometry,
             initalGuess,
             bounds=([-0.05, -0.05, -0.05, -5.0, -5.0, -5.0, -5.0], [0.05, 0.05, 0.05, 5.0, 5.0, 5.0, 5.0]),
+            free=list(range(7)),
         )
 
         self.set_geo(out)
@@ -639,6 +660,7 @@ class FitCalibration:
                 [-0.05, -0.05, -0.15, -5.0, -5.0, -5.0, -5.0, self._calib[7] - 0.05],
                 [0.05, 0.05, 0.15, 5.0, 5.0, 5.0, 5.0, self._calib[7] + 0.05],
             ),
+            free=list(range(8)),
         )
 
         self.set_calibration(out)
