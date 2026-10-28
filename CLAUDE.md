@@ -43,11 +43,12 @@ After implementation:
 - Fix failures before proceeding.
 - For UI work, actually exercise the feature in a browser — type checking and tests verify code correctness, not feature correctness.
 
-### Step 5: Review (For Major Changes)
-After a significant feature or refactor, delegate review using the `Agent` tool. Prefer the project's purpose-built reviewers in [.github/agents/](.github/agents/):
-- [security-reviewer](.github/agents/security-reviewer.md) — security-focused review.
-- [design-reviewer](.github/agents/design-reviewer.md) — architecture and design review.
-- [test-reviewer](.github/agents/test-reviewer.md) — test-coverage review.
+### Step 5: Code Review Process (For Major Changes)
+<!-- cherry-pick 30231c18: reviewer links below changed from .github/agents/ to .claude/agents/ -->
+After a significant feature or refactor, delegate review using the `Agent` tool. Prefer the project's purpose-built reviewers in [.claude/agents/](.claude/agents/):
+- [security-reviewer](.claude/agents/security-reviewer.md) — security-focused review.
+- [design-reviewer](.claude/agents/design-reviewer.md) — architecture and design review.
+- [test-reviewer](.claude/agents/test-reviewer.md) — test-coverage review.
 
 Brief the sub-agent with what changed, why, the files touched, and what to focus on. Address findings, then update documentation.
 
@@ -232,6 +233,26 @@ Notes:
   names the blocking line. Override per-test with `@pytest.mark.timeout(N)` for a
   genuinely long-running case rather than raising the global limit.
 
+<!-- cherry-pick 30231c18: BEGIN added block "Pytest markers" -->
+**Pytest markers** — apply the correct marker(s) when a test is *written*,
+not as a later audit pass. See `pyproject.toml`'s
+`[tool.pytest.ini_options] markers` for the authoritative definitions.
+- `@pytest.mark.integration` (or a module-level `pytestmark`) for a test
+  that reads/writes real data (`tests/data`, `/HFIR` archive) **or**
+  exercises a multi-component workflow.
+- The dividing line for "multi-component": a synthetic in-memory round trip
+  through `tmp_path` that stays inside one component's own public API
+  (e.g. a library's own `write`/`read`) is unit, unmarked — it's testing
+  that component's own correctness. The same round trip called *through* a
+  second component (e.g. a GUI-model class driving that library, or a
+  session-registry hookup between two separate classes) is `integration` —
+  it's testing that the two integrate correctly, regardless of whether the
+  underlying data is real or synthetic.
+- Marker (not file location) is what actually selects the fast tier
+  (`-m "not integration and not gui"`) — a correctly-marked test doesn't
+  need to move directories to be classified correctly.
+<!-- cherry-pick 30231c18: END added block "Pytest markers" -->
+
 ## 🔍 Code Review Process
 
 Trigger a review when:
@@ -260,7 +281,7 @@ the XYZ instrument. Typical workflow:
 """
 ```
 
-Class docstring: describe purpose, key attributes, and a usage example. See [.github/copilot-instructions.md](.github/copilot-instructions.md) for the full template.
+Class docstring: describe purpose, key attributes, and a usage example.
 
 ## 🚨 Common Scenarios
 
