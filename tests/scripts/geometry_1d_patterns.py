@@ -1,11 +1,15 @@
 """
-By-hand diagnostic (not collected by pytest): 1D diffraction patterns of two calibration runs under
-three detector geometries:
+By-hand diagnostic (not collected by pytest): 1D diffraction patterns of calibration runs under several
+detector geometries. By default, for two runs:
 
 * unrefined: nominal pose (no shifts or rotations), 2theta_0 = 0, pitch 0.29297 mm, mono wavelength;
 * refined, pitch 0.29297 mm: joint fit of both runs (tests/scripts/joint_calibration_fit.py: shared pose,
   2theta_0 and wavelength per run, |2theta_0| <= 0.5 deg);
 * refined, pitch 0.314 mm: the same joint fit with the mask-implied pitch.
+
+With ``--calibration LABEL=FILE.json`` (repeatable) the geometries are instead the unrefined one and the
+given calibration files (shifts, rotations, TTH_0 and Lambda as written; pitch 0.29297 mm), for one or
+two runs, e.g. to compare a GUI, a FitCalibration and a ring calibration of the same run.
 
 Each sub-run's masked pixels are histogrammed in 2theta (the forward model, identical to reduction's
 pixel map) as counts per pixel. Bragg positions 2*asin(lambda / 2d) use each geometry's wavelength. Each
@@ -13,11 +17,12 @@ reflection is fitted with a Gaussian on a linear background to give its offset f
 
 Run from the repository root:
 
-    pixi run python tests/scripts/geometry_1d_patterns.py RUN_A.nxs.h5 RUN_B.nxs.h5 OUTPUT_DIR [--mask MASK.xml]
-        [--lattice 2020|2023|Ni=A,Fe=A]
+    pixi run python tests/scripts/geometry_1d_patterns.py RUN_A.nxs.h5 [RUN_B.nxs.h5] OUTPUT_DIR [--mask MASK.xml]
+        [--lattice 2020|2023|Ni=A,Fe=A] [--calibration LABEL=FILE.json ...]
 """
 
 import argparse
+import json
 import sys
 import warnings
 from pathlib import Path
@@ -39,23 +44,36 @@ from joint_calibration_fit import TTH0_LIMIT, joint_fit, load, setup_with_pitch,
 NOMINAL_PITCH, MASK_PITCH = 0.29296875, 0.314
 BIN = 0.03
 WINDOW = 1.0  # deg either side of Bragg for the peak close-ups and fits
-STYLES = {  # label -> colour, line style (categorical slots 2, 1, 3)
-    "unrefined (nominal, 0.293 mm)": ("#eb6834", "-"),
-    "refined, 0.293 mm": ("#2a78d6", "-"),
-    "refined, 0.314 mm": ("#1baf7a", "--"),
-}
+UNREFINED = "unrefined (nominal, 0.293 mm)"
+PALETTE = ("#eb6834", "#2a78d6", "#1baf7a", "#eda100", "#e87ba4", "#6250d6")  # categorical slots 2, 1, 3-6
+CAL_KEYS = ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda")
+# set in main(): label -> (colour, line style); labels whose predictions are drawn; the close-up reference
+STYLES: dict = {}
+PREDICTED: tuple = ()
+REFERENCE = ""
+
+
+def set_styles(labels, predicted, reference) -> None:
+    global STYLES, PREDICTED, REFERENCE
+    STYLES = {label: (PALETTE[i % len(PALETTE)], "--" if i == 2 and len(labels) == 3 else "-") for i, label in enumerate(labels)}
+    PREDICTED, REFERENCE = tuple(predicted), reference
+
+
+def calibration_vector(path: str) -> np.ndarray:
+    """The 8 calibration values of a calibration JSON, read directly (TTH_0, or the legacy two_theta_0)."""
+    raw = json.loads(Path(path).read_text())
+    raw.setdefault("TTH_0", raw.get("two_theta_0", 0.0))
+    return np.array([float(raw[k]) for k in CAL_KEYS])
 
 
 HKL = {2: "110", 3: "111", 4: "200", 6: "211", 8: "220", 10: "310", 11: "311", 12: "222", 16: "400", 19: "331"}
 CLOSE_UP = 1.5  # deg either side of the refined prediction in the close-ups
-# the two refined geometries share one wavelength, so one set of refined predictions is drawn
-PREDICTED = ("unrefined (nominal, 0.293 mm)", "refined, 0.293 mm")
 
 
 def mark_predictions(ax, curves, only=None, values=False) -> None:
     """Vertical line and a labelled marker at each predicted peak 2theta, per wavelength."""
     transform = ax.get_xaxis_transform()
-    for level, label in zip((0.97, 0.84), PREDICTED):
+    for level, label in zip((0.97, 0.84, 0.71, 0.58, 0.45, 0.32), PREDICTED):
         colour = STYLES[label][0]
         _, _, bragg, _, hkls = curves[label]
         for b, hkl in zip(bragg, hkls):
@@ -99,8 +117,9 @@ def fit_peak(x, y, bragg):
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("run_a")
-    parser.add_argument("run_b")
+    parser.add_argument("run_b", nargs="?", default=None)
     parser.add_argument("output_dir")
+    parser.add_argument("--calibration", action="append", default=[], help="LABEL=FILE.json (repeatable)")
     parser.add_argument("--mask", default=None)
     parser.add_argument("--lattice", default="2020", help="2020, 2023 or e.g. Ni=3.52942,Fe=2.8674")
     args = parser.parse_args()
@@ -112,13 +131,25 @@ def main() -> None:
 
     standards = standards_for(args.lattice)
     print(f"{args.lattice} lattice constants: " + ", ".join(f"{s.name} {s.lattice_a}" for s in standards))
-    runs = [load(args.run_a, args.mask, standards), load(args.run_b, args.mask, standards)]
-    geometries = {"unrefined (nominal, 0.293 mm)": (NOMINAL_PITCH, [np.zeros(8), np.zeros(8)])}
-    for pitch, label in ((NOMINAL_PITCH, "refined, 0.293 mm"), (MASK_PITCH, "refined, 0.314 mm")):
-        _, _, params, _ = joint_fit(runs, pitch, [0, 1, 2, 3, 4, 5], True, TTH0_LIMIT)
-        geometries[label] = (pitch, list(params))
+    run_files = [args.run_a] + ([args.run_b] if args.run_b else [])
+    runs = [load(f, args.mask, standards) for f in run_files]
+    geometries = {UNREFINED: (NOMINAL_PITCH, [np.zeros(8) for _ in runs])}
+    if args.calibration:
+        for item in args.calibration:
+            label, path = item.split("=", 1)
+            geometries[label] = (NOMINAL_PITCH, [calibration_vector(path) for _ in runs])
+        labels = list(geometries)
+        set_styles(labels, labels, labels[1])
+    else:
+        if len(runs) != 2:
+            parser.error("the joint-fit geometries need two runs; give --calibration for one run")
+        for pitch, label in ((NOMINAL_PITCH, "refined, 0.293 mm"), (MASK_PITCH, "refined, 0.314 mm")):
+            _, _, params, _ = joint_fit(runs, pitch, [0, 1, 2, 3, 4, 5], True, TTH0_LIMIT)
+            geometries[label] = (pitch, list(params))
+        # the two refined geometries share one wavelength, so one set of refined predictions is drawn
+        set_styles(list(geometries), (UNREFINED, "refined, 0.293 mm"), "refined, 0.293 mm")
     for i, run in enumerate(runs):
-        geometries["unrefined (nominal, 0.293 mm)"][1][i][7] = run[3]
+        geometries[UNREFINED][1][i][7] = run[3]
 
     print("Geometries (Shift mm, Rot deg, 2theta_0 deg, lambda A):")
     for label, (pitch, params) in geometries.items():
@@ -130,7 +161,7 @@ def main() -> None:
 
     print("\nPeak fits: centre - Bragg (deg) and FWHM (deg) per geometry")
     for i, (name, _, base_setup, _) in enumerate(runs):
-        workspace = NeXusConvertingApp(args.run_a if i == 0 else args.run_b, args.mask).convert()
+        workspace = NeXusConvertingApp(run_files[i], args.mask).convert()
         num_rows, num_columns = base_setup.detector_size
         grid = np.meshgrid(np.arange(num_columns), np.arange(num_rows), indexing="ij")
         mask = workspace.get_detector_mask(True)
@@ -174,24 +205,24 @@ def main() -> None:
         for ax in list(axes.flat)[len(panels):]:
             ax.set_visible(False)
         handles, labels = axes.flat[0].get_legend_handles_labels()
-        fig.legend(handles, labels, loc="outside lower center", ncol=3, fontsize=8)
+        fig.legend(handles, labels, loc="outside lower center", ncol=min(len(labels), 4), fontsize=8)
         fig.suptitle(
             f"{name} ({args.lattice} lattice): 1D patterns; ▼ predicted peak 2θ = 2·asin(λ/2d) at each geometry's λ"
-            " (orange: unrefined, mono λ; blue: refined λ, both pitches)",
+            " (colours as in the legend)",
             fontsize=10,
         )
         fig.savefig(out_dir / f"{name}_1d_patterns.png", dpi=120)
         plt.close(fig)
 
         # peak close-ups in absolute 2theta, centred on the refined prediction
-        rings = [(s, pw, det, k) for s, pw, det, cv in panels for k in range(len(cv["refined, 0.293 mm"][2]))]
+        rings = [(s, pw, det, k) for s, pw, det, cv in panels for k in range(len(cv[REFERENCE][2]))]
         ncols = 4
         nrows = int(np.ceil(len(rings) / ncols))
         fig, axes = plt.subplots(nrows, ncols, figsize=(13, 2.7 * nrows), constrained_layout=True, squeeze=False)
         for ax, (sub_run, powder, det, k) in zip(axes.flat, rings):
             curves = dict(next(cv for s, _, _, cv in panels if s == sub_run))
-            centre = curves["refined, 0.293 mm"][2][k]
-            hkl = curves["refined, 0.293 mm"][4][k]
+            centre = curves[REFERENCE][2][k]
+            hkl = curves[REFERENCE][4][k]
             line = f"  {name} sub-run {sub_run:2d} {powder} {hkl}:"
             for label, (x, y, bragg, fits, hkl_labels) in curves.items():
                 colour, style = STYLES[label]
@@ -213,9 +244,9 @@ def main() -> None:
         for ax in list(axes.flat)[len(rings):]:
             ax.set_visible(False)
         handles, labels = axes.flat[0].get_legend_handles_labels()
-        fig.legend(handles, labels, loc="outside lower center", ncol=3, fontsize=8)
+        fig.legend(handles, labels, loc="outside lower center", ncol=min(len(labels), 4), fontsize=8)
         fig.suptitle(
-            f"{name} ({args.lattice} lattice): each reflection; ▼ predicted 2θ at each geometry's λ (orange: unrefined, blue: refined)",
+            f"{name} ({args.lattice} lattice): each reflection; ▼ predicted 2θ at each geometry's λ (colours as in the legend)",
             fontsize=10,
         )
         fig.savefig(out_dir / f"{name}_1d_peaks.png", dpi=120)
