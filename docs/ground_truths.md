@@ -1476,3 +1476,24 @@ gold file `HB2B_mantid_calib.json` changes only in its error estimates (`error_T
 `error_Lambda` 0.0352 → 0.0261 Å; all parameters unchanged at 1 evaluation per stage). Regression test:
 `test_eta_wedges_are_binned_on_the_stored_axis` (`tests/integration/test_texture_reduction.py`). Not yet
 checked: reductions with several user ROI masks, which share the same per-sub-run 2θ storage.
+
+## HB2B_4971 re-scored with correctly binned η wedges (2026-10-28, #1018 after #1033/#1034)
+
+FitCalibration re-run on HB2B_4971 with the single-2θ-range reduction (mask, per-parameter steps,
+`max_nfev` 40, ~40 min each); all geometries re-scored (`calib_diagnostics/hb2b_4971/fixed_wedges/`).
+
+| geometry | η-wedge RMS 2020 / 2023 lattice | ring-point RMS | strip drift mean \|d\| | 1D peak − Bragg RMS / spread | λ |
+|---|---|---|---|---|---|
+| GUI | 0.0246 / 0.0576° | 0.0229° | 0.040° | 23.1 / 6.8 mdeg | 1.53078 Å |
+| FitCalibration 2023, corrected wedges | 0.0225 / **0.0565°** | 0.0210° | 0.034° | 21.8 / 5.9 mdeg | 1.5315 Å |
+| FitCalibration 2020, corrected wedges | 0.0123 / 0.0600° | 0.0151° | 0.022° | 9.5 / 9.4 mdeg | 1.5313 Å |
+| ring | **0.0091** / 0.0581° | **0.0065°** | **0.004°** | **7.8 / 4.2 mdeg** | 1.53129 Å |
+
+* **#1018's η-wedge criterion is now met:** the ring geometry scores 0.0091° on FitCalibration's own metric,
+  below FitCalibration's best (0.0123°, its own optimum 0.0121°). FitCalibration therefore stops short of the
+  minimum of its own cost — its corrected-2020 result has Rot_x −1.78° and Rot_y 3.70° at 2θ₀ = 0 (ring 0.36°)
+  — consistent with its noisy, re-reduce-every-step residual (#1030). Its λ now matches the ring calibration.
+* **The 2023 lattice constants make every geometry fit equally badly on the wedges** (0.056–0.060°): they cannot
+  describe the Ni/Fe ratio, so the residual is lattice error, not geometry (#1022).
+* All three #1018 success criteria are met (λ not at a bound; strip drift flattened 10×; η-wedge residual below
+  FitCalibration's).
