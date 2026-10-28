@@ -1363,9 +1363,9 @@ lattice; `calib_diagnostics/ring_points_3510_3489.npz`); scripts on `calibration
   through their curvature. A ~1σ hint of py < px. The mask rectangle (958 × 953 ch) would give the
   opposite (0.3132 × 0.3148 mm for a square 300 mm area).
 * **Horizontal pitch with the vertical locked at 0.29297 mm** (direct least squares):
-  - surveyed face pose (Shift_z = 0, Rot = 0; Shift_x, Shift_y, 2θ₀, λ free): px 0.3189 ± 0.0005 / 0.3193
-    ± 0.0008 mm, but only with 2θ₀ ≈ +5.0° — against |2θ₀| < 0.5°, so an untilted plane with a uniform
-    pitch is excluded;
+  - surveyed face pose (Shift_z = 0, Rot = 0; Shift_x, Shift_y, 2θ₀, λ free): px 0.3176 ± 0.0005 / 0.3178
+    ± 0.0007 mm, RMS 0.0231 / 0.0372°, but only with 2θ₀ ≈ +4.4° and Shift_x ≈ −80 mm — against
+    |2θ₀| < 0.5° and no sideways shift, so an untilted plane with a uniform pitch is excluded;
   - 2θ₀ = 0 (removes the 2θ₀ / Shift_x / Rot_y degeneracy), Shift_z = 0: px 0.3170 ± 0.0004 / 0.3173 ±
     0.0007 mm, Rot_y 6.14 / 6.50°, RMS 0.0182 / 0.0361° (free pose 0.0173 / 0.0359°); with Shift_z free px
     is undetermined (0.306 ± 0.015 / 0.313 ± 0.021 mm: pitch and distance still trade);
