@@ -1509,6 +1509,24 @@ pixel 2θ on HB2B_4971, and why #1018's "η-wedge residual ≤ FitCalibration's"
 η-resolved/texture reduction (`ReductionApp.reduce_data(eta_step=...)`, e.g. `reduce_texture.py`) and the
 project files written from them (one 2θ matrix per sub-run). Not yet checked: reductions with several
 user masks (ROIs), which go through the same `set_reduced_diffraction_data`.
+## η-wedge (texture) reductions use one 2θ range per sub-run (2026-10, #1033)
+
+`ReductionManager.reduce_sub_run_texture` binned each η wedge over the 2θ range of *its own* pixels when no
+`min_2theta` / `max_2theta` was given, but `HidraWorkspace.set_reduced_diffraction_data` keeps **one 2θ axis per
+sub-run**, which each wedge overwrote: every wedge but the last written (order 0, +3, +6, −3, −6 → η = −6°)
+was returned on another wedge's axis. Wedge ranges differ by only 0.01–0.06°, but bins are matched by index,
+so wedge peaks moved by up to 66 mdeg (RMS ~26 mdeg on HB2B_4971 and HB2B_3510; ≈ 40–500 µε varying with η).
+This biased `FitCalibration` (its residual is these wedges) and every η-resolved/texture reduction without an
+explicit 2θ range.
+
+Fix (user-approved): when no range is given, take **one range per sub-run from the pixels the default detector
+mask keeps** (`workspace.get_detector_mask(is_default=True)`), and bin every wedge on it. A user ROI does not
+change the bins; callers that pass a range are unchanged. Effect: the four affected wedges move to their
+correct 2θ (up to ±66 mdeg); the last wedge changes only by re-binning (≤ 0.5–1.6 mdeg). `FitCalibration`'s
+gold file `HB2B_mantid_calib.json` changes only in its error estimates (`error_TTH_0` 1.775 → 1.449°,
+`error_Lambda` 0.0352 → 0.0261 Å; all parameters unchanged at 1 evaluation per stage). Regression test:
+`test_eta_wedges_are_binned_on_the_stored_axis` (`tests/integration/test_texture_reduction.py`). Not yet
+checked: reductions with several user ROI masks, which share the same per-sub-run 2θ storage.
 ## Slit scan: measuring the detector position response directly (2026-10)
 
 The ring data cannot separate distance from pixel pitch, and the ~6° rotation-like asymmetry they
