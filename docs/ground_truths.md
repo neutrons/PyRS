@@ -1479,6 +1479,36 @@ Scripts on `calibration-diagnostics`: `score_calibrations.py`, `geometry_1d_patt
   Shift_z −13.7 mm, RMS 0.0064°; forcing Shift_z = 0 gives 0.3083 mm but RMS 0.0095°. Horizontal/vertical
   pitch ratio (distance-independent) 1.03 ± 0.02 (2023: 1.04 ± 0.05). Open: whether the detector was moved,
   serviced or re-tuned between cycles C501 and C510, and whether a radial collimator was used in 2023.
+
+## η-wedge (texture) reductions share one 2θ axis: every wedge but the last is mislabelled (2026-10-28)
+
+Found while explaining why the ring geometry scores worse than FitCalibration on FitCalibration's own
+η-wedge residual (#1018). **A production bug in PyRS reduction — reported, not fixed.**
+
+**Mechanism.** `ReductionManager.reduce_sub_run_texture` (used whenever `eta_step` is given) bins each η wedge
+over the 2θ range of *that wedge's own pixels* (`generate_2theta_histogram_vector(..., mask_array=eta_mask)`),
+then calls `HidraWorkspace.set_reduced_diffraction_data(sub_run, "eta_<c>", ...)`, which keeps **one 2θ axis
+per sub-run** (`self._2theta_matrix[spec_id] = two_theta_array`). Each wedge overwrites it, so every wedge is
+returned with the axis of the last one written (order 0, +3, +6, −3, −6 → η = −6°), and the intensities of the
+other wedges sit on the wrong 2θ values. Wedge ranges differ by only 0.01–0.06°, but the bins are matched by
+index, so peaks move by `x_last + (x − x_own)·(range_last / range_own) − x`.
+
+**Size** (HB2B_4971, ring geometry, 512 bins, 3° wedges; `tests/scripts/eta_wedge_axis_check.py` on
+`calibration-diagnostics`): wedge peak shifts +35 … −66 mdeg, RMS 25.6 mdeg, largest at high 2θ; the
+prediction matches the observed shifts to 0.11 mdeg RMS. ≈ 40–500 µε of η-dependent apparent strain.
+
+**Ruled out first** (`tests/scripts/peak_asymmetry_study.py`): the peaks are asymmetric (broader high-angle
+side at every 2θ, split-PV width ratio 1.0–1.4, no sign change near 90°), but Gaussian ±1°, Gaussian + linear
+±3° and pseudo-Voigt ±3° give the same centres within a few mdeg with no 2θ trend; normalising the wedge
+histograms by pixel count (the reduction sums counts unless a vanadium is given) changes centres by < 2 mdeg.
+On correctly-binned wedges the ring geometry's wedge residual is ~10 mdeg RMS and flat in η.
+
+**Affects:** `FitCalibration` (its residual is these wedges, so every FitCalibration/GUI calibration was refined
+against mislabelled patterns — this is why FitCalibration and the ring calibration differ by up to 0.16° in
+pixel 2θ on HB2B_4971, and why #1018's "η-wedge residual ≤ FitCalibration's" criterion failed); any
+η-resolved/texture reduction (`ReductionApp.reduce_data(eta_step=...)`, e.g. `reduce_texture.py`) and the
+project files written from them (one 2θ matrix per sub-run). Not yet checked: reductions with several
+user masks (ROIs), which go through the same `set_reduced_diffraction_data`.
 ## Slit scan: measuring the detector position response directly (2026-10)
 
 The ring data cannot separate distance from pixel pitch, and the ~6° rotation-like asymmetry they
