@@ -1446,6 +1446,39 @@ lattice; `calib_diagnostics/ring_points_3510_3489.npz`); scripts on `calibration
   depth and wire mounting. A horizontal-only pitch gradient would mimic part of the tilt; a horizontal-slit
   scan (vertical scale against column; constant for a pitch gradient, ±1.6% across the face for a 6° tilt)
   separates the two.
+
+## HB2B_4971 (2024): ring calibration against FitCalibration and the GUI calibration (2026-10-28, #1018)
+
+HB2B_4971 (2024-10-30, cycle C510, "with RC" — radial collimator; Si 422, 1.54 Å, 11 sub-runs of Ni and Fe,
+600–700k counts each, ~10× HB2B_3510). Mask `HB2B_Mask_12-18-19.xml`, 2020 lattice for the ring calibration.
+Scripts on `calibration-diagnostics`: `score_calibrations.py`, `geometry_1d_patterns.py --calibration`,
+`ring_overlay_figures.py`; outputs in `calib_diagnostics/hb2b_4971/`. The planned
+`scripts/compare_calibrations.py` was replaced by these (user decision).
+
+* **Ring calibration:** 26 s, 64 points / 13 rings, RMS 0.0065°, λ 1.53129 ± 0.00008 Å (not at a bound),
+  Shift_z −44.25 ± 0.26 mm. **FitCalibration** (full recipe, mask, per-parameter steps, `max_nfev` 40):
+  ~30 min; 2020 lattice η-wedge RMS 0.0166°, 2023 lattice 0.0577° with Rot_x −3.2° and Shift_z −51 mm (the
+  2023 constants distort it again). GUI file: Shift_z −44.4 mm, rotations not refined.
+* **Scores** (pixel 0.293 mm; geometries compared as objects, re-expressed at 2θ₀ = 0):
+
+  | geometry | ring-point RMS | strip drift mean \|d\| | η-wedge RMS (2020 / 2023 lattice) | whole-detector 1D peak − Bragg: RMS / spread | Shift_z / Rot_y at 2θ₀ = 0 |
+  |---|---|---|---|---|---|
+  | none | 0.717° | 0.039° | 0.662 / 0.649° | 0.689 / 0.162° | 0 / 0 |
+  | GUI | 0.0229° | 0.040° | 0.0231 / 0.0600° | 0.023 / 0.007° | −44.4 mm / 0.66° |
+  | FitCalibration 2023 | 0.0381° | 0.053° | 0.0246 / 0.0577° | 0.034 / 0.023° | −51.3 mm / 1.09° |
+  | FitCalibration 2020 | 0.0222° | 0.042° | **0.0167** / 0.0604° | 0.018 / 0.016° | −44.2 mm / 1.33° |
+  | ring | **0.0065°** | **0.0040°** | 0.0251 / 0.0624° | **0.008 / 0.004°** | −44.3 mm / 0.36° |
+
+* **#1018 success criteria:** λ not at a bound — met; strip drift flattened — met (10×); η-wedge residual
+  ≤ FitCalibration's — **not met** (0.0251 vs 0.0167°). Each method wins its own metric; the independent
+  whole-detector 1D peak positions favour the ring geometry (RMS 0.008 vs 0.018°, 4× less scatter, equal
+  FWHM). The two disagree by up to 0.16° in pixel 2θ (mostly Rot_y and λ), with the same distance.
+* **Geometry differs from 2023:** the 2024 detector is nearly square-on (Rot_y +0.34° with 2θ₀ = 0 and the
+  distance free, against ~6° for HB2B_3510/3489) at Shift_z −44 mm (against −75 mm). With the vertical pitch
+  locked at 0.29297 mm, 4971's statistics begin to separate distance and pitch: horizontal 0.302 ± 0.006 mm,
+  Shift_z −13.7 mm, RMS 0.0064°; forcing Shift_z = 0 gives 0.3083 mm but RMS 0.0095°. Horizontal/vertical
+  pitch ratio (distance-independent) 1.03 ± 0.02 (2023: 1.04 ± 0.05). Open: whether the detector was moved,
+  serviced or re-tuned between cycles C501 and C510, and whether a radial collimator was used in 2023.
 ## Slit scan: measuring the detector position response directly (2026-10)
 
 The ring data cannot separate distance from pixel pitch, and the ~6° rotation-like asymmetry they
