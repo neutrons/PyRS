@@ -1093,8 +1093,8 @@ applied without the 2θ₀ that balances them). Reduction now reads `TTH_0`, so 
 written.
 
 **Still not for production use:** the refined geometry itself is in doubt — on HB2B_3510/3489 it needs
-a ~7–8% larger pixel pitch or a ~75 mm shorter distance than surveyed, and a ~6° rotation-like
-asymmetry the survey excludes (entries below). Do not reduce production data with these files until
+a ~7–8% larger pixel pitch or a ~75 mm shorter distance than surveyed, and a ~6° rotation of the
+detection plane that the face survey cannot confirm or exclude (entries below). Do not reduce production data with these files until
 the detector position response is measured (slit scan, `calibration-diagnostics` branch).
 
 ## HB2B_3510: the ring spacing itself says the detector is ~7% "closer" than nominal (2026-10)
@@ -1168,9 +1168,11 @@ checked against the data without the refinement:
   −18 mm (3489) instead of −73/−79 mm. Unconfirmed: the edges could be a frame or window shadow, or
   electronic edge compression; the vendor active area and the readout's channel mapping decide it.
 
-- **Laser-scanner survey (user, 2026-10-23):** the detector face is at the nominal distance and shows
-  no rotation. So Shift_z ≈ 0 and Rot ≈ 0 are measured, and the −73…−79 mm / 4–8° of the free ring fits
-  are artefacts of the model, not the detector.
+- **Laser-scanner survey (user, 2026-10-23; corrected 2026-10-27):** the detector **housing face** is at
+  the nominal distance and shows no rotation. **It does not measure the detection (wire) planes inside**
+  (user, 2026-10-27): Shift_z refers to the face, with the wires an unknown depth behind it, and a rotation
+  of the wire planes relative to the face is *not* excluded. Earlier statements below that "the survey
+  excludes the tilt" apply to the face only.
 - **The mask is exactly the dead border.** `HB2B_Mask_12-18-19.xml` keeps one rectangle, index_0 34–991
   (958 ch) × index_1 40–992 (953 ch); every masked pixel is within 40 channels of an edge and none lies
   inside that rectangle. Masked pixels get 0.16 counts/pixel against 1.58 kept (1.5% of all counts, the
@@ -1183,7 +1185,8 @@ checked against the data without the refinement:
   (free fit 0.0175 / 0.0363°) — but only with **Shift_x −77 to −101 mm and 2θ₀ 4.4–5.8°**: the old 4°
   "tilt" has moved into the Shift_x/2θ₀ swing, and those values are as unphysical as the tilt. The
   vertical pitch is unconstrained (ky 1.02–1.04, no RMS gain). So the data carry a left–right asymmetry
-  in pixels per degree that neither a tilt (excluded by the survey) nor a uniform pitch explains. The
+  in pixels per degree that a uniform pitch does not explain; a tilt of the face is excluded by the
+  survey, a tilt of the wire planes is not (see the correction above). The
   two-ring ratios hint at it (3510: 0.926 at columns 246–541, 0.937 at 462–761), consistent with a
   pitch that varies across the detector (position non-linearity of the readout) — untested.
 - **`FitCalibration` on HB2B_3489** (mask, 2020 lattice, nominal start; worktree code): per-parameter
@@ -1200,7 +1203,7 @@ checked against the data without the refinement:
   survey pose (Shift_z = 0, Rot = 0) RMS 0.0323° (3510, free 0.0175°) and 0.0461° (3489, free 0.0363°),
   2θ₀ 1.07° / 1.37°, Shift_x −19 / −29 mm; the residuals keep a left–right gradient, +51 → −24 mdeg
   (3510) and +43 → −17 mdeg (3489) across the columns — what Rot_y absorbs in the free fit. Separate
-  mask-edge pitches (0.3132 × 0.3148 mm) fit slightly worse. With Rot_y fixed by the survey, 2θ₀ is
+  mask-edge pitches (0.3132 × 0.3148 mm) fit slightly worse. With Rot_y fixed at 0 (face survey), 2θ₀ is
   refinable, but its value carries whatever causes that gradient.
 - **Rot_y = 2θ₀ + Rot_y_0 (user, 2026-10-23)** — the degeneracy in the 2θ₀ = 0 frame, with its shift
   part Shift_x = Shift_x_0 − L·sin 2θ₀ (verified: 3510 at 0.314 mm, Rot_y 4.375° ↔ ΔShift_x −74.5 mm =
@@ -1222,7 +1225,7 @@ checked against the data without the refinement:
   (condition 2e8): Rot_y_0 + δ with both 2θ₀ − δ fits identically, so only the difference
   2θ₀(3489) − 2θ₀(3510) = −0.30° is measured and the reported ±0.38° are not meaningful. Within the
   ±0.5° bound, δ ∈ [−0.36, +0.34]°, so **Rot_y_0 ∈ [5.46, 6.16]°**: with |2θ₀| < 0.5° the rings demand a
-  ~5.5–6.2° face rotation that the laser survey does not see. One shared geometry does describe both runs
+  ~5.5–6.2° rotation of the detection plane (the face survey does not see the wire planes). One shared geometry does describe both runs
   (RMS barely above the separate fits).
 - **1D patterns under three geometries** (`tests/scripts/geometry_1d_patterns.py`, figures in
   `calib_diagnostics/patterns_1d/`): unrefined (nominal pose, 2θ₀ = 0, 0.293 mm, mono λ) vs the joint
@@ -1397,6 +1400,52 @@ failed fit (Rot_z on its −5° bound, RMS 0.059°, error estimate all zero) to 
 −0.90 / 0.22 / −0.09° (pixel 2θ up to 1.2° different). Run time similar or shorter. The gold-file tests
 (1–3 evaluations) still pass (max difference 6.8e-4 against a 5e-3 tolerance). The error estimates still
 come from the Jacobian and remain unreliable. Tests: `tests/unit/pyrs/calibration/test_fitcalibration_diff_step.py`.
+
+## Detection-plane tilt and the horizontal/vertical pixel pitch (2026-10-27)
+
+The laser survey covers the housing face, not the wire planes (correction above), so the ~6° asymmetry
+may be a real rotation of the detection plane. Ring points of HB2B_3510 + HB2B_3489 (mask, 5 strips, 2020
+lattice; `calib_diagnostics/ring_points_3510_3489.npz`); scripts on `calibration-diagnostics`
+(`tests/scripts/vertical_pitch_profile.py`, `horizontal_pitch_profile.py`, `joint_two_theta_0_locked.py`).
+
+* **Vertical pitch is weakly constrained** (horizontal 0.314 mm, vertical scanned): best 0.301 ± 0.014 mm
+  (3510) / 0.295 ± 0.018 mm (3489) with the free pose (survey pose 0.302 ± 0.027 / 0.293 ± 0.023 mm); RMS
+  changes ≤ 5% over 0.290–0.338 mm. Rings near 90° are nearly straight, so the vertical scale only enters
+  through their curvature. A ~1σ hint of py < px. The mask rectangle (958 × 953 ch) would give the
+  opposite (0.3132 × 0.3148 mm for a square 300 mm area).
+* **Horizontal pitch with the vertical locked at 0.29297 mm** (direct least squares):
+  - surveyed face pose (Shift_z = 0, Rot = 0; Shift_x, Shift_y, 2θ₀, λ free): px 0.3189 ± 0.0005 / 0.3193
+    ± 0.0008 mm, but only with 2θ₀ ≈ +5.0° — against |2θ₀| < 0.5°, so an untilted plane with a uniform
+    pitch is excluded;
+  - 2θ₀ = 0 (removes the 2θ₀ / Shift_x / Rot_y degeneracy), Shift_z = 0: px 0.3170 ± 0.0004 / 0.3173 ±
+    0.0007 mm, Rot_y 6.14 / 6.50°, RMS 0.0182 / 0.0361° (free pose 0.0173 / 0.0359°); with Shift_z free px
+    is undetermined (0.306 ± 0.015 / 0.313 ± 0.021 mm: pitch and distance still trade);
+  - both runs at 2θ₀ = 0 with one detector: 3510 RMS doubles (0.018 → 0.036°) — rejected, the two mono
+    settings differ in beam direction.
+* **Joint fit, converged** (one detector; 3510's 2θ₀ = 0 locked, 3489's offset free; λ per run; vertical
+  pitch 0.29297 mm; horizontal pitch fitted as a diagnostic; Shift_z held, not refined with the pitch —
+  user, 2026-10-27): the same solution from Rot_y starts 0–9°:
+
+  | | Shift_z = 0 (face) | Shift_z = +10 mm (wires behind the face) |
+  |---|---|---|
+  | horizontal pitch | **0.3171 ± 0.0006 mm** | 0.3203 ± 0.0006 mm |
+  | Rot_y (detection plane) | **+5.95 ± 1.12°** | +5.94 ± 1.12° |
+  | Rot_x / Rot_z | −0.29 / +0.13° | −0.29 / +0.13° |
+  | Shift_x / Shift_y | −1.7 / +0.4 mm | −1.8 / +0.4 mm |
+  | 2θ₀(3489) − 2θ₀(3510) | −0.300 ± 0.033° | −0.300 ± 0.033° |
+  | λ 3510 / 3489 | 1.53095 / 1.72129 Å | 1.53100 / 1.72134 Å |
+  | RMS 3510 / 3489 | 0.0187 / 0.0366° | 0.0188 / 0.0366° |
+
+  It fits as well as the fully free geometry. The horizontal pitch scales with the window-to-wire depth
+  (+0.32% per mm). **Earlier fixed-pitch scans started at Rot_y = 0 were not converged** (they stopped at
+  Rot_y 0.3–6.8° depending on the start: the cost is flat along a Rot_y–pitch valley), and the staged
+  "Shift_z = 0, rotations free" fits (px 0.3178 / 0.3183 mm, Rot_y 6.95 / 7.26°) are superseded.
+* **Reading:** a coherent geometry — face at the surveyed distance, beam aligned (−0.30° between the mono
+  settings), no sideways offset — with the wire plane rotated ~6 ± 1° and a horizontal pitch ~8% above
+  0.293 mm. A 6° plane over 300 mm means ~31 mm of depth variation: check against the DENEX gas-volume
+  depth and wire mounting. A horizontal-only pitch gradient would mimic part of the tilt; a horizontal-slit
+  scan (vertical scale against column; constant for a pitch gradient, ±1.6% across the face for a 6° tilt)
+  separates the two.
 ## Slit scan: measuring the detector position response directly (2026-10)
 
 The ring data cannot separate distance from pixel pitch, and the ~6° rotation-like asymmetry they
