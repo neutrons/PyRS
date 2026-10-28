@@ -773,11 +773,9 @@ works under real crash/network conditions.
 
 ## `neutrons_standard.Config` has two undocumented side effects, one of which breaks under a test environment (2026-09)
 
-Found while probing this repo's config layer during the first seven-axis audit
-of `plans/NXstress-prod/`. Both are properties of the installed
-`neutrons_standard` 0.1.0 package, not of PyRS's own code, and neither is
-mentioned in its documentation or in PyRS's plan documents. Probe:
-[`plans/NXstress-prod/probes/a4_neutrons_standard_config.py`](../plans/NXstress-prod/probes/a4_neutrons_standard_config.py).
+Found while probing this repo's config layer. Both are properties of the
+installed `neutrons_standard` 0.1.0 package, not of PyRS's own code, and
+neither is mentioned in its documentation.
 
 **1. Importing the config module writes to the user's home directory.**
 `_Config.__init__` calls `persistBackup()`, which does
@@ -828,46 +826,9 @@ avoid `"test"` in the `env` value, or raise the off-by-one with the
 
 ---
 
-## Two data-model limits that bite any multi-record NeXus write (2026-09)
-
-Both found while implementing `plans/NXstress-prod/`'s subspec 04b. Recorded
-here as pointers only — the evidence, the probe output and the corrections live
-in that subspec's
-[Follow-up 2](../plans/NXstress-prod/04b-multi-workspace-nxstress.md#follow-up-2--2026-09-30-implementation-pass),
-so there is one copy to keep true rather than two.
-
-**1. A NumPy fixed-width unicode array (`<U`) cannot be written to HDF5.**
-This is a constraint on a dataset's *values*, independent of its name —
-NXstress's `allowed_identifier` already encodes any PV-log key totally and
-reversibly, and a plain name fails just the same. `np.array(["11", "22"])` raises
-`TypeError: No conversion path for dtype: dtype('<U2')` — an h5py limitation,
-not a NeXus rule. The variable-length UTF-8 dtype (`FIELD_DTYPE.STRING`) holds
-the same values, **but reads back as `bytes`**, so a string does not survive a
-round trip as the same Python object. Probe:
-[`a4_string_log_dtypes.py`](../plans/NXstress-prod/probes/a4_string_log_dtypes.py).
-
-**2. `SubRuns` rejects a non-monotonic array, so concatenated scan points
-cannot be held by `SampleLogs` or `HidraWorkspace` at all.** `SubRuns.set`
-raises `"subruns are not sorted in increasing order"`, and `SubRuns.__init__`
-calls it — while `SubRuns.append` bypasses it. Two workspaces with scan points
-`[1,3,5]` and `[2,4,6]` concatenate to something no PyRS container can
-represent. Separately, `HidraWorkspace.append_hidra_project` takes a
-`HidraProjectFile` rather than a workspace and **renumbers** appended subruns
-to 1..N. Probe:
-[`a5_subruns_nonmonotonic.py`](../plans/NXstress-prod/probes/a5_subruns_nonmonotonic.py).
-
-**Why this matters going forward:** any future code that merges several
-workspaces into one on-disk record has to concatenate at the array level and
-split before rebuilding PyRS objects — a merged in-memory workspace is not an
-available intermediate — and has to normalise string values explicitly at both
-ends, or string-keyed lookups will stop matching after a round trip without
-raising.
-
----
-
 ## Loading a project file modified it on disk, because the mode came from permissions (2026-09-30)
 
-Found while closing out subspec 04b: committed fixtures under `tests/data/`
+Found while closing out NXstress multi-workspace support: committed fixtures under `tests/data/`
 kept appearing in `git status` as modified, with no test that writes to them.
 
 `ReductionManager.load_hidra_project` chose its HDF5 mode from
@@ -923,10 +884,7 @@ ever grow — it cannot be decided later, and a file already written cannot be
 retrofitted. Note also that a fixed-width `|S` string column is sized by the
 longest value present when it is created, so appending a longer one truncates it
 **silently**; store string data as the variable-length UTF-8 dtype if it will
-ever be appended to. The evidence, the probes and the full per-dataset
-measurement are in
-[plans/NXstress-prod/04c-nxstress-append.md](../plans/NXstress-prod/04c-nxstress-append.md)'s
-Follow-up 2 (F2.1, F2.2).
+ever be appended to.
 
 ## A string sample log's dtype used to depend on where the workspace came from (2026-10-09)
 
@@ -1068,9 +1026,7 @@ irreducible ambiguity for a stakeholder to settle — when the real answer was t
 no composition of three stage rotations can match one that carries a constant
 factor. Before reporting "ambiguous", add the constant term and re-run; before
 reporting "unrecoverable", check whether the function can simply be *driven* as a
-black box instead of read. Probe:
-[`plans/NXstress-prod/probes/a5_sample_rotation_axes.py`](../plans/NXstress-prod/probes/a5_sample_rotation_axes.py).
-Pinned by
+black box instead of read. Pinned by
 `tests/unit/pyrs/utilities/NXstress/test_sample.py::TestSampleTransformationChain::test_the_rotations_compose_in_write_order`,
 which composes the chain PyRS writes and compares it against `rotate_project_q`
 itself, so the two cannot drift apart silently.
@@ -1111,34 +1067,9 @@ NXstress save action.
 
 ---
 
-## Sub-run order is enforced but not needed; sub-run numbers are not positions (2026-10-20)
-
-Found while assembling the phase-2 NXstress PR. Recorded here as a pointer only:
-the full survey, the reproductions and the xfail tests are in
-[DD-2](../plans/PR_review/deferred-defects.md#dd-2--the-sub-run-ordering-requirement-is-arbitrary-and-should-be-dropped),
-so there is one copy to keep true.
-
-`SubRuns.set` requires strictly increasing values, but the only code that uses
-the order is `SubRuns.get_indices`, which binary-searches (`np.searchsorted`).
-That lookup is wrong without raising on an unsorted axis (which `SubRuns.append`
-can produce), and on a sorted one whenever a query value inside the range is
-missing: `SubRuns([1, 2, 4]).get_indices([1, 3, 4])` → `[0, 2, 2]`. Separately,
-about ten sites treat a sub-run number as an array position (`sub_run - 1`), so
-they break on any workspace whose sub-runs do not run 1..N, sorted or not.
-
-**Why this matters going forward:** don't rely on `get_indices` for a
-multi-value query unless every value is known to be present. Never index an
-array by a sub-run number; look up the position. And don't sort scan points to
-satisfy `SubRuns`: in NXstress the on-disk row order is the inputs' order, and
-sorting it breaks the round trip. That is why `NXstress` refuses an
-out-of-order write rather than sorting it.
-
----
-
 ## `neutrons_standard` adds sections of its own to the configuration document (2026-10-21)
 
-Found while making `validate_config` refuse unknown keys (Decisions Log row 46 in
-[`plans/NXstress-prod/README.md`](../plans/NXstress-prod/README.md)). The merged
+Found while making `validate_config` refuse unknown keys. The merged
 document in `Config._config` holds more than `application.yml` and the override
 file: neutrons_standard 0.1.0 adds `environment` (the loaded override's name, in
 `_Config.refresh`), `module.root` and `version.default` (in `_Config.reload`), and,
