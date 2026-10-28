@@ -583,6 +583,19 @@ class HB2BReductionManager:
         # Generate eta roi vector
         eta_roi_vec = self.generate_eta_roi_vector(eta_step, eta_min, eta_max)
 
+        # One 2theta range for all wedges of this sub-run, from the pixels the default detector mask keeps:
+        # the workspace stores a single 2theta axis per sub-run, so wedges binned over their own ranges would
+        # all be returned with the last wedge's axis (#1033)
+        if min_2theta is None or max_2theta is None:
+            pixel_2theta = reduction_engine.instrument.get_pixels_2theta(1)
+            default_mask = workspace.get_detector_mask(is_default=True, mask_id=None)
+            if default_mask is not None:
+                pixel_2theta = pixel_2theta[default_mask != 0]
+            if min_2theta is None:
+                min_2theta = float(np.min(pixel_2theta))
+            if max_2theta is None:
+                max_2theta = float(np.max(pixel_2theta))
+
         for eta_cent in eta_roi_vec:  # define mask to isolate narrow eta wedge
             # here a value of zero means do not use
             eta_mask = np.ones_like(eta_vec)
