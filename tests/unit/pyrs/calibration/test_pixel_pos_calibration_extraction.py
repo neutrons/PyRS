@@ -4,14 +4,8 @@ import numpy as np
 import pytest
 from scipy.optimize import brentq
 
-from pyrs.calibration.pixel_pos_calibration import (
-    DetectorModel,
-    PixelCalibration,
-    _Candidate,
-    _fit_band_histograms,
-    _reject_outliers,
-    extract_ring_points,
-)
+from pyrs.calibration.pixel_pos_calibration import DetectorModel, PixelCalibration, extract_ring_points
+from pyrs.calibration.ring_extraction import _Candidate, _column_at_two_theta, _fit_band_histograms, _reject_outliers
 from pyrs.calibration.powder_standards import HB2B_STANDARDS
 from pyrs.core.instrument_geometry import DENEXDetectorShift
 from tests.util.instrument_helpers import default_hb2b_geometry
@@ -352,7 +346,6 @@ def test_fitted_ring_inside_margin_rejected(hb2b):
     """The window is placed from one located 2theta, but the true ring is tilted (Rot_z): the fitted
     point of each band is checked against the margin again"""
     # Arrange - arm 84 puts Ni 220 near the side edge; take a margin just inside every predicted column
-    from pyrs.calibration.pixel_pos_calibration import _column_at_two_theta
 
     _, unrestricted = _single_ring_extraction(hb2b, 84.0, side_margin=0)
     model = DetectorModel(hb2b)
