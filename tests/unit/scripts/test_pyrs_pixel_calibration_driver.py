@@ -135,3 +135,35 @@ def test_parser_defaults(driver):
     # Assert
     assert args.mask == driver.DEFAULT_MASK and not args.no_mask
     assert (args.strips, args.passes, args.no_polish, args.wavelength) == (5, 3, False, None)
+
+
+@pytest.mark.parametrize(
+    "error, name, text",
+    [
+        (-1.0, "TTH_0", "held (2theta_0"),
+        (-1.0, "Rot_x", "held"),
+        (-2.0, "Shift_x", "undetermined"),
+        (1e-4, "Shift_x", "+/- 0.1"),
+    ],
+)
+def test_summary_labels_error_codes(driver, monkeypatch, error, name, text):
+    # Arrange - a stand-in carrying just what _summary reads
+    from types import SimpleNamespace
+
+    from pyrs.calibration.pixel_pos_calibration import PARAMETER_NAMES
+    from tests.util.ring_calibration_helpers import synthetic_ring_points
+
+    errors = np.full(8, 1e-4)
+    errors[PARAMETER_NAMES.index(name)] = error
+    calibration = SimpleNamespace(
+        ring_points=synthetic_ring_points(default_hb2b_geometry(), TRUE_PARAMS),
+        stages=[SimpleNamespace(rmse=0.001)],
+        calibration_array=TRUE_PARAMS,
+        calibration_error_array=errors,
+    )
+
+    # Act
+    line = next(line for line in driver._summary(calibration).splitlines() if line.split()[0] == name)
+
+    # Assert
+    assert text in line and "-2000" not in line

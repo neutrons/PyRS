@@ -1621,5 +1621,9 @@ On HB2B_4971, scored as in the entries below (corrected η wedges, 2020 lattice,
 - The fix improves the ring calibration on every metric, including FitCalibration's own. #1018's
   conclusion stands, by a wider margin.
 - On HB2B_3489 the optimiser ends at a stage bound both before (Shift_x −50 mm) and after (Rot_y
-  +5.000°). That is the Shift_x/Rot_y/2θ₀ degeneracy line running into the box, not this fix. A
-  bound-pinned parameter's error should be flagged; this is a separate review finding.
+  +5.000°). That is the Shift_x/Rot_y/2θ₀ degeneracy line running into the box, not this fix.
+  *Since 2026-10-29:* `refine` flags any parameter left at a bound (`least_squares`' `active_mask`)
+  with error -2 and a warning. The driver shows it on 3489 ("FullCalibration: ['Rot_y'] stopped
+  at a bound"). `estimate_errors` then re-fits with 2θ₀ held and bounds centred on the current
+  values, so the written Rot_y error (±1.9°) is for that split. Written values are unchanged
+  (≤ 3e-14 relative on 3489/3510/4971).

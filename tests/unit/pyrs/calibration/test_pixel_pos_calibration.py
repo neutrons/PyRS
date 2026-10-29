@@ -192,6 +192,50 @@ def test_degenerate_errors_flagged_not_nan(hb2b, true_rings):
     assert np.all((errors > 0) | (errors == -2.0))
 
 
+def test_repeated_sub_run_numbers_use_each_points_position(hb2b):
+    """Two runs both numbered from sub-run 1: each point keeps its own arm angle and L2"""
+    # Arrange - concatenated without renumbering, so sub-run numbers collide across distances
+    near = synthetic_ring_points(hb2b, TRUE_PARAMS, l2=0.985)
+    far = synthetic_ring_points(hb2b, TRUE_PARAMS, l2=0.75)
+    merged = RingPoints(
+        **{name: np.concatenate([getattr(near, name), getattr(far, name)]) for name in RingPoints.__dataclass_fields__}
+    )
+    assert set(near.sub_run.tolist()) == set(far.sub_run.tolist())
+
+    # Act
+    residual = PixelCalibration(merged, hb2b, wavelength=NOMINAL_WAVELENGTH).residual(TRUE_PARAMS)
+
+    # Assert
+    np.testing.assert_allclose(residual, 0.0, atol=1e-8)
+
+
+def test_parameter_stopped_at_bound_flagged(hb2b):
+    # Arrange - true Rot_z is 1.2 deg; bounds of +/-0.5 deg stop it
+    calibration = PixelCalibration(synthetic_ring_points(hb2b, TRUE_PARAMS), hb2b, wavelength=NOMINAL_WAVELENGTH)
+    calibration.set_calibration_array(np.r_[TRUE_PARAMS[:5], 0.0, TRUE_PARAMS[6:]])
+
+    # Act
+    with pytest.warns(UserWarning, match=r"\['Rot_z'\] stopped at a bound"):
+        stage = calibration.refine("rot_z", ["Rot_z"], [-0.5], [0.5])
+
+    # Assert
+    assert stage.values[0] == pytest.approx(0.5)
+    assert stage.errors[0] == -2.0 and calibration.calibration_error_array[5] == -2.0
+
+
+def test_parameter_inside_bounds_not_flagged(hb2b, true_rings):
+    # Arrange
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+    calibration.set_calibration_array(np.r_[TRUE_PARAMS[:5], 0.0, TRUE_PARAMS[6:]])
+
+    # Act
+    stage = calibration.refine("rot_z", ["Rot_z"], [-5.0], [5.0])
+
+    # Assert
+    assert stage.values[0] == pytest.approx(TRUE_PARAMS[5], abs=1e-6)
+    assert stage.errors[0] > 0
+
+
 def test_two_distances_recover_two_theta_0(hb2b):
     """A second sample-detector distance breaks the Shift_x/Rot_y/TTH_0 degeneracy (docs/ground_truths.md)"""
     # Arrange

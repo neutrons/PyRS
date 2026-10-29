@@ -461,11 +461,13 @@ class PixelCalibration:
         self._status = -1
         self.stages: List[StageResult] = []
 
-        # one detector position per sub-run, so 2theta is evaluated sub-run by sub-run
+        # 2theta is evaluated once per detector position (arm angle, L2), taken from the points
+        # themselves rather than their sub-run number, which can repeat when runs are combined
         self._groups = []
-        for sub_run in np.unique(ring_points.sub_run):
-            index = np.flatnonzero(ring_points.sub_run == sub_run)
-            self._groups.append((index, -float(ring_points.det_2theta[index[0]]), float(ring_points.l2[index[0]])))
+        positions = np.column_stack([ring_points.det_2theta, ring_points.l2]).astype(float)
+        for arm_two_theta, l2 in np.unique(positions, axis=0):
+            index = np.flatnonzero((positions[:, 0] == arm_two_theta) & (positions[:, 1] == l2))
+            self._groups.append((index, -float(arm_two_theta), float(l2)))
 
     @property
     def calibration_array(self) -> np.ndarray:
@@ -642,6 +644,12 @@ class PixelCalibration:
             )
 
         errors = _parameter_errors(out.jac, out.fun, out.fun.size - free.size)
+        # a parameter stopped by its bound is not at a minimum, so its covariance error means nothing
+        at_bound = np.asarray(out.active_mask) != 0
+        if np.any(at_bound):
+            errors = np.where(at_bound, -2.0, errors)
+            pinned = [PARAMETER_NAMES[i] for i in free[at_bound]]
+            warnings.warn(f"{name}: {pinned} stopped at a bound; their errors are flagged -2", stacklevel=2)
 
         self._calib[free] = out.x
         self._caliberr[free] = errors

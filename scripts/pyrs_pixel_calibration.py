@@ -93,9 +93,12 @@ def _summary(calibration) -> str:
     for name, value, error, (unit, scale) in zip(
         PARAMETER_NAMES, calibration.calibration_array, calibration.calibration_error_array, units
     ):
-        error_text = (
-            "held (2theta_0 is degenerate with Shift_x/Rot_y)" if error == -1.0 else f"+/- {error * scale:.4g}"
-        )
+        if error == -1.0:
+            error_text = "held (2theta_0 is degenerate with Shift_x/Rot_y)" if name == "TTH_0" else "held"
+        elif error == -2.0:
+            error_text = "undetermined (degenerate, or stopped at a bound)"
+        else:
+            error_text = f"+/- {error * scale:.4g}"
         lines.append(f"  {name:8s} {value * scale:12.5f} {unit:3s} {error_text}")
     return "\n".join(lines)
 
