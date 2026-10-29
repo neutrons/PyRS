@@ -7,6 +7,7 @@ from scipy.optimize import brentq
 from pyrs.calibration.pixel_pos_calibration import (
     DetectorModel,
     PixelCalibration,
+    _fit_band_histograms,
     _reject_outliers,
     extract_ring_points,
 )
@@ -97,6 +98,33 @@ def test_sigma_is_fit_center_uncertainty(nominal_points):
     accepted = [d for d in diagnostics if d.accepted]
     np.testing.assert_allclose(points.sigma, [d.center_error for d in accepted])
     assert np.all((points.sigma > 0) & (points.sigma < 0.05))
+
+
+@pytest.mark.parametrize("counts_per_pixel", [0.1, 1.0])
+def test_center_error_matches_scatter(counts_per_pixel):
+    """The fit's centre error must be the real scatter, which needs sigma (not variance) as DataE."""
+    # Arrange - independent Poisson strips of one pseudo-Voigt peak, as a band's pixels see it
+    rng = np.random.default_rng(1)
+    true_centre, fwhm, n_sets, n_pixels = 80.0, 0.3, 40, 20000
+    edges = np.arange(78.0, 82.0 + 1e-9, 0.03)
+    pixel_sets = []
+    for _ in range(n_sets):
+        tth = rng.uniform(edges[0], edges[-1], n_pixels)
+        offset = (tth - true_centre) / (fwhm / 2)
+        shape = 0.5 / (1 + offset**2) + 0.5 * np.exp(-np.log(2) * offset**2)
+        counts = rng.poisson(counts_per_pixel * (0.2 + shape)).astype(float)
+        pixel_sets.append((tth, counts, np.ones(n_pixels)))
+
+    # Act
+    _, _, centres, errors, _, excluded = _fit_band_histograms(
+        "test_center_error", pixel_sets, edges, "PseudoVoigt", "Linear", wavelength=1.54
+    )
+
+    # Assert
+    good = ~excluded & np.isfinite(errors)
+    assert good.sum() >= 0.9 * n_sets
+    ratio = np.median(errors[good]) / np.std(centres[good], ddof=1)
+    assert 0.5 < ratio < 2.0
 
 
 def test_diagnostics_one_per_band_and_ring(nominal_points):

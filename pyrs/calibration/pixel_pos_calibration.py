@@ -912,9 +912,11 @@ def _fit_band_histograms(
         norm = np.histogram(tth, edges, weights=weighted_efficiency)[0]
         with np.errstate(invalid="ignore", divide="ignore"):
             intensity = np.where(norm > 0, summed / norm, 0.0)
-            variance = np.where(norm > 0, np.maximum(summed, 1.0) / norm**2, 0.0)
+            sigma = np.where(norm > 0, np.sqrt(np.maximum(summed, 1.0)) / norm, 0.0)
         histograms.append(intensity)
-        fit_ws.set_reduced_diffraction_data(spectrum, None, centres, intensity, variance)
+        # despite its name, the "variances" slot is handed to Mantid as DataE, i.e. sigma; reduction
+        # also stores sigma there (reduce_hb2b_pyrs.py), see docs/ground_truths.md
+        fit_ws.set_reduced_diffraction_data(spectrum, None, centres, intensity, sigma)
 
     engine = FitEngineFactory.getInstance(
         fit_ws,

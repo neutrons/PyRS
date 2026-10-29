@@ -810,6 +810,56 @@ step), so `PixelCalibration` uses scipy's default step (`diff_step=None`).
 `test_scipy_default_step_gives_accurate_angle_derivative` and (from #1029)
 `test_rotation_matrix_resolves_tiny_angle_change` fail if the matrices go back to float32.
 
+## Ring calibration: why it has its own forward model, and the draft's defects (2026-10, #1012–#1014)
+
+The ring-based calibration started from a draft, `pyrs/calibration/pixel_pos_calibration.py` as
+first committed in 5a635584 (2024-12). The rewrite on `detector_calib_v3` keeps the idea: fit each
+ring once in strips of the raw image, then refine the geometry from the ring pixels. It replaced
+the parts that would have made its result wrong, or mean something different in reduction:
+
+**Forward model (#1012).**
+- **The rotations did not reproduce in reduction.** The draft's `get_pixel_tth` added
+  `ARM_LENGTH + shift_z` *before* applying the calibration rotation. Reduction
+  (`ResidualStressInstrument.build_instrument`) rotates about the detector centre first, then
+  pushes the detector out. A Rot_x/Rot_y/Rot_z fitted by the draft therefore described a different
+  detector when reduction applied it.
+- **It hard-coded the instrument:** arm length 0.985 m and detector size 0.3 m, instead of reading
+  `DENEXDetectorGeometry`.
+
+**Refinement (#1014).**
+- **λ was unconstrained.** Expected d-spacings were derived from the *nominal* wavelength, so the
+  residual scaled with λ itself. λ ran to its bound and 2θ₀ absorbed the ring offset. Now the
+  residual is 2θ_pixel − 2·asin(λ / 2d), with d from the powder standard.
+- **The residual changed length between calls**, because an outlier cut ran inside it.
+  `least_squares` needs a fixed-length residual with no side effects.
+- **Single-parameter stages reported errors for the wrong parameter.** The final residual was
+  evaluated without the stage's parameter index.
+- **State accumulated across calls**, so iteration counts were cumulative. The error formula was
+  non-standard; it is now `inv(JᵀJ)·Σr²/(n−p)`.
+- **Lattice constants differed from `FitCalibration`'s** (Ni 3.523799 vs 3.526314). Both now read
+  one table, `pyrs/calibration/powder_standards.py` (#1013), with the 2020 values (#1037 aligns
+  `FitCalibration`).
+
+**Why not call `build_instrument` directly.** It builds and rotates the full 1024×1024 pixel grid,
+about 250 ms per sub-run, and only at integer pixels. The ring points sit at fractional pixels, and
+the optimiser evaluates the model hundreds of times.
+
+`DetectorModel` evaluates only the requested (fractional) pixels, about 0.4 ms per sub-run. It reuses
+`ResidualStressInstrument`'s own rotation helpers and order of operations:
+1. shift in X/Y;
+2. rotate `Rx @ Ry @ Rz` about the detector centre;
+3. push out by `l2 + shift_z`;
+4. rotate about the sample by 2θ + 2θ₀.
+
+Two consequences:
+- **No new convention is introduced.** A unit test pins 2θ and η to be bit-identical to
+  `build_instrument` on the full grid, nominal and calibrated, at two arm angles.
+- **Reduction is unchanged.** Making `build_instrument` delegate to `DetectorModel`, so that one
+  piece of code defines the detector, is the follow-up #1011/#1020.
+
+**TTH_0.** The calibration writes `TTH_0`, and reduction now reads it (#1021, fixed in #1031). What
+it represents, and why the ring fit cannot determine it at one L2, are the two 2θ₀ entries below.
+
 ## Ring calibration: Shift_x/Rot_y/TTH_0 are exactly degenerate; Shift_y is weak (2026-10)
 
 Found with synthetic ring points (`tests/util/ring_calibration_helpers.py`) on the real HB2B_4971
@@ -938,7 +988,8 @@ Other notes:
   < 0.07 px of the true ring, so clipping causes no measurable bias. Strips with identical windows
   (all of them, for rings well inside the detector) share one Mantid `FitPeaks` call, strips as
   spectra; for the 4971 layout nothing changed (same 195 points, 0.06 px RMS, ~6 s).
-- **Mantid's centre uncertainty is unreliable at low signal**: fits to pure noise reported centre
+- *(Corrected 2026-10-29: these errors were wrong because strip fits passed σ² as σ, see
+  "Strip fits handed Mantid σ² where it expects σ".)* **Mantid's centre uncertainty is unreliable at low signal**: fits to pure noise reported centre
   errors of 0.02–0.03° while the "rings" they found were 41–65 px off. A significance check (peak
   intensity ≥ `min_significance` = 5 × its error) removes them. Rings at 4 % contrast (height 2 on a
   background of 50) fail it — their points scattered by 0.5–5 px, against 0.06 px for normal rings.
@@ -1045,6 +1096,8 @@ strip 7 over three geometries: 98.397 / 98.521 / 97.885° (±0.0007 / 0.0009 / 0
 
 - The reported Mantid centre uncertainty is ~1000× too small here, so `max_center_error`,
   `min_significance` and `RingPoints.sigma` do not detect these fits.
+  *Correction (2026-10-29):* the cause was ours, not Mantid's. Strip fits were handed σ² as
+  Mantid's σ; see "Strip fits handed Mantid σ² where it expects σ" below.
 - Affected rings: Fe 220 (sub-run 10), Ni 222 (sub-runs 7, 8), Ni 311 (sub-run 8) — the weakest.
 - The refinement results from such points are suspect; the per-strip counts are too low for 15
   strips. Open: measure point reliability from the data (geometry-perturbation test, scatter about
@@ -1096,6 +1149,12 @@ written.
 a ~7–8% larger pixel pitch or a ~75 mm shorter distance than surveyed, and a ~6° rotation of the
 detection plane that the face survey cannot confirm or exclude (entries below). Do not reduce production data with these files until
 the detector position response is measured (slit scan, `calibration-diagnostics` branch).
+
+*Update (2026-10-28):* on the 2024 run HB2B_4971 the ring geometry is unremarkable. The detector
+is nearly square-on (Rot_y +0.34°), and the geometry beats `FitCalibration` on every metric,
+including `FitCalibration`'s own η-wedge residual (see the HB2B_4971 entries below). The 2023
+anomalies above are unexplained. Whether the files are cleared for production is a user decision
+and has not been made.
 
 ## HB2B_3510: the ring spacing itself says the detector is ~7% "closer" than nominal (2026-10)
 
@@ -1497,3 +1556,51 @@ FitCalibration re-run on HB2B_4971 with the single-2θ-range reduction (mask, pe
   describe the Ni/Fe ratio, so the residual is lattice error, not geometry (#1022).
 * All three #1018 success criteria are met (λ not at a bound; strip drift flattened 10×; η-wedge residual below
   FitCalibration's).
+
+## Strip fits handed Mantid σ² where it expects σ (2026-10-29, #1019 review)
+
+**Cause.** `_fit_band_histograms` histograms each band per pixel (counts / efficiency) and stored
+`max(summed, 1) / norm²`, i.e. **σ²**, in `HidraWorkspace.set_reduced_diffraction_data`'s
+"variances" argument. Despite its name, that slot goes straight to Mantid as `DataE`
+(`mantid_helper.generate_mantid_workspace`), and `DataE` is σ. Production reduction already stores σ
+there (`reduce_to_2theta_histogram`: `data_var = np.sqrt(...)`, and `unp.std_devs` with vanadium).
+`FitCalibration` takes the reducer's output, so **production peak fitting is not affected**; only
+the ring extraction was. Because the normalised σ ≪ 1, E was far too small and the weights were
+1/σ⁴. Mantid does not rescale parameter errors by χ², so nothing looked wrong.
+
+**Effect (before the fix).**
+- Reported centre errors were **20–200× too small**, and significances 20–65× too large (synthetic
+  Poisson strips, reviewer's test). The regression test
+  `test_center_error_matches_scatter` measured a ratio of reported error to actual scatter of
+  0.06; it is now within [0.5, 2] at 0.1 and 1 count/pixel.
+- `max_center_error` (0.05°) and `min_significance` (5) therefore rejected almost nothing. The
+  1/σ⁴ weighting made sparse-strip centres about 1.5× noisier.
+- This is the likely cause of two earlier observations: "Mantid centre uncertainty ~1000× too
+  small" (sparse-strip entry) and "fits to pure noise reported 0.02–0.03°" (extraction entry).
+  Both were blamed on Mantid or sparse data at the time.
+
+**Fix.** Pass `sqrt(max(summed, 1)) / norm`. The gate defaults are unchanged so far. With honest
+errors they now act as designed, so re-tune them only if real runs show a need.
+
+**Re-runs with the fix** (driver defaults, mask `HB2B_Mask_12-18-19.xml`; outputs in
+`calib_diagnostics/hb2b_4971/fixed_sigma/` and `calib_diagnostics/sigma_fix/`):
+
+| run | ring points | ring RMS | λ (Å) | ring σ median | pixel 2θ change vs before |
+|---|---|---|---|---|---|
+| HB2B_4971 | 64 → 65 | 0.0065° | 1.53129 → 1.53135 | 0.00025 → 0.0038° | +5.7 mdeg mean, ≤ 12.6 mdeg |
+| HB2B_3510 | 60 → 60 | 0.0175 → 0.0157° | 1.53058 → 1.53056 | — | — |
+| HB2B_3489 | 61 → 59 | — → 0.0301° | 1.72077 → 1.72120 | 0.00016 → 0.0071° | +23 mdeg mean, ≤ 52 mdeg |
+
+On HB2B_4971, scored as in the entries below (corrected η wedges, 2020 lattice, 65 new ring points):
+
+| geometry | η-wedge RMS (FitCalibration's metric) | ring-point RMS | strip drift mean / max \|d\| |
+|---|---|---|---|
+| FitCalibration (2020, corrected wedges) | 0.0123° | 0.0138° | 0.021 / 0.039° |
+| ring calibration, before the fix | 0.0091° | 0.0073° | 0.0051 / 0.0116° |
+| **ring calibration, with the fix** | **0.0075°** | **0.0065°** | **0.0033 / 0.0102°** |
+
+- The fix improves the ring calibration on every metric, including FitCalibration's own. #1018's
+  conclusion stands, by a wider margin.
+- On HB2B_3489 the optimiser ends at a stage bound both before (Shift_x −50 mm) and after (Rot_y
+  +5.000°). That is the Shift_x/Rot_y/2θ₀ degeneracy line running into the box, not this fix. A
+  bound-pinned parameter's error should be flagged; this is a separate review finding.

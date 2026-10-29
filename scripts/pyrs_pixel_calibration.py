@@ -101,6 +101,7 @@ def _summary(calibration) -> str:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Command-line parser for :func:`main`; ``--help`` lists every option with its default."""
     parser = argparse.ArgumentParser(
         description="Ring-based HB2B detector calibration from one calibration run (NeXus).",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -120,6 +121,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    """Run the calibration from the command line and print a parameter summary.
+
+    Args:
+        argv: Command-line arguments without the program name; default: ``sys.argv[1:]``.
+
+    Returns:
+        Exit status: 0 on success, 1 if the input file is missing or an input is invalid.
+    """
     args = build_parser().parse_args(argv)
     try:
         calibration = run_calibration(
