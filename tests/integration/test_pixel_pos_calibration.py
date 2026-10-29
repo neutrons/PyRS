@@ -4,15 +4,21 @@ import importlib.util
 import json
 from pathlib import Path
 
+import numpy as np
 import pytest
 
+from pyrs.calibration.pixel_pos_calibration import DetectorModel
 from pyrs.utilities.calibration_file_io import check_calibration_status, read_calibration_json_file
+from tests.util.instrument_helpers import default_hb2b_geometry
 
 pytestmark = pytest.mark.integration
 
 REPO = Path(__file__).resolve().parents[2]
 NEXUS_FILE = REPO / "tests" / "data" / "calibration_tests" / "HB2B_3510.nxs.h5"
 MASK_FILE = REPO / "tests" / "data" / "HB2B_Mask_12-18-19.xml"
+# this driver's own result on HB2B_3510 with MASK_FILE (2026-10-29, after the strip-fit sigma fix):
+# a regression reference, not an independently verified geometry; see docs/ground_truths.md
+REFERENCE_FILE = REPO / "tests" / "data" / "calibration_tests" / "HB2B_3510_ring_reference.json"
 
 
 @pytest.fixture(scope="module")
@@ -44,10 +50,16 @@ def test_driver_calibrates_hb2b_3510(tmp_path, driver, capsys):
     assert all(
         raw[f"error_{name}"] > 0 for name in ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "Lambda")
     )
-    # Si422 run: the refined wavelength, with the 2020 lattice constants (docs/ground_truths.md)
-    assert wavelength == pytest.approx(1.5306, abs=1e-3)
-    assert wavelength_error < 1e-3
-    assert raw["Shift_z"] == pytest.approx(-0.075, abs=0.01)
+    # Si422 run, 2020 lattice constants: the reference wavelength, well inside its 2e-4 A error
+    reference_shift, _, reference_wavelength = read_calibration_json_file(str(REFERENCE_FILE))[:3]
+    assert wavelength == pytest.approx(reference_wavelength, abs=2e-5)
+    assert wavelength_error < 5e-4
+    # the geometry, compared as the 2theta map reduction sees (the Shift_x/Rot_y/TTH_0 split is arbitrary)
+    model = DetectorModel(default_hb2b_geometry())
+    grid = np.meshgrid(np.arange(0, 1024, 8), np.arange(0, 1024, 8), indexing="ij")
+    for arm in (76.0, 90.0, 103.0):
+        difference = model.two_theta(*grid, -arm, None, shift) - model.two_theta(*grid, -arm, None, reference_shift)
+        assert np.max(np.abs(difference)) < 2e-3  # deg
     assert rings.is_file()
     assert "12 rings" in capsys.readouterr().out
 

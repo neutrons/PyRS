@@ -338,6 +338,38 @@ class RingPoints:
             return cls(**{name: data[name] for name in _RING_FIELDS})
 
 
+_RANK_RTOL = 1e-6  # Shift_x/Rot_y/TTH_0 at one L2: ~4e-10 relative; the next-weakest direction ~5e-2
+
+
+def _parameter_errors(jacobian: np.ndarray, residual: np.ndarray, dof: int) -> np.ndarray:
+    """One-sigma errors ``sqrt(diag(inv(JᵀJ)) · Σr² / dof)``, with -2 for undetermined parameters.
+
+    Columns are scaled to unit norm first, so parameters in m, degrees and Å are compared fairly. If
+    the scaled Jacobian is rank deficient (an exact degeneracy such as Shift_x + Rot_y + TTH_0 at one
+    detector distance), every parameter whose removal restores the rank is undetermined and flagged
+    -2, and the others' errors come from the pseudo-inverse, so the degenerate direction cannot
+    inflate them. At full rank this is exactly the ``inv(JᵀJ)`` formula.
+    """
+    scale = np.linalg.norm(jacobian, axis=0)
+    if dof <= 0 or not np.all(np.isfinite(jacobian)) or np.any(scale == 0):
+        return np.full(jacobian.shape[1], -2.0)
+    scaled = jacobian / scale
+
+    def rank(matrix: np.ndarray) -> int:
+        singular = np.linalg.svd(matrix, compute_uv=False)
+        return int(np.sum(singular > _RANK_RTOL * singular[0]))
+
+    full_rank = rank(scaled)
+    undetermined = np.zeros(scaled.shape[1], dtype=bool)
+    if full_rank < scaled.shape[1]:
+        for column in range(scaled.shape[1]):
+            if rank(np.delete(scaled, column, axis=1)) == full_rank:
+                undetermined[column] = True
+    covariance = np.linalg.pinv(scaled.T @ scaled, rcond=_RANK_RTOL**2, hermitian=True)
+    variances = np.diag(covariance) / scale**2 * np.sum(residual**2) / dof
+    return np.where(undetermined | ~(variances >= 0), -2.0, np.sqrt(np.abs(variances)))
+
+
 @dataclass(frozen=True)
 class StageResult:
     """Outcome of one refinement stage.
@@ -609,14 +641,7 @@ class PixelCalibration:
                 max_nfev=self._max_nfev,
             )
 
-        dof = out.fun.size - free.size
-        try:
-            variances = np.diag(np.linalg.inv(out.jac.T @ out.jac)) * np.sum(out.fun**2) / dof
-        except np.linalg.LinAlgError:
-            variances = np.full(free.size, np.nan)
-        # a (near-)degenerate set, e.g. Shift_x + Rot_y + TTH_0, can give negative or NaN variances
-        determined = np.isfinite(variances) & (variances >= 0)
-        errors = np.where(determined, np.sqrt(np.where(determined, variances, 0.0)), -2.0)
+        errors = _parameter_errors(out.jac, out.fun, out.fun.size - free.size)
 
         self._calib[free] = out.x
         self._caliberr[free] = errors

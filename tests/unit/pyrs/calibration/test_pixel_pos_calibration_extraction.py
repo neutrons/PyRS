@@ -415,3 +415,36 @@ def test_significance_check_rejects_invisible_ring(hb2b):
     assert set(strict_reasons) <= {"peak not significant", "fit failed"}
     assert strict_reasons.count("peak not significant") > len(strict) / 2
     assert not any(r.startswith("peak not significant") for r in _reasons(lenient))
+
+
+def test_strict_max_center_error_rejects_points(hb2b):
+    # Act
+    points, diagnostics = _single_ring_extraction(hb2b, 76.0, max_center_error=1e-6)
+
+    # Assert
+    assert points is None
+    reasons = _reasons(diagnostics)
+    assert reasons and all(reason.startswith("centre error") and reason.endswith("> 1e-06 deg") for reason in reasons)
+
+
+def test_spurious_peak_in_one_band_rejected_as_outlier(hb2b):
+    # Arrange - a strong fake ring 0.8 deg above Ni 220, only in the rows of strip 3
+    arm = 76.0
+    workspace = synthetic_calibration_workspace(hb2b, TRUE_PARAMS, [arm], [NI])
+    grid = np.meshgrid(np.arange(1024), np.arange(1024), indexing="ij")
+    two_theta = DetectorModel(hb2b).two_theta(*grid, -arm, 0.985, DENEXDetectorShift(*TRUE_PARAMS[:7]))
+    bragg = min(NI.two_theta(TRUE_PARAMS[7]), key=lambda angle: abs(angle - arm))  # Ni 220
+    rows = 40 + 944 * np.array([3, 4]) / STRIPS
+    in_band = (grid[1] >= rows[0] + 5) & (grid[1] < rows[1] - 5)
+    fake = 400.0 * np.exp(-0.5 * ((two_theta - bragg - 0.8) / 0.1) ** 2) * in_band
+    workspace.set_raw_counts(1, workspace.get_detector_counts(1) + np.rint(fake.ravel()))
+    diagnostics = []
+
+    # Act
+    points = extract_ring_points(workspace, NOMINAL_WAVELENGTH, strips=STRIPS, diagnostics=diagnostics)
+
+    # Assert - that strip alone is dropped as an outlier; the others stay on the true ring
+    rejected = {d.strip: d.reason for d in diagnostics if not d.accepted}
+    assert list(rejected) == [3] and rejected[3].startswith("outlier")
+    assert len(points) == STRIPS - 1
+    assert np.abs(points.index_0 - _true_columns(hb2b, points)).max() < 0.1

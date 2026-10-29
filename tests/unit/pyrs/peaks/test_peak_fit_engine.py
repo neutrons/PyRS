@@ -874,25 +874,8 @@ def test_pseudovoigt_HB2B_1060(target_values):
         pass
 
 
-if __name__ == "__main__":
-    # Init random number
-    import random
-
-    random.seed(1)
-    # Test main
-    pytest.main([__file__])
-
-
 def _single_gaussian_workspace():
     return generate_hydra_workspace_single_subrun("Gaussian", 75.0, 85.0, 500, [80.0], [2.5], [10])["workspace"]
-
-
-def test_high_background_defaults_to_true():
-    fit_engine = PeakFitEngineFactory.getInstance(
-        _single_gaussian_workspace(), "Gaussian", "Linear", wavelength=np.nan
-    )
-
-    assert fit_engine._high_background is True
 
 
 def test_high_background_non_bool_raises():
@@ -902,8 +885,9 @@ def test_high_background_non_bool_raises():
         )
 
 
-@pytest.mark.parametrize("high_background", [True, False])
-def test_high_background_forwarded_to_fitpeaks(monkeypatch, high_background):
+@pytest.mark.parametrize("high_background, expected", [(None, True), (True, True), (False, False)])
+def test_high_background_forwarded_to_fitpeaks(monkeypatch, high_background, expected):
+    """None: the argument is not passed, so FitPeaks gets the default, True"""
     from pyrs.peaks import mantid_fit_peak
 
     captured = {}
@@ -914,11 +898,21 @@ def test_high_background_forwarded_to_fitpeaks(monkeypatch, high_background):
         return real_fit_peaks(**kwargs)
 
     monkeypatch.setattr(mantid_fit_peak, "FitPeaks", spy_fit_peaks)
+    options = {} if high_background is None else {"high_background": high_background}
     fit_engine = PeakFitEngineFactory.getInstance(
-        _single_gaussian_workspace(), "Gaussian", "Linear", wavelength=np.nan, high_background=high_background
+        _single_gaussian_workspace(), "Gaussian", "Linear", wavelength=np.nan, **options
     )
 
     fit_engine.fit_peaks("spy", 78.75, 81.25)
 
-    assert captured["HighBackground"] is high_background
+    assert captured["HighBackground"] is expected
     assert "FindBackgroundSigma" not in captured  # deprecated and ignored by FitPeaks (#1029)
+
+
+if __name__ == "__main__":
+    # Init random number
+    import random
+
+    random.seed(1)
+    # Test main
+    pytest.main([__file__])

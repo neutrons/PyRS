@@ -882,6 +882,25 @@ scan layout. The SVD of the residual Jacobian (units: mm, deg, mÅ) shows:
 Errors for an undetermined parameter are reported as **-2** (not NaN): along the degeneracy the
 covariance inverse can return negative variances.
 
+*Update (2026-10-29, #1019 test review):* that rule only fired when `inv(JᵀJ)` happened to give a
+negative or NaN variance. On synthetic 4971-layout points it usually did not. `FullCalibration` then
+reported finite but meaningless errors:
+- **Degenerate set:** Shift_x 578 m and Rot_y/TTH_0 3.3e4° with 0.01° noise; 3e-7 m and 2e-5° with
+  no noise.
+- **Others inflated:** the near-singular inverse also pushed up the errors of other parameters,
+  e.g. Shift_y 12 m and Rot_z 173°.
+
+`_parameter_errors` now detects the rank deficiency directly. In the column-scaled Jacobian, the
+degenerate direction's singular value is about 4e-10 of the largest, and the next-weakest about
+5e-2. The cut-off is 1e-6.
+- **Flagged -2:** every parameter whose removal restores full rank. That is Shift_x, Rot_y and
+  TTH_0, and also Shift_y, Shift_z and Rot_z, which have a small, systematic share (about 3e-4
+  scaled) in the exact null move: it also adjusts Shift_z and re-splits the rotations.
+- **Real errors:** Rot_x and λ, which are orthogonal to the degenerate direction. They come from the
+  pseudo-inverse.
+- **At full rank:** e.g. `estimate_errors` with 2θ₀ held, the result is the same `inv(JᵀJ)` formula.
+  The driver output on HB2B_4971 is unchanged to 3e-14 relative.
+
 HB2B_4971 layout (from `Calib_Testing/HB2B_4971.h5` logs): arms 76, 80 (Ni), 78, 80, 82, 86 (Fe),
 89, 93, 97 (Ni), 99, 103 (Fe); it sees Ni 220/311/222 and Fe 211/220, each at 2–4 arm positions.
 
