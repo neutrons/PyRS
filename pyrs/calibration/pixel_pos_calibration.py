@@ -41,6 +41,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 from scipy.optimize import least_squares
 
+from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 from pyrs.core.reduce_hb2b_pyrs import ResidualStressInstrument
 from pyrs.utilities.convertdatatypes import to_float
@@ -51,6 +52,9 @@ __all__ = [
     "PixelCalibration",
     "StageResult",
     "PARAMETER_NAMES",
+    "PARAMETER_UNITS",
+    "NOT_REFINED",
+    "UNDETERMINED",
     "DEFAULT_RECIPE",
     "DEFAULT_TOLERANCE",
     "StripFit",
@@ -59,23 +63,75 @@ __all__ = [
 
 # order of the calibration vector, matching FitCalibration and the calibration JSON keys
 PARAMETER_NAMES = ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda")
+# display unit of each parameter and the factor from its stored unit (m, deg, A)
+PARAMETER_UNITS = (("mm", 1e3),) * 3 + (("deg", 1.0),) * 4 + (("A", 1.0),)
+
+# values of the error array that are codes, not uncertainties
+NOT_REFINED = -1.0  # never refined, or held (e.g. 2theta_0 in estimate_errors)
+UNDETERMINED = -2.0  # refined, but the fit cannot determine it (degenerate, or stopped at a bound)
 
 # PixelCalibration.iterate(): the production-style staged workflow and its convergence test
 DEFAULT_RECIPE = ("CalibrateShift", "CalibrateRotation", "calibrate_wave_shift")
 DEFAULT_TOLERANCE = 1e-3  # per pass, in mm (shifts), degrees (angles) and mA (wavelength)
-_REPORT_UNITS = np.array([1e3, 1e3, 1e3, 1.0, 1.0, 1.0, 1.0, 1e3])
-_RECIPE_STAGES = (
-    "calibrate_wave_length",
-    "calibrate_wave_shift",
-    "calibrate_shiftx",
-    "calibrate_shifty",
-    "calibrate_distance",
-    "calibrate_tth0",
-    "CalibrateShift",
-    "CalibrateRotation",
-    "CalibrateGeometry",
-    "FullCalibration",
-)
+_TOLERANCE_UNITS = np.array([1e3, 1e3, 1e3, 1.0, 1.0, 1.0, 1.0, 1e3])
+
+# Stage methods of PixelCalibration: free parameters and bound half-widths, following
+# FitCalibration. Bounds are +/- the half-width about zero for the shifts (m) and angles (deg), and
+# about the current value for the wavelength (A). CalibrateGeometry's +/-0.05 m on Shift_z (the other
+# stages allow 0.15 m) is FitCalibration's.
+_STAGES: Dict[str, Tuple[Tuple[int, ...], Tuple[float, ...]]] = {
+    "calibrate_wave_length": ((7,), (0.025,)),
+    "calibrate_wave_shift": ((6, 7), (5.0, 0.025)),
+    "calibrate_shiftx": ((0,), (0.05,)),
+    "calibrate_shifty": ((1,), (0.05,)),
+    "calibrate_distance": ((2,), (0.1,)),
+    "calibrate_tth0": ((6,), (5.0,)),
+    "CalibrateShift": ((0, 1, 2), (0.05, 0.05, 0.15)),
+    "CalibrateRotation": ((3, 4, 5), (5.0, 5.0, 5.0)),
+    "CalibrateGeometry": ((0, 1, 2, 3, 4, 5, 6), (0.05, 0.05, 0.05, 5.0, 5.0, 5.0, 5.0)),
+    "FullCalibration": (tuple(range(8)), (0.05, 0.05, 0.15, 5.0, 5.0, 5.0, 5.0, 0.05)),
+}
+
+
+def _parameter_indices(parameters: Sequence[Union[int, str]], context: str) -> np.ndarray:
+    """Indices into the calibration vector of ``parameters`` (indices or :data:`PARAMETER_NAMES`)."""
+    indices = []
+    for parameter in parameters:
+        if isinstance(parameter, str):
+            if parameter not in PARAMETER_NAMES:
+                raise ValueError(f"{context}: unknown parameter {parameter!r}; use one of {PARAMETER_NAMES}")
+            indices.append(PARAMETER_NAMES.index(parameter))
+        elif isinstance(parameter, (int, np.integer)) and 0 <= parameter < len(PARAMETER_NAMES):
+            indices.append(int(parameter))
+        else:
+            raise ValueError(
+                f"{context}: parameters must be names from {PARAMETER_NAMES} or indices 0-7, got {parameter!r}"
+            )
+    return np.array(indices, dtype=int)
+
+
+def _to_shift(values: Union[Sequence[float], np.ndarray]) -> DENEXDetectorShift:
+    """The detector part (first 7 entries) of a calibration vector."""
+    return DENEXDetectorShift(*values[:7])
+
+
+def _from_shift(shift: DENEXDetectorShift) -> np.ndarray:
+    """The first 7 entries of a calibration vector, from a detector calibration."""
+    return np.array(
+        [
+            shift.center_shift_x,
+            shift.center_shift_y,
+            shift.center_shift_z,
+            shift.rotation_x,
+            shift.rotation_y,
+            shift.rotation_z,
+            shift.two_theta_0,
+        ]
+    )
+
+
+_GIMBAL_LIMIT_DEG = 89.0  # with_two_theta_0 refuses a Rot_y closer than this to +/-90 deg
+_SHIFT_STEP_M = 1e-3
 
 
 class DetectorModel:
@@ -177,19 +233,23 @@ class DetectorModel:
 
         positions[:, :, 2] += arm_l2
 
-        if abs(two_theta) > 1.0e-7:
+        if abs(two_theta) > 1.0e-7:  # the same threshold as build_instrument, to stay bit-identical
             two_theta_matrix = self._instrument._cal_rotation_matrix_y(np.deg2rad(two_theta))
             positions = self._instrument._rotate_detector(positions, two_theta_matrix)
 
         return positions.reshape(shape)
 
-    def two_theta(self, index_0, index_1, two_theta: float, l2: Optional[float], calibration) -> np.ndarray:
+    def two_theta(
+        self, index_0, index_1, two_theta: float, l2: Optional[float], calibration: Optional[DENEXDetectorShift]
+    ) -> np.ndarray:
         """Scattering angle 2theta (degrees) of the given pixels; arguments as :meth:`lab_positions`."""
         positions = self.lab_positions(index_0, index_1, two_theta, l2, calibration)
         norm = np.sqrt(positions[..., 0] ** 2 + positions[..., 1] ** 2 + positions[..., 2] ** 2)
         return np.arccos(positions[..., 2] / norm) * 180 / np.pi
 
-    def eta(self, index_0, index_1, two_theta: float, l2: Optional[float], calibration) -> np.ndarray:
+    def eta(
+        self, index_0, index_1, two_theta: float, l2: Optional[float], calibration: Optional[DENEXDetectorShift]
+    ) -> np.ndarray:
         """Azimuthal angle eta (degrees, in (-180, 180]); arguments as :meth:`lab_positions`."""
         positions = self.lab_positions(index_0, index_1, two_theta, l2, calibration)
         eta = 180.0 - np.arctan2(positions[..., 1], positions[..., 0]) * 180 / np.pi
@@ -227,22 +287,12 @@ class DetectorModel:
         if not isinstance(calibration, DENEXDetectorShift):
             raise TypeError(f"calibration must be a DENEXDetectorShift, got {type(calibration).__name__}")
         two_theta_0 = to_float("2theta_0", two_theta_0)
-        old = np.array(
-            [
-                calibration.center_shift_x,
-                calibration.center_shift_y,
-                calibration.center_shift_z,
-                calibration.rotation_x,
-                calibration.rotation_y,
-                calibration.rotation_z,
-                calibration.two_theta_0,
-            ]
-        )
+        old = _from_shift(calibration)
         delta = np.deg2rad(two_theta_0 - old[6])
         rotation = self._instrument._cal_rotation_matrix_y(-delta) @ self._instrument.generate_rotation_matrix(
             *np.deg2rad(old[3:6])
         )
-        if abs(rotation[0, 2]) > np.sin(np.deg2rad(89.0)):
+        if abs(rotation[0, 2]) > np.sin(np.deg2rad(_GIMBAL_LIMIT_DEG)):
             raise ValueError("compensated rotation is at the Rot_y = +/-90 deg singularity")
 
         new = old.copy()
@@ -253,15 +303,15 @@ class DetectorModel:
 
         # with the angles fixed the centre is affine in the three shifts, so one linear solve is exact
         target = self.centre_position(calibration, l2)
-        base = self.centre_position(DENEXDetectorShift(*new), l2)
+        base = self.centre_position(_to_shift(new), l2)
         columns = []
         for k in range(3):
             moved = new.copy()
-            moved[k] += 1e-3
-            columns.append((self.centre_position(DENEXDetectorShift(*moved), l2) - base) / 1e-3)
+            moved[k] += _SHIFT_STEP_M  # any step is exact here: the centre is affine in the shifts
+            columns.append((self.centre_position(_to_shift(moved), l2) - base) / _SHIFT_STEP_M)
         new[:3] += np.linalg.solve(np.array(columns).T, target - base)
 
-        return DENEXDetectorShift(*new)
+        return _to_shift(new)
 
 
 _RING_FIELDS = ("sub_run", "index_0", "index_1", "det_2theta", "l2", "d_spacing", "hkl_squared", "powder", "sigma")
@@ -352,7 +402,7 @@ def _parameter_errors(jacobian: np.ndarray, residual: np.ndarray, dof: int) -> n
     """
     scale = np.linalg.norm(jacobian, axis=0)
     if dof <= 0 or not np.all(np.isfinite(jacobian)) or np.any(scale == 0):
-        return np.full(jacobian.shape[1], -2.0)
+        return np.full(jacobian.shape[1], UNDETERMINED)
     scaled = jacobian / scale
 
     def rank(matrix: np.ndarray) -> int:
@@ -367,7 +417,7 @@ def _parameter_errors(jacobian: np.ndarray, residual: np.ndarray, dof: int) -> n
                 undetermined[column] = True
     covariance = np.linalg.pinv(scaled.T @ scaled, rcond=_RANK_RTOL**2, hermitian=True)
     variances = np.diag(covariance) / scale**2 * np.sum(residual**2) / dof
-    return np.where(undetermined | ~(variances >= 0), -2.0, np.sqrt(np.abs(variances)))
+    return np.where(undetermined | ~(variances >= 0), UNDETERMINED, np.sqrt(np.abs(variances)))
 
 
 @dataclass(frozen=True)
@@ -378,7 +428,7 @@ class StageResult:
         name: Stage name, e.g. ``"CalibrateShift"``.
         free_parameters: Names of the refined parameters.
         values: Refined values of those parameters.
-        errors: One-sigma uncertainties, or -2 where the fit could not determine them.
+        errors: One-sigma uncertainties, or :data:`UNDETERMINED` where the fit could not determine them.
         status: ``scipy.optimize.least_squares`` status (> 0 converged, 0 hit ``max_nfev``).
         rmse: Root-mean-square 2theta residual (degrees) after the stage.
         nfev: Number of residual evaluations.
@@ -457,7 +507,7 @@ class PixelCalibration:
 
         self._calib = np.zeros(8)
         self._calib[7] = wavelength
-        self._caliberr = np.full(8, -1.0)
+        self._caliberr = np.full(8, NOT_REFINED)
         self._status = -1
         self.stages: List[StageResult] = []
 
@@ -476,7 +526,7 @@ class PixelCalibration:
 
     @property
     def calibration_error_array(self) -> np.ndarray:
-        """One-sigma errors (copy); -1 for parameters never refined, -2 if undetermined."""
+        """One-sigma errors (copy); :data:`NOT_REFINED` (-1) or :data:`UNDETERMINED` (-2) where there is none."""
         return self._caliberr.copy()
 
     @property
@@ -524,17 +574,9 @@ class PixelCalibration:
         """
         if l2 is None:
             l2 = float(np.median(self.ring_points.l2))
-        calibration = self._model.with_two_theta_0(DENEXDetectorShift(*self._calib[:7]), two_theta_0, l2)
-        self._calib[:7] = [
-            calibration.center_shift_x,
-            calibration.center_shift_y,
-            calibration.center_shift_z,
-            calibration.rotation_x,
-            calibration.rotation_y,
-            calibration.rotation_z,
-            calibration.two_theta_0,
-        ]
-        self._caliberr[:7] = -1.0
+        calibration = self._model.with_two_theta_0(_to_shift(self._calib), two_theta_0, l2)
+        self._calib[:7] = _from_shift(calibration)
+        self._caliberr[:7] = NOT_REFINED
         stage = StageResult(
             name="set_two_theta_0",
             free_parameters=(),
@@ -549,7 +591,7 @@ class PixelCalibration:
 
     def model_two_theta(self, params: Union[Sequence[float], np.ndarray]) -> np.ndarray:
         """2theta (degrees) of every ring point's pixel for calibration vector ``params``."""
-        calibration = DENEXDetectorShift(*params[:7])
+        calibration = _to_shift(params)
         two_theta = np.empty(len(self.ring_points))
         points = self.ring_points
         for index, arm_two_theta, l2 in self._groups:
@@ -574,8 +616,8 @@ class PixelCalibration:
         self,
         name: str,
         free_parameters: Sequence[Union[int, str]],
-        lower: Sequence[float],
-        upper: Sequence[float],
+        lower: Union[Sequence[float], np.ndarray],
+        upper: Union[Sequence[float], np.ndarray],
         initial_guess: Optional[Sequence[float]] = None,
     ) -> StageResult:
         """Refine any subset of the calibration vector, holding the others at their current values.
@@ -600,18 +642,17 @@ class PixelCalibration:
             The stage's :class:`StageResult`; the calibration vector and errors are updated.
 
         Raises:
-            ValueError: On unknown parameter names, mismatched lengths, a starting value outside
-                the bounds, or no more ring points than free parameters.
+            ValueError: On unknown parameters, mismatched lengths, a lower bound not below its upper
+                bound, a starting value outside the bounds, or no more ring points than free parameters.
         """
-        try:
-            free = np.array([PARAMETER_NAMES.index(p) if isinstance(p, str) else int(p) for p in free_parameters])
-        except ValueError:
-            raise ValueError(f"{name}: free parameters must be indices or names from {PARAMETER_NAMES}")
+        free = _parameter_indices(free_parameters, name)
         lower_bounds = np.asarray(lower, dtype=float)
         upper_bounds = np.asarray(upper, dtype=float)
         x0 = self._calib[free] if initial_guess is None else np.asarray(initial_guess, dtype=float)
         if not (x0.shape == lower_bounds.shape == upper_bounds.shape == free.shape):
             raise ValueError(f"{name}: initial guess and bounds must have {free.size} values")
+        if not np.all(lower_bounds < upper_bounds):
+            raise ValueError(f"{name}: every lower bound must be below its upper bound")
         if len(self.ring_points) <= free.size:
             raise ValueError(f"{name}: needs more ring points ({len(self.ring_points)}) than free parameters")
         if self._method != "lm":
@@ -647,7 +688,7 @@ class PixelCalibration:
         # a parameter stopped by its bound is not at a minimum, so its covariance error means nothing
         at_bound = np.asarray(out.active_mask) != 0
         if np.any(at_bound):
-            errors = np.where(at_bound, -2.0, errors)
+            errors = np.where(at_bound, UNDETERMINED, errors)
             pinned = [PARAMETER_NAMES[i] for i in free[at_bound]]
             warnings.warn(f"{name}: {pinned} stopped at a bound; their errors are flagged -2", stacklevel=2)
 
@@ -666,75 +707,72 @@ class PixelCalibration:
         self.stages.append(stage)
         return stage
 
-    # Stage methods: names, free parameters and default bounds follow FitCalibration.
+    # Stage methods: names, free parameters and default bounds follow FitCalibration (see _STAGES).
+    # ``initalGuess`` (sic) is FitCalibration's keyword, kept so the two are drop-in comparable.
+
+    def _stage_bounds(self, name: str) -> Tuple[np.ndarray, np.ndarray]:
+        """Default bounds of stage ``name``: about 0 for shifts and angles, about the current wavelength."""
+        free, half_width = _STAGES[name]
+        centre = np.where(np.asarray(free) == 7, self._calib[7], 0.0)
+        return centre - np.asarray(half_width), centre + np.asarray(half_width)
+
+    def _run_stage(self, name: str, initial_guess: Optional[Sequence[float]] = None) -> StageResult:
+        lower, upper = self._stage_bounds(name)
+        return self.refine(name, _STAGES[name][0], lower, upper, initial_guess)
 
     def calibrate_wave_length(self, initial_guess: Optional[Sequence[float]] = None) -> StageResult:
         """Refine the wavelength within +/-0.025 A of its current value."""
-        wl = self._calib[7]
-        return self.refine("calibrate_wave_length", [7], [wl - 0.025], [wl + 0.025], initial_guess)
+        return self._run_stage("calibrate_wave_length", initial_guess)
 
     def calibrate_wave_shift(self, initial_guess: Optional[Sequence[float]] = None) -> StageResult:
         """Refine 2theta_0 (+/-5 deg) and the wavelength (+/-0.025 A)."""
-        wl = self._calib[7]
-        return self.refine("calibrate_wave_shift", [6, 7], [-5.0, wl - 0.025], [5.0, wl + 0.025], initial_guess)
+        return self._run_stage("calibrate_wave_shift", initial_guess)
 
     def calibrate_shiftx(self, initial_guess: Optional[Sequence[float]] = None) -> StageResult:
         """Refine the X shift (+/-0.05 m)."""
-        return self.refine("calibrate_shiftx", [0], [-0.05], [0.05], initial_guess)
+        return self._run_stage("calibrate_shiftx", initial_guess)
 
     def calibrate_shifty(self, initial_guess: Optional[Sequence[float]] = None) -> StageResult:
         """Refine the Y shift (+/-0.05 m)."""
-        return self.refine("calibrate_shifty", [1], [-0.05], [0.05], initial_guess)
+        return self._run_stage("calibrate_shifty", initial_guess)
 
     def calibrate_distance(self, initial_guess: Optional[Sequence[float]] = None) -> StageResult:
         """Refine the Z shift, i.e. the sample-detector distance correction (+/-0.1 m)."""
-        return self.refine("calibrate_distance", [2], [-0.1], [0.1], initial_guess)
+        return self._run_stage("calibrate_distance", initial_guess)
 
     def calibrate_tth0(self, initial_guess: Optional[Sequence[float]] = None) -> StageResult:
         """Refine the 2theta offset (+/-5 deg)."""
-        return self.refine("calibrate_tth0", [6], [-5.0], [5.0], initial_guess)
+        return self._run_stage("calibrate_tth0", initial_guess)
 
     def CalibrateShift(
         self, initalGuess: Optional[Sequence[float]] = None, bounds: Optional[Sequence[Sequence[float]]] = None
     ) -> StageResult:
         """Refine the X, Y, Z shifts (default bounds +/-0.05, +/-0.05, +/-0.15 m)."""
         if bounds is None:
-            bounds = [[-0.05, -0.05, -0.15], [0.05, 0.05, 0.15]]
-        return self.refine("CalibrateShift", [0, 1, 2], bounds[0], bounds[1], initalGuess)
+            return self._run_stage("CalibrateShift", initalGuess)
+        return self.refine("CalibrateShift", _STAGES["CalibrateShift"][0], bounds[0], bounds[1], initalGuess)
 
     def CalibrateRotation(self, initalGuess: Optional[Sequence[float]] = None) -> StageResult:
         """Refine the X, Y, Z rotations (+/-5 deg)."""
-        return self.refine("CalibrateRotation", [3, 4, 5], [-5.0] * 3, [5.0] * 3, initalGuess)
+        return self._run_stage("CalibrateRotation", initalGuess)
 
     def CalibrateGeometry(self, initalGuess: Optional[Sequence[float]] = None) -> StageResult:
         """Refine shifts (+/-0.05 m), rotations and 2theta_0 (+/-5 deg); the wavelength is held."""
-        return self.refine(
-            "CalibrateGeometry",
-            range(7),
-            [-0.05, -0.05, -0.05, -5.0, -5.0, -5.0, -5.0],
-            [0.05, 0.05, 0.05, 5.0, 5.0, 5.0, 5.0],
-            initalGuess,
-        )
+        return self._run_stage("CalibrateGeometry", initalGuess)
 
     def FullCalibration(self, initalGuess: Optional[Sequence[float]] = None) -> StageResult:
         """Refine all 8 parameters (shifts +/-0.05/0.05/0.15 m, angles +/-5 deg, wavelength +/-0.05 A)."""
-        wl = self._calib[7]
-        return self.refine(
-            "FullCalibration",
-            range(8),
-            [-0.05, -0.05, -0.15, -5.0, -5.0, -5.0, -5.0, wl - 0.05],
-            [0.05, 0.05, 0.15, 5.0, 5.0, 5.0, 5.0, wl + 0.05],
-            initalGuess,
-        )
+        return self._run_stage("FullCalibration", initalGuess)
 
     def estimate_errors(self, hold: Sequence[Union[int, str]] = ("TTH_0",)) -> StageResult:
         """Uncertainties of the calibration at its current values, with ``hold`` fixed.
 
         Shift_x, Rot_y and TTH_0 are exactly degenerate at one detector distance (see :meth:`refine`),
-        so a refinement of all eight parameters cannot give their errors (they are flagged -2). This
+        so a refinement of all eight parameters cannot give their errors (they are flagged
+        :data:`UNDETERMINED`). This
         refines every parameter except ``hold``, starting from the current values (normally the
         optimum, so the values barely move), to get their one-sigma errors. The held parameters'
-        errors are set to -1 ("not refined"): their values are a choice along the degenerate set, not
+        errors are set to :data:`NOT_REFINED`: their values are a choice along the degenerate set, not
         a measurement (docs/ground_truths.md).
 
         Args:
@@ -742,14 +780,17 @@ class PixelCalibration:
 
         Returns:
             The :class:`StageResult` of the error refinement, recorded in :attr:`stages`.
+
+        Raises:
+            ValueError: On an unknown parameter in ``hold``.
         """
-        held = [PARAMETER_NAMES.index(p) if isinstance(p, str) else int(p) for p in hold]
+        held = _parameter_indices(hold, "estimate_errors")
         free = [i for i in range(8) if i not in held]
-        # bounds around the current values: the start is always inside, and wide enough not to bind
-        span = np.array([0.05, 0.05, 0.15, 5.0, 5.0, 5.0, 5.0, 0.05])[free]
+        # FullCalibration's widths about the current values: the start is inside, and they do not bind
+        span = np.asarray(_STAGES["FullCalibration"][1])[free]
         current = self._calib[free]
         stage = self.refine("estimate_errors", free, current - span, current + span)
-        self._caliberr[held] = -1.0
+        self._caliberr[held] = NOT_REFINED
         return stage
 
     def write_calibration(self, file_name: Union[str, Path]) -> None:
@@ -767,8 +808,8 @@ class PixelCalibration:
             raise RuntimeError("nothing has been refined: refusing to write a calibration with Status -1")
         values, errors = self._calib, self._caliberr
         write_calibration_to_json(
-            DENEXDetectorShift(*values[:7]),
-            DENEXDetectorShift(*errors[:7]),
+            _to_shift(values),
+            _to_shift(errors),
             float(values[7]),
             float(errors[7]),
             int(self._status),
@@ -804,9 +845,9 @@ class PixelCalibration:
         Raises:
             ValueError: On an unknown stage name or a non-positive pass count or tolerance.
         """
-        unknown = [name for name in recipe if name not in _RECIPE_STAGES]
+        unknown = [name for name in recipe if name not in _STAGES]
         if unknown or not recipe:
-            raise ValueError(f"recipe stages must be from {sorted(_RECIPE_STAGES)}, got {list(recipe)}")
+            raise ValueError(f"recipe stages must be from {sorted(_STAGES)}, got {list(recipe)}")
         if passes is not None and passes < 1:
             raise ValueError(f"passes must be at least 1, got {passes}")
         if not tolerance > 0 or max_passes < 1:
@@ -817,7 +858,7 @@ class PixelCalibration:
             before = self._calib.copy()
             for name in recipe:
                 getattr(self, name)()
-            if passes is None and np.max(np.abs(self._calib - before) * _REPORT_UNITS) < tolerance:
+            if passes is None and np.max(np.abs(self._calib - before) * _TOLERANCE_UNITS) < tolerance:
                 break
         else:
             if passes is None:
@@ -869,8 +910,16 @@ class StripFit:
     reason: str = ""
 
 
+_SECANT_STEP_PX = 1e-3
+
+
 def _column_at_two_theta(
-    model: DetectorModel, target: float, row: float, arm_two_theta: float, l2: float, calibration
+    model: DetectorModel,
+    target: float,
+    row: float,
+    arm_two_theta: float,
+    l2: float,
+    calibration: Optional[DENEXDetectorShift],
 ) -> float:
     """Fractional ``index_0`` on row ``row`` whose 2theta is ``target``; NaN if it is off the detector."""
     num_rows, num_columns = model.instrument_setup.detector_size
@@ -882,10 +931,16 @@ def _column_at_two_theta(
     column = float(np.interp(target, profile[order], columns[order]))
     # two secant refinements make the linear interpolation exact to well below 1e-6 pixel
     for _ in range(2):
-        here, step = model.two_theta(column, row, arm_two_theta, l2, calibration), 1e-3
+        here, step = model.two_theta(column, row, arm_two_theta, l2, calibration), _SECANT_STEP_PX
         slope = (model.two_theta(column + step, row, arm_two_theta, l2, calibration) - here) / step
         column -= float((here - target) / slope)
     return column
+
+
+_MIN_POINTS_FOR_OUTLIERS = 4  # a quadratic through 3 points has no residual to judge them by
+_OUTLIER_F_SCALE_PX = 0.5  # soft-L1 transition: residuals beyond ~0.5 px count linearly, not squared
+_MAD_TO_SIGMA = 1.4826  # median absolute deviation -> Gaussian sigma
+_MIN_OUTLIER_SCALE_PX = 0.1
 
 
 def _reject_outliers(points: List[dict], threshold: float, smooth: bool) -> None:
@@ -894,7 +949,7 @@ def _reject_outliers(points: List[dict], threshold: float, smooth: bool) -> None
     for point in points:
         rings.setdefault((point["sub_run"], point["hkl_squared"]), []).append(point)
     for ring in rings.values():
-        if len(ring) < 4:
+        if len(ring) < _MIN_POINTS_FOR_OUTLIERS:
             continue
         rows = np.array([p["index_1"] for p in ring])
         columns = np.array([p["index_0"] for p in ring])
@@ -902,11 +957,13 @@ def _reject_outliers(points: List[dict], threshold: float, smooth: bool) -> None
         # should expose, shrinking that point's residual and inflating everyone else's
         scaled = (rows - rows.mean()) / max(np.ptp(rows), 1.0)
         start = np.polyfit(scaled, columns, 2)
-        fit = least_squares(lambda c: np.polyval(c, scaled) - columns, start, loss="soft_l1", f_scale=0.5)
+        fit = least_squares(
+            lambda c: np.polyval(c, scaled) - columns, start, loss="soft_l1", f_scale=_OUTLIER_F_SCALE_PX
+        )
         smooth_columns = np.polyval(fit.x, scaled)
         residual = columns - smooth_columns
         # floor so a near-perfect ring (simulated, noise-free) does not reject on rounding scatter
-        scale = max(1.4826 * np.median(np.abs(residual - np.median(residual))), 0.1)
+        scale = max(_MAD_TO_SIGMA * np.median(np.abs(residual - np.median(residual))), _MIN_OUTLIER_SCALE_PX)
         for point, res, fitted in zip(ring, residual, smooth_columns):
             if abs(res) > threshold * scale:
                 point["reject"] = f"outlier ({res:+.2f} px from the ring)"
@@ -1057,8 +1114,6 @@ def extract_ring_points(
     Raises:
         ValueError: On invalid arguments, or if no ring point is found.
     """
-    from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
-
     if not wavelength > 0:
         raise ValueError(f"wavelength must be positive, got {wavelength}")
     if strips < 1 or edge < 0 or side_margin < 0 or not bin_width > 0 or not fit_half_width > 0:

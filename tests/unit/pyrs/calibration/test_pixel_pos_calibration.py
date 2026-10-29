@@ -418,8 +418,50 @@ def test_refine_too_few_points_raises(hb2b, true_rings):
 
 def test_refine_unknown_parameter_raises(hb2b, true_rings):
     calibration = PixelCalibration(true_rings, hb2b, wavelength=1.54)
-    with pytest.raises(ValueError, match="free parameters"):
+    with pytest.raises(ValueError, match="unknown parameter 'Shift_w'"):
         calibration.refine("bad", ["Shift_w"], [-1.0], [1.0])
+
+
+@pytest.mark.parametrize("parameter", [8, -1, 2.0])
+def test_refine_bad_parameter_index_raises(hb2b, true_rings, parameter):
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=1.54)
+    with pytest.raises(ValueError, match="indices 0-7"):
+        calibration.refine("bad", [parameter], [-1.0], [1.0])
+
+
+def test_refine_lower_not_below_upper_raises(hb2b, true_rings):
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=1.54)
+    with pytest.raises(ValueError, match="lower bound"):
+        calibration.refine("bad", ["Shift_x"], [0.0], [0.0])
+
+
+@pytest.mark.parametrize(
+    "stage, free, lower, upper",
+    [
+        ("calibrate_wave_shift", ("TTH_0", "Lambda"), [-5.0, 1.54 - 0.025], [5.0, 1.54 + 0.025]),
+        ("CalibrateShift", ("Shift_x", "Shift_y", "Shift_z"), [-0.05, -0.05, -0.15], [0.05, 0.05, 0.15]),
+        ("CalibrateGeometry", PARAMETER_NAMES[:7], [-0.05] * 3 + [-5.0] * 4, [0.05] * 3 + [5.0] * 4),
+        (
+            "FullCalibration",
+            PARAMETER_NAMES,
+            [-0.05, -0.05, -0.15] + [-5.0] * 4 + [1.49],
+            [0.05, 0.05, 0.15] + [5.0] * 4 + [1.59],
+        ),
+    ],
+)
+def test_stage_bounds_follow_fitcalibration(hb2b, true_rings, monkeypatch, stage, free, lower, upper):
+    # Arrange - capture what the stage hands to refine()
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=1.54)
+    seen = {}
+    monkeypatch.setattr(calibration, "refine", lambda name, f, lo, up, guess=None: seen.update(f=f, lo=lo, up=up))
+
+    # Act
+    getattr(calibration, stage)()
+
+    # Assert
+    assert tuple(PARAMETER_NAMES[i] for i in seen["f"]) == free
+    np.testing.assert_allclose(seen["lo"], lower)
+    np.testing.assert_allclose(seen["up"], upper)
 
 
 def test_set_calibration_array_wrong_length_raises(hb2b, true_rings):
