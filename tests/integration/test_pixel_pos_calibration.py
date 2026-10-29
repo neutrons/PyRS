@@ -16,7 +16,7 @@ pytestmark = pytest.mark.integration
 REPO = Path(__file__).resolve().parents[2]
 NEXUS_FILE = REPO / "tests" / "data" / "calibration_tests" / "HB2B_3510.nxs.h5"
 MASK_FILE = REPO / "tests" / "data" / "HB2B_Mask_12-18-19.xml"
-# this driver's own result on HB2B_3510 with MASK_FILE (2026-10-29, after the strip-fit sigma fix):
+# this driver's own result on HB2B_3510 with MASK_FILE (2026-10-29, strip-fit sigma fix and default HighBackground):
 # a regression reference, not an independently verified geometry; see docs/ground_truths.md
 REFERENCE_FILE = REPO / "tests" / "data" / "calibration_tests" / "HB2B_3510_ring_reference.json"
 

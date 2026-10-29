@@ -158,13 +158,10 @@ def _fit_band_histograms(
         # also stores sigma there (reduce_hb2b_pyrs.py), see docs/ground_truths.md
         fit_ws.set_reduced_diffraction_data(spectrum, None, centres, intensity, sigma)
 
+    # PyRS's standard fit (FitPeaks HighBackground=True): it ends in the same joint peak + background
+    # fit as False, from better starting values, and is never worse here (docs/ground_truths.md)
     engine = FitEngineFactory.getInstance(
-        fit_ws,
-        peak_function,
-        background_function,
-        wavelength=wavelength,
-        out_of_plane_angle=None,
-        high_background=False,
+        fit_ws, peak_function, background_function, wavelength=wavelength, out_of_plane_angle=None
     )
     result = engine.fit_multiple_peaks([name], [edges[0]], [edges[-1]])
     values, errors = result.peakcollections[0].get_effective_params()
@@ -470,9 +467,10 @@ def extract_ring_points(
     curved ring does not skew the peak. Each reflection of the sub-run's powder standard is first
     located by one fit on all bands together (high statistics), which puts the band windows on the
     observed ring even when the starting wavelength or geometry is off; it is then used in every
-    band where that ring crosses at least ``side_margin`` pixels from the left and right edges; its fit window is clipped to the band's coverage, and needs ``min_window_side`` degrees
-    of data on each side of the peak. Bands sharing a window are fitted together (Mantid
-    ``FitPeaks`` with ``HighBackground=False``), and each fitted 2theta is converted back to a
+    band where that ring crosses at least ``side_margin`` pixels from the left and right edges; its
+    fit window is clipped to the band's coverage, and needs ``min_window_side`` degrees of data on
+    each side of the peak. Bands sharing a window are fitted together (one Mantid ``FitPeaks`` call
+    through PyRS's peak-fitting engine), and each fitted 2theta is converted back to a
     column on the band's centre row *with the same geometry*, which makes the ring point nearly
     independent of how good ``calibration`` is. The fitted point must also lie ``side_margin``
     pixels inside the edges. Failed or imprecise fits are dropped, and one pass of outlier rejection per

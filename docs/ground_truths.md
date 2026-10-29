@@ -773,16 +773,30 @@ works under real crash/network conditions.
 
 ## Mantid `FitPeaks` `HighBackground` is per-engine, default `True` (2026-10)
 
+*Superseded 2026-10-29:* ring extraction now uses the default too, so the per-engine option was
+removed again and `pyrs/peaks` matches `next` (see "Ring extraction does not need
+`HighBackground=False`" below). What follows explains the two settings.
+
 `MantidPeakFitEngine` (and `FitEngineFactory.getInstance`) take
 `high_background: bool = True`, forwarded to Mantid `FitPeaks` as
 `HighBackground`. (`FindBackgroundSigma=1` was passed alongside it until #1029; Mantid ignores it,
 see the `FindBackgroundSigma` entry below.)
 
-- `True` — background fitted first, then the peak. Upstream default since
-  `ab3dd7d5` (2019-10-15, "Peak fitting pytests are passed"); every normal
-  PyRS fit (GUI, reduction, strain/stress) relies on it.
-- `False` — peak and background fitted together. Used only by pixel-position
-  calibration ([pixel_pos_calibration.py](../pyrs/calibration/pixel_pos_calibration.py)).
+- `True`: three fits per spectrum (Mantid `FitPeaks.cpp`, `fitFunctionHighBackground`):
+  1. a linear background alone, on the window minus ±5 bins around the expected centre (skipped if
+     either side has ≤ 10 bins);
+  2. the peak alone, on the data minus that background;
+  3. **peak and background together** on the original data, starting from steps 1–2, with the
+     position tolerance applied.
+
+  The reported parameters and errors come from step 3. Upstream default since `ab3dd7d5`
+  (2019-10-15, "Peak fitting pytests are passed"); every normal PyRS fit (GUI, reduction,
+  strain/stress) relies on it.
+- `False`: step 3 only, from Mantid's own starting estimates. Used only by pixel-position
+  calibration ([ring_extraction.py](../pyrs/calibration/ring_extraction.py)).
+
+Both end in the same joint peak + background fit; they differ only in its starting point (checked
+in the Mantid source, `main`, 2026-10-29).
 
 **Why this matters:** the calibration branch originally hard-coded `False`
 in `mantid_fit_peak.py`, which silently changed fitting for all of PyRS.
@@ -1627,3 +1641,60 @@ On HB2B_4971, scored as in the entries below (corrected η wedges, 2020 lattice,
   at a bound"). `estimate_errors` then re-fits with 2θ₀ held and bounds centred on the current
   values, so the written Rot_y error (±1.9°) is for that split. Written values are unchanged
   (≤ 3e-14 relative on 3489/3510/4971).
+
+## Ring extraction does not need `HighBackground=False` (2026-10-29, #1019)
+
+The draft switched FitPeaks to `HighBackground=False` (peak and background fitted together) for
+the strip fits, with no recorded reason. The per-engine `high_background` option (see the
+`HighBackground` entry above) exists only for that. Comparison of `True` (PyRS's default) against
+`False`, with everything else the driver's defaults (5 strips, mask `HB2B_Mask_12-18-19.xml`).
+Both end in the same joint peak + background fit. `True` starts it from a separate background
+fit and peak fit, `False` from Mantid's estimates, so the difference is in the starting point.
+
+**Synthetic images** (known geometry; mean of 6 noise draws; map error = max pixel-2θ error of the
+refined geometry at arms 76/90/103°):
+
+| case (counts/pixel) | HB | points | median / max \|col − true\| | cal RMS | map error mean (worst) |
+|---|---|---|---|---|---|
+| weak: 3 on 5 | True | 65.0 | 0.124 / 0.43 px | 0.0029° | 7.1 (10.7) mdeg |
+| | False | 65.0 | 0.123 / 0.55 px | 0.0030° | 8.0 (14.8) mdeg |
+| steep background: 3 on 20, 3/° | True | 63.7 | 0.258 / 2.07 px | 0.0074° | 18.9 (34.7) mdeg |
+| | False | 46.8 | 0.546 / 3.69 px | 0.0194° | 83.9 (112.3) mdeg |
+| sparse: 0.3 on 0.05 | True | 64.0 | 0.237 / 0.94 px | 0.0056° | 11.8 (18.7) mdeg |
+| | False | 63.8 | 0.236 / 0.94 px | 0.0056° | 12.5 (21.9) mdeg |
+
+(Strong rings, 40 on 5: identical.)
+
+**Real runs** (`False` reproduces the committed results exactly):
+
+| run | HB | points | RMS | λ (Å) | True vs False |
+|---|---|---|---|---|---|
+| HB2B_4971 | True / False | 65 / 65 | 0.0065 / 0.0065° | 1.53135 / 1.53135 | map ≤ 0.55 mdeg; columns ≤ 0.035 px |
+| HB2B_3510 | True / False | 60 / 60 | 0.0166 / 0.0157° | 1.53061 / 1.53056 | map ≤ 7.1 mdeg; one point moved 1.56 px |
+| HB2B_3489 | True / False | 58 / 59 | 0.0295 / 0.0301° | 1.72112 / 1.72120 | map ≤ 12 mdeg; `False` leaves Rot_y at its bound, `True` does not |
+
+**Conclusions.**
+- `True` is never worse on synthetic data, where the truth is known. It is much better when the
+  background is strong and sloping: it keeps a third more points, and the geometry error is about
+  4× smaller.
+- On real data the two agree within the errors. HB2B_3510's RMS is 6% higher with `True`, and
+  HB2B_3489's 2% lower. The λ differences (≤ 8e-5 Å) are below their errors (2–3e-4 Å).
+- So nothing supports `False`.
+
+**Switched (user decision, 2026-10-29).** Ring extraction uses PyRS's standard fit, and the
+`high_background` option (`1883d1d6`) is removed, so `pyrs/peaks` is identical to `next`. The
+driver's results are now the `True` rows above. HB2B_4971 scores 0.0077° on FitCalibration's
+η-wedge metric (0.0075° before; FitCalibration 0.0123°), with ring RMS 0.0065° and strip drift
+0.0033 / 0.0100°. Outputs: `calib_diagnostics/hb2b_4971/high_background_default/`. The HB2B_3510
+integration-test reference was regenerated.
+
+One unit test needed a looser intermediate check. With a starting wavelength 5 peak widths off
+(1.572 Å against 1.5308 Å), the all-bands locate fit lands 0.08° from the band fits with `True`
+(0.013° with `False`). FitPeaks' first, background-only fit masks only ±5 bins around the
+*expected* position, so the real peak is fitted as background and the joint fit starts worse. At
+realistic offsets (≤ 0.6°, the HB2B mono settings) the two settings agree exactly, and in every
+case the ring points are within 0.10 px of the true ring.
+
+*Aside (environment):* scripts that import `mantid.simpleapi` hung indefinitely in a background
+session with no reachable display. Mantid's import loads matplotlib's Qt backend, which waits on
+the display socket. `MPLBACKEND=Agg QT_QPA_PLATFORM=offscreen` avoids it.
