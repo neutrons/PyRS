@@ -7,6 +7,7 @@ from scipy.optimize import brentq
 from pyrs.calibration.pixel_pos_calibration import (
     DetectorModel,
     PixelCalibration,
+    _Candidate,
     _fit_band_histograms,
     _reject_outliers,
     extract_ring_points,
@@ -230,14 +231,17 @@ def test_weak_rings_rejected_then_raises(hb2b):
 def test_reject_outliers_flags_far_point():
     # Arrange - a smooth ring with one point 5 px off
     rows = np.linspace(100, 900, 9)
-    points = [{"sub_run": 1, "hkl_squared": 8, "index_1": r, "index_0": 300 + 1e-4 * (r - 500) ** 2} for r in rows]
-    points[4]["index_0"] += 5.0
+    points = [
+        _Candidate(1, k, r, 76.0, 0.985, 1.2459, 8, "Ni", 76.3, np.nan, index_0=300 + 1e-4 * (r - 500) ** 2)
+        for k, r in enumerate(rows)
+    ]
+    points[4].index_0 += 5.0
 
     # Act
     _reject_outliers(points, threshold=5.0, smooth=False)
 
     # Assert
-    assert [i for i, p in enumerate(points) if p.get("reject")] == [4]
+    assert [i for i, p in enumerate(points) if p.reject] == [4]
 
 
 @pytest.mark.parametrize(

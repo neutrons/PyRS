@@ -36,12 +36,12 @@ Example::
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from scipy.optimize import least_squares
 
-from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
+from pyrs.calibration.powder_standards import HB2B_STANDARDS, PowderStandard, standard_for_sy
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 from pyrs.core.reduce_hb2b_pyrs import ResidualStressInstrument
 from pyrs.utilities.convertdatatypes import to_float
@@ -943,16 +943,16 @@ _MAD_TO_SIGMA = 1.4826  # median absolute deviation -> Gaussian sigma
 _MIN_OUTLIER_SCALE_PX = 0.1
 
 
-def _reject_outliers(points: List[dict], threshold: float, smooth: bool) -> None:
+def _reject_outliers(points: List["_Candidate"], threshold: float, smooth: bool) -> None:
     """Flag points far from a quadratic ``index_0(index_1)`` through each ring; optionally smooth."""
-    rings: Dict[Tuple[Any, Any], List[dict]] = {}
+    rings: Dict[Tuple[int, int], List["_Candidate"]] = {}
     for point in points:
-        rings.setdefault((point["sub_run"], point["hkl_squared"]), []).append(point)
+        rings.setdefault((point.sub_run, point.hkl_squared), []).append(point)
     for ring in rings.values():
         if len(ring) < _MIN_POINTS_FOR_OUTLIERS:
             continue
-        rows = np.array([p["index_1"] for p in ring])
-        columns = np.array([p["index_0"] for p in ring])
+        rows = np.array([p.index_1 for p in ring])
+        columns = np.array([p.index_0 for p in ring])
         # robust (soft L1) quadratic: a plain least-squares fit is dragged towards the outlier it
         # should expose, shrinking that point's residual and inflating everyone else's
         scaled = (rows - rows.mean()) / max(np.ptp(rows), 1.0)
@@ -966,9 +966,9 @@ def _reject_outliers(points: List[dict], threshold: float, smooth: bool) -> None
         scale = max(_MAD_TO_SIGMA * np.median(np.abs(residual - np.median(residual))), _MIN_OUTLIER_SCALE_PX)
         for point, res, fitted in zip(ring, residual, smooth_columns):
             if abs(res) > threshold * scale:
-                point["reject"] = f"outlier ({res:+.2f} px from the ring)"
+                point.reject = f"outlier ({res:+.2f} px from the ring)"
             elif smooth:
-                point["index_0"] = float(fitted)
+                point.index_0 = float(fitted)
 
 
 def _fit_band_histograms(
@@ -1035,6 +1035,258 @@ def _fit_band_histograms(
         significance,
         excluded,
     )
+
+
+@dataclass
+class _Candidate:
+    """One reflection in one band while it is being extracted: a RingPoints entry and a StripFit."""
+
+    sub_run: int
+    strip: int
+    index_1: float
+    det_2theta: float
+    l2: float
+    d_spacing: float
+    hkl_squared: int
+    powder: str
+    bragg_two_theta: float
+    start_center: float
+    sigma: float = np.nan
+    index_0: float = np.nan
+    center: float = np.nan
+    two_theta: np.ndarray = field(default_factory=lambda: np.array([]))
+    intensity: np.ndarray = field(default_factory=lambda: np.array([]))
+    reject: str = ""
+
+    def strip_fit(self) -> StripFit:
+        return StripFit(
+            sub_run=self.sub_run,
+            strip=self.strip,
+            row=self.index_1,
+            powder=self.powder,
+            hkl_squared=self.hkl_squared,
+            bragg_two_theta=self.bragg_two_theta,
+            start_center=self.start_center,
+            two_theta=self.two_theta,
+            intensity=self.intensity,
+            center=self.center,
+            center_error=self.sigma,
+            index_0=np.nan if self.reject else self.index_0,
+            accepted=not self.reject,
+            reason=self.reject,
+        )
+
+
+@dataclass(frozen=True)
+class _ExtractionSettings:
+    """The tuning arguments of :func:`extract_ring_points`, validated once."""
+
+    strips: int
+    edge: int
+    side_margin: int
+    bin_width: float
+    fit_half_width: float
+    min_window_side: float
+    peak_function: str
+    background_function: str
+    max_center_error: float
+    min_significance: float
+    outlier_threshold: float
+    smooth: bool
+
+    def __post_init__(self) -> None:
+        if (
+            self.strips < 1
+            or self.edge < 0
+            or self.side_margin < 0
+            or not self.bin_width > 0
+            or not self.fit_half_width > 0
+        ):
+            raise ValueError(
+                "strips must be >= 1, edge and side_margin >= 0, and bin_width and fit_half_width positive"
+            )
+        if not self.min_significance >= 0:
+            raise ValueError(f"min_significance must be non-negative, got {self.min_significance}")
+        if not 0 < self.min_window_side <= self.fit_half_width:
+            raise ValueError(f"min_window_side must be in (0, fit_half_width], got {self.min_window_side}")
+
+    def window(self, center: float, tth: np.ndarray) -> Optional[Tuple[int, int]]:
+        """Fit window around ``center`` clipped to the pixels' coverage, in whole bins; None if either
+        side keeps less than ``min_window_side`` of data."""
+        low = int(np.ceil(max(center - self.fit_half_width, tth.min()) / self.bin_width))
+        high = int(np.floor(min(center + self.fit_half_width, tth.max()) / self.bin_width))
+        if (
+            center - low * self.bin_width < self.min_window_side
+            or high * self.bin_width - center < self.min_window_side
+        ):
+            return None
+        return low, high
+
+    def edges(self, window: Tuple[int, int]) -> np.ndarray:
+        """Bin edges (deg) of a window from :meth:`window`."""
+        return np.arange(window[0], window[1] + 1) * self.bin_width
+
+
+PixelSet = Tuple[np.ndarray, np.ndarray, np.ndarray]  # 2theta, weighted counts, weighted efficiency
+
+
+def _band_pixels(
+    two_theta: np.ndarray, counts: np.ndarray, weights: np.ndarray, efficiency: np.ndarray, bounds: np.ndarray
+) -> List[PixelSet]:
+    """Per band (rows ``bounds[k]`` to ``bounds[k + 1]``): 2theta, counts and efficiency of its unmasked pixels."""
+    pixel_sets = []
+    for lo, hi in zip(bounds[:-1], bounds[1:]):
+        band = slice(lo, hi)
+        keep = weights[:, band].ravel() > 0
+        pixel_sets.append(
+            (
+                two_theta[:, band].ravel()[keep],
+                weights[:, band].ravel()[keep] * counts[:, band].ravel()[keep],
+                weights[:, band].ravel()[keep] * efficiency[:, band].ravel()[keep],
+            )
+        )
+    return pixel_sets
+
+
+def _locate_ring(
+    name: str, combined: PixelSet, bragg: float, settings: _ExtractionSettings, wavelength: float
+) -> Tuple[float, bool]:
+    """Pass 1: the ring's 2theta from one fit of all bands together, or ``bragg`` if none is found.
+
+    The signal is strongest here, so the band windows (and the fits' starting centre, the window
+    middle) sit on the ring even when the starting wavelength or geometry puts the prediction a peak
+    width or more off. Returns the 2theta and whether the fit found the ring.
+    """
+    locate_window = settings.window(bragg, combined[0]) if combined[0].size else None
+    if locate_window is None:
+        return bragg, False
+    edges = settings.edges(locate_window)
+    _, _, center, _, significance, excluded = _fit_band_histograms(
+        name, [combined], edges, settings.peak_function, settings.background_function, wavelength
+    )
+    if not excluded[0] and significance[0] >= settings.min_significance and edges[0] < center[0] < edges[-1]:
+        return float(center[0]), True
+    return bragg, False
+
+
+def _judge_fit(
+    candidate: _Candidate, excluded: bool, significance: float, edges: np.ndarray, settings: _ExtractionSettings
+) -> str:
+    """Why a band fit cannot be used ("" if it can); the checks run in this order."""
+    center, error = candidate.center, candidate.sigma
+    failed = excluded or not np.isfinite(center) or not np.isfinite(error) or error <= 0
+    if failed or not np.isfinite(significance):  # no valid intensity uncertainty
+        return "fit failed"
+    if significance < settings.min_significance:
+        return f"peak not significant ({significance:.1f} < {settings.min_significance} sigma)"
+    if error > settings.max_center_error:
+        return f"centre error {error:.3f} > {settings.max_center_error} deg"
+    if not edges[0] < center < edges[-1]:
+        return "centre outside the fit window"
+    return ""
+
+
+def _fit_band_group(
+    model: DetectorModel,
+    members: List[_Candidate],
+    pixel_sets: List[PixelSet],
+    band_window: Tuple[int, int],
+    arm: float,
+    calibration: Optional[DENEXDetectorShift],
+    settings: _ExtractionSettings,
+    wavelength: float,
+) -> None:
+    """Fit bands sharing one window (one FitPeaks call, bands as spectra) and place their points."""
+    edges = settings.edges(band_window)
+    first = members[0]
+    centers, histograms, center, center_error, significance, excluded = _fit_band_histograms(
+        f"ring_{first.sub_run}_{first.hkl_squared}_{band_window[0]}",
+        pixel_sets,
+        edges,
+        settings.peak_function,
+        settings.background_function,
+        wavelength,
+    )
+    num_columns = model.instrument_setup.detector_size[1]
+    for i, candidate in enumerate(members):
+        candidate.center, candidate.sigma = float(center[i]), float(center_error[i])
+        candidate.two_theta, candidate.intensity = centers, histograms[i]
+        candidate.reject = _judge_fit(candidate, excluded[i], significance[i], edges, settings)
+        if candidate.reject:
+            continue
+        column = _column_at_two_theta(model, candidate.center, candidate.index_1, arm, candidate.l2, calibration)
+        candidate.index_0 = column
+        if not np.isfinite(column):
+            candidate.reject = "ring off the detector on this row"
+        elif not settings.side_margin <= column <= num_columns - 1 - settings.side_margin:
+            # the window was placed from pass 1 or the prediction; check the fitted point too
+            candidate.reject = f"fitted ring within {settings.side_margin} px of the side edge"
+
+
+def _extract_reflection(
+    model: DetectorModel,
+    sub_run: int,
+    standard: PowderStandard,
+    hkl2: int,
+    bragg: float,
+    band_pixels: List[PixelSet],
+    rows_center: np.ndarray,
+    det_2theta: float,
+    l2: float,
+    calibration: Optional[DENEXDetectorShift],
+    settings: _ExtractionSettings,
+    wavelength: float,
+) -> List[_Candidate]:
+    """All band candidates of one reflection in one sub-run, fitted and judged, in strip order."""
+    arm = -det_2theta
+    combined = tuple(np.concatenate([pixels[j] for pixels in band_pixels]) for j in range(3))
+    target, located = _locate_ring(f"ring_{sub_run}_{hkl2}_locate", combined, bragg, settings, wavelength)
+
+    # pass 2: choose bands for this reflection: a curved ring can be near the side edge in some only
+    num_columns = model.instrument_setup.detector_size[1]
+    candidates: Dict[int, _Candidate] = {}
+    groups: Dict[Tuple[int, int], List[int]] = {}
+    for k, row in enumerate(rows_center):
+        predicted = _column_at_two_theta(model, target, row, arm, l2, calibration)
+        if not np.isfinite(predicted):
+            continue  # the ring does not cross this band
+        candidate = _Candidate(
+            sub_run=sub_run,
+            strip=k,
+            index_1=row,
+            det_2theta=det_2theta,
+            l2=l2,
+            d_spacing=standard.lattice_a / np.sqrt(hkl2),
+            hkl_squared=int(hkl2),
+            powder=standard.name,
+            bragg_two_theta=bragg,
+            start_center=target if located else np.nan,
+        )
+        candidates[k] = candidate
+        tth = band_pixels[k][0]
+        if tth.size == 0:
+            candidate.reject = "band has no unmasked pixels"
+        elif not settings.side_margin <= predicted <= num_columns - 1 - settings.side_margin:
+            candidate.reject = f"ring predicted within {settings.side_margin} px of the side edge"
+        else:
+            band_window = settings.window(target, tth)
+            if band_window is None:
+                candidate.reject = "fit window clipped by the detector edge"
+            else:
+                groups.setdefault(band_window, []).append(k)
+
+    for band_window, members in groups.items():
+        _fit_band_group(
+            model,
+            [candidates[k] for k in members],
+            [band_pixels[k] for k in members],
+            band_window,
+            arm,
+            calibration,
+            settings,
+            wavelength,
+        )
+    return [candidates[k] for k in sorted(candidates)]
 
 
 def extract_ring_points(
@@ -1116,12 +1368,20 @@ def extract_ring_points(
     """
     if not wavelength > 0:
         raise ValueError(f"wavelength must be positive, got {wavelength}")
-    if strips < 1 or edge < 0 or side_margin < 0 or not bin_width > 0 or not fit_half_width > 0:
-        raise ValueError("strips must be >= 1, edge and side_margin >= 0, and bin_width and fit_half_width positive")
-    if not min_significance >= 0:
-        raise ValueError(f"min_significance must be non-negative, got {min_significance}")
-    if not 0 < min_window_side <= fit_half_width:
-        raise ValueError(f"min_window_side must be in (0, fit_half_width], got {min_window_side}")
+    settings = _ExtractionSettings(
+        strips=strips,
+        edge=edge,
+        side_margin=side_margin,
+        bin_width=bin_width,
+        fit_half_width=fit_half_width,
+        min_window_side=min_window_side,
+        peak_function=peak_function,
+        background_function=background_function,
+        max_center_error=max_center_error,
+        min_significance=min_significance,
+        outlier_threshold=outlier_threshold,
+        smooth=smooth,
+    )
     standards = HB2B_STANDARDS if standards is None else standards
 
     setup = workspace.get_instrument_setup()
@@ -1141,9 +1401,9 @@ def extract_ring_points(
 
     grid = np.meshgrid(np.arange(num_columns), np.arange(num_rows), indexing="ij")
     bounds = np.linspace(edge, num_rows - edge, strips + 1).round().astype(int)
-    rows_centre = (bounds[:-1] + bounds[1:] - 1) / 2.0
+    rows_center = (bounds[:-1] + bounds[1:] - 1) / 2.0
 
-    points: List[dict] = []
+    candidates: List[_Candidate] = []
     for sub_run in workspace.get_sub_runs() if sub_runs is None else sub_runs:
         sub_run = int(sub_run)
         standard = standard_for_sy(float(workspace.get_sample_log_value("sy", sub_run)), standards)
@@ -1153,141 +1413,34 @@ def extract_ring_points(
         det_2theta = float(workspace.get_detector_2theta(sub_run))
         l2 = workspace.get_l2(sub_run)
         l2 = setup.arm_length if l2 is None else float(l2)
-        arm = -det_2theta
         counts = workspace.get_detector_counts(sub_run).astype(float).reshape(num_columns, num_rows)
-        two_theta = model.two_theta(grid[0], grid[1], arm, l2, calibration)
-
-        bands = [slice(lo, hi) for lo, hi in zip(bounds[:-1], bounds[1:])]
-        band_pixels = []  # per band: 2theta, counts and efficiency of its unmasked pixels
-        for band in bands:
-            keep = weights[:, band].ravel() > 0
-            band_pixels.append(
-                (
-                    two_theta[:, band].ravel()[keep],
-                    weights[:, band].ravel()[keep] * counts[:, band].ravel()[keep],
-                    weights[:, band].ravel()[keep] * efficiency[:, band].ravel()[keep],
-                )
-            )
-
-        combined = tuple(np.concatenate([pixels[j] for pixels in band_pixels]) for j in range(3))
-
-        def window(centre: float, tth: np.ndarray) -> Optional[Tuple[int, int]]:
-            """Fit window around ``centre`` clipped to the pixels' coverage, on whole bins; None if
-            either side keeps less than ``min_window_side`` of data."""
-            low = int(np.ceil(max(centre - fit_half_width, tth.min()) / bin_width))
-            high = int(np.floor(min(centre + fit_half_width, tth.max()) / bin_width))
-            if centre - low * bin_width < min_window_side or high * bin_width - centre < min_window_side:
-                return None
-            return low, high
+        two_theta = model.two_theta(grid[0], grid[1], -det_2theta, l2, calibration)
+        band_pixels = _band_pixels(two_theta, counts, weights, efficiency, bounds)
 
         for hkl2, bragg in zip(standard.hkl_squared, standard.two_theta(wavelength)):
-            # pass 1: locate the ring on all unmasked bands together, where the signal is strongest,
-            # so the strip windows (and the fits' starting centre: the window middle) sit on it even
-            # when the starting wavelength or geometry puts the prediction a peak width or more off
-            target, located = bragg, False
-            locate_window = window(bragg, combined[0]) if combined[0].size else None
-            if locate_window is not None:
-                edges = np.arange(locate_window[0], locate_window[1] + 1) * bin_width
-                _, _, centre, _, significance, excluded = _fit_band_histograms(
-                    f"ring_{sub_run}_{hkl2}_locate", [combined], edges, peak_function, background_function, wavelength
-                )
-                if not excluded[0] and significance[0] >= min_significance and edges[0] < centre[0] < edges[-1]:
-                    target, located = float(centre[0]), True
-
-            # pass 2: choose bands for this reflection: a curved ring can be near the side edge in some only
-            records: Dict[int, dict] = {}
-            groups: Dict[Tuple[int, int], List[int]] = {}
-            for k in range(strips):
-                predicted = _column_at_two_theta(model, target, rows_centre[k], arm, l2, calibration)
-                if not np.isfinite(predicted):
-                    continue  # the ring does not cross this band
-                records[k] = {
-                    "sub_run": sub_run,
-                    "index_1": rows_centre[k],
-                    "det_2theta": det_2theta,
-                    "l2": l2,
-                    "d_spacing": standard.lattice_a / np.sqrt(hkl2),
-                    "hkl_squared": int(hkl2),
-                    "powder": standard.name,
-                    "sigma": np.nan,
-                    "index_0": np.nan,
-                    "reject": "",
-                    "fit": (k, bragg, target if located else np.nan, np.array([]), np.array([]), np.nan),
-                }
-                tth = band_pixels[k][0]
-                if tth.size == 0:
-                    records[k]["reject"] = "band has no unmasked pixels"
-                    continue
-                if not side_margin <= predicted <= num_columns - 1 - side_margin:
-                    records[k]["reject"] = f"ring predicted within {side_margin} px of the side edge"
-                    continue
-                band_window = window(target, tth)
-                if band_window is None:
-                    records[k]["reject"] = "fit window clipped by the detector edge"
-                    continue
-                groups.setdefault(band_window, []).append(k)
-
-            # bands with the same window are fitted together (one FitPeaks call, bands as spectra)
-            for (low, high), members in groups.items():
-                edges = np.arange(low, high + 1) * bin_width
-                centres, histograms, centre, centre_error, significance, excluded = _fit_band_histograms(
-                    f"ring_{sub_run}_{hkl2}_{low}",
-                    [band_pixels[k] for k in members],
-                    edges,
-                    peak_function,
-                    background_function,
+            candidates.extend(
+                _extract_reflection(
+                    model,
+                    sub_run,
+                    standard,
+                    hkl2,
+                    bragg,
+                    band_pixels,
+                    rows_center,
+                    det_2theta,
+                    l2,
+                    calibration,
+                    settings,
                     wavelength,
-                )
-                for i, k in enumerate(members):
-                    point = records[k]
-                    center, error = float(centre[i]), float(centre_error[i])
-                    point["sigma"] = error
-                    point["fit"] = (k, bragg, target if located else np.nan, centres, histograms[i], center)
-                    failed = excluded[i] or not np.isfinite(center) or not np.isfinite(error) or error <= 0
-                    if failed or not np.isfinite(significance[i]):  # no valid intensity uncertainty
-                        point["reject"] = "fit failed"
-                    elif significance[i] < min_significance:
-                        point["reject"] = f"peak not significant ({significance[i]:.1f} < {min_significance} sigma)"
-                    elif error > max_center_error:
-                        point["reject"] = f"centre error {error:.3f} > {max_center_error} deg"
-                    elif not edges[0] < center < edges[-1]:
-                        point["reject"] = "centre outside the fit window"
-                    else:
-                        column = _column_at_two_theta(model, center, rows_centre[k], arm, l2, calibration)
-                        point["index_0"] = column
-                        if not np.isfinite(column):
-                            point["reject"] = "ring off the detector on this row"
-                        elif not side_margin <= column <= num_columns - 1 - side_margin:
-                            # the window was placed from pass 1 or the prediction; check the fitted point too
-                            point["reject"] = f"fitted ring within {side_margin} px of the side edge"
-
-            points.extend(records[k] for k in sorted(records))
-
-    _reject_outliers([p for p in points if not p["reject"]], outlier_threshold, smooth)
-
-    if diagnostics is not None:
-        for p in points:
-            k, bragg, start_center, centres, intensity, center = p["fit"]
-            diagnostics.append(
-                StripFit(
-                    sub_run=p["sub_run"],
-                    strip=k,
-                    row=p["index_1"],
-                    powder=p["powder"],
-                    hkl_squared=p["hkl_squared"],
-                    bragg_two_theta=bragg,
-                    start_center=start_center,
-                    two_theta=centres,
-                    intensity=intensity,
-                    center=center,
-                    center_error=p["sigma"],
-                    index_0=np.nan if p["reject"] else p["index_0"],
-                    accepted=not p["reject"],
-                    reason=p["reject"],
                 )
             )
 
-    accepted = [p for p in points if not p["reject"]]
+    _reject_outliers([c for c in candidates if not c.reject], settings.outlier_threshold, settings.smooth)
+
+    if diagnostics is not None:
+        diagnostics.extend(candidate.strip_fit() for candidate in candidates)
+
+    accepted = [c for c in candidates if not c.reject]
     if not accepted:
         raise ValueError("no ring points found: check the wavelength, sy logs and fit settings")
-    return RingPoints(**{name: np.asarray([p[name] for p in accepted]) for name in _RING_FIELDS})
+    return RingPoints(**{name: np.asarray([getattr(c, name) for c in accepted]) for name in _RING_FIELDS})
