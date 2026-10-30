@@ -63,6 +63,20 @@ _STAGES: Dict[str, Tuple[Tuple[int, ...], Tuple[float, ...]]] = {
 }
 
 
+_METHODS = ("trf", "dogbox", "lm")  # scipy.optimize.least_squares methods
+
+
+def _check_method(method: str) -> None:
+    """Raise ValueError unless ``method`` is one of :data:`_METHODS`."""
+    if method not in _METHODS:
+        raise ValueError(f"method must be 'trf', 'dogbox' or 'lm', got {method!r}")
+
+
+def _rmse(residual: np.ndarray) -> float:
+    """Root-mean-square of a residual vector."""
+    return float(np.sqrt(np.mean(residual**2)))
+
+
 def _parameter_indices(parameters: Sequence[Union[int, str]], context: str) -> np.ndarray:
     """Indices into the calibration vector of ``parameters`` (indices or :data:`PARAMETER_NAMES`)."""
     indices = []
@@ -190,8 +204,7 @@ class PixelCalibration:
             raise ValueError("PixelCalibration needs at least one ring point")
         if not wavelength > 0:
             raise ValueError(f"wavelength must be positive, got {wavelength}")
-        if method not in ("trf", "dogbox", "lm"):
-            raise ValueError(f"method must be 'trf', 'dogbox' or 'lm', got {method!r}")
+        _check_method(method)
         if diff_step is not None and not diff_step > 0:
             raise ValueError(f"diff_step must be positive, got {diff_step}")
 
@@ -264,8 +277,7 @@ class PixelCalibration:
         Raises:
             ValueError: If ``method`` is not ``"trf"``, ``"dogbox"`` or ``"lm"``, or ``max_nfev`` < 1.
         """
-        if method not in ("trf", "dogbox", "lm"):
-            raise ValueError(f"method must be 'trf', 'dogbox' or 'lm', got {method!r}")
+        _check_method(method)
         if max_nfev is not None and int(max_nfev) < 1:
             raise ValueError(f"max_nfev must be at least 1, got {max_nfev}")
         self._method = method
@@ -318,7 +330,7 @@ class PixelCalibration:
             values=np.array([]),
             errors=np.array([]),
             status=self._status,
-            rmse=float(np.sqrt(np.mean(self.residual(self._calib) ** 2))),
+            rmse=_rmse(self.residual(self._calib)),
             nfev=0,
         )
         self.stages.append(stage)
@@ -438,7 +450,7 @@ class PixelCalibration:
             values=out.x.copy(),
             errors=errors,
             status=int(out.status),
-            rmse=float(np.sqrt(np.mean(out.fun**2))),
+            rmse=_rmse(out.fun),
             nfev=int(out.nfev),
         )
         self.stages.append(stage)
@@ -506,11 +518,10 @@ class PixelCalibration:
 
         Shift_x, Rot_y and TTH_0 are exactly degenerate at one detector distance (see :meth:`refine`),
         so a refinement of all eight parameters cannot give their errors (they are flagged
-        :data:`UNDETERMINED`). This
-        refines every parameter except ``hold``, starting from the current values (normally the
-        optimum, so the values barely move), to get their one-sigma errors. The held parameters'
-        errors are set to :data:`NOT_REFINED`: their values are a choice along the degenerate set, not
-        a measurement (docs/ground_truths.md).
+        :data:`UNDETERMINED`). This refines every parameter except ``hold``, starting from the
+        current values (normally the optimum, so the values barely move), to get their one-sigma
+        errors. The held parameters' errors are set to :data:`NOT_REFINED`: their values are a
+        choice along the degenerate set, not a measurement (docs/ground_truths.md).
 
         Args:
             hold: Parameters (indices or :data:`PARAMETER_NAMES`) kept fixed; default 2theta_0.
@@ -561,7 +572,7 @@ class PixelCalibration:
             values=values[free].copy(),
             errors=errors,
             status=self._status,
-            rmse=float(np.sqrt(np.mean(residual**2))),
+            rmse=_rmse(residual),
             nfev=0,
         )
         self.stages.append(stage)
