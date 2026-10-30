@@ -2,8 +2,10 @@ import numpy as np
 import time
 import json
 import os
+import warnings
 
 # Import pyrs modules
+from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
 from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
@@ -86,12 +88,9 @@ class FitCalibration:
         self._max_nfev = max_nfev
         self._ref_method = method
 
-        self._ref_powders = np.array(["Ni", "Fe", "Mo"])
-        self._ref_powders_sy = np.array([62, 12, -13])
-        self._ref_structure = np.array(["FCC", "BCC", "BCC"])
-        # lattice constants (A) of the calibration powders: the 2020 set, which describes the Ni/Fe ratio seen on
-        # HB2B; the 2023 values were fitted from HB2B data (circular, as only lambda/a is measured) (#1022)
-        self._ref_lattice = [3.523799438, 2.8663982, 3.14719963]
+        # calibration powders (name, structure, lattice constant, sy position), shared with the ring-based
+        # calibration; the lattice constants are the 2020 set (#1022, docs/ground_truths.md)
+        self._standards = HB2B_STANDARDS
 
         if pow_lines is None:
             self.get_powder_lines()
@@ -198,31 +197,33 @@ class FitCalibration:
         Returns
         -------
         np.array
-            array of two theta peaks for the reference powder.
+            two theta of every reflection of the sub-run's powder reachable at the run's wavelength,
+            lowest angle first.
 
+        Raises
+        ------
+        ValueError
+            If the sub-run's ``sy`` matches no powder standard.
         """
 
-        dspace = self._powders_lattice[sub_run] / self._diff_peaks[self._powders_struc[sub_run]]
-        return np.rad2deg(np.arcsin(self._hidra_ws.get_wavelength(False, False) / 2 / dspace) * 2)
+        standard = self._powder_standards[sub_run]
+        if standard is None:
+            raise ValueError(f"sub-run index {sub_run}: sy {self.sy[sub_run]} matches no powder standard")
+        return standard.two_theta(self._hidra_ws.get_wavelength(False, False))
 
     def get_powder_lines(self):
-        self._powders = [""] * self.sy.size
-        self._powders_struc = [""] * self.sy.size
-        self._powders_lattice = np.zeros_like(self.sy)
-        self._keep_subrun_list = np.array([True] * self.sy.size)
+        """Match each sub-run to the powder standard at its ``sy``; sub-runs matching none are not used."""
+        self._powder_standards = [standard_for_sy(float(sy), self._standards) for sy in self.sy]
+        self._powders = [standard.name if standard is not None else "" for standard in self._powder_standards]
+        self._keep_subrun_list = np.array([standard is not None for standard in self._powder_standards])
 
-        for i_pos in range(self.sy.size):
-            try:
-                index = np.where(np.abs(self._ref_powders_sy - self.sy[i_pos]) < 2)[0]
-                self._powders[i_pos] = self._ref_powders[index[0]]
-                self._powders_struc[i_pos] = self._ref_structure[index[0]]
-                self._powders_lattice[i_pos] = self._ref_lattice[index[0]]
-            except IndexError:
-                pass
-
-        self._diff_peaks = {}
-        self._diff_peaks["BCC"] = np.sqrt(np.array([2, 4, 6, 8, 10, 12]))
-        self._diff_peaks["FCC"] = np.sqrt(np.array([3, 4, 8, 11, 12, 19]))
+        unknown = [int(sub_run) for sub_run, keep in zip(self.sub_runs, self._keep_subrun_list) if not keep]
+        if unknown:
+            warnings.warn(
+                f"sub-runs {unknown}: sy matches no powder standard {[s.name for s in self._standards]}; "
+                "they are not used",
+                stacklevel=2,
+            )
 
     def initialize_calib_arrays(self):
         # calibration: numpy array. size as 7 for ... [6] for wave length
