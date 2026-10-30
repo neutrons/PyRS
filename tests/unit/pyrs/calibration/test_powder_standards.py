@@ -9,7 +9,7 @@ NI, FE, MO = HB2B_STANDARDS
 
 
 def test_hb2b_standards_are_2020_reference_values():
-    """The standards are the 2020 reference set (d6cd5e04), not FitCalibration's 2023 fitted values"""
+    """The standards are the 2020 reference set (d6cd5e04), which FitCalibration also uses (#1022)"""
     # Arrange
     expected = {"Ni": ("FCC", 3.523799438, 62), "Fe": ("BCC", 2.8663982, 12), "Mo": ("BCC", 3.14719963, -13)}
 
