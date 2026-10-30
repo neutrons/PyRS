@@ -6,69 +6,72 @@ Classes defined in this module:
 
 class ScalarFieldObject
 
-  Definition: Scalar field (values and errors) defined over a set of sample points (a triad of
-  x, y, and z values).
+    Definition:
+        Scalar field (values and errors) defined over a set of sample points (a triad of
+        x, y, and z values).
 
-  Functionality:
-    - Scalar fields can be combined in two fundamental ways, "along the same direction"
-      and "accross different directions".
-    - Combining ("fusing") two (or more) fields along the same direction results in one scalar
-      field. The sample points of each field are "fused" together, resulting in a single set
-      of sample points. The resulting field is defined over this new set of sample points. Any
-      point common to two input fields is "fused" into a single point in the combined
-      field. Operator '+' can be used to fuse scalar fields.
-    - Combining ("stacking") two (or more) fields across different directions results in as many
-      output fields as input fields. The sample points of each field are "fused" together,
-      resulting in a single set of sample points. All the output fields are defined over
-      this new set of sample points. Operator '*' can be used to stack scalar fields
+    Functionality:
+        - Scalar fields can be combined in two fundamental ways, "along the same direction"
+          and "accross different directions".
+        - Combining ("fusing") two (or more) fields along the same direction results in one scalar
+          field. The sample points of each field are "fused" together, resulting in a single set
+          of sample points. The resulting field is defined over this new set of sample points. Any
+          point common to two input fields is "fused" into a single point in the combined
+          field. Operator '+' can be used to fuse scalar fields.
+        - Combining ("stacking") two (or more) fields across different directions results in as many
+          output fields as input fields. The sample points of each field are "fused" together,
+          resulting in a single set of sample points. All the output fields are defined over
+          this new set of sample points. Operator '*' can be used to stack scalar fields.
 
 class StrainField
 
-  Definition: a scalar field of strain values and errors defined over a set of sample points (a triad of
-  x, y, and z values).
+    Definition:
+        a scalar field of strain values and errors defined over a set of sample points (a triad of
+        x, y, and z values).
 
-  The set of sample points may originate from one or more experimental runs. Each experimental run has
-  associated one PeakCollection instance, so we'll say that a strain field is associated to one or
-  more PeakCollection instances.
+    The set of sample points may originate from one or more experimental runs. Each experimental run has
+    associated one PeakCollection instance, so we'll say that a strain field is associated to one or
+    more PeakCollection instances.
 
-  Functionality:
-  - Strain fields can be fused (combine strains along the same direction) or stacked (combine
-    strains across directions)
-  - Strain fields resulting from the fusion of two or more strains are associated to a list of
-    PeakCollection instances, which can be retrieved from property StrainField.peak_collections
-  - Strain fields store the set of sample points over which they are defined. If a strain is
-    associated to only one PeakCollection, then the sample points are those of the
-    PeakCollection. If a strain is associated to, say, two PeakCollection objects, then some of the
-    sample points will originate in the first PeakCollection object, and the remaining points will
-    originate in the second PeakCollection object. The StrainField object holds a cross-reference
-    index table resolving the provenance of each sample point to one PeakCollection and one sample
-    point within the PeakCollection.
-  - StrainField objects don't store strain values and errors, rather they are calculated every time
-    the are requested using the cross-reference index table and function PeakCollection.get_strain()
+    Functionality:
+        - Strain fields can be fused (combine strains along the same direction) or stacked (combine
+          strains across directions)
+        - Strain fields resulting from the fusion of two or more strains are associated to a list of
+          PeakCollection instances, which can be retrieved from property StrainField.peak_collections
+        - Strain fields store the set of sample points over which they are defined. If a strain is
+          associated to only one PeakCollection, then the sample points are those of the
+          PeakCollection. If a strain is associated to, say, two PeakCollection objects, then some of the
+          sample points will originate in the first PeakCollection object, and the remaining points will
+          originate in the second PeakCollection object. The StrainField object holds a cross-reference
+          index table resolving the provenance of each sample point to one PeakCollection and one sample
+          point within the PeakCollection.
+        - StrainField objects don't store strain values and errors, rather they are calculated every time
+          the are requested using the cross-reference index table and function PeakCollection.get_strain()
 
 class StressField
 
-  Definition: a container of three stress and three strains scalar fields, a pair for each of the
-  three mutually perperdicular directions.
+    Definition:
+        a container of three stress and three strains scalar fields, a pair for each of the
+        three mutually perperdicular directions.
 
-  StressField objects are generated using three StrainField objects, one for each mutually perperdicular
-  direction. Usually, these strains are defined over slightly different sets of sample points, so
-  it is necessary to stack them. After the stacking operation, the three output StrainField objects are
-  defined over the same set of sample points and calculation of the stress components can proceed. The
-  StressField object stores the three stacked StrainField objects, it does not store the three original
-  StrainField objects.
+    StressField objects are generated using three StrainField objects, one for each mutually perperdicular
+    direction. Usually, these strains are defined over slightly different sets of sample points, so
+    it is necessary to stack them. After the stacking operation, the three output StrainField objects are
+    defined over the same set of sample points and calculation of the stress components can proceed. The
+    StressField object stores the three stacked StrainField objects, it does not store the three original
+    StrainField objects.
 
-  The three stress components are stored as ScalarFieldSample objects.
+    The three stress components are stored as ScalarFieldSample objects.
 
-  Selected Functionality:
-  - Stacked strains are accessible with properties StressField.strain11 (.strain22, .strain33)
-  - Stress components can be accessed with the bracket operator (stress['11'], stress['22'], stress['33'])
-  - Iterating over a StressField objects returns an iterator over the stress
-    components (for component in stress: ...)
-  - StressField objects hold a "currently accessible direction" which can be updated with the
-    StressField.select() method.
-  - Properties StressField.values and StressField.errors returns the values and errors of the stress
-    component along the currectly accessble direction
+    Selected Functionality:
+        - Stacked strains are accessible with properties StressField.strain11 (.strain22, .strain33)
+        - Stress components can be accessed with the bracket operator (stress['11'], stress['22'], stress['33'])
+        - Iterating over a StressField objects returns an iterator over the stress
+          components (for component in stress: ...)
+        - StressField objects hold a "currently accessible direction" which can be updated with the
+          StressField.select() method.
+        - Properties StressField.values and StressField.errors returns the values and errors of the stress
+          component along the currectly accessble direction.
 """
 
 from collections import namedtuple
@@ -97,6 +100,17 @@ POINT_MISSING_INDEX = -1  # indicates one single-scan index is not present in on
 SCAN_MISSING_INDEX = -1  # indicates one scan is not present in the current strain
 
 
+def _split_uncertainty_array(sample: Union[np.ndarray, float]) -> Tuple[np.ndarray, np.ndarray]:
+    """Extract nominal values and uncertainties without `unumpy.std_devs()` warnings on NaNs."""
+    sample_array = np.asarray(sample, dtype=object)
+    values = np.empty(sample_array.shape, dtype=float)
+    errors = np.empty(sample_array.shape, dtype=float)
+    for index, value in np.ndenumerate(sample_array):
+        values[index] = value.nominal_value if hasattr(value, "nominal_value") else value
+        errors[index] = value.std_dev if hasattr(value, "std_dev") else 0.0
+    return values, errors
+
+
 class ScalarFieldSample:
     r"""
     Evaluation of a scalar field on a discrete set of points in real space
@@ -106,17 +120,23 @@ class ScalarFieldSample:
 
     Parameters
     ----------
+
     name: str
         Name of the field. Standard field names are defined in SCALAR_FIELD_NAMES
+
     values: list
         List of real values corresponding to the evaluation of the scalar field at the sample points
+
     errors: list
          List of real values corresponding to the undeterminacies in the evaluation of the scalar field at the sample
          points
+
     x: list
         List of coordinates along some X-axis for the set of sample points.
+
     y: list
         List of coordinates along some Y-axis for the set of sample points.
+
     z: list
         List of coordinates along some Z-axis for the set of sample points.
     """
@@ -133,7 +153,12 @@ class ScalarFieldSample:
         all_lengths = [len(values), len(errors), len(x), len(y), len(z)]
         assert len(set(all_lengths)) == 1, "input lists must all have the same lengths"
 
-        self._sample = unumpy.uarray(values, errors)
+        values_array = np.asarray(values, dtype=float)
+        errors_array = np.asarray(errors, dtype=float)
+        self._sample = np.array(
+            [uncertainties.core.Variable(value, error) for value, error in zip(values_array.flat, errors_array.flat)],
+            dtype=object,
+        ).reshape(values_array.shape)
         self._point_list = PointList([x, y, z])
         self._name = name
 
@@ -220,11 +245,13 @@ class ScalarFieldSample:
 
     @property
     def values(self) -> np.ndarray:
-        return unumpy.nominal_values(self.sample)
+        values, _ = _split_uncertainty_array(self.sample)
+        return values
 
     @property
     def errors(self) -> np.ndarray:
-        return unumpy.std_devs(self.sample)
+        _, errors = _split_uncertainty_array(self.sample)
+        return errors
 
     @property
     def sample(self) -> unumpy.uarray:
@@ -588,16 +615,16 @@ class ScalarFieldSample:
         Export the scalar field to a particular format. Each format has additional arguments
 
         Allowed formats, along with additional arguments and return object:
-        - 'MDHistoWorkspace' calls function `to_md_histo_workspace`
-            name: str, name of the workspace
-            interpolate (`True`): bool, interpolate values to a regular coordinate grid
-            method: ('linear'): str, method of interpolation. Allowed values are 'nearest' and 'linear'
-            fill_value: (float('nan'): float, value used to fill in for requested points outside the input points.
-            keep_nan (`True`): bool, transfer `nan` values to the interpolated sample
-            Returns: MDHistoWorkspace, handle to the workspace
-        - 'CSV' calls function `to_csv`
-            file: str, name of the output file
-            Returns: str, the file as a string
+            - 'MDHistoWorkspace' calls function `to_md_histo_workspace`
+                name: str, name of the workspace
+                interpolate (`True`): bool, interpolate values to a regular coordinate grid
+                method: ('linear'): str, method of interpolation. Allowed values are 'nearest' and 'linear'
+                fill_value: (float('nan'): float, value used to fill in for requested points outside the input points.
+                keep_nan (`True`): bool, transfer `nan` values to the interpolated sample
+                Returns: MDHistoWorkspace, handle to the workspace
+            - 'CSV' calls function `to_csv`
+                file: str, name of the output file
+                Returns: str, the file as a string
 
         Parameters
         ----------
@@ -1522,7 +1549,7 @@ class StrainField(_StrainField):
 
     @staticmethod
     def fuse_strains(
-        *args: "StrainField", resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = "min_error"
+        *args: "_StrainField", resolution: float = DEFAULT_POINT_RESOLUTION, criterion: str = "min_error"
     ) -> "_StrainField":
         r"""
         Bring in together several strains measured along the same direction. Overlaps are resolved
@@ -1847,8 +1874,14 @@ class Direction(Enum):
                 return Direction.Z
             try:
                 return Direction(str(direction).upper())
-            except KeyError:  # give clearer error message
-                raise KeyError('Cannot determine direction type from "{}"'.format(direction))
+            except ValueError:
+                # `Enum.__call__` raises `ValueError` (not `KeyError`) on a bad value, so `ValueError`
+                # is what this lookup must both catch and re-raise.  `from None` suppresses exception
+                # chaining: the caught exception ("'FOO' is not a valid Direction") says nothing this
+                # message does not, so chaining would only bury the actionable message under a
+                # "During handling of the above exception..." traceback.  Where a caught exception
+                # *does* add context, use `raise ... from <exc>` instead -- see `convertdatatypes.py`.
+                raise ValueError('Cannot determine direction type from "{}"'.format(direction)) from None
 
     @property
     def ii(self) -> str:
@@ -1944,7 +1977,9 @@ class StressField:
         poisson_ratio: float,
         stress_type: Union[StressType, str] = StressType.DIAGONAL,
     ) -> None:
-        self.stress11, self.stress22, self.stress33 = None, None, None
+        self.stress11: Optional[ScalarFieldSample] = None
+        self.stress22: Optional[ScalarFieldSample] = None
+        self.stress33: Optional[ScalarFieldSample] = None
 
         self._youngs_modulus = youngs_modulus
         self._poisson_ratio = poisson_ratio
@@ -2025,8 +2060,12 @@ class StressField:
             Values and errors of the stress along the third direction
         """
         for stress, attr in zip((stress11, stress22, stress33), ("stress11", "stress22", "stress33")):
-            values, errors = unumpy.nominal_values(stress), unumpy.std_devs(stress)
+            values, errors = self._split_uncertainty_array(stress)
             setattr(self, attr, ScalarFieldSample("stress", values, errors, self.x, self.y, self.z))
+
+    @staticmethod
+    def _split_uncertainty_array(sample: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        return _split_uncertainty_array(sample)
 
     def _calc_stress_components(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         r"""
@@ -2131,7 +2170,7 @@ class StressField:
         """
         factor = self.poisson_ratio / (self.poisson_ratio - 1)
         strain33 = factor * (self._strain11.sample + self._strain22.sample)  # unumpy.array
-        values, errors = unumpy.nominal_values(strain33), unumpy.std_devs(strain33)  # units are microstrain
+        values, errors = self._split_uncertainty_array(strain33)  # units are microstrain
         peaks = PeakCollectionLite(str(StressType.IN_PLANE_STRESS), values, errors, strain_units="microstrain")
         return StrainField(peak_collection=peaks, point_list=PointList([self.x, self.y, self.z]))  # type: ignore
 

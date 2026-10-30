@@ -65,7 +65,6 @@ class MantidPeakFitEngine(PeakFitEngine):
             InputWorkspace=self._mtd_wksp,
             PeakFunction=str(self._peak_function),
             BackgroundType=str(self._background_function),
-            FindBackgroundSigma=1,
             HighBackground=True,
             PeakCenters=peak_center,
             FitWindowBoundaryList=(x_min, x_max),
@@ -90,6 +89,7 @@ class MantidPeakFitEngine(PeakFitEngine):
 
         DeleteWorkspace(fit_return.OutputPeakParametersWorkspace)
         DeleteWorkspace(fit_return.OutputParameterFitErrorsWorkspace)
+        DeleteWorkspace(fit_return.OutputWorkspace)  # peak positions: not returned or used (#1040)
 
         # create the difference workspace
         difference = self._mtd_wksp - fit_return.FittedPeaksWorkspace
@@ -107,14 +107,18 @@ class MantidPeakFitEngine(PeakFitEngine):
             num_sub_runs = table_ws.rowCount()
 
             # Set the structured numpy array
-            data_type_list = [(name, np.float32) for name in table_col_names]
+            # Fit output can contain very large error values; use float64 to avoid overflow warnings.
+            data_type_list = [(name, np.float64) for name in table_col_names]
             struct_array = np.zeros(num_sub_runs, dtype=data_type_list)
 
             # get fitted parameter value
             for col_index, param_name in enumerate(table_col_names):
                 # get value from column in value table
-
-                struct_array[param_name] = table_ws.column(col_index)
+                col_values = np.asarray(table_ws.column(col_index), dtype=np.float64)
+                if param_name == "chi2":
+                    max_float = np.finfo(np.float64).max
+                    col_values = np.where(col_values == max_float, np.inf, col_values)
+                struct_array[param_name] = col_values
 
             return struct_array
 

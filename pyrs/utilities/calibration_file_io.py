@@ -7,6 +7,10 @@ import json
 def check_calibration_dictionary(calib_dict):
     """Check calibration file input
 
+    The 2theta offset is stored as ``TTH_0`` (as written by ``DENEXDetectorShift.convert_to_dict``);
+    files using the legacy key ``two_theta_0`` are accepted and moved to ``TTH_0`` (#1021). Missing
+    parameters are set to 0 with an error of -1.
+
     Parameters
     ----------
     calib_dict: dictionary
@@ -17,16 +21,67 @@ def check_calibration_dictionary(calib_dict):
     calib_dict: dictionary
         dictionary with calibration
 
-    """
+    Raises
+    ------
+    ValueError
+        If the file gives both ``TTH_0`` and ``two_theta_0`` (or their errors) with different values.
 
-    keys = ["Lambda", "Rot_x", "Rot_y", "Rot_z", "Shift_x", "Shift_y", "Shift_z", "two_theta_0"]
+    """
+    for key, legacy in (("TTH_0", "two_theta_0"), ("error_TTH_0", "error_two_theta_0")):
+        if legacy in calib_dict:
+            if key in calib_dict and float(calib_dict[key]) != float(calib_dict[legacy]):
+                raise ValueError(
+                    "Calibration gives both {} = {} and legacy {} = {}; they must agree".format(
+                        key, calib_dict[key], legacy, calib_dict[legacy]
+                    )
+                )
+            calib_dict[key] = calib_dict.pop(legacy)
+
+    keys = ["Lambda", "Rot_x", "Rot_y", "Rot_z", "Shift_x", "Shift_y", "Shift_z", "TTH_0"]
 
     for key in keys:
         if key not in calib_dict:
             calib_dict[key] = 0
             calib_dict["error_{}".format(key)] = -1
+    # TTH_0 used to be ignored, so a file giving it without its error loaded; keep accepting such files
+    calib_dict.setdefault("error_TTH_0", -1)
 
     return calib_dict
+
+
+def check_calibration_status(status):
+    """Verify that a calibration's optimizer status indicates it was actually refined
+
+    The ``Status`` field stored in a calibration JSON file is the exit code from the
+    ``scipy.optimize.least_squares`` call used to refine the calibration
+    (see ``pyrs.calibration.mantid_peakfit_calibration``). That field is initialized
+    to ``-1`` before any refinement has run, and negative values in general indicate
+    the optimizer never produced a valid result. Applying such a calibration to
+    reduction would silently shift every reduced pattern with no diagnostic.
+
+    Note that ``status == 0`` (scipy's "maximum number of function evaluations
+    exceeded" code, meaning the optimizer ran but did not converge) is currently
+    accepted rather than rejected; only negative codes are treated as invalid here.
+
+    Parameters
+    ----------
+    status : int
+        Value of the calibration's ``Status`` field, as returned by
+        :func:`read_calibration_json_file`.
+
+    Raises
+    ------
+    RuntimeError
+        If ``status`` is negative, meaning the calibration was never successfully
+        refined.
+    """
+    if status < 0:
+        raise RuntimeError(
+            "Calibration status is {}, indicating it was never successfully refined "
+            "(negative status codes are only produced by an optimizer that never converged, "
+            "or by the -1 sentinel set before any refinement has run). "
+            "Refusing to apply this calibration to reduction.".format(status)
+        )
 
 
 def read_calibration_json_file(calibration_file_name):
@@ -40,7 +95,7 @@ def read_calibration_json_file(calibration_file_name):
     u'Shift_x': 0.0,
     u'Shift_y': 0.0,
     u'Shift_z': 0.0,
-    u'two_theta_0': 0.0,
+    u'TTH_0': 0.0,
     u'Status': 3,
     u'error_Lambda': 1.0829782933282927e-07,
     u'error_Rot_x': -1.0,
@@ -49,7 +104,10 @@ def read_calibration_json_file(calibration_file_name):
     u'error_Shift_x': -1.0,
     u'error_Shift_y': -1.0,
     u'error_Shift_z': -1.0,
-    u'error_two_theta_0': -1.0}
+    u'error_TTH_0': -1.0}
+
+    The 2theta offset may also be given under the legacy key ``two_theta_0`` (see
+    :func:`check_calibration_dictionary`).
 
     Parameters
     ----------
@@ -85,7 +143,7 @@ def read_calibration_json_file(calibration_file_name):
             rotation_x=float(calib_dict["Rot_x"]),
             rotation_y=float(calib_dict["Rot_y"]),
             rotation_z=float(calib_dict["Rot_z"]),
-            tth_0=float(calib_dict["two_theta_0"]),
+            tth_0=float(calib_dict["TTH_0"]),
             calibration_file=calibration_file_name,
         )
 
@@ -101,7 +159,7 @@ def read_calibration_json_file(calibration_file_name):
             rotation_x=float(calib_dict["error_Rot_x"]),
             rotation_y=float(calib_dict["error_Rot_y"]),
             rotation_z=float(calib_dict["error_Rot_z"]),
-            tth_0=float(calib_dict["error_two_theta_0"]),
+            tth_0=float(calib_dict["error_TTH_0"]),
         )
 
     except KeyError as key_error:

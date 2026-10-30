@@ -4,6 +4,8 @@ from pyrs.core.instrument_geometry import HidraSetup  # type: ignore
 import os
 import pytest
 
+pytestmark = pytest.mark.integration
+
 
 def test_read_write_merged_project_file():
     """

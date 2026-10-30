@@ -348,24 +348,25 @@ class SampleLogs(MutableMapping):
         r"""
         Initialize/update the subruns instance, or insert/update the value of a log entry
 
-        `value` is coerced into a numpy array, which could be a one-item array if passing an int of float.
+        `value` is coerced into a numpy array, which could be a one-item array if passing an int or float.
 
         Parameters
         ----------
         key: str, tuple
-            If `str`, then name of the log value, or dedicated string 'sub-runs'. It `tuple`, then the
-            first item is the same as previously, and the second item is a string representing the log units.
-        value: int, flat, list, np.ndarray, ~pyrs.dataobjects.sample_logs.Subruns
-            A list of subrun numbers of the values of a log entry
+            If `str`, then name of the log entry, or dedicated string 'sub-runs'. If `tuple`, then the
+            first item is the same as previously, and the second item is a string representing the units
+            of the log entry's value.
+        value: int, float, list, np.ndarray, ~pyrs.dataobjects.sample_logs.Subruns
+            A list, in subrun order, of the values of a log entry
 
         Raises
         ------
         ValueError
             Attempt to insert/update the value of a log entry prior to initialization of the
-            selected subruns list
+            number of subruns
         ValueError
-            Attempt to insert/update the value of a log entry with a list of different size
-            then the selected subruns list
+            Attempt to insert/update the value of a log entry with a list of different length
+            then the number of subruns
         """
         if isinstance(key, str):
             log_name = key
@@ -379,10 +380,13 @@ class SampleLogs(MutableMapping):
             if self._subruns.size == 0:
                 raise RuntimeError("Must set subruns first")
             elif isinstance(value, np.ndarray):
-                if value.size != self.subruns.size:
+                # 17.02.2026: Modified this to allow log entries to be non-scalar:
+                #   this seemed to be consistent with what was intended by the original design.
+                #   For a `numpy.ndarray` `len` returns the number of rows (i.e. the length of the first axis).
+                if len(value) != self.subruns.size:
                     raise ValueError(
-                        "Number of values[{}] isn't the same as number of subruns[{}]".format(
-                            value.size, self.subruns.size
+                        "Number of values (or value rows)[{}] isn't the same as number of subruns[{}]".format(
+                            len(value), self.subruns.size
                         )
                     )
             else:

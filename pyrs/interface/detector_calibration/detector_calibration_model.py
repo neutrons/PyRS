@@ -1,6 +1,17 @@
+import os
+from typing import Optional
+
 import numpy as np
 from qtpy.QtCore import Signal, QObject  # type:ignore
 from pyrs.calibration.mantid_peakfit_calibration import FitCalibration
+
+# detector mask applied by default; the calibration runs unmasked when the file is not available
+DEFAULT_MASK_FILE = "/HFIR/HB2B/shared/CALIBRATION/HB2B_Mask_Latest.xml"
+
+
+def default_mask_file() -> Optional[str]:
+    """The production detector mask if it exists, otherwise None (no mask)."""
+    return DEFAULT_MASK_FILE if os.path.isfile(DEFAULT_MASK_FILE) else None
 
 
 class DetectorCalibrationModel(QObject):
@@ -15,6 +26,7 @@ class DetectorCalibrationModel(QObject):
         self._run_number = None
         self._calibration_obj = None
         self._nexus_file = None
+        self._mask_file: Optional[str] = None
 
         self.detector_params = [0, 0, 0, 0, 0, 0, 0, 0]
         # self.sub_runs = np.array([1])
@@ -24,6 +36,11 @@ class DetectorCalibrationModel(QObject):
     @property
     def nexus_file(self):
         return self._nexus_file
+
+    @property
+    def mask_file(self) -> Optional[str]:
+        """Detector mask used by the calibration (None: no mask)."""
+        return self._mask_file
 
     @property
     def sub_runs(self):
@@ -69,10 +86,15 @@ class DetectorCalibrationModel(QObject):
 
     def set_reduction_param(self, tth_bins, eta_bins):
         if self._calibration_obj is not None:
-            self._calibration_obj = FitCalibration(nexus_file=self._nexus_file, eta_slice=eta_bins, bins=tth_bins)
+            self._calibration_obj = FitCalibration(
+                nexus_file=self._nexus_file, mask_file=self._mask_file, eta_slice=eta_bins, bins=tth_bins
+            )
 
     def _init_calibration(self, nexus_file, tth=512, eta=3.0):
-        self._calibration_obj = FitCalibration(nexus_file=nexus_file, eta_slice=eta, bins=tth)
+        self._mask_file = default_mask_file()
+        self._calibration_obj = FitCalibration(
+            nexus_file=nexus_file, mask_file=self._mask_file, eta_slice=eta, bins=tth
+        )
         self._nexus_file = nexus_file
 
     def fit_diffraction_peaks(self):

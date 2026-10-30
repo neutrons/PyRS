@@ -6,6 +6,8 @@ import functools
 import pytest
 import os
 
+pytestmark = [pytest.mark.gui, pytest.mark.integration]
+
 wait = 300
 
 

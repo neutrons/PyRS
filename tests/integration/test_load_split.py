@@ -6,6 +6,8 @@ from pyrs.core.nexus_conversion import NeXusConvertingApp
 import os
 import pytest
 
+pytestmark = pytest.mark.integration
+
 FILE_1017 = "/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.ORIG.nxs.h5"
 
 

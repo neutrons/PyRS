@@ -138,8 +138,14 @@ class MplFitPlottingWidget(QWidget):
         if _working_range[0] == x:  # remove this range
             self.list_peak_ranges.remove([_working_range[0], np.nan])
             [left_peak, right_peak] = self.list_peak_ranges_matplotlib_id[self._working_with_range_index]
-            left_peak.remove()
-            right_peak.remove()
+            try:
+                left_peak.remove()
+            except NotImplementedError:
+                pass
+            try:
+                right_peak.remove()
+            except NotImplementedError:
+                pass
             self.list_peak_ranges_matplotlib_id.remove([left_peak, right_peak])
             _peak_label = self.list_fit_peak_labels[self._working_with_range_index]
             self.list_fit_peak_labels.remove(_peak_label)
@@ -272,11 +278,20 @@ class MplFitPlottingWidget(QWidget):
 
     def plot_data_with_fitting_ranges(self):
         for _peak_label in self.list_peak_labels_matplotlib_id:
-            _peak_label.remove()
+            try:
+                _peak_label.remove()
+            except NotImplementedError:
+                pass
 
         for [_left_line, _right_line] in self.list_peak_ranges_matplotlib_id:
-            _left_line.remove()
-            _right_line.remove()
+            try:
+                _left_line.remove()
+            except NotImplementedError:
+                pass
+            try:
+                _right_line.remove()
+            except NotImplementedError:
+                pass
 
         data_set = self._data_set
         line_label = self._line_label
@@ -308,11 +323,20 @@ class MplFitPlottingWidget(QWidget):
         # self.clear_canvas()
 
         for _peak_label in self.list_peak_labels_matplotlib_id:
-            _peak_label.remove()
+            try:
+                _peak_label.remove()
+            except NotImplementedError:
+                pass
 
         for [_left_line, _right_line] in self.list_peak_ranges_matplotlib_id:
-            _left_line.remove()
-            _right_line.remove()
+            try:
+                _left_line.remove()
+            except NotImplementedError:
+                pass
+            try:
+                _right_line.remove()
+            except NotImplementedError:
+                pass
 
         x_min = self._data_set[0].min()
         x_max = self._data_set[0].max()

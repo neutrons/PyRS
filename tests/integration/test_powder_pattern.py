@@ -11,6 +11,8 @@ from pyrs.core.instrument_geometry import DENEXDetectorGeometry
 from pyrs.core.reduction_manager import HB2BReductionManager
 import pytest
 
+pytestmark = pytest.mark.integration
+
 
 def parse_gold_file(file_name):
     """

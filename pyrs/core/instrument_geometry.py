@@ -41,6 +41,11 @@ class HidraSetup:
         :param calibrated: Bool
         :return GeometrySetup: Geometry setup parameters
         """
+        # TODO: this next `if calibrated...` clause has some serious issues:
+        #   (1) `apply_shift` returns `None`.
+        #   (2) Potentially, shift will be applied multiple times.
+        #   (3) Non-calibrated _geometry_setup is modified:
+        #       what happens if the next call has `calibrated = False`?
         if calibrated and self._geometry_shift is not None:
             return self._geometry_setup.apply_shift(self._geometry_shift)
 
@@ -49,8 +54,10 @@ class HidraSetup:
     def get_wavelength(self, wave_length_tag):
         """Get wave length
         Get wave length for only calibrated
+
         :param wave_length_tag: str
-            user tag (as 111, 222) for wave length. None for single wave length
+         user tag (as 111, 222) for wave length. None for single wave length
+
         :return float: wave length in A
         """
         if wave_length_tag is not None:

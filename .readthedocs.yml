@@ -2,8 +2,11 @@
 version: 2
 
 conda:
-  environment: docs/rtd/environment.yml
+  environment: docs/user/environment.yml
+
+sphinx:
+  configuration: docs/user/source/conf.py
 
 python:
-  version: 3.7
+  version: 3.11
   system_packages: true

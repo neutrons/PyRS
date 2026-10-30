@@ -188,7 +188,6 @@ class PoleFigureCalculator:
         Projection of angular dependent data onto pole sphere. Analytical solution taken from
         Chapter 8.3 in Bob He Two-Dimensional X-ray Diffraction
 
-        _______________________
         :param two_theta:
         :param omega:
         :param chi:

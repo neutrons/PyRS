@@ -2,7 +2,7 @@
 name = "pyrs"
 description = "Data reduction and visualization of neutron data measured at the HFIR HB2B instrument"
 dynamic = ["version"]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = { text = "MIT" }
 keywords = ["neutrons", "python"]
 readme = "README.rst"
@@ -18,8 +18,8 @@ create-mask = "scripts.create_mask:main"
 ####################
 
 [build-system]
-build-backend = "hatchling.build"
 requires = ["hatchling", "versioningit"]
+build-backend = "hatchling.build"
 
 [tool.hatch.version]
 source = "versioningit"
@@ -69,6 +69,7 @@ channels = [
   "mantid-ornl/label/nightly",              # ORNL-specific nightly builds
   "mantid/label/main",                      # Primary source for stable Mantid releases
   "mantid/label/nightly",                   # Upstream nightly builds
+  "neutrons",                               # neutrons_standard (shared Config/Singleton/time utilities)
   "https://prefix.dev/pixi-build-backends",
 ]
 platforms = ["linux-64"]
@@ -76,15 +77,19 @@ platforms = ["linux-64"]
 [tool.pixi.dependencies]
 python = "*"
 pip = "*"
-mantidworkbench = ">=6.15.0,<6.16.0"
+mantidworkbench = ">=6.16.0,<6.17"
 qtpy = "*"
-pyqt = "*"
 uncertainties = "*"
 libarchive = "*"
 matplotlib = "*"
 numpy = "*"
 pandas = "*"
 types-six = "*"
+nexusformat = ">=1.0.8,<2"
+pydantic = ">=2.7.3,<3"
+h5glance = ">=0.9,<0.10"
+py-rattler = "==0.24.0"
+neutrons_standard = "*"
 
 [tool.pixi.pypi-dependencies]
 # PyPI dependencies, including this package to allow local editable installs
@@ -95,15 +100,17 @@ hatchling = "*"
 versioningit = "*"
 
 [tool.pixi.package.run-dependencies]
-mantidworkbench = ">=6.15.0,<6.16.0"
+mantidworkbench = ">=6.16.0, <6.17"
 qtpy = "*"
-pyqt = "*"
 uncertainties = "*"
 libarchive = "*"
 matplotlib = "*"
 numpy = "*"
 pandas = "*"
 types-six = "*"
+nexusformat = ">=1.0.8,<2"
+pydantic = ">=2.7.3,<3"
+neutrons_standard = "*"
 
 
 # ------------------------------- #
@@ -113,17 +120,22 @@ types-six = "*"
 pytest = "*"
 pytest-qt = "*"
 pytest-cov = "*"
+pytest-timeout = "*"
 mypy = "*"
 
 [tool.pixi.feature.package.dependencies]
-boa = "*"
 anaconda-client = "*"
-conda-build = "<24"
-conda-verify = "*"
+conda-build = "*"
 twine = "*"
 versioningit = "*"
 hatch = "*"
 toml = "*"
+
+# fix for pip audit
+# cryptography = ">=46.0.6" ## TODO: not indexed yet: CVE-2026-34073 ##
+h11 = ">=0.16.0"
+py-lief = ">=0.17.2"
+requests = ">=2.33.0"
 
 [tool.pixi.feature.package.pypi-dependencies]
 toml-cli = "*"
@@ -132,11 +144,13 @@ toml-cli = "*"
 pre-commit = "*"
 mypy = "*"
 python-build = "*"
+pip-audit = "*"
 
 [tool.pixi.feature.docs.dependencies]
 sphinx = "*"
 sphinx_rtd_theme = "*"
 sphinxcontrib-mermaid = "*"
+sphinxcontrib-programoutput = "*"
 types-pyyaml = "*"
 versioningit = "*"
 
@@ -146,13 +160,15 @@ versioningit = "*"
 [tool.pixi.feature.dev.dependencies]
 python = "*"
 pip = "*"
-mantidworkbench = { version = ">=6.15.0", channel = "mantid/label/nightly" }
+mantidworkbench = { version = ">=6.16.0", channel = "mantid/label/nightly" }
 mantid = { channel = "mantid/label/nightly" }
 mantidqt = { channel = "mantid/label/nightly" }
 uncertainties = "*"
 libarchive = "*"
 pandas = "*"
 types-six = "*"
+nexusformat = ">=1.0.8,<2"
+pydantic = ">=2.7.3,<3"
 
 # ------------------------------- #
 # QA Environment Feature #
@@ -160,13 +176,16 @@ types-six = "*"
 [tool.pixi.feature.qa.dependencies]
 python = "*"
 pip = "*"
-mantidworkbench = { version = ">=6.15.0,<6.16.0", channel = "mantid-ornl/label/rc" }
+mantidworkbench = { version = ">=6.16.0, <6.17", channel = "mantid-ornl/label/rc" }
 mantid = { channel = "mantid-ornl/label/rc" }
 mantidqt = { channel = "mantid-ornl/label/rc" }
 uncertainties = "*"
 libarchive = "*"
 pandas = "*"
 types-six = "*"
+nexusformat = ">=1.0.8,<2"
+pydantic = ">=2.7.3,<3"
+py-rattler = "==0.24.0"
 
 # ------------------------------- #
 # Production Environment Feature #
@@ -174,28 +193,37 @@ types-six = "*"
 [tool.pixi.feature.prod.dependencies]
 python = "*"
 pip = "*"
-mantidworkbench = { version = ">=6.15.0,<6.16.0", channel = "mantid/label/main" }
+mantidworkbench = { version = ">=6.16.0, <6.17", channel = "mantid/label/main" }
 mantid = { channel = "mantid/label/main" }
 mantidqt = { channel = "mantid/label/main" }
 uncertainties = "*"
 libarchive = "*"
 pandas = "*"
 types-six = "*"
+nexusformat = ">=1.0.8,<2"
+pydantic = ">=2.7.3,<3"
 
 [tool.pixi.package]
 name = "pyrs"
-version = "0.0.0" # placeholder, overwritten by sync-version
+version = "1.9.0.dev32" # placeholder, overwritten by sync-version
 
-[tool.pixi.package.build]
-backend = { name = "pixi-build-python", version = "*" }
+[tool.pixi.package.build.backend]
+name = "pixi-build-python"
+# Unconstrained: pixi-build-python's build.dependencies (pixi-build-api-version)
+# track the protocol version of the pixi CLI itself, which advances independently.
+# CI pins `pixi-version` in prefix-dev/setup-pixi, but developers' local pixi may differ.
+# An exact pin (e.g. "==0.5.2", requiring pixi-build-api-version >=4,<5) breaks
+# as soon as the installed pixi CLI needs a newer protocol (e.g. >=5,<6, required
+# since pixi-build-python 0.6.0) -- no channel/version combination can satisfy
+# both an old exact pin and a newer pixi CLI at the same time.
+version = "*"
 channels = [
   "conda-forge",
-  "mantid-ornl/label/main",                 # ORNL-specific stable releases
-  "mantid-ornl/label/rc",                   # Fallback to RC if stable not available
-  "mantid-ornl/label/nightly",              # ORNL-specific nightly builds
-  "mantid/label/main",                      # Primary source for stable Mantid releases
-  "mantid/label/nightly",                   # Upstream nightly builds
-  "https://prefix.dev/pixi-build-backends",
+  "mantid-ornl/label/main",         # ORNL-specific stable releases
+  "mantid-ornl/label/rc",           # Fallback to RC if stable not available
+  "mantid-ornl/label/nightly",      # ORNL-specific nightly builds
+  "mantid/label/main",              # Primary source for stable Mantid releases
+  "mantid/label/nightly",           # Upstream nightly builds
   "https://prefix.dev/conda-forge",
 ]
 
@@ -243,34 +271,51 @@ publish-pypi-test = { cmd = "twine upload --repository testpypi dist/*", descrip
 clean-pypi = { cmd = "rm -rf dist", description = "Clean the PyPI build artifacts" }
 
 # Conda packaging tasks
-build-conda-command = { cmd = "pixi build", description = "Build the conda package command" }
+build-conda-command = { cmd = "pixi publish --target-dir .", description = "Build the conda package" }
 build-conda = { description = "Build the conda package", depends-on = [
   "backup-toml",
   "sync-version",
   "build-conda-command",
   "reset-toml",
 ] }
+conda-build = { description = "Alias for build-conda (used by CI workflows)", depends-on = [
+  "build-conda",
+] }
 publish-conda = { cmd = "anaconda upload *.conda", description = "Publish the .conda package to anaconda.org", depends-on = [
   "build-conda",
 ] }
+conda-publish = { cmd = "anaconda upload *.conda", description = "Publish the .conda package to anaconda.org", depends-on = [
+  "conda-build",
+] }
+
+# Cleaning
+clean = { cmd = 'rm -rf .pytest_cache .ruff_cache **/*.egg-info **/dist **/__pycache__', description = "Clean up various caches and build artifacts" }
 clean-conda = { cmd = "rm -f *.conda", description = "Clean the local .conda build artifacts" }
+clean-docs = { cmd = "rm -rf docs/_build", description = "Clean up documentation build artifacts" }
+clean-all = { description = "Clean all artifacts", depends-on = [
+  "clean",
+  "clean-conda",
+  "clean-docs",
+  "clean-pypi",
+] }
+
 
 # Documentation tasks
-build-docs = { cmd = "sphinx-build -b html docs/source docs/_build", description = "Build the documentation" }
-clean-docs = { cmd = "rm -rf docs/_build", description = "Clean the documentation build artifacts" }
-docs-serve = { cmd = "python -m http.server 8000 -d docs/_build", description = "Serve documentation locally on port 8000" }
-docs-autobuild = { cmd = "sphinx-autobuild docs/source docs/_build --host 0.0.0.0 --port 8000", description = "Auto-rebuild and serve docs on changes" }
+build-docs = { cmd = "sphinx-build -b html docs/user/source docs/_build/user", description = "Build the User documentation" }
+build-dev-docs = { cmd = "sphinx-build -b html docs/developer/source docs/_build/developer", description = "Build the Developer documentation" }
+docs-serve = { cmd = "python -m http.server 8000 -d docs/_build/user", description = "Serve User documentation locally on port 8000" }
+docs-autobuild = { cmd = "sphinx-autobuild docs/user/source docs/_build/user --host 0.0.0.0 --port 8000", description = "Auto-rebuild and serve User docs on changes" }
 
 # Testing tasks
-test = { cmd = "pytest --cov=pyrs --cov-report=xml --cov-report=term ./tests", description = "Run the tests with coverage" }
+test = { cmd = "python scripts/development/run_tests.py --cov=pyrs --cov-report=xml --cov-report=term ./tests", description = "Run the tests with coverage" }
+test-unit = { cmd = "python scripts/development/run_tests.py -m 'not integration and not gui' ./tests", description = "Run fast tests only: no file I/O, no GUI" }
+test-integration = { cmd = "python scripts/development/run_tests.py -m 'integration and not gui' ./tests", description = "Run tests that read/write real data" }
+test-gui = { cmd = "python scripts/development/run_tests.py -m gui ./tests", env = { QT_QPA_PLATFORM = "offscreen" }, description = "Run tests that drive Qt widgets (offscreen; no windows appear)" }
 test-import-framework = { cmd = "python -c 'import pyrs'; python -c 'import qtpy'; python -c 'import mantidqt'", description = "Test import of main dependencies" }
 
 # MISC
-clean-all = { description = "Clean all build artifacts", depends-on = [
-  "clean-pypi",
-  "clean-docs",
-  "clean-conda",
-] }
+audit-deps = { cmd = "pip-audit --local -s osv --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-34073", description = "Audit the package dependencies for vulnerabilities" }
+
 sync-version = { cmd = 'version=$(python -m versioningit); toml set tool.pixi.package.version "$version" --toml-path pyproject.toml', description = "Sync pyproject.toml version with Git version" }
 backup-toml = { cmd = "cp pyproject.toml pyproject.toml.bak", description = "Backup the pyproject.toml file" }
 reset-toml = { cmd = "cp pyproject.toml.bak pyproject.toml; rm pyproject.toml.bak", description = "Reset the pyproject.toml file to the original state" }
@@ -282,6 +327,21 @@ pyrs = { cmd = "pyrsplot", description = "Start the pyrs application" }
 ignore_missing_imports = true
 namespace_packages = true
 
+[tool.pytest.ini_options]
+# By-hand smoke-test scripts, never collected -- see tests/scripts/cis_tests/README.rst
+norecursedirs = ["tests/scripts"]
+addopts = "--strict-markers"
+# No test may hang. `thread` (not the `signal` default) is required: a test blocked
+# inside Qt's C++ event loop never returns to the interpreter, so SIGALRM would never
+# be delivered -- the watchdog thread dumps every thread's stack and exits instead.
+# 300s is ~7x the slowest test observed (41.8s), so it leaves ample room on slow CI.
+timeout = 300
+timeout_method = "thread"
+markers = [
+  "integration: exercises real file I/O (tests/data, /HFIR archive) or a multi-component workflow",
+  "gui: constructs or drives Qt widgets; requires a display (xvfb or offscreen)",
+]
+
 [tool.ruff]
 line-length = 119
 target-version = "py311"
@@ -289,6 +349,10 @@ exclude = ["pyrs/icons", "scripts"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# WARNING: there are multiple `conftest.py` files!
+"**/conftest.py" = ["F401", "F811"]
 
 [tool.ruff.format]
 line-ending = "lf"

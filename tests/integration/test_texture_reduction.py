@@ -9,6 +9,8 @@ from pyrs.core.powder_pattern import ReductionApp
 import pytest
 import os
 
+pytestmark = pytest.mark.integration
+
 DATA_DIR = "tests/data/"
 
 
@@ -117,3 +119,37 @@ def test_texture_reduction(nexusfile, mask_file_name, gold_file):
         np.testing.assert_allclose(pattern[1], gold_data_i[1], rtol=1e-8, equal_nan=True)
 
     # END-FOR
+
+
+def test_eta_wedges_are_binned_on_the_stored_axis():
+    """Regression (#1033): every eta wedge must be histogrammed on the 2theta axis stored for its sub-run.
+
+    Each wedge used to be binned over its own pixels' 2theta range while the workspace keeps one 2theta axis
+    per sub-run, so every wedge but the last written carried another wedge's axis."""
+    # Arrange
+    workspace = NeXusConvertingApp(
+        os.path.join(DATA_DIR, "calibration_tests/HB2B_3510.nxs.h5"), os.path.join(DATA_DIR, "HB2B_Mask_12-18-19.xml")
+    ).convert()
+    reducer = ReductionApp()
+    reducer.load_hidra_workspace(workspace)
+
+    # Act
+    reducer.reduce_data(
+        sub_runs=[1], instrument_file=None, calibration_file=None, mask=None, num_bins=512, eta_step=3.0
+    )
+
+    # Assert - re-histogram each wedge's pixels on the axis it was returned with
+    engine = reducer._reduction_manager._last_reduction_engine
+    pixel_2theta = engine.instrument.get_pixels_2theta(1)
+    eta = engine.get_eta_value()
+    counts = workspace.get_detector_counts(1).astype(float)
+    keep = workspace.get_detector_mask(True)
+    for mask_id in workspace.reduction_masks:
+        centre = float(mask_id.split("_")[-1])
+        two_theta, intensity, _ = reducer.get_diffraction_data(1, mask_id=mask_id)
+        step = two_theta[1] - two_theta[0]
+        edges = np.append(two_theta - step / 2, two_theta[-1] + step / 2)
+        wedge = (eta >= centre - 1.5) & (eta <= centre + 1.5) & (keep != 0)
+        expected = np.histogram(pixel_2theta[wedge], edges, weights=counts[wedge])[0]
+        misplaced = np.abs(np.asarray(intensity) - expected).sum() / expected.sum()
+        assert misplaced < 1e-3, f"{mask_id}: {misplaced:.1%} of the counts are in the wrong 2theta bins"
