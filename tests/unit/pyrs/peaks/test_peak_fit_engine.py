@@ -874,6 +874,28 @@ def test_pseudovoigt_HB2B_1060(target_values):
         pass
 
 
+@pytest.mark.parametrize("fit", ["fit_peaks", "fit_multiple_peaks"])
+def test_fit_leaves_only_returned_workspaces(fit):
+    """A fit adds only the input workspace and the returned fitted/difference workspaces (#1040)"""
+    # Arrange
+    from mantid.simpleapi import mtd
+
+    workspace = generate_hydra_workspace_single_subrun("Gaussian", 75.0, 85.0, 500, [80.0], [2.5], [10])["workspace"]
+    before = set(mtd.getObjectNames())
+    fit_engine = PeakFitEngineFactory.getInstance(workspace, "Gaussian", "Linear", wavelength=np.nan)
+
+    # Act
+    if fit == "fit_peaks":
+        result = fit_engine.fit_peaks("leak_check", 78.75, 81.25)
+    else:
+        result = fit_engine.fit_multiple_peaks(["leak_check"], [78.75], [81.25])
+
+    # Assert - nothing beyond those three, and no FitPeaks positions table
+    returned = {str(fit_engine._mtd_wksp), str(result.fitted), str(result.difference)}
+    assert set(mtd.getObjectNames()) - before - returned == set()
+    assert f"fitted_peak_positions_{fit_engine._mtd_wksp}" not in mtd
+
+
 if __name__ == "__main__":
     # Init random number
     import random

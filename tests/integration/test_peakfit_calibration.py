@@ -287,3 +287,16 @@ def test_mask_file_is_applied():
     # ... including in the calibration residual, which re-reduces the data
     residual = masked.get_alignment_residual(np.array(masked._calib))
     assert np.all(np.isfinite(residual))
+
+
+def test_reference_lattice_is_the_2020_set():
+    """#1022: FitCalibration's powder lattice constants are the 2020 set (Ni 3.523799438, Fe 2.8663982,
+    Mo 3.14719963 A), not the 2023 values fitted from HB2B data (see docs/ground_truths.md)"""
+    # Arrange / Act
+    calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file="tests/data/calibration_tests/HB2B_3510.nxs.h5")
+
+    # Assert
+    np.testing.assert_array_equal(calibrator._ref_lattice, [3.523799438, 2.8663982, 3.14719963])
+    lattice_by_powder = dict(zip(calibrator._powders, calibrator._powders_lattice))
+    assert lattice_by_powder["Ni"] == 3.523799438
+    assert lattice_by_powder["Fe"] == 2.8663982
