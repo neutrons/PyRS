@@ -117,12 +117,14 @@ def test_detector_calibration(calibration_window, tmp_path):
     diffraction = window.compare_diff_data
     detector_view = diffraction.tabs.widget(0)
     assert detector_view._ring_overlay is None
+    assert diffraction.ring_geometry.currentText() == "Current calibration"  # the default geometry
+    assert not diffraction.show_points.isEnabled()  # ring points exist only after the ring-based Fit Peaks
     diffraction.show_rings.setChecked(True)
     qtbot.wait(plot_wait)
-    _, rings, _ = window._model.ring_overlay(1, "Nominal")
+    _, rings, _ = window._model.ring_overlay(1, "Current calibration")
     assert rings
     assert len(detector_view._ring_overlay.levels) == len({ring.two_theta for ring in rings})
-    diffraction.ring_geometry.setCurrentText("Current calibration")
+    diffraction.ring_geometry.setCurrentText("Nominal")
     qtbot.wait(plot_wait)
     assert detector_view._ring_overlay is not None
     diffraction.sl.setValue(2)
@@ -182,6 +184,26 @@ def test_ring_based_calibration_matches_driver(calibration_window, tmp_path):
     qtbot.mouseClick(setup.calibrate, QtCore.Qt.LeftButton)
     qtbot.waitUntil(lambda: setup.calibrate.isEnabled() and window.model.rmse is not None, timeout=120000)
     qtbot.wait(wait)
+
+    # picked ring points and rejected strips on the 2D view, with their descriptions on hover
+    diffraction = window.compare_diff_data
+    detector_view = diffraction.tabs.widget(0)
+    diffraction.tabs.setCurrentIndex(0)
+    assert diffraction.show_points.isEnabled() and diffraction.show_rejected.isEnabled()
+    diffraction.show_points.setChecked(True)
+    diffraction.show_rejected.setChecked(True)
+    qtbot.wait(plot_wait)
+    accepted, rejected = window.model.ring_point_marks(diffraction.sl.value())
+    assert len(accepted.text) > 0
+    drawn = sum(len(artist.get_offsets()) for artist in detector_view._point_artists)
+    assert drawn == 2 * len(accepted.text) + len(rejected.text)  # circles have a dark edge ring
+    axes = detector_view._myCanvas.axes
+    x, y = axes.transData.transform((accepted.index_0[0] + 0.5, accepted.index_1[0] + 0.5))
+    assert detector_view.mark_text_at(x, y) == accepted.text[0]
+    diffraction.show_points.setChecked(False)
+    diffraction.show_rejected.setChecked(False)
+    qtbot.wait(plot_wait)
+    assert not detector_view._point_artists
     folder = tmp_path / "ring"
     folder.mkdir()
     written = window.calib_summary.write_calibration(str(folder), write_shared=False)

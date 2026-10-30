@@ -20,6 +20,7 @@ from pyrs.interface.detector_calibration.detector_calibration_model import (
     ITERATE_ROUTINE,
     METHOD_RING,
     RING_GEOMETRIES,
+    RING_GEOMETRY_CURRENT,
     RING_GEOMETRY_FILE,
     SHARED_CALIBRATION_DIR,
 )
@@ -214,17 +215,25 @@ class DiffractionWindow(QWidget):
         self.show_rings = QCheckBox("Predicted rings")
         self.ring_geometry = QComboBox()
         self.ring_geometry.addItems(list(RING_GEOMETRIES))
+        self.ring_geometry.setCurrentText(RING_GEOMETRY_CURRENT)
         self._ring_file = None
-        self._ring_geometry_index = 0
+        self._ring_geometry_index = self.ring_geometry.currentIndex()
+        # the ring-based extraction's picked ring points and rejected strips (enabled after its Fit Peaks)
+        self.show_points = QCheckBox("Ring points")
+        self.show_rejected = QCheckBox("Rejected strips")
         ring_layout.addWidget(self.show_rings)
         ring_layout.addWidget(QLabel("Geometry:"))
         ring_layout.addWidget(self.ring_geometry)
+        ring_layout.addWidget(self.show_points)
+        ring_layout.addWidget(self.show_rejected)
         ring_layout.addStretch()
         panel_layout.addLayout(ring_layout)
 
         self.tabs.currentChanged.connect(self.valueChanged)
         self.sl.valueChanged.connect(self.valueChanged)
         self.show_rings.stateChanged.connect(self.valueChanged)
+        self.show_points.stateChanged.connect(self.valueChanged)
+        self.show_rejected.stateChanged.connect(self.valueChanged)
         self.ring_geometry.currentIndexChanged.connect(self.ring_geometry_changed)
 
     def ring_geometry_changed(self):
@@ -248,6 +257,9 @@ class DiffractionWindow(QWidget):
 
     def valueChanged(self):
         ring_geometry = self.ring_geometry.currentText() if self.show_rings.isChecked() else None
+        has_points = self._parent.model.has_ring_points
+        self.show_points.setEnabled(has_points)
+        self.show_rejected.setEnabled(has_points)
         try:
             self._parent.controller.update_diff_view(
                 self._parent.compare_diff_data.tabs.currentWidget(),
@@ -256,6 +268,8 @@ class DiffractionWindow(QWidget):
                 self._parent.peak_lines_setup.get_keep_list(),
                 ring_geometry=ring_geometry,
                 calibration_file=self._ring_file,
+                show_points=has_points and self.show_points.isChecked(),
+                show_rejected=has_points and self.show_rejected.isChecked(),
             )
         except (RuntimeError, ValueError, OSError) as ring_err:
             self.show_rings.blockSignals(True)
@@ -481,6 +495,8 @@ class PeakLinesSetupView(QGroupBox):
                 if combo.currentIndex() == index:
                     combo.setCurrentIndex(0)
                 combo.removeItem(index)
+        if hasattr(self._parent, "compare_diff_data"):  # not yet built while the window is set up
+            self._parent.compare_diff_data.valueChanged()  # ring marks belong to the ring-based method
 
     def strips(self) -> int:
         """Strips per sub-run from the Strips field."""

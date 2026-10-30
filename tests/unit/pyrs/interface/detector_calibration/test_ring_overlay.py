@@ -124,6 +124,9 @@ class _RecordingDetectorView:
     def set_ring_overlay(self, two_theta_map=None, rings=(), mask=None):
         self.calls.append(("rings", [r.label for r in rings]))
 
+    def set_ring_points(self, accepted=None, rejected=None):
+        self.calls.append(("points", accepted is not None, rejected is not None))
+
 
 def test_controller_draws_rings_only_when_asked(model):
     # Arrange
@@ -137,6 +140,8 @@ def test_controller_draws_rings_only_when_asked(model):
     assert view.calls == [
         ("image", (2, None)),
         ("rings", ["Ni 311", "Ni 222"]),
+        ("points", False, False),
         ("image", (2, None)),
         ("rings", []),
+        ("points", False, False),
     ]

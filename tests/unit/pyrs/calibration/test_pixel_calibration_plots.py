@@ -5,7 +5,11 @@ import pytest
 from matplotlib.figure import Figure
 
 from pyrs.calibration.pixel_calibration_plots import (
+    PointMarks,
     PredictedRing,
+    marker_at,
+    plot_ring_points,
+    remove_artists,
     detector_two_theta_map,
     hkl_label,
     plot_detector_counts,
@@ -170,3 +174,55 @@ def test_remove_ring_overlay_removes_contours_and_labels(two_theta_map):
 
     # Assert
     assert not ax.collections and not ax.texts
+
+
+def _marks(index_0, index_1, prefix):
+    return PointMarks(
+        np.asarray(index_0, float), np.asarray(index_1, float), tuple(f"{prefix} {i}" for i in range(len(index_0)))
+    )
+
+
+def test_ring_points_drawn_at_their_pixels():
+    # Arrange
+    ax = Figure().add_subplot()
+    accepted, rejected = _marks([100.25, 300.0], [512.0, 700.5], "point"), _marks([50.0], [80.0], "rejected")
+
+    # Act
+    artists = plot_ring_points(ax, accepted, rejected)
+
+    # Assert - pixel (i0, i1) at (i0 + 0.5, i1 + 0.5), as the image and the rings; circles get a dark edge
+    offsets = [artist.get_offsets() for artist in artists]
+    np.testing.assert_array_equal(offsets[0], [[100.75, 512.5], [300.5, 701.0]])
+    np.testing.assert_array_equal(offsets[1], offsets[0])
+    np.testing.assert_array_equal(offsets[2], [[50.5, 80.5]])
+
+
+def test_remove_artists_clears_marks():
+    ax = Figure().add_subplot()
+    remove_artists(plot_ring_points(ax, _marks([1.0], [2.0], "p"), _marks([3.0], [4.0], "r")))
+    assert not ax.collections
+
+
+def test_no_marks_draws_nothing():
+    ax = Figure().add_subplot()
+    assert plot_ring_points(ax, None, _marks([], [], "r")) == []
+
+
+def test_marker_at_finds_nearest_within_radius():
+    # Arrange
+    ax = Figure().add_subplot()
+    ax.set_xlim(0, 1024)
+    ax.set_ylim(0, 1024)
+    accepted, rejected = _marks([100.0, 600.0], [100.0, 600.0], "point"), _marks([400.0], [400.0], "rejected")
+    x, y = ax.transData.transform((600.5, 600.5))
+    x_rejected, y_rejected = ax.transData.transform((400.5, 400.5))
+
+    # Act / Assert
+    assert marker_at(ax, [accepted, rejected], x + 2, y - 2) == "point 1"
+    assert marker_at(ax, [accepted, rejected], x_rejected, y_rejected) == "rejected 0"
+    assert marker_at(ax, [accepted, rejected], x + 50, y) is None
+
+
+def test_point_marks_lengths_must_match():
+    with pytest.raises(ValueError, match="one entry per position"):
+        PointMarks(np.zeros(2), np.zeros(2), ("only one",))
