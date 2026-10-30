@@ -14,6 +14,7 @@ Run from the repository root:
 The perturbed start (lambda 1.531 A) is meant for HB2B_3510 (mono 1.54 A).
 """
 
+import dataclasses
 import sys
 import time
 from typing import Dict, List, Optional
@@ -24,7 +25,8 @@ import pyrs.calibration.mantid_peakfit_calibration as mpc
 
 NEXUS = "tests/data/calibration_tests/HB2B_3510.nxs.h5"
 MASK = "tests/data/HB2B_Mask_12-18-19.xml"
-LATTICES = {"2023": None, "2020": [3.523799438, 2.8663982, 3.14719963]}
+# Ni, Fe, Mo lattice constants (A); None: FitCalibration's own, the 2020 set (#1022)
+LATTICES = {"2023": [3.526314, 2.865579, 3.147664], "2020": None}
 STARTS: Dict[str, Optional[np.ndarray]] = {
     "nominal": None,
     "perturbed": np.array([0.0, 0.0, -0.05, 0.0, 0.0, 0.0, 0.5, 1.531]),
@@ -58,7 +60,9 @@ def main(mode: str, lattice: str, start: str, nexus: str = NEXUS) -> None:
     tag = f"[{nexus.split('/')[-1][:9]} | {mode:13s} | {lattice} | {start:9s}]"
     fc = mpc.FitCalibration(nexus_file=nexus, mask_file=MASK, max_nfev=40)
     if LATTICES[lattice] is not None:
-        fc._ref_lattice = LATTICES[lattice]
+        fc._standards = tuple(
+            dataclasses.replace(standard, lattice_a=a) for standard, a in zip(fc._standards, LATTICES[lattice])
+        )
         fc.get_powder_lines()
     start_values = STARTS[start]
     if start_values is not None:
