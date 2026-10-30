@@ -1879,3 +1879,34 @@ including the unknown-`sy` change below.
 
 Tests: `tests/unit/pyrs/calibration/test_fitcalibration_powders.py` and the updated integration
 test `test_reference_lattice_is_the_2020_set`.
+
+## Calibration GUI: predicted-ring overlay on the 2D view (2026-10-30, #1039)
+
+The Detector Calibration window's **2D** tab has a **Predicted rings** box. Its **Geometry** choice
+is the nominal geometry at the mono wavelength, the calibration currently in the window, or a
+calibration JSON (read with reduction's reader, TTH_0 included).
+- **What is drawn:** the Bragg angles `2·asin(λ/2d)` of the sub-run's powder, unmodified, as
+  contours of that geometry's pixel 2θ from `DetectorModel`, which is reduction's 2θ. Only
+  unmasked pixels are drawn, and each ring is labelled by hkl. It is display only: no fit,
+  reduction or parameter changes (user-approved GUI change).
+- **Code:** `pyrs/calibration/pixel_calibration_plots.py`, `DetectorCalibrationModel.ring_overlay`,
+  `DetectorView.set_ring_overlay`.
+- **Every redraw removes the previous overlay.** The view adds a new image on each redraw without
+  clearing, and contours draw above images, so an old overlay would otherwise stay visible.
+- **Checked:**
+  - pixel placement against the GUI's `imshow(np.rot90(counts))` (pixel `(i0, i1)` at
+    `(i0 + 0.5, i1 + 0.5)`);
+  - contour vertices lie on the ring (forward model at the fractional pixels);
+  - by eye on HB2B_4971 and HB2B_3510. On 4971 the nominal ring is ~50 px off the Ni 311 band, and
+    the ring calibration's ring lies on it.
+
+**Running the GUI tier without a display.** matplotlib refuses its Qt backend when there is no
+display *and* no `QApplication` yet ("Cannot load backend 'QtAgg' … 'headless'"). That happens
+when an SSH-forwarded `DISPLAY` has died, and the GUI test modules then fail at import. Creating
+the application offscreen before pytest imports anything works:
+
+    env -u DISPLAY QT_QPA_PLATFORM=offscreen pixi run python -c "
+    from qtpy.QtWidgets import QApplication; app = QApplication(['pytest'])
+    import sys, pytest; sys.exit(pytest.main(['tests/ui', '-m', 'gui']))"
+
+(11 GUI tests passed this way.)

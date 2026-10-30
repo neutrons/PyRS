@@ -67,11 +67,21 @@ class DetectorCalibrationCrtl:
     def get_powders(self):
         return self._model.powders
 
-    def update_diff_view(self, _ax, diff_plot_type, sub_run, exclude_list):
+    def update_diff_view(self, _ax, diff_plot_type, sub_run, exclude_list, ring_geometry=None, calibration_file=None):
+        """Redraw the 2D (``diff_plot_type`` 0) or 1D view of ``sub_run``.
+
+        On the 2D view, ``ring_geometry`` (one of the model's ``RING_GEOMETRIES``, or None for none)
+        draws the predicted rings of that geometry; ``calibration_file`` is the JSON for "From file...".
+        """
         if diff_plot_type == 0:
             counts_matrix = self._model.get_2D_diffraction_counts(sub_run)
             if counts_matrix is not None:
                 _ax.plot_detector_view(counts_matrix, (sub_run, None))
+                overlay = self._model.ring_overlay(sub_run, ring_geometry, calibration_file) if ring_geometry else None
+                if overlay is None:
+                    _ax.set_ring_overlay()
+                else:
+                    _ax.set_ring_overlay(*overlay)
         else:
             try:
                 if exclude_list[sub_run - 1]:

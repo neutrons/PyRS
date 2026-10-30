@@ -2,6 +2,7 @@ from .mplgraphicsview1d import MplGraphicsView1D
 from .mplgraphicsview2d import MplGraphicsView2D
 import numpy as np
 from .mplfitplottingwidget import MplFitPlottingWidget
+from pyrs.calibration.pixel_calibration_plots import plot_ring_overlay, remove_ring_overlay
 
 
 class DetectorView(MplGraphicsView2D):
@@ -15,8 +16,24 @@ class DetectorView(MplGraphicsView2D):
         :param parent:
         """
         MplGraphicsView2D.__init__(self, parent)
+        self._ring_overlay = None
 
         return
+
+    def set_ring_overlay(self, two_theta_map=None, rings=(), mask=None):
+        """Draw predicted rings over the detector image, replacing any drawn before.
+
+        Called with no arguments it only removes them. ``two_theta_map``, ``rings`` and ``mask`` are
+        as for :func:`pyrs.calibration.pixel_calibration_plots.plot_ring_overlay`; the rings line up
+        with :meth:`plot_detector_view`, which puts pixel (i0, i1) at (i0 + 0.5, i1 + 0.5).
+        """
+        # the view adds a new image on every redraw; contours draw above images, so an old overlay
+        # would stay visible over the new image unless it is removed
+        remove_ring_overlay(self._ring_overlay)
+        self._ring_overlay = None
+        if two_theta_map is not None and rings:
+            self._ring_overlay = plot_ring_overlay(self._myCanvas.axes, two_theta_map, rings, mask=mask)
+        self._myCanvas.draw_idle()
 
     def plot_counts(self, count_vec):
         linear_size = np.sqrt(count_vec.shape[0])
