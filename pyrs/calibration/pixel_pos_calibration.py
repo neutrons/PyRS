@@ -12,7 +12,7 @@ The detector geometry here deliberately reproduces
 own convention, so a calibration found here means the same thing when reduction applies it. That
 equivalence is pinned by a unit test; see docs/ground_truths.md.
 
-The implementation is split by step, and everything public is re-exported here:
+The implementation is split by step, and each step's public names are re-exported here:
 
 - :mod:`pyrs.core.detector_model`: :class:`DetectorModel`, the forward model (in core, next to the
   reduction geometry it reproduces);
@@ -53,7 +53,7 @@ from pyrs.calibration.pixel_refinement import (
     PixelCalibration,
     StageResult,
 )
-from pyrs.calibration.ring_extraction import StripFit, extract_ring_points
+from pyrs.calibration.ring_extraction import StripFit, column_at_two_theta, extract_ring_points
 from pyrs.calibration.ring_points import RingPoints
 
 __all__ = [
@@ -69,4 +69,5 @@ __all__ = [
     "DEFAULT_TOLERANCE",
     "StripFit",
     "extract_ring_points",
+    "column_at_two_theta",
 ]

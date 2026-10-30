@@ -23,6 +23,7 @@ from pyrs.interface.detector_calibration.detector_calibration_model import (
     RING_GEOMETRY_CURRENT,
     RING_GEOMETRY_FILE,
     SHARED_CALIBRATION_DIR,
+    RingOverlayError,
 )
 
 from matplotlib import rcParams
@@ -271,11 +272,13 @@ class DiffractionWindow(QWidget):
                 show_points=has_points and self.show_points.isChecked(),
                 show_rejected=has_points and self.show_rejected.isChecked(),
             )
-        except (RuntimeError, ValueError, OSError) as ring_err:
+        except RingOverlayError as ring_err:
             self.show_rings.blockSignals(True)
             self.show_rings.setChecked(False)
             self.show_rings.blockSignals(False)
             pop_message(self, "Cannot draw the predicted rings", str(ring_err), "error")
+        except (RuntimeError, ValueError, OSError, KeyError) as view_err:
+            pop_message(self, "Cannot draw the view", str(view_err), "error")
 
 
 class VisualizeResults(QWidget):
@@ -546,32 +549,39 @@ class PeakLinesSetupView(QGroupBox):
 
     def fit_peaks(self):
         """FitCalibration: reduce and fit the peaks; ring-based: extract the ring points."""
-        if not self.ring_based:
-            self.set_reduction_param()
-        self.set_calibration_params()
-        keep_list = self.get_keep_list()
         try:
+            if not self.ring_based:
+                self.set_reduction_param()
+            self.set_calibration_params()
+            keep_list = self.get_keep_list()
             strips = self.strips() if self.ring_based else None
             rmse, deltatth = self._parent.controller.fit_diffraction_peaks(keep_list, strips=strips)
-        except (ValueError, RuntimeError) as fit_err:
+        except (ValueError, RuntimeError, KeyError, OSError) as fit_err:
             pop_message(self, "Fit Peaks failed", str(fit_err), "error")
             return
         if self.ring_based:
             self._parent.statusBar().showMessage(self._parent.model.ring_summary)
+            if self._parent.model.extraction_warnings:
+                pop_message(
+                    self, "Ring extraction warnings", "\n".join(self._parent.model.extraction_warnings), "warning"
+                )
         self._parent.compare_diff_data.valueChanged()  # auto plot data after fitting
 
         self._parent.calib_summary.rmse_lineEdit.setText("{0:3f}".format(rmse))
         self._parent.calib_summary.delta_tth_lineEdit.setText("{0:4f}".format(deltatth))
 
     def calibrate_detector(self):
-        if self.ring_based:
-            if self._parent.model.current_calibration_array is None or self._parent.model._ring_calibration is None:
-                pop_message(self, "No ring points", "Run Fit Peaks first: it extracts the ring points.", "error")
-                return
-        else:
-            self.set_reduction_param()
-        self.set_calibration_params()
-        self.set_refinement_params()
+        if self.ring_based and not self._parent.model.has_ring_points:
+            pop_message(self, "No ring points", "Run Fit Peaks first: it extracts the ring points.", "error")
+            return
+        try:
+            if not self.ring_based:
+                self.set_reduction_param()
+            self.set_calibration_params()
+            self.set_refinement_params()
+        except (ValueError, RuntimeError, OSError) as setup_err:
+            pop_message(self, "Calibrate failed", str(setup_err), "error")
+            return
 
         exclude_list = self.get_keep_list()
         fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
@@ -579,19 +589,26 @@ class PeakLinesSetupView(QGroupBox):
         fit_recipe = [_recipe for _recipe in fit_recipe if _recipe != ""]
 
         if len(fit_recipe) > 0:
-            self.load_info.setEnabled(False)
-            self.export_recipe.setEnabled(False)
-            self.fit.setEnabled(False)
-            self.calibrate.setEnabled(False)
+            # nothing may change the run, the method or the result while the worker refines
+            busy = [
+                self.load_info,
+                self.export_recipe,
+                self.fit,
+                self.calibrate,
+                self.method_combo,
+                self._parent.calib_summary.export_calib_bttn,
+                self._parent.fileLoading,
+            ]
+            for widget in busy:
+                widget.setEnabled(False)
 
             # do action
             args = [fit_recipe, exclude_list]
             self.worker = self.worker_pool.createWorker(target=self._parent.controller.calibrate_detector, args=(args))
-            self.worker.finished.connect(lambda: self.load_info.setEnabled(True))
-            self.worker.finished.connect(lambda: self.export_recipe.setEnabled(True))
-            self.worker.finished.connect(lambda: self.fit.setEnabled(True))
-            self.worker.finished.connect(lambda: self.calibrate.setEnabled(True))
+            for widget in busy:
+                self.worker.finished.connect(lambda widget=widget: widget.setEnabled(True))
             self.worker.finished.connect(lambda: self.time_worker.stop())
+            self.worker.error.connect(lambda message: pop_message(self, "Calibrate failed", message, "error"))
             self.worker.result.connect(self.parse_calibration_results)
 
             self.time_worker = self.worker_pool.createTimmerWorker()
@@ -612,7 +629,10 @@ class PeakLinesSetupView(QGroupBox):
             self._parent.calib_summary.delta_tth_lineEdit.setText("{0:4f}".format(r_sum))
 
     def parse_calibration_results(self, result):
+        if result is None:  # the worker failed and reported it through its error signal
+            return
         fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
+        fit_recipe = [routine for routine in fit_recipe if routine]  # one result column per routine run
 
         for i_steps in range(len(result[0])):
             self._parent.calib_summary._cal_summary_table.set_calibration(
@@ -711,20 +731,6 @@ class PeakLinesSetupView(QGroupBox):
             self._parent._nexus_file = input_dict["nexus_file"]
             self._parent.fileLoading.file_load_dilg.load_nexus()
 
-        methods = [
-            "",
-            "wavelength",
-            "wavelength_tth0",
-            "rotations",
-            "geometry",
-            "shifts",
-            "shift x",
-            "shift y",
-            "distance",
-            "full",
-            "tth0",
-        ]
-
         # the method first: it decides which routines the recipe combos offer
         if "calibration_method" in input_dict:
             self.method_combo.setCurrentText(input_dict["calibration_method"])
@@ -732,9 +738,15 @@ class PeakLinesSetupView(QGroupBox):
             self.strips_lineEdit.setText(str(input_dict["strips"]))
 
         if "recipe" in input_dict.keys():
-            for i_item, item in enumerate(input_dict["recipe"].split(",")):
+            routines = input_dict["recipe"].split(",")
+            if ITERATE_ROUTINE in routines and "calibration_method" not in input_dict:
+                self.method_combo.setCurrentText(METHOD_RING)  # only the ring-based method has "iterate"
+            for i_item, item in enumerate(routines):
                 index = self.recipe_combos[i_item].findText(item)
-                self.recipe_combos[i_item].setCurrentIndex(index if index >= 0 else methods.index(item))
+                if index < 0:
+                    pop_message(self, "Unknown recipe routine", f"{item!r} in {filename}", "error")
+                    return
+                self.recipe_combos[i_item].setCurrentIndex(index)
 
         # load input calibration if specified
         if self._parent._nexus_file is not None:  # Error check to make sure nexus file is loaded

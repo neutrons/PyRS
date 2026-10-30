@@ -62,7 +62,7 @@ def test_nominal_rings_use_the_mono_wavelength(model, workspace):
     assert [r.two_theta for r in rings] == pytest.approx([_bragg(NI, MONO_WAVELENGTH, n) for n in (11, 12)])
 
 
-def test_current_calibration_rings_use_its_geometry_and_wavelength(model):
+def test_current_rings_use_its_geometry_and_wavelength(model):
     # Act
     two_theta, rings, _ = model.ring_overlay(1, RING_GEOMETRY_CURRENT)
 

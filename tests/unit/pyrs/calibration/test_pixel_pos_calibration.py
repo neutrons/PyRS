@@ -1,4 +1,4 @@
-"""Unit tests for pyrs.calibration.pixel_pos_calibration"""
+"""Unit tests for pyrs.calibration.pixel_refinement (PixelCalibration, RingPoints), via pixel_pos_calibration"""
 
 import copy
 
@@ -684,3 +684,75 @@ def test_estimate_errors_unknown_name_raises(refined_noisy):
 def test_write_calibration_unrefined_raises(tmp_path, hb2b, true_rings):
     with pytest.raises(RuntimeError, match="nothing has been refined"):
         PixelCalibration(true_rings, hb2b, wavelength=1.54).write_calibration(tmp_path / "x.json")
+
+
+# ---------------------------------------------------------------- errors without refining, state, warnings
+
+
+def test_errors_at_current_moves_no_value(refined_noisy):
+    # Arrange
+    before = refined_noisy.calibration_array
+
+    # Act
+    stage = refined_noisy.errors_at_current()
+
+    # Assert - values untouched; 2theta_0 held, the other seven get real errors
+    np.testing.assert_array_equal(refined_noisy.calibration_array, before)
+    errors = refined_noisy.calibration_error_array
+    assert errors[6] == -1.0 and np.all(errors[[0, 1, 2, 3, 4, 5, 7]] > 0)
+    assert stage.nfev == 0 and stage.name == "errors_at_current"
+
+
+def test_errors_at_current_match_estimate_errors_at_optimum(refined_noisy):
+    """At the joint optimum the two error estimates agree: the same Jacobian formula at (nearly) one point"""
+    # Arrange
+    at_current = copy.deepcopy(refined_noisy)
+
+    # Act
+    at_current.errors_at_current()
+    refined_noisy.estimate_errors()
+
+    # Assert
+    np.testing.assert_allclose(at_current.calibration_error_array, refined_noisy.calibration_error_array, rtol=0.05)
+
+
+def test_set_calibration_array_resets_errors_and_status(refined_with_errors):
+    # Act - new values: the old errors and status no longer describe them
+    refined_with_errors.set_calibration_array(TRUE_PARAMS)
+
+    # Assert
+    assert refined_with_errors.calibration_status == -1
+    assert np.all(refined_with_errors.calibration_error_array == -1.0)
+
+
+def test_stage_at_max_nfev_warns_not_converged(hb2b, true_rings):
+    # Arrange
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH, max_nfev=1)
+
+    # Act
+    with pytest.warns(UserWarning, match="before converging"):
+        stage = calibration.CalibrateShift()
+
+    # Assert - also in the log callers read instead of capturing warnings
+    assert stage.status == 0
+    assert "CalibrateShift: stopped at max_nfev (1) before converging" in calibration.warning_log[-1]
+
+
+@pytest.mark.parametrize("kwargs, match", [({"method": "simplex"}, "method"), ({"max_nfev": 0}, "max_nfev")])
+def test_set_refinement_invalid_raises(hb2b, true_rings, kwargs, match):
+    with pytest.raises(ValueError, match=match):
+        PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH).set_refinement(**kwargs)
+
+
+def test_restore_returns_to_checkpoint(refined_noisy):
+    # Arrange
+    values, errors, status, n_stages = refined_noisy.checkpoint()
+
+    # Act
+    refined_noisy.calibrate_wave_length()
+    refined_noisy.restore((values, errors, status, n_stages))
+
+    # Assert
+    np.testing.assert_array_equal(refined_noisy.calibration_array, values)
+    np.testing.assert_array_equal(refined_noisy.calibration_error_array, errors)
+    assert refined_noisy.calibration_status == status and len(refined_noisy.stages) == n_stages

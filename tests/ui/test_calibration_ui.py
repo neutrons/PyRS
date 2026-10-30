@@ -3,8 +3,10 @@ from pyrs.interface.detector_calibration.detector_calibration_model import Detec
 from pyrs.interface.detector_calibration.detector_calibration_crtl import DetectorCalibrationCrtl  # noqa: E402
 
 from pyrs.core import pyrscore
+from matplotlib.contour import ContourSet
 from qtpy import QtCore, QtWidgets
 import functools
+import json
 
 # import json
 import pytest
@@ -79,6 +81,9 @@ def test_detector_calibration(calibration_window, tmp_path):
     qtbot.mouseClick(window.peak_lines_setup.fit, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
 
+    # the recipe's max nfev (3) stops the fit early (status 0), and Export refuses an unconverged
+    # calibration; give it enough evaluations to converge
+    window.calib_summary.neval_lineEdit.setText("100")
     qtbot.mouseClick(window.peak_lines_setup.calibrate, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
 
@@ -129,7 +134,8 @@ def test_detector_calibration(calibration_window, tmp_path):
     assert detector_view._ring_overlay is not None
     diffraction.sl.setValue(2)
     qtbot.wait(plot_wait)
-    assert len(detector_view._myCanvas.axes.collections) == 1  # the previous sub-run's rings were removed
+    contours = [c for c in detector_view._myCanvas.axes.collections if isinstance(c, ContourSet)]
+    assert contours == [detector_view._ring_overlay]  # the previous sub-run's rings were removed
     diffraction.show_rings.setChecked(False)
     qtbot.wait(plot_wait)
     assert detector_view._ring_overlay is None and not detector_view._myCanvas.axes.collections
@@ -195,8 +201,8 @@ def test_ring_based_calibration_matches_driver(calibration_window, tmp_path):
     qtbot.wait(plot_wait)
     accepted, rejected = window.model.ring_point_marks(diffraction.sl.value())
     assert len(accepted.text) > 0
-    drawn = sum(len(artist.get_offsets()) for artist in detector_view._point_artists)
-    assert drawn == 2 * len(accepted.text) + len(rejected.text)  # circles have a dark edge ring
+    assert [marks.text for marks in detector_view._point_marks] == [accepted.text, rejected.text]
+    assert detector_view._point_artists
     axes = detector_view._myCanvas.axes
     x, y = axes.transData.transform((accepted.index_0[0] + 0.5, accepted.index_1[0] + 0.5))
     assert detector_view.mark_text_at(x, y) == accepted.text[0]
@@ -220,4 +226,67 @@ def test_ring_based_calibration_matches_driver(calibration_window, tmp_path):
 
     setup.method_combo.setCurrentText("FitCalibration")
     assert "iterate" not in [setup.recipe_combos[0].itemText(i) for i in range(setup.recipe_combos[0].count())]
+    # ring marks belong to the ring-based method: switching away disables and clears them
+    diffraction.show_points.setChecked(True)
+    qtbot.wait(plot_wait)
+    assert not diffraction.show_points.isEnabled() and not detector_view._point_artists
+    diffraction.show_points.setChecked(False)
     window.hide()
+
+
+def test_recipe_keeps_method_and_strips(calibration_window, tmp_path, monkeypatch):
+    """#1045: a saved recipe brings back the method, the strips and an "iterate" step"""
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+
+    window, qtbot = calibration_window
+    setup = window.peak_lines_setup
+    recipe = str(tmp_path / "ring_recipe.json")
+    monkeypatch.setattr(viewer_module, "save_json_file", lambda parent: recipe)
+    monkeypatch.setattr(viewer_module.QFileDialog, "getOpenFileName", lambda *args, **kwargs: (recipe, ""))
+
+    # Arrange - Ring-based, 3 strips, "iterate"
+    setup.method_combo.setCurrentText("Ring-based")
+    setup.strips_lineEdit.setText("3")
+    for i_row in range(8):
+        setup.recipe_combos[i_row].setCurrentIndex(0)
+    setup.recipe_combos[0].setCurrentText("iterate")
+
+    # Act - save, change everything, load
+    setup.save_json()
+    setup.method_combo.setCurrentText("FitCalibration")
+    setup.strips_lineEdit.setText("5")
+    setup.load_json()
+    qtbot.wait(wait)
+
+    # Assert
+    assert (setup.method_combo.currentText(), setup.strips_lineEdit.text()) == ("Ring-based", "3")
+    assert setup.recipe_combos[0].currentText() == "iterate"
+
+    # a recipe from before #1045 (no "calibration_method") with "iterate" selects the ring-based method
+    saved = json.load(open(recipe))
+    del saved["calibration_method"]
+    json.dump(saved, open(recipe, "w"))
+    setup.method_combo.setCurrentText("FitCalibration")
+    setup.load_json()
+    qtbot.wait(wait)
+    assert setup.method_combo.currentText() == "Ring-based" and setup.recipe_combos[0].currentText() == "iterate"
+    setup.method_combo.setCurrentText("FitCalibration")
+
+
+def test_export_failure_is_reported(calibration_window, tmp_path, monkeypatch):
+    """Export to a missing folder writes nothing and tells the user"""
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+
+    window, _ = calibration_window
+    messages = []
+    monkeypatch.setattr(
+        viewer_module,
+        "pop_message",
+        lambda parent, message, detail=None, kind="error": messages.append((message, kind)),
+    )
+
+    # Act
+    written = window.calib_summary.write_calibration(str(tmp_path / "nowhere"), write_shared=False)
+
+    # Assert
+    assert written is None and messages == [("Export failed", "error")]

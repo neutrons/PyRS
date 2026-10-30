@@ -1,4 +1,4 @@
-"""Unit tests for ring extraction in pyrs.calibration.pixel_pos_calibration, on synthetic detector images"""
+"""Unit tests for pyrs.calibration.ring_extraction, on synthetic detector images"""
 
 import numpy as np
 import pytest

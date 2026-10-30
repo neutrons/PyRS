@@ -160,10 +160,31 @@ def test_summary_labels_error_codes(driver, monkeypatch, error, name, text):
         stages=[SimpleNamespace(rmse=0.001)],
         calibration_array=TRUE_PARAMS,
         calibration_error_array=errors,
+        calibration_status=1,
     )
 
     # Act
-    line = next(line for line in driver._summary(calibration).splitlines() if line.split()[0] == name)
+    summary = driver._summary(calibration)
+    line = next(line for line in summary.splitlines() if line.split()[0] == name)
 
     # Assert
     assert text in line and "-2000" not in line
+    assert "WARNING" not in summary
+
+
+def test_summary_flags_unconverged_result(driver):
+    # Arrange - status 0: the last stage stopped at max_nfev
+    from types import SimpleNamespace
+
+    from tests.util.ring_calibration_helpers import synthetic_ring_points
+
+    calibration = SimpleNamespace(
+        ring_points=synthetic_ring_points(default_hb2b_geometry(), TRUE_PARAMS),
+        stages=[SimpleNamespace(rmse=0.001)],
+        calibration_array=TRUE_PARAMS,
+        calibration_error_array=np.full(8, 1e-4),
+        calibration_status=0,
+    )
+
+    # Act / Assert
+    assert "WARNING: the last stage stopped at max_nfev before converging" in driver._summary(calibration)

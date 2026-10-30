@@ -1,7 +1,8 @@
 import os
+import tempfile
 import time
 import warnings
-from typing import List, Optional, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 from qtpy.QtCore import Signal, QObject  # type:ignore
@@ -25,7 +26,9 @@ from pyrs.utilities.calibration_file_io import read_calibration_json_file, write
 METHOD_FITCALIBRATION = "FitCalibration"
 METHOD_RING = "Ring-based"
 CALIBRATION_METHODS = (METHOD_FITCALIBRATION, METHOD_RING)
-DEFAULT_STRIPS = 5  # as the pyrs-pixel-calibration driver, and every recorded ring-based result
+# as the pyrs-pixel-calibration driver: fewer, wider strips than extract_ring_points' 15 keep enough
+# counts per strip on sparse runs (HB2B_3510, ~0.07 counts/pixel; docs/ground_truths.md)
+DEFAULT_STRIPS = 5
 
 # recipe routine -> stage method; both calibrations have these methods. "iterate" is ring-based only:
 # repeated Shift -> Rotation -> wavelength + 2theta_0 passes, then a joint refinement
@@ -47,7 +50,11 @@ ITERATE_PASSES = 3
 # Export: the user's folder always; with the shared flag also the HB2B calibration that reduction
 # picks up (HB2B_Latest.json), its per-monochromator copy and a timestamped archive copy
 SHARED_CALIBRATION_DIR = "/HFIR/HB2B/shared/CALIBRATION"
-CALIBRATION_TIME_FORMAT = "%Y-%m-%dT%H:%M"  # as FitCalibration's archive names
+# FitCalibration's archive name format, to the second so that two exports in one minute do not collide
+CALIBRATION_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
+# a recipe ending with one of these has refined every parameter jointly: its errors come from
+# estimate_errors (2theta_0 held), as the driver's; after other recipes no value may move again
+JOINT_ROUTINES = (ITERATE_ROUTINE, "full")
 
 # geometries the 2D view can draw predicted rings for (#1039)
 RING_GEOMETRY_NOMINAL = "Nominal"
@@ -57,6 +64,49 @@ RING_GEOMETRIES = (RING_GEOMETRY_NOMINAL, RING_GEOMETRY_CURRENT, RING_GEOMETRY_F
 
 # detector mask applied by default; the calibration runs unmasked when the file is not available
 DEFAULT_MASK_FILE = "/HFIR/HB2B/shared/CALIBRATION/HB2B_Mask_Latest.xml"
+
+
+class RingOverlayError(ValueError):
+    """The predicted rings of the chosen geometry cannot be drawn (e.g. an unreadable calibration file)."""
+
+
+def _signed_residual_sum(calibration: PixelCalibration) -> float:
+    """Sum of the ring points' 2theta residuals (degrees) at the calibration's current values."""
+    return float(np.sum(calibration.residual(calibration.calibration_array)))
+
+
+def _writable(path: str) -> bool:
+    """Whether ``path`` can be written: an existing writable file, or a new file in a writable folder."""
+    if os.path.exists(path):
+        return os.access(path, os.W_OK)
+    folder = os.path.dirname(path)
+    while folder and not os.path.exists(folder):  # a missing archive folder is created in its parent
+        folder = os.path.dirname(folder)
+    return bool(folder) and os.access(folder, os.W_OK)
+
+
+def _write_atomically(values: np.ndarray, errors: np.ndarray, status: int, file_name: str) -> None:
+    """Write a calibration JSON to a temporary file next to ``file_name``, then rename it into place."""
+    folder, name = os.path.split(file_name)
+    handle, temporary = tempfile.mkstemp(prefix=f".{name}.", suffix=".json", dir=folder or ".")
+    os.close(handle)
+    try:
+        write_calibration_to_json(
+            DENEXDetectorShift(*values[:7]),
+            DENEXDetectorShift(*errors[:7]),
+            float(values[7]),
+            float(errors[7]),
+            int(status),
+            temporary,
+        )
+        umask = os.umask(0)
+        os.umask(umask)
+        os.chmod(temporary, 0o666 & ~umask)  # mkstemp makes it private; give it a normal file's mode
+        os.replace(temporary, file_name)
+    except BaseException:
+        if os.path.exists(temporary):
+            os.remove(temporary)
+        raise
 
 
 def default_mask_file() -> Optional[str]:
@@ -85,14 +135,19 @@ class DetectorCalibrationModel(QObject):
 
         # ring-based calibration (#1045); FitCalibration's object still holds the converted run
         self.method = METHOD_FITCALIBRATION
+        self._ring_refinement = {"method": "trf", "max_nfev": None}
+        self._reset_ring_state()
+
+    def _reset_ring_state(self) -> None:
+        """Forget everything the ring-based calibration derived from the loaded run (call on a new run)."""
         self._ring_calibration: Optional[PixelCalibration] = None
         self._ring_start: Optional[np.ndarray] = None
         self._ring_history: List[np.ndarray] = []
         self._ring_diagnostics: List[StripFit] = []
         self._ring_extraction_shift: Optional[DENEXDetectorShift] = None
-        self._ring_refinement = {"method": "trf", "max_nfev": None}
         self._keep_list: Optional[np.ndarray] = None
         self.calibration_warnings: List[str] = []
+        self.extraction_warnings: List[str] = []
         self.ring_summary = ""
 
     @property
@@ -105,11 +160,6 @@ class DetectorCalibrationModel(QObject):
         if method not in CALIBRATION_METHODS:
             raise ValueError(f"method must be one of {CALIBRATION_METHODS}, got {method!r}")
         self.method = method
-
-    @property
-    def _active(self):
-        """The calibration object of the chosen method (None before a run is loaded or rings extracted)."""
-        return self._ring_calibration if self.method == METHOD_RING else self._calibration_obj
 
     @property
     def current_calibration_array(self) -> Optional[np.ndarray]:
@@ -208,9 +258,15 @@ class DetectorCalibrationModel(QObject):
 
     @property
     def r_sum(self):
+        """Sum of the 2theta residuals (degrees, signed: observed minus expected) shown as "Δ 2θ".
+
+        The same quantity for both methods: FitCalibration's sum of fitted minus expected peak
+        positions, and for the ring-based method the sum over ring points at the current calibration.
+        """
         if self.method == METHOD_RING:
-            stages = self._ring_calibration.residual_sum if self._ring_calibration is not None else []
-            return stages[-1] if stages else None
+            if self._ring_calibration is None or not self._ring_calibration.stages:
+                return None
+            return _signed_residual_sum(self._ring_calibration)
         if self._calibration_obj is not None:
             try:
                 return self._calibration_obj.residual_sum
@@ -224,77 +280,89 @@ class DetectorCalibrationModel(QObject):
 
         The calibration JSON (reduction's own writer, TTH_0 included) is written as
         ``<folder>/HB2B_CAL_<time>.json``. With ``write_shared`` it is also written to
-        :data:`SHARED_CALIBRATION_DIR` as ``HB2B_Latest.json`` (the calibration reduction picks up),
-        ``HB2B_Latest_<Si...>.json`` and ``<Si...>/HB2B_CAL_<time>.json``, ``<Si...>`` being the run's
-        monochromator setting.
+        :data:`SHARED_CALIBRATION_DIR` as ``<Si...>/HB2B_CAL_<time>.json``,
+        ``HB2B_Latest_<Si...>.json`` and, last, ``HB2B_Latest.json`` (the calibration reduction picks
+        up), ``<Si...>`` being the run's monochromator setting. Every target is checked before
+        anything is written, and each file is written to a temporary file and then renamed, so a
+        failure never leaves a truncated file and ``HB2B_Latest.json`` is never newer than its
+        archived copy.
 
         Args:
             folder: Existing folder for the user's copy.
             write_shared: Also write the shared copies.
 
         Returns:
-            The files written.
+            The files written, in order.
 
         Raises:
-            RuntimeError: If there is no calibration to export.
+            RuntimeError: If there is no calibration to export, it was not refined (status -1) or a
+                stage stopped before converging (status 0).
             FileNotFoundError: If ``folder`` does not exist.
-            PermissionError: If the shared folder is not writable (the user's copy is still written).
+            PermissionError: If a shared target is not writable (the user's copy is still written).
+            OSError: If writing fails; the message lists the files already written.
         """
         values, errors, status = self._export_values()
         if not os.path.isdir(folder):
             raise FileNotFoundError(f"folder {folder} does not exist")
         stamp = time.strftime(CALIBRATION_TIME_FORMAT, time.localtime())
         mono = self.monochromator
-        targets = [os.path.join(folder, f"HB2B_CAL_{stamp}.json")]
+        user_copy = os.path.join(folder, f"HB2B_CAL_{stamp}.json")
+        shared: List[str] = []
         if write_shared:
             archive = os.path.join(SHARED_CALIBRATION_DIR, mono)
-            if not (
-                os.access(SHARED_CALIBRATION_DIR, os.W_OK)
-                and (not os.path.exists(archive) or os.access(archive, os.W_OK))
-            ):
-                self._write(values, errors, status, targets[0])
-                raise PermissionError(
-                    f"cannot write to {SHARED_CALIBRATION_DIR}; the calibration was written to {targets[0]} only"
-                )
-            os.makedirs(archive, exist_ok=True)
-            targets += [
-                os.path.join(SHARED_CALIBRATION_DIR, "HB2B_Latest.json"),
-                os.path.join(SHARED_CALIBRATION_DIR, f"HB2B_Latest_{mono}.json"),
+            shared = [
                 os.path.join(archive, f"HB2B_CAL_{stamp}.json"),
+                os.path.join(SHARED_CALIBRATION_DIR, f"HB2B_Latest_{mono}.json"),
+                os.path.join(SHARED_CALIBRATION_DIR, "HB2B_Latest.json"),
             ]
-        for target in targets:
-            self._write(values, errors, status, target)
-        return targets
+            blocked = [target for target in shared if not _writable(target)]
+            if blocked:
+                _write_atomically(values, errors, status, user_copy)
+                raise PermissionError(
+                    f"cannot write {', '.join(blocked)}; the calibration was written to {user_copy} only"
+                )
+        written: List[str] = []
+        for target in [user_copy] + shared:
+            try:
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                _write_atomically(values, errors, status, target)
+            except (OSError, RuntimeError) as write_err:
+                done = ", ".join(written) if written else "nothing"
+                raise OSError(f"writing {target} failed ({write_err}); written so far: {done}") from write_err
+            written.append(target)
+        return written
 
     def _export_values(self) -> Tuple[np.ndarray, np.ndarray, int]:
-        """Values, errors and status of the chosen method's calibration."""
+        """Values, errors and status of the chosen method's calibration, if it may be exported."""
         if self.method == METHOD_RING:
             calibration = self._ring_calibration
-            if calibration is None or calibration.calibration_status < 0:
+            if calibration is None:
                 raise RuntimeError("nothing has been refined with the ring-based calibration yet")
-            return calibration.calibration_array, calibration.calibration_error_array, calibration.calibration_status
-        if self._calibration_obj is None:
-            raise RuntimeError("no calibration run is loaded")
-        fit = self._calibration_obj
-        return np.asarray(fit.calibration_array), np.asarray(fit.calibration_error_array), int(fit._calibstatus)
-
-    @staticmethod
-    def _write(values: np.ndarray, errors: np.ndarray, status: int, file_name: str) -> None:
-        write_calibration_to_json(
-            DENEXDetectorShift(*values[:7]),
-            DENEXDetectorShift(*errors[:7]),
-            float(values[7]),
-            float(errors[7]),
-            int(status),
-            file_name,
-        )
+            values, errors, status = (
+                calibration.calibration_array,
+                calibration.calibration_error_array,
+                calibration.calibration_status,
+            )
+        else:
+            if self._calibration_obj is None:
+                raise RuntimeError("no calibration run is loaded")
+            fit = self._calibration_obj
+            values, errors = np.asarray(fit.calibration_array), np.asarray(fit.calibration_error_array)
+            status = int(fit._calibstatus)
+        if status < 0:
+            raise RuntimeError("the calibration has not been refined (status -1): run Calibrate first")
+        if status == 0:
+            raise RuntimeError(
+                "the last refinement stopped at max nfev before converging (status 0): raise max nfev and "
+                "Calibrate again"
+            )
+        return values, errors, status
 
     def set_refinement_params(self, method, max_nfev):
         if self.method == METHOD_RING:
             self._ring_refinement = {"method": method, "max_nfev": int(max_nfev)}
             if self._ring_calibration is not None:
-                self._ring_calibration._method = method
-                self._ring_calibration._max_nfev = int(max_nfev)
+                self._ring_calibration.set_refinement(method, int(max_nfev))
             return
         self._calibration_obj.set_refinement_method(method)
         self._calibration_obj.set_max_nfev(int(max_nfev))
@@ -311,13 +379,16 @@ class DetectorCalibrationModel(QObject):
     def extract_rings(self, strips: int = DEFAULT_STRIPS) -> Tuple[int, int, float, float]:
         """Ring-based "Fit Peaks": find the ring points in ``strips`` strips per sub-run.
 
-        Uses the loaded run (its default detector mask applies) and the starting calibration
-        (:meth:`set_calibration_params`, default: nominal geometry at the mono wavelength) to place
-        the rings, exactly as ``pyrs-pixel-calibration`` does. Replaces any earlier ring calibration.
+        Uses the loaded run (its default detector mask applies), the kept sub-runs and the starting
+        calibration (:meth:`set_calibration_params`, default: nominal geometry at the mono
+        wavelength) to place the rings; from the nominal start this is what ``pyrs-pixel-calibration``
+        does. Replaces any earlier ring calibration. Warnings (e.g. sub-runs whose ``sy`` matches no
+        powder, which are skipped) are kept in :attr:`extraction_warnings` and named in
+        :attr:`ring_summary`.
 
         Returns:
-            Number of ring points, number of rings, and the RMS and sum of squared 2theta residuals
-            (degrees, degrees^2) at the starting calibration.
+            Number of ring points, number of rings, and the RMS and signed sum of the 2theta residuals
+            (degrees) at the starting calibration.
 
         Raises:
             RuntimeError: If no run is loaded.
@@ -336,11 +407,22 @@ class DetectorCalibrationModel(QObject):
         shift = None if not np.any(start[:7]) else DENEXDetectorShift(*start[:7])
         sub_runs = None
         if self._keep_list is not None:
-            sub_runs = [int(s) for s, keep in zip(workspace.get_sub_runs(), self._keep_list) if keep]
+            all_sub_runs = workspace.get_sub_runs()
+            if len(self._keep_list) != len(all_sub_runs):
+                raise ValueError(f"{len(self._keep_list)} keep flags for {len(all_sub_runs)} sub-runs")
+            sub_runs = [int(s) for s, keep in zip(all_sub_runs, self._keep_list) if keep]
         diagnostics: List[StripFit] = []
-        points = extract_ring_points(
-            workspace, float(start[7]), calibration=shift, strips=strips, sub_runs=sub_runs, diagnostics=diagnostics
-        )
+        with warnings.catch_warnings(record=True) as caught:  # Fit Peaks runs on the GUI thread
+            warnings.simplefilter("always")
+            points = extract_ring_points(
+                workspace,
+                float(start[7]),
+                calibration=shift,
+                strips=strips,
+                sub_runs=sub_runs,
+                diagnostics=diagnostics,
+            )
+        self.extraction_warnings = [str(w.message) for w in caught if issubclass(w.category, UserWarning)]
         self._ring_diagnostics, self._ring_extraction_shift = diagnostics, shift
         calibration = PixelCalibration(
             points, workspace.get_instrument_setup(), wavelength=float(start[7]), **self._ring_refinement
@@ -351,7 +433,11 @@ class DetectorCalibrationModel(QObject):
         residual = calibration.residual(start)
         rings = len(set(zip(points.sub_run.tolist(), points.hkl_squared.tolist())))
         self.ring_summary = f"{len(points)} ring points on {rings} rings ({strips} strips per sub-run)"
-        return len(points), rings, float(np.sqrt(np.mean(residual**2))), float(np.sum(residual**2))
+        if self.extraction_warnings:
+            self.ring_summary += f"; {len(self.extraction_warnings)} warning(s): " + " | ".join(
+                self.extraction_warnings
+            )
+        return len(points), rings, float(np.sqrt(np.mean(residual**2))), float(np.sum(residual))
 
     def set_reduction_param(self, tth_bins, eta_bins):
         if self._calibration_obj is not None:
@@ -360,6 +446,7 @@ class DetectorCalibrationModel(QObject):
             )
 
     def _init_calibration(self, nexus_file, tth=512, eta=3.0):
+        self._reset_ring_state()  # ring points and results belong to the previous run
         self._mask_file = default_mask_file()
         self._calibration_obj = FitCalibration(
             nexus_file=nexus_file, mask_file=self._mask_file, eta_slice=eta, bins=tth
@@ -428,25 +515,37 @@ class DetectorCalibrationModel(QObject):
             except IndexError:
                 return calibration, -1, -1, -1
 
-    def _calibrate_rings(self, fit_recipe):
-        """Run the recipe with the ring-based calibration, then one error estimate with 2theta_0 held.
+    def _calibrate_rings(
+        self, fit_recipe: Sequence[str]
+    ) -> Tuple[List[np.ndarray], List[np.ndarray], Optional[float], Optional[float]]:
+        """Run the recipe with the ring-based calibration, then its error estimate.
 
-        Each routine is the stage of the same name (:data:`RECIPE_STAGES`), or "iterate". Warnings
-        (e.g. a parameter stopped at a bound) are kept in :attr:`calibration_warnings`. Returns the
-        same ``(values per step, errors per step, residual sum, RMS)`` as FitCalibration's recipe.
+        Each routine is the stage of the same name (:data:`RECIPE_STAGES`), or "iterate". If the
+        recipe ends with a joint refinement (:data:`JOINT_ROUTINES`) the errors come from
+        ``estimate_errors`` with 2theta_0 held, as the driver's; otherwise from
+        ``errors_at_current``, which moves no value. Warnings (a parameter stopped at a bound, a
+        stage not converged) are kept in :attr:`calibration_warnings`. If a stage fails, the
+        calibration is restored to its state before the recipe and the error re-raised.
+
+        Returns:
+            ``(values per step, errors per step, residual sum, RMS)``, as FitCalibration's recipe.
+
+        Raises:
+            RuntimeError: If the rings have not been extracted.
+            ValueError: On an unknown routine, or a stage's own error (e.g. a start outside its bounds).
         """
         calibration = self._ring_calibration
         if calibration is None:
             raise RuntimeError("extract the rings first (Fit Peaks)")
-        unknown = [r for r in fit_recipe if r and r != ITERATE_ROUTINE and r not in RECIPE_STAGES]
+        routines = [r for r in fit_recipe if r]
+        unknown = [r for r in routines if r != ITERATE_ROUTINE and r not in RECIPE_STAGES]
         if unknown:
             raise ValueError(f"unknown recipe routines {unknown}")
+        checkpoint, history_length = calibration.checkpoint(), len(self._ring_history)
+        first_warning = len(calibration.warning_log)
         values, errors = [], []
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            for routine in fit_recipe:
-                if not routine:
-                    continue
+        try:
+            for routine in routines:
                 if routine == ITERATE_ROUTINE:
                     calibration.iterate(passes=ITERATE_PASSES)
                 else:
@@ -454,13 +553,21 @@ class DetectorCalibrationModel(QObject):
                 values.append(calibration.calibration_array)
                 errors.append(calibration.calibration_error_array)
                 self._ring_history.append(calibration.calibration_array)
-            if values:
-                # once, after the last step, as the driver does: the result exported is this one
-                calibration.estimate_errors()
+            if routines:
+                if routines[-1] in JOINT_ROUTINES:
+                    calibration.estimate_errors()  # as the driver: values move only to the joint optimum
+                else:
+                    calibration.errors_at_current()
                 values[-1], errors[-1] = calibration.calibration_array, calibration.calibration_error_array
                 self._ring_history[-1] = calibration.calibration_array
-        self.calibration_warnings = [str(w.message) for w in caught]
-        return values, errors, self.r_sum, self.rmse
+        except Exception:
+            calibration.restore(checkpoint)
+            del self._ring_history[history_length:]
+            raise
+        self.calibration_warnings = calibration.warning_log[first_warning:]
+        rmse = calibration.stages[-1].rmse if calibration.stages else None
+        r_sum = _signed_residual_sum(calibration) if calibration.stages else None
+        return values, errors, r_sum, rmse
 
     def set_keep_subrun_list(self, keep_list):
         self._keep_list = None if keep_list is None else np.asarray(keep_list, dtype=bool)
@@ -489,8 +596,8 @@ class DetectorCalibrationModel(QObject):
             calibration_file: Calibration JSON, for :data:`RING_GEOMETRY_FILE`.
 
         Returns:
-            ``(two_theta_map, rings, mask)``, or None if no run is loaded or the sub-run's ``sy``
-            matches no powder standard.
+            ``(two_theta_map, rings, mask)``, or None if no run is loaded, there is no calibration
+            vector yet for "Current calibration", or the sub-run's ``sy`` matches no powder standard.
 
         Raises:
             ValueError: On an unknown geometry, or :data:`RING_GEOMETRY_FILE` without a file.

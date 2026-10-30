@@ -14,6 +14,7 @@ from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from scipy.optimize import least_squares
+from scipy.optimize._numdiff import approx_derivative  # the finite-difference Jacobian least_squares uses
 
 from pyrs.core.detector_model import DetectorModel, _from_shift, _to_shift
 from pyrs.calibration.ring_points import RingPoints
@@ -41,7 +42,7 @@ UNDETERMINED = -2.0  # refined, but the fit cannot determine it (degenerate, or 
 
 # PixelCalibration.iterate(): the production-style staged workflow and its convergence test
 DEFAULT_RECIPE = ("CalibrateShift", "CalibrateRotation", "calibrate_wave_shift")
-DEFAULT_TOLERANCE = 1e-3  # per pass, in mm (shifts), degrees (angles) and mA (wavelength)
+DEFAULT_TOLERANCE = 1e-3  # per pass, in mm (shifts), degrees (angles) and mÅ (wavelength)
 _TOLERANCE_UNITS = np.array([1e3, 1e3, 1e3, 1.0, 1.0, 1.0, 1.0, 1e3])
 
 # Stage methods of PixelCalibration: free parameters and bound half-widths, following
@@ -120,7 +121,9 @@ class StageResult:
         free_parameters: Names of the refined parameters.
         values: Refined values of those parameters.
         errors: One-sigma uncertainties, or :data:`UNDETERMINED` where the fit could not determine them.
-        status: ``scipy.optimize.least_squares`` status (> 0 converged, 0 hit ``max_nfev``).
+        status: ``scipy.optimize.least_squares`` status (> 0 converged, 0 hit ``max_nfev``); stages
+            that refine nothing (``set_two_theta_0``, ``errors_at_current``) carry the previous one,
+            -1 if nothing has been refined.
         rmse: Root-mean-square 2theta residual (degrees) after the stage.
         nfev: Number of residual evaluations.
     """
@@ -177,7 +180,9 @@ class PixelCalibration:
                 because the rotation matrices are float64 (see docs/ground_truths.md).
 
         Raises:
-            ValueError: If there are no ring points, the wavelength is not positive or the method is unknown.
+            TypeError: If ``ring_points`` is not a :class:`RingPoints`.
+            ValueError: If there are no ring points, the wavelength is not positive, the method is
+                unknown or ``diff_step`` is not positive.
         """
         if not isinstance(ring_points, RingPoints):
             raise TypeError(f"ring_points must be RingPoints, got {type(ring_points).__name__}")
@@ -201,6 +206,9 @@ class PixelCalibration:
         self._caliberr = np.full(8, NOT_REFINED)
         self._status = -1
         self.stages: List[StageResult] = []
+        # every warning a stage issued (stopped at a bound, not converged), also sent to ``warnings``;
+        # callers read it instead of capturing warnings, which is not thread-safe
+        self.warning_log: List[str] = []
 
         # 2theta is evaluated once per detector position (arm angle, L2), taken from the points
         # themselves rather than their sub-run number, which can repeat when runs are combined
@@ -236,13 +244,46 @@ class PixelCalibration:
         return [stage.rmse**2 * len(self.ring_points) for stage in self.stages]
 
     def set_calibration_array(self, params: Union[Sequence[float], np.ndarray]) -> None:
-        """Set the starting calibration vector (8 values, :data:`PARAMETER_NAMES` order)."""
+        """Set the starting calibration vector (8 values, :data:`PARAMETER_NAMES` order).
+
+        The errors and the status are reset (they described the previous values), so a calibration
+        is not written with errors of values it no longer has.
+        """
         values = np.asarray(params, dtype=float)
         if values.shape != (8,):
             raise ValueError(f"calibration array must have 8 values, got shape {values.shape}")
         if not values[7] > 0:
             raise ValueError(f"wavelength must be positive, got {values[7]}")
         self._calib = values.copy()
+        self._caliberr = np.full(8, NOT_REFINED)
+        self._status = -1
+
+    def set_refinement(self, method: str = "trf", max_nfev: Optional[int] = None) -> None:
+        """Change the ``least_squares`` method and evaluation limit used by later stages.
+
+        Raises:
+            ValueError: If ``method`` is not ``"trf"``, ``"dogbox"`` or ``"lm"``, or ``max_nfev`` < 1.
+        """
+        if method not in ("trf", "dogbox", "lm"):
+            raise ValueError(f"method must be 'trf', 'dogbox' or 'lm', got {method!r}")
+        if max_nfev is not None and int(max_nfev) < 1:
+            raise ValueError(f"max_nfev must be at least 1, got {max_nfev}")
+        self._method = method
+        self._max_nfev = None if max_nfev is None else int(max_nfev)
+
+    def checkpoint(self) -> Tuple[np.ndarray, np.ndarray, int, int]:
+        """The current values, errors, status and number of stages, for :meth:`restore`."""
+        return self._calib.copy(), self._caliberr.copy(), self._status, len(self.stages)
+
+    def restore(self, checkpoint: Tuple[np.ndarray, np.ndarray, int, int]) -> None:
+        """Return to a :meth:`checkpoint`: its values, errors and status, dropping later stages."""
+        values, errors, status, n_stages = checkpoint
+        self._calib, self._caliberr, self._status = values.copy(), errors.copy(), status
+        del self.stages[n_stages:]
+
+    def _warn(self, message: str) -> None:
+        self.warning_log.append(message)
+        warnings.warn(message, stacklevel=3)
 
     def set_two_theta_0(self, two_theta_0: float, l2: Optional[float] = None) -> StageResult:
         """Re-express the current calibration with a chosen 2theta_0, keeping the same detector.
@@ -251,17 +292,20 @@ class PixelCalibration:
         :meth:`DetectorModel.with_two_theta_0`), so its value has to come from outside the fit,
         e.g. an independent beam-alignment measurement, or a convention such as 0. The wavelength
         and every ring point's 2theta are unchanged. Errors of the shifts, rotations and 2theta_0
-        are reset to -1 because they referred to the old split; re-run a stage with TTH_0 held
-        (e.g. ``refine("errors", [0, 1, 2, 3, 4, 5, 7], ...)``) to get uncertainties for this one.
+        are reset to -1 because they referred to the old split; :meth:`estimate_errors` (which holds
+        TTH_0) gives uncertainties for this one.
 
         Args:
             two_theta_0: The 2theta_0 (degrees) to describe the detector with.
-            l2: Distance (m) at which the swap is exact; default: the ring points' L2. Sub-runs at
-                other distances see a slightly different detector (that is what breaks the
-                degeneracy in a two-distance scan).
+            l2: Distance (m) at which the swap is exact; default: the median L2 of the ring points.
+                Sub-runs at other distances see a slightly different detector (that is what breaks
+                the degeneracy in a two-distance scan).
 
         Returns:
             A :class:`StageResult` recorded in :attr:`stages` (no refinement, ``nfev = 0``).
+
+        Raises:
+            ValueError: If the new rotation is within 1 degree of Rot_y = +/-90 degrees.
         """
         if l2 is None:
             l2 = float(np.median(self.ring_points.l2))
@@ -381,7 +425,9 @@ class PixelCalibration:
         if np.any(at_bound):
             errors = np.where(at_bound, UNDETERMINED, errors)
             pinned = [PARAMETER_NAMES[i] for i in free[at_bound]]
-            warnings.warn(f"{name}: {pinned} stopped at a bound; their errors are flagged -2", stacklevel=2)
+            self._warn(f"{name}: {pinned} stopped at a bound; their errors are flagged -2")
+        if out.status == 0:
+            self._warn(f"{name}: stopped at max_nfev ({self._max_nfev}) before converging (status 0)")
 
         self._calib[free] = out.x
         self._caliberr[free] = errors
@@ -484,6 +530,43 @@ class PixelCalibration:
         self._caliberr[held] = NOT_REFINED
         return stage
 
+    def errors_at_current(self, hold: Sequence[Union[int, str]] = ("TTH_0",)) -> StageResult:
+        """Uncertainties of every parameter except ``hold`` at the current values, without refining.
+
+        Unlike :meth:`estimate_errors`, no parameter moves: the errors come from the residual's
+        Jacobian at the current values (the same finite differences and formula as :meth:`refine`).
+        Use this after a recipe that refined only some parameters; ``estimate_errors`` would move
+        all the others to their optimum. The status of the last refinement is kept.
+
+        Raises:
+            ValueError: On an unknown parameter in ``hold``.
+        """
+        held = _parameter_indices(hold, "errors_at_current")
+        free = np.array([i for i in range(8) if i not in held], dtype=int)
+        values = self._calib.copy()
+
+        def free_residual(x: np.ndarray) -> np.ndarray:
+            params = values.copy()
+            params[free] = x
+            return self.residual(params)
+
+        residual = self.residual(values)
+        jacobian = approx_derivative(free_residual, values[free], method="3-point", rel_step=self._diff_step)
+        errors = _parameter_errors(jacobian, residual, residual.size - free.size)
+        self._caliberr[free] = errors
+        self._caliberr[held] = NOT_REFINED
+        stage = StageResult(
+            name="errors_at_current",
+            free_parameters=tuple(PARAMETER_NAMES[i] for i in free),
+            values=values[free].copy(),
+            errors=errors,
+            status=self._status,
+            rmse=float(np.sqrt(np.mean(residual**2))),
+            nfev=0,
+        )
+        self.stages.append(stage)
+        return stage
+
     def write_calibration(self, file_name: Union[str, Path]) -> None:
         """Write the calibration in the standard calibration JSON format (``write_calibration_to_json``).
 
@@ -526,7 +609,7 @@ class PixelCalibration:
             recipe: Stage method names run in order in each pass.
             passes: Run exactly this many passes; None repeats until no parameter changes by more
                 than ``tolerance`` between passes.
-            tolerance: Convergence threshold in mm (shifts), degrees (angles) and mA (wavelength).
+            tolerance: Convergence threshold in mm (shifts), degrees (angles) and mÅ (wavelength).
             max_passes: Upper limit when ``passes`` is None.
             polish: Finish with :meth:`FullCalibration`.
 
