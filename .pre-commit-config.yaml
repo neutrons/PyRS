@@ -1,4 +1,7 @@
 exclude: "^pixi.lock$"
+# pre-commit.ci has no pixi or Mantid environment; mypy runs in GitHub Actions' lint job
+ci:
+  skip: [mypy]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
