@@ -1767,3 +1767,29 @@ peak-fitting and texture GUIs plot. The fourth, the peak-positions table
 It is now deleted with the parameter tables; no fitted value changes. The input, fitted and
 difference workspaces remain the caller's to keep or delete. Regression test:
 `test_fit_leaves_only_returned_workspaces` (fails without the fix).
+
+## FitCalibration reads the shared powder standards (2026-10-30, #1022)
+
+`FitCalibration` had its own copy of the calibration powders: names, `sy` positions, structures,
+lattice constants and reflection lists. It now uses `pyrs/calibration/powder_standards.py`
+(`HB2B_STANDARDS`, `standard_for_sy`), the same table as the ring-based calibration. User-approved,
+including the unknown-`sy` change below.
+
+**Differences from the old copy, and their effect:**
+- **FCC 400 added.** FitCalibration fits only the lowest-angle reflection at least 1° inside each
+  sub-run's pattern, so 400 matters only if it is the first in range. That needs the arm near 105°
+  or above. On HB2B_3489/3510/4971 (33 sub-runs) every sub-run fits the same powder and reflection
+  as before.
+- **Lattice constants were silently float32.** The old code stored them in `np.zeros_like(sy)`, and
+  the `sy` log is float32, so Fe was off by −3.6e-8 relative and Ni by −5.3e-9. The shared table
+  keeps float64. Expected peak positions, which are the fit-window centres and the reference of the
+  residual, move by ≤ 4.9e-6° (the residual's noise floor is ~1e-3°). Verified: the new code with
+  float32-rounded constants reproduces the old selection bit for bit.
+- **Unknown `sy`:** a sub-run whose `sy` matches no standard used to crash `get_diff_peaks` (the
+  empty powder name is not a reflection key). It is now dropped from `_keep_subrun_list` with a
+  warning, and `get_diff_peaks` raises a clear `ValueError` if that sub-run is used anyway.
+- **Unreachable reflections** (λ > 2d) are left out instead of returning NaN. Selection is
+  unchanged, because NaN never passed the range filter.
+
+Tests: `tests/unit/pyrs/calibration/test_fitcalibration_powders.py` and the updated integration
+test `test_reference_lattice_is_the_2020_set`.

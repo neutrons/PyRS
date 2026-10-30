@@ -102,7 +102,7 @@ When the user needs to choose, prefer these well-integrated options:
 - **Testing:** pytest (+ pytest-cov).
 - **Linting:** ruff.
 - **Formatting:** black.
-- **Type checking:** mypy.
+- **Type checking:** mypy, run by a pre-commit hook as `pixi run mypy pyrs scripts tests`, the same command as CI's lint job. Run that command, not mypy on single files, before pushing.
 - **Docs:** Sphinx or MkDocs.
 
 ### Agent Skills
