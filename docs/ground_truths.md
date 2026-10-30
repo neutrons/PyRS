@@ -1196,6 +1196,11 @@ including `FitCalibration`'s own η-wedge residual (see the HB2B_4971 entries be
 anomalies above are unexplained. Whether the files are cleared for production is a user decision
 and has not been made.
 
+*Decision (user, 2026-10-30, #1045):* ring-based calibrations may become the production calibration.
+The calibration GUI's Export writes them, like FitCalibration's, to `HB2B_Latest.json` when the
+shared-calibration flag is ticked, and that flag is ticked by default for both methods (see the
+#1045 entry below). The 2023 anomalies above remain unexplained.
+
 ## HB2B_3510: the ring spacing itself says the detector is ~7% "closer" than nominal (2026-10)
 
 *The by-hand diagnostic scripts cited in this and the following entries (`tests/scripts/ring_overlay_figures.py`,
@@ -1831,3 +1836,49 @@ the application offscreen before pytest imports anything works:
     import sys, pytest; sys.exit(pytest.main(['tests/ui', '-m', 'gui']))"
 
 (11 GUI tests passed this way.)
+
+## Calibration GUI: ring-based method and the new Export (2026-10-30, #1045)
+
+The Detector Calibration window can run the ring-based calibration (user-approved GUI change).
+
+**Method choice:** **FitCalibration** (the default, unchanged) or **Ring-based**. With Ring-based:
+- **Fit Peaks** extracts the ring points from the loaded run, using its default mask and the
+  starting calibration.
+- **Strips** sets the strips per sub-run: an editable field, default 5, a whole number ≥ 1.
+  2θ bin and η bin are greyed out.
+- **The recipe** uses the same routine names as FitCalibration's stages, plus "iterate"
+  (3 passes + polish). **Calibrate** runs it, then one `estimate_errors()` with 2θ₀ held, as the
+  driver does.
+- **Results** fill the same table, RMSE and Δ2θ fields. The window's refinement method and max
+  nfev apply, a parameter left at a bound shows a warning, and the 2D overlay's "Current
+  calibration" shows the result.
+- **Checked:**
+  - With the driver's settings (strips 5, "iterate", trf, the same mask and starting
+    calibration), the window's calibration file on HB2B_3510 is **identical** to
+    `pyrs-pixel-calibration`'s (`test_ring_based_calibration_matches_driver`).
+  - The same holds headless on a synthetic run.
+
+**Export, for both methods:**
+- It always writes `<folder of the user's choice>/HB2B_CAL_<time>.json`.
+- With **Also write the shared HB2B calibration**, ticked by default, it also writes
+  `HB2B_Latest.json`, `HB2B_Latest_<Si…>.json` and `<Si…>/HB2B_CAL_<time>.json` in
+  `/HFIR/HB2B/shared/CALIBRATION`.
+- `<Si…>` is the run's monochromator setting from `mrot`, as FitCalibration names its archive
+  folder. Si511 shares Si333's wavelength, and its name comes out as `Si333`, as before.
+- All files are written with reduction's `write_calibration_to_json`, so TTH_0 is included and the
+  −1/−2 error codes are kept.
+- If the shared folder isn't writable, the user's copy is still written and an error says so.
+  (FitCalibration's own `write_calibration` used to print a console message instead.)
+- **Changed from before:** Export always wrote the timestamped archive copy, and `HB2B_Latest.json`
+  only after a yes/no question. It never wrote `HB2B_Latest_<Si…>.json` and had no user folder.
+  "Save Local Calibration" is removed, because Export's folder replaces it.
+  `FitCalibration.write_calibration` itself is unchanged.
+
+**Pitfalls found while testing:**
+- **The GUI test's window is shared by the whole test session.** The first test's recipe
+  (`tests/data/calibration_tests/test_ui_recipe_load.json`: max nfev 3, only sub-run 1 kept), the
+  calibration it loads and its result columns all carry over. The ring-based test must set the
+  driver's settings explicitly. The window rightly applies them to both methods.
+- **FitCalibration's `residual_rmse` / `residual_sum` index an empty list until it has fitted.** The
+  calibration progress timer can read them right after the method is switched. The GUI model now
+  treats that as "no value yet".
