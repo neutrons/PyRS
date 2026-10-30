@@ -1092,6 +1092,24 @@ class HidraProjectFile:
 
         # Add 2theta vector
         if HidraConstants.TWO_THETA in diff_group.keys():
+            # the file keeps one 2theta axis for all masks: replacing it would leave masks already in the
+            # file, and not rewritten now, on the wrong axis
+            stored = diff_group[HidraConstants.TWO_THETA][()]
+            written = {HidraConstants.REDUCED_MAIN if mask_id is None else mask_id for mask_id in diff_data_set}
+            left_behind = sorted(
+                name
+                for name in diff_group.keys()
+                if name != HidraConstants.TWO_THETA and not name.endswith("_var") and name not in written
+            )
+            same_axis = stored.shape == two_theta_array.shape and numpy.allclose(
+                stored, two_theta_array, rtol=0, atol=1e-9
+            )
+            if left_behind and not same_axis:
+                raise RuntimeError(
+                    "Cannot write reduced data with a different 2theta axis: masks {} already in {} would be "
+                    "relabelled. Reduce all masks with the same 2theta range, or write to a new project "
+                    "file.".format(left_behind, self._file_name)
+                )
             # over write data
             try:
                 diff_group[HidraConstants.TWO_THETA][...] = two_theta_array
