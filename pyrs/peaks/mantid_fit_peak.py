@@ -89,6 +89,7 @@ class MantidPeakFitEngine(PeakFitEngine):
 
         DeleteWorkspace(fit_return.OutputPeakParametersWorkspace)
         DeleteWorkspace(fit_return.OutputParameterFitErrorsWorkspace)
+        DeleteWorkspace(fit_return.OutputWorkspace)  # peak positions: not returned or used (#1040)
 
         # create the difference workspace
         difference = self._mtd_wksp - fit_return.FittedPeaksWorkspace
