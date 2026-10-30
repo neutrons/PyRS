@@ -869,7 +869,14 @@ Two consequences:
 - **No new convention is introduced.** A unit test pins 2θ and η to be bit-identical to
   `build_instrument` on the full grid, nominal and calibrated, at two arm angles.
 - **Reduction is unchanged.** Making `build_instrument` delegate to `DetectorModel`, so that one
-  piece of code defines the detector, is the follow-up #1011/#1020.
+  piece of code defines the detector, is the follow-up #1011.
+
+*Since 2026-10-30 (#1020):* `DetectorModel` lives in `pyrs/core/detector_model.py`, next to the
+reduction geometry it reproduces. The calibration imports it from there, and
+`pyrs.calibration.pixel_pos_calibration` still re-exports it. Its tests, including the bit-identity
+test against `build_instrument`, are in `tests/unit/pyrs/core/test_detector_model.py`. It was a pure
+move: unit and integration suites pass unchanged, and the driver output is bit-identical on
+HB2B_3489/3510/4971. `reduce_hb2b_pyrs.py` was not touched.
 
 **TTH_0.** The calibration writes `TTH_0`, and reduction now reads it (#1021, fixed in #1031). What
 it represents, and why the ring fit cannot determine it at one L2, are the two 2θ₀ entries below.

@@ -14,7 +14,8 @@ equivalence is pinned by a unit test; see docs/ground_truths.md.
 
 The implementation is split by step, and everything public is re-exported here:
 
-- :mod:`pyrs.calibration.detector_model`: :class:`DetectorModel`, the forward model;
+- :mod:`pyrs.core.detector_model`: :class:`DetectorModel`, the forward model (in core, next to the
+  reduction geometry it reproduces);
 - :mod:`pyrs.calibration.ring_points`: :class:`RingPoints`;
 - :mod:`pyrs.calibration.ring_extraction`: :func:`extract_ring_points`, :class:`StripFit`;
 - :mod:`pyrs.calibration.pixel_refinement`: :class:`PixelCalibration`, :class:`StageResult` and the
@@ -41,7 +42,7 @@ Example::
     shift_x, shift_y, shift_z, rot_x, rot_y, rot_z, two_theta_0, wavelength = calibration.calibration_array
 """
 
-from pyrs.calibration.detector_model import DetectorModel
+from pyrs.core.detector_model import DetectorModel
 from pyrs.calibration.pixel_refinement import (
     DEFAULT_RECIPE,
     DEFAULT_TOLERANCE,

@@ -16,7 +16,7 @@ import numpy as np
 from mantid.simpleapi import DeleteWorkspace, mtd
 from scipy.optimize import least_squares
 
-from pyrs.calibration.detector_model import DetectorModel
+from pyrs.core.detector_model import DetectorModel
 from pyrs.calibration.powder_standards import HB2B_STANDARDS, PowderStandard, standard_for_sy
 from pyrs.calibration.ring_points import _RING_FIELDS, RingPoints
 from pyrs.core.instrument_geometry import DENEXDetectorShift
