@@ -889,6 +889,23 @@ gold file `HB2B_mantid_calib.json` changes only in its error estimates (`error_T
 `test_eta_wedges_are_binned_on_the_stored_axis` (`tests/integration/test_texture_reduction.py`). Not yet
 checked: reductions with several user ROI masks, which share the same per-sub-run 2θ storage.
 
+## FitCalibration uses the 2020 lattice constants (2026-10, #1022)
+
+`FitCalibration`'s powder lattice constants were the 2023-08 set (Ni 3.526314, Fe 2.865579, Mo 3.147664 Å,
+commit `47d1e558`, "modified lattice based on newly calibrated data"). They were fitted from HB2B data, which
+is circular for a calibration — only λ/a is measured — and their Fe/Ni ratio (0.81263) is ~0.1% off both the
+2020 set and what HB2B shows (≈ 0.81335). They are now the 2020 set (Ni 3.523799438, Fe 2.8663982,
+Mo 3.14719963 Å; `d6cd5e04`, common room-temperature reference values), user-approved.
+
+**Effect:** η-wedge RMS of a full FitCalibration on HB2B_4971 0.0564 → 0.0121° (correctly binned wedges,
+#1034), λ 1.5315 → 1.5313 Å; on HB2B_3510 (old binning) 0.0551 → 0.0261°; the ring calibration's RMS on
+HB2B_3510 0.050 → 0.0175° with the Ni/Fe mean residuals going from +0.040 / −0.056° to −0.006 / +0.009°.
+Calibrated λ changes by ~0.01–0.07% depending on the Ni/Fe balance of the run, and the geometry with it, so
+calibrations made with the 2023 set differ from new ones for that reason alone. The `FitCalibration` gold files
+still pass (`test_wavelength` λ 1.53002 vs gold 1.53030 Å; `test_all_refinements` only `error_Lambda`
+0.02614 → 0.02315). Absolute λ rests on these constants; a certificate for the actual HB2B Ni/Fe standards
+would be the final check. Pointing FitCalibration at `pyrs/calibration/powder_standards.py` (also adds FCC 400)
+follows once that module (ring-based calibration) is merged.
 ## A project file keeps one 2θ axis for all masks: writes may not relabel masks already in it (2026-10)
 
 `HidraProjectFile.write_reduced_diffraction_data_set` stores one 2θ dataset per file and used to replace it on
