@@ -4,12 +4,8 @@ import numpy as np
 import pytest
 from scipy.optimize import brentq
 
-from pyrs.calibration.pixel_pos_calibration import (
-    DetectorModel,
-    PixelCalibration,
-    _reject_outliers,
-    extract_ring_points,
-)
+from pyrs.calibration.pixel_pos_calibration import DetectorModel, PixelCalibration, extract_ring_points
+from pyrs.calibration.ring_extraction import _Candidate, _column_at_two_theta, _fit_band_histograms, _reject_outliers
 from pyrs.calibration.powder_standards import HB2B_STANDARDS
 from pyrs.core.instrument_geometry import DENEXDetectorShift
 from tests.util.instrument_helpers import default_hb2b_geometry
@@ -97,6 +93,33 @@ def test_sigma_is_fit_center_uncertainty(nominal_points):
     accepted = [d for d in diagnostics if d.accepted]
     np.testing.assert_allclose(points.sigma, [d.center_error for d in accepted])
     assert np.all((points.sigma > 0) & (points.sigma < 0.05))
+
+
+@pytest.mark.parametrize("counts_per_pixel", [0.1, 1.0])
+def test_center_error_matches_scatter(counts_per_pixel):
+    """The fit's centre error must be the real scatter, which needs sigma (not variance) as DataE."""
+    # Arrange - independent Poisson strips of one pseudo-Voigt peak, as a band's pixels see it
+    rng = np.random.default_rng(1)
+    true_centre, fwhm, n_sets, n_pixels = 80.0, 0.3, 40, 20000
+    edges = np.arange(78.0, 82.0 + 1e-9, 0.03)
+    pixel_sets = []
+    for _ in range(n_sets):
+        tth = rng.uniform(edges[0], edges[-1], n_pixels)
+        offset = (tth - true_centre) / (fwhm / 2)
+        shape = 0.5 / (1 + offset**2) + 0.5 * np.exp(-np.log(2) * offset**2)
+        counts = rng.poisson(counts_per_pixel * (0.2 + shape)).astype(float)
+        pixel_sets.append((tth, counts, np.ones(n_pixels)))
+
+    # Act
+    _, _, centres, errors, _, excluded = _fit_band_histograms(
+        "test_center_error", pixel_sets, edges, "PseudoVoigt", "Linear", wavelength=1.54
+    )
+
+    # Assert
+    good = ~excluded & np.isfinite(errors)
+    assert good.sum() >= 0.9 * n_sets
+    ratio = np.median(errors[good]) / np.std(centres[good], ddof=1)
+    assert 0.5 < ratio < 2.0
 
 
 def test_diagnostics_one_per_band_and_ring(nominal_points):
@@ -202,14 +225,17 @@ def test_weak_rings_rejected_then_raises(hb2b):
 def test_reject_outliers_flags_far_point():
     # Arrange - a smooth ring with one point 5 px off
     rows = np.linspace(100, 900, 9)
-    points = [{"sub_run": 1, "hkl_squared": 8, "index_1": r, "index_0": 300 + 1e-4 * (r - 500) ** 2} for r in rows]
-    points[4]["index_0"] += 5.0
+    points = [
+        _Candidate(1, k, r, 76.0, 0.985, 1.2459, 8, "Ni", 76.3, np.nan, index_0=300 + 1e-4 * (r - 500) ** 2)
+        for k, r in enumerate(rows)
+    ]
+    points[4].index_0 += 5.0
 
     # Act
     _reject_outliers(points, threshold=5.0, smooth=False)
 
     # Assert
-    assert [i for i, p in enumerate(points) if p.get("reject")] == [4]
+    assert [i for i, p in enumerate(points) if p.reject] == [4]
 
 
 @pytest.mark.parametrize(
@@ -320,7 +346,6 @@ def test_fitted_ring_inside_margin_rejected(hb2b):
     """The window is placed from one located 2theta, but the true ring is tilted (Rot_z): the fitted
     point of each band is checked against the margin again"""
     # Arrange - arm 84 puts Ni 220 near the side edge; take a margin just inside every predicted column
-    from pyrs.calibration.pixel_pos_calibration import _column_at_two_theta
 
     _, unrestricted = _single_ring_extraction(hb2b, 84.0, side_margin=0)
     model = DetectorModel(hb2b)
@@ -353,8 +378,11 @@ def test_ring_located_despite_wrong_start_wavelength(hb2b):
     centers = np.array([d.center for d in diagnostics])
     start = diagnostics[0].start_center
     assert np.all(np.abs(diagnostics[0].bragg_two_theta - centers) > 1.0)  # the expectation really is far off
-    # with the uncalibrated geometry the ring's apparent 2theta varies by band; the start is their mean
-    assert start == pytest.approx(centers.mean(), abs=0.05)
+    # with the uncalibrated geometry the ring's apparent 2theta varies by band; the start is near their
+    # mean. 0.1 deg, not tighter: this far off, FitPeaks' first background-only fit masks only the
+    # expected position, so the real peak is fitted as background and the locate fit lands ~0.08 deg
+    # off (docs/ground_truths.md); the band fits and the points below are unaffected
+    assert start == pytest.approx(centers.mean(), abs=0.1)
     assert np.all(np.abs(centers - start) < 0.3)  # every band's fit starts within a peak width
     assert len(points) == STRIPS
     assert np.abs(points.index_0 - _true_columns(hb2b, points)).max() < 0.15
@@ -387,3 +415,36 @@ def test_significance_check_rejects_invisible_ring(hb2b):
     assert set(strict_reasons) <= {"peak not significant", "fit failed"}
     assert strict_reasons.count("peak not significant") > len(strict) / 2
     assert not any(r.startswith("peak not significant") for r in _reasons(lenient))
+
+
+def test_strict_max_center_error_rejects_points(hb2b):
+    # Act
+    points, diagnostics = _single_ring_extraction(hb2b, 76.0, max_center_error=1e-6)
+
+    # Assert
+    assert points is None
+    reasons = _reasons(diagnostics)
+    assert reasons and all(reason.startswith("centre error") and reason.endswith("> 1e-06 deg") for reason in reasons)
+
+
+def test_spurious_peak_in_one_band_rejected_as_outlier(hb2b):
+    # Arrange - a strong fake ring 0.8 deg above Ni 220, only in the rows of strip 3
+    arm = 76.0
+    workspace = synthetic_calibration_workspace(hb2b, TRUE_PARAMS, [arm], [NI])
+    grid = np.meshgrid(np.arange(1024), np.arange(1024), indexing="ij")
+    two_theta = DetectorModel(hb2b).two_theta(*grid, -arm, 0.985, DENEXDetectorShift(*TRUE_PARAMS[:7]))
+    bragg = min(NI.two_theta(TRUE_PARAMS[7]), key=lambda angle: abs(angle - arm))  # Ni 220
+    rows = 40 + 944 * np.array([3, 4]) / STRIPS
+    in_band = (grid[1] >= rows[0] + 5) & (grid[1] < rows[1] - 5)
+    fake = 400.0 * np.exp(-0.5 * ((two_theta - bragg - 0.8) / 0.1) ** 2) * in_band
+    workspace.set_raw_counts(1, workspace.get_detector_counts(1) + np.rint(fake.ravel()))
+    diagnostics = []
+
+    # Act
+    points = extract_ring_points(workspace, NOMINAL_WAVELENGTH, strips=STRIPS, diagnostics=diagnostics)
+
+    # Assert - that strip alone is dropped as an outlier; the others stay on the true ring
+    rejected = {d.strip: d.reason for d in diagnostics if not d.accepted}
+    assert list(rejected) == [3] and rejected[3].startswith("outlier")
+    assert len(points) == STRIPS - 1
+    assert np.abs(points.index_0 - _true_columns(hb2b, points)).max() < 0.1

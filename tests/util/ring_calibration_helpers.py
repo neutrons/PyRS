@@ -101,6 +101,24 @@ def synthetic_ring_points(
     )
 
 
+def concatenate_ring_points(*point_sets: RingPoints) -> RingPoints:
+    """Join ring points of several runs, renumbering sub-runs so they stay distinct across runs.
+
+    ``PixelCalibration`` groups points by sub-run, so two runs that both start at sub-run 1 must not
+    share numbers (e.g. one scan at two sample-detector distances).
+    """
+    if not point_sets:
+        raise ValueError("need at least one set of ring points")
+    fields = {name: [] for name in RingPoints.__dataclass_fields__}
+    offset = 0
+    for points in point_sets:
+        for name in fields:
+            values = getattr(points, name)
+            fields[name].append(values + offset if name == "sub_run" else values)
+        offset += int(points.sub_run.max())
+    return RingPoints(**{name: np.concatenate(values) for name, values in fields.items()})
+
+
 def synthetic_detector_image(
     instrument_setup: DENEXDetectorGeometry,
     true_params: Sequence[float],

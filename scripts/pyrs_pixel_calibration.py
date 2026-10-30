@@ -84,23 +84,26 @@ def run_calibration(
 
 
 def _summary(calibration) -> str:
-    from pyrs.calibration.pixel_pos_calibration import PARAMETER_NAMES
+    from pyrs.calibration.pixel_pos_calibration import NOT_REFINED, PARAMETER_NAMES, PARAMETER_UNITS, UNDETERMINED
 
-    units = [("mm", 1e3)] * 3 + [("deg", 1.0)] * 4 + [("A", 1.0)]
     points = calibration.ring_points
     rings = len(set(zip(points.sub_run.tolist(), points.hkl_squared.tolist())))
     lines = [f"{len(points)} ring points, {rings} rings; final RMS {calibration.stages[-1].rmse:.4f} deg"]
     for name, value, error, (unit, scale) in zip(
-        PARAMETER_NAMES, calibration.calibration_array, calibration.calibration_error_array, units
+        PARAMETER_NAMES, calibration.calibration_array, calibration.calibration_error_array, PARAMETER_UNITS
     ):
-        error_text = (
-            "held (2theta_0 is degenerate with Shift_x/Rot_y)" if error == -1.0 else f"+/- {error * scale:.4g}"
-        )
+        if error == NOT_REFINED:
+            error_text = "held (2theta_0 is degenerate with Shift_x/Rot_y)" if name == "TTH_0" else "held"
+        elif error == UNDETERMINED:
+            error_text = "undetermined (degenerate, or stopped at a bound)"
+        else:
+            error_text = f"+/- {error * scale:.4g}"
         lines.append(f"  {name:8s} {value * scale:12.5f} {unit:3s} {error_text}")
     return "\n".join(lines)
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Command-line parser for :func:`main`; ``--help`` lists every option with its default."""
     parser = argparse.ArgumentParser(
         description="Ring-based HB2B detector calibration from one calibration run (NeXus).",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -120,6 +123,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    """Run the calibration from the command line and print a parameter summary.
+
+    Args:
+        argv: Command-line arguments without the program name; default: ``sys.argv[1:]``.
+
+    Returns:
+        Exit status: 0 on success, 1 if an input file is missing, an input is invalid, or the
+        conversion, fit or file writing fails.
+    """
     args = build_parser().parse_args(argv)
     try:
         calibration = run_calibration(
@@ -133,7 +145,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             ring_points_file=args.ring_points,
             sub_runs=args.sub_runs,
         )
-    except (FileNotFoundError, ValueError) as error:
+    except (FileNotFoundError, ValueError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(_summary(calibration))

@@ -89,8 +89,9 @@ class FitCalibration:
         self._ref_powders = np.array(["Ni", "Fe", "Mo"])
         self._ref_powders_sy = np.array([62, 12, -13])
         self._ref_structure = np.array(["FCC", "BCC", "BCC"])
-        # self._ref_lattice = [3.523799438, 2.8663982, 3.14719963]
-        self._ref_lattice = [3.526314, 2.865579, 3.147664]
+        # lattice constants (A) of the calibration powders: the 2020 set, which describes the Ni/Fe ratio seen on
+        # HB2B; the 2023 values were fitted from HB2B data (circular, as only lambda/a is measured) (#1022)
+        self._ref_lattice = [3.523799438, 2.8663982, 3.14719963]
 
         if pow_lines is None:
             self.get_powder_lines()
