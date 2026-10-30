@@ -431,7 +431,7 @@ class DetectorCalibrationModel(QObject):
         self._ring_calibration = calibration
         self._ring_history = [calibration.calibration_array]
         residual = calibration.residual(start)
-        rings = len(set(zip(points.sub_run.tolist(), points.hkl_squared.tolist())))
+        rings = points.num_rings
         self.ring_summary = f"{len(points)} ring points on {rings} rings ({strips} strips per sub-run)"
         if self.extraction_warnings:
             self.ring_summary += f"; {len(self.extraction_warnings)} warning(s): " + " | ".join(

@@ -11,23 +11,22 @@ see docs/ground_truths.md. Used by the ring-based calibration
 
 from typing import Optional, Sequence, Union
 
-from numpy.typing import ArrayLike
-
 import numpy as np
+from numpy.typing import ArrayLike
 
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 from pyrs.core.reduce_hb2b_pyrs import ResidualStressInstrument
 from pyrs.utilities.convertdatatypes import to_float
 
-__all__ = ["DetectorModel"]
+__all__ = ["DetectorModel", "to_shift", "from_shift"]
 
 
-def _to_shift(values: Union[Sequence[float], np.ndarray]) -> DENEXDetectorShift:
+def to_shift(values: Union[Sequence[float], np.ndarray]) -> DENEXDetectorShift:
     """The detector part (first 7 entries) of a calibration vector."""
     return DENEXDetectorShift(*values[:7])
 
 
-def _from_shift(shift: DENEXDetectorShift) -> np.ndarray:
+def from_shift(shift: DENEXDetectorShift) -> np.ndarray:
     """The first 7 entries of a calibration vector, from a detector calibration."""
     return np.array(
         [
@@ -222,7 +221,7 @@ class DetectorModel:
         if not isinstance(calibration, DENEXDetectorShift):
             raise TypeError(f"calibration must be a DENEXDetectorShift, got {type(calibration).__name__}")
         two_theta_0 = to_float("2theta_0", two_theta_0)
-        old = _from_shift(calibration)
+        old = from_shift(calibration)
         delta = np.deg2rad(two_theta_0 - old[6])
         rotation = self._rotation_y(-delta) @ self._instrument.generate_rotation_matrix(*np.deg2rad(old[3:6]))
         if abs(rotation[0, 2]) > np.sin(np.deg2rad(_GIMBAL_LIMIT_DEG)):
@@ -236,12 +235,12 @@ class DetectorModel:
 
         # with the angles fixed the centre is affine in the three shifts, so one linear solve is exact
         target = self.centre_position(calibration, l2)
-        base = self.centre_position(_to_shift(new), l2)
+        base = self.centre_position(to_shift(new), l2)
         columns = []
         for k in range(3):
             moved = new.copy()
             moved[k] += _SHIFT_STEP_M
-            columns.append((self.centre_position(_to_shift(moved), l2) - base) / _SHIFT_STEP_M)
+            columns.append((self.centre_position(to_shift(moved), l2) - base) / _SHIFT_STEP_M)
         new[:3] += np.linalg.solve(np.array(columns).T, target - base)
 
-        return _to_shift(new)
+        return to_shift(new)

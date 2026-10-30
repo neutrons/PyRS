@@ -257,10 +257,11 @@ def plot_ring_points(
     """
     artists: List[Artist] = []
     if accepted is not None and len(accepted.text):
+        x, y = np.asarray(accepted.index_0) + 0.5, np.asarray(accepted.index_1) + 0.5
         artists.append(
             ax.scatter(
-                np.asarray(accepted.index_0) + 0.5,
-                np.asarray(accepted.index_1) + 0.5,
+                x,
+                y,
                 s=36,
                 facecolors="none",
                 edgecolors="white",
@@ -270,8 +271,8 @@ def plot_ring_points(
         )
         artists.append(  # a dark ring around each circle keeps it visible on any colour map
             ax.scatter(
-                np.asarray(accepted.index_0) + 0.5,
-                np.asarray(accepted.index_1) + 0.5,
+                x,
+                y,
                 s=64,
                 facecolors="none",
                 edgecolors="black",

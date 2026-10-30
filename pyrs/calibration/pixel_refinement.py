@@ -16,7 +16,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.optimize._numdiff import approx_derivative  # the finite-difference Jacobian least_squares uses
 
-from pyrs.core.detector_model import DetectorModel, _from_shift, _to_shift
+from pyrs.core.detector_model import DetectorModel, from_shift, to_shift
 from pyrs.calibration.ring_points import RingPoints
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry
 
@@ -61,6 +61,20 @@ _STAGES: Dict[str, Tuple[Tuple[int, ...], Tuple[float, ...]]] = {
     "CalibrateGeometry": ((0, 1, 2, 3, 4, 5, 6), (0.05, 0.05, 0.05, 5.0, 5.0, 5.0, 5.0)),
     "FullCalibration": (tuple(range(8)), (0.05, 0.05, 0.15, 5.0, 5.0, 5.0, 5.0, 0.05)),
 }
+
+
+_METHODS = ("trf", "dogbox", "lm")  # scipy.optimize.least_squares methods
+
+
+def _check_method(method: str) -> None:
+    """Raise ValueError unless ``method`` is one of :data:`_METHODS`."""
+    if method not in _METHODS:
+        raise ValueError(f"method must be 'trf', 'dogbox' or 'lm', got {method!r}")
+
+
+def _rmse(residual: np.ndarray) -> float:
+    """Root-mean-square of a residual vector."""
+    return float(np.sqrt(np.mean(residual**2)))
 
 
 def _parameter_indices(parameters: Sequence[Union[int, str]], context: str) -> np.ndarray:
@@ -190,8 +204,7 @@ class PixelCalibration:
             raise ValueError("PixelCalibration needs at least one ring point")
         if not wavelength > 0:
             raise ValueError(f"wavelength must be positive, got {wavelength}")
-        if method not in ("trf", "dogbox", "lm"):
-            raise ValueError(f"method must be 'trf', 'dogbox' or 'lm', got {method!r}")
+        _check_method(method)
         if diff_step is not None and not diff_step > 0:
             raise ValueError(f"diff_step must be positive, got {diff_step}")
 
@@ -264,8 +277,7 @@ class PixelCalibration:
         Raises:
             ValueError: If ``method`` is not ``"trf"``, ``"dogbox"`` or ``"lm"``, or ``max_nfev`` < 1.
         """
-        if method not in ("trf", "dogbox", "lm"):
-            raise ValueError(f"method must be 'trf', 'dogbox' or 'lm', got {method!r}")
+        _check_method(method)
         if max_nfev is not None and int(max_nfev) < 1:
             raise ValueError(f"max_nfev must be at least 1, got {max_nfev}")
         self._method = method
@@ -309,8 +321,8 @@ class PixelCalibration:
         """
         if l2 is None:
             l2 = float(np.median(self.ring_points.l2))
-        calibration = self._model.with_two_theta_0(_to_shift(self._calib), two_theta_0, l2)
-        self._calib[:7] = _from_shift(calibration)
+        calibration = self._model.with_two_theta_0(to_shift(self._calib), two_theta_0, l2)
+        self._calib[:7] = from_shift(calibration)
         self._caliberr[:7] = NOT_REFINED
         stage = StageResult(
             name="set_two_theta_0",
@@ -318,7 +330,7 @@ class PixelCalibration:
             values=np.array([]),
             errors=np.array([]),
             status=self._status,
-            rmse=float(np.sqrt(np.mean(self.residual(self._calib) ** 2))),
+            rmse=_rmse(self.residual(self._calib)),
             nfev=0,
         )
         self.stages.append(stage)
@@ -326,7 +338,7 @@ class PixelCalibration:
 
     def model_two_theta(self, params: Union[Sequence[float], np.ndarray]) -> np.ndarray:
         """2theta (degrees) of every ring point's pixel for calibration vector ``params``."""
-        calibration = _to_shift(params)
+        calibration = to_shift(params)
         two_theta = np.empty(len(self.ring_points))
         points = self.ring_points
         for index, arm_two_theta, l2 in self._groups:
@@ -438,7 +450,7 @@ class PixelCalibration:
             values=out.x.copy(),
             errors=errors,
             status=int(out.status),
-            rmse=float(np.sqrt(np.mean(out.fun**2))),
+            rmse=_rmse(out.fun),
             nfev=int(out.nfev),
         )
         self.stages.append(stage)
@@ -506,11 +518,10 @@ class PixelCalibration:
 
         Shift_x, Rot_y and TTH_0 are exactly degenerate at one detector distance (see :meth:`refine`),
         so a refinement of all eight parameters cannot give their errors (they are flagged
-        :data:`UNDETERMINED`). This
-        refines every parameter except ``hold``, starting from the current values (normally the
-        optimum, so the values barely move), to get their one-sigma errors. The held parameters'
-        errors are set to :data:`NOT_REFINED`: their values are a choice along the degenerate set, not
-        a measurement (docs/ground_truths.md).
+        :data:`UNDETERMINED`). This refines every parameter except ``hold``, starting from the
+        current values (normally the optimum, so the values barely move), to get their one-sigma
+        errors. The held parameters' errors are set to :data:`NOT_REFINED`: their values are a
+        choice along the degenerate set, not a measurement (docs/ground_truths.md).
 
         Args:
             hold: Parameters (indices or :data:`PARAMETER_NAMES`) kept fixed; default 2theta_0.
@@ -561,7 +572,7 @@ class PixelCalibration:
             values=values[free].copy(),
             errors=errors,
             status=self._status,
-            rmse=float(np.sqrt(np.mean(residual**2))),
+            rmse=_rmse(residual),
             nfev=0,
         )
         self.stages.append(stage)
@@ -582,8 +593,8 @@ class PixelCalibration:
             raise RuntimeError("nothing has been refined: refusing to write a calibration with Status -1")
         values, errors = self._calib, self._caliberr
         write_calibration_to_json(
-            _to_shift(values),
-            _to_shift(errors),
+            to_shift(values),
+            to_shift(errors),
             float(values[7]),
             float(errors[7]),
             int(self._status),
@@ -636,7 +647,7 @@ class PixelCalibration:
                 break
         else:
             if passes is None:
-                warnings.warn(f"iterate: not converged to {tolerance} after {max_passes} passes", stacklevel=2)
+                self._warn(f"iterate: not converged to {tolerance} after {max_passes} passes")
 
         if polish:
             self.FullCalibration()

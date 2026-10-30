@@ -23,9 +23,12 @@ The starting geometry is the nominal one; it must not be badly wrong (docs/groun
 import argparse
 import sys
 from pathlib import Path
-from typing import List, Optional, Sequence
+from typing import TYPE_CHECKING, List, Optional, Sequence
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from pyrs.calibration.pixel_pos_calibration import PixelCalibration
 
 DEFAULT_MASK = "/HFIR/HB2B/shared/CALIBRATION/HB2B_Mask_Latest.xml"
 
@@ -40,7 +43,7 @@ def run_calibration(
     polish: bool = True,
     ring_points_file: Optional[str] = None,
     sub_runs: Optional[Sequence[int]] = None,
-):
+) -> "PixelCalibration":
     """Run the ring-based calibration on one NeXus run and write the calibration JSON.
 
     Args:
@@ -83,12 +86,12 @@ def run_calibration(
     return calibration
 
 
-def _summary(calibration) -> str:
+def _summary(calibration: "PixelCalibration") -> str:
+    """Parameter table of a refined calibration, with each error code spelled out."""
     from pyrs.calibration.pixel_pos_calibration import NOT_REFINED, PARAMETER_NAMES, PARAMETER_UNITS, UNDETERMINED
 
     points = calibration.ring_points
-    rings = len(set(zip(points.sub_run.tolist(), points.hkl_squared.tolist())))
-    lines = [f"{len(points)} ring points, {rings} rings; final RMS {calibration.stages[-1].rmse:.4f} deg"]
+    lines = [f"{len(points)} ring points, {points.num_rings} rings; final RMS {calibration.stages[-1].rmse:.4f} deg"]
     for name, value, error, (unit, scale) in zip(
         PARAMETER_NAMES, calibration.calibration_array, calibration.calibration_error_array, PARAMETER_UNITS
     ):

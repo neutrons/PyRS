@@ -457,6 +457,23 @@ def test_ring_points_default_sigma_is_nan():
     assert np.isnan(points.sigma).all()
 
 
+def test_ring_points_num_rings_counts_sub_run_reflections():
+    # Arrange: Ni 220 twice and Ni 311 once in sub-run 1, Ni 220 in sub-run 2
+    points = RingPoints(
+        sub_run=[1, 1, 1, 2],
+        index_0=[10.0, 20.0, 30.0, 40.0],
+        index_1=[0.0, 1.0, 2.0, 3.0],
+        det_2theta=[85.0] * 4,
+        l2=[0.985] * 4,
+        d_spacing=[1.2, 1.2, 1.1, 1.2],
+        hkl_squared=[8, 8, 11, 8],
+        powder=["Ni"] * 4,
+    )
+
+    # Act / Assert
+    assert points.num_rings == 3
+
+
 # ---------------------------------------------------------------- 2theta_0 re-expression
 
 
@@ -529,6 +546,7 @@ def test_iterate_not_converged_warns(hb2b, true_rings):
     calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
     with pytest.warns(UserWarning, match="not converged"):
         calibration.iterate(tolerance=1e-12, max_passes=2, polish=False)
+    assert "iterate: not converged to 1e-12 after 2 passes" in calibration.warning_log  # also logged for the GUI
 
 
 @pytest.mark.parametrize(

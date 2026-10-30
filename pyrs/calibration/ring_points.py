@@ -72,6 +72,11 @@ class RingPoints:
     def __len__(self) -> int:
         return int(self.sub_run.size)
 
+    @property
+    def num_rings(self) -> int:
+        """Number of distinct rings, i.e. of (sub-run, reflection) pairs."""
+        return len(set(zip(self.sub_run.tolist(), self.hkl_squared.tolist())))
+
     def select(self, mask: np.ndarray) -> "RingPoints":
         """Subset of the points, by boolean mask or index array."""
         return RingPoints(**{name: getattr(self, name)[mask] for name in _RING_FIELDS})

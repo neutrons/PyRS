@@ -64,6 +64,8 @@ class StripFit:
     reason: str = ""
 
 
+PixelSet = Tuple[np.ndarray, np.ndarray, np.ndarray]  # 2theta, weighted counts, weighted efficiency
+
 _SECANT_STEP_PX = 1e-3
 
 
@@ -76,7 +78,7 @@ def column_at_two_theta(
     calibration: Optional[DENEXDetectorShift],
 ) -> float:
     """Fractional ``index_0`` on row ``row`` whose 2theta is ``target``; NaN if it is off the detector."""
-    num_rows, num_columns = model.instrument_setup.detector_size
+    num_columns = model.instrument_setup.detector_size[1]
     columns = np.arange(num_columns, dtype=float)
     profile = model.two_theta(columns, row, arm_two_theta, l2, calibration)
     order = np.argsort(profile)
@@ -127,7 +129,7 @@ def _reject_outliers(points: List["_Candidate"], threshold: float, smooth: bool)
 
 def _fit_band_histograms(
     name: str,
-    pixel_sets: Sequence[Tuple[np.ndarray, np.ndarray, np.ndarray]],
+    pixel_sets: Sequence[PixelSet],
     edges: np.ndarray,
     peak_function: str,
     background_function: str,
@@ -273,8 +275,9 @@ class _ExtractionSettings:
         """Bin edges (deg) of a window from :meth:`window`."""
         return np.arange(window[0], window[1] + 1) * self.bin_width
 
-
-PixelSet = Tuple[np.ndarray, np.ndarray, np.ndarray]  # 2theta, weighted counts, weighted efficiency
+    def clear_of_sides(self, column: float, num_columns: int) -> bool:
+        """Whether ``column`` lies at least ``side_margin`` pixels inside the left and right edges."""
+        return self.side_margin <= column <= num_columns - 1 - self.side_margin
 
 
 def _band_pixels(
@@ -284,12 +287,13 @@ def _band_pixels(
     pixel_sets = []
     for lo, hi in zip(bounds[:-1], bounds[1:]):
         band = slice(lo, hi)
-        keep = weights[:, band].ravel() > 0
+        band_weights = weights[:, band].ravel()
+        keep = band_weights > 0
         pixel_sets.append(
             (
                 two_theta[:, band].ravel()[keep],
-                weights[:, band].ravel()[keep] * counts[:, band].ravel()[keep],
-                weights[:, band].ravel()[keep] * efficiency[:, band].ravel()[keep],
+                band_weights[keep] * counts[:, band].ravel()[keep],
+                band_weights[keep] * efficiency[:, band].ravel()[keep],
             )
         )
     return pixel_sets
@@ -365,7 +369,7 @@ def _fit_band_group(
         candidate.index_0 = column
         if not np.isfinite(column):
             candidate.reject = "ring off the detector on this row"
-        elif not settings.side_margin <= column <= num_columns - 1 - settings.side_margin:
+        elif not settings.clear_of_sides(column, num_columns):
             # the window was placed from pass 1 or the prediction; check the fitted point too
             candidate.reject = f"fitted ring within {settings.side_margin} px of the side edge"
 
@@ -413,7 +417,7 @@ def _extract_reflection(
         tth = band_pixels[k][0]
         if tth.size == 0:
             candidate.reject = "band has no unmasked pixels"
-        elif not settings.side_margin <= predicted <= num_columns - 1 - settings.side_margin:
+        elif not settings.clear_of_sides(predicted, num_columns):
             candidate.reject = f"ring predicted within {settings.side_margin} px of the side edge"
         else:
             band_window = settings.window(target, tth)
