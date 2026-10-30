@@ -59,9 +59,10 @@ def main(mode: str, lattice: str, start: str, nexus: str = NEXUS) -> None:
     mpc.least_squares = wrapped
     tag = f"[{nexus.split('/')[-1][:9]} | {mode:13s} | {lattice} | {start:9s}]"
     fc = mpc.FitCalibration(nexus_file=nexus, mask_file=MASK, max_nfev=40)
-    if LATTICES[lattice] is not None:
+    lattice_values = LATTICES[lattice]
+    if lattice_values is not None:
         fc._standards = tuple(
-            dataclasses.replace(standard, lattice_a=a) for standard, a in zip(fc._standards, LATTICES[lattice])
+            dataclasses.replace(standard, lattice_a=a) for standard, a in zip(fc._standards, lattice_values)
         )
         fc.get_powder_lines()
     start_values = STARTS[start]
