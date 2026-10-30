@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 from scipy.optimize import least_squares
 
-from pyrs.calibration.detector_model import DetectorModel, _from_shift, _to_shift
+from pyrs.core.detector_model import DetectorModel, _from_shift, _to_shift
 from pyrs.calibration.ring_points import RingPoints
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry
 

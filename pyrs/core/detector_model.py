@@ -5,7 +5,8 @@ Forward model of the HB2B detector for the ring-based calibration.
 pixels for any trial calibration. It reproduces
 :meth:`pyrs.core.reduce_hb2b_pyrs.ResidualStressInstrument.build_instrument` exactly (a unit test
 pins bit-identity), so a calibration found with it means the same thing when reduction applies it;
-see docs/ground_truths.md. Part of :mod:`pyrs.calibration.pixel_pos_calibration`.
+see docs/ground_truths.md. Used by the ring-based calibration
+(:mod:`pyrs.calibration.pixel_pos_calibration`); reduction itself does not use it (#1011).
 """
 
 from typing import Optional, Sequence, Union
