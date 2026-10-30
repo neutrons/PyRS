@@ -148,9 +148,7 @@ def main() -> None:
     # 2. FitCalibration's eta-wedge patterns under the same geometry
     from pyrs.calibration.mantid_peakfit_calibration import FitCalibration
 
-    fit = FitCalibration(nexus_file=args.run, mask_file=args.mask)
-    fit._ref_lattice = [3.523799438, 2.8663982, 3.14719963]
-    fit.get_powder_lines()
+    fit = FitCalibration(nexus_file=args.run, mask_file=args.mask)  # its own powders: the 2020 set (#1022)
     fit.set_inst_shifts_wl(params)
     fit.reduce_data()
     masks = list(fit._hidra_ws.reduction_masks)

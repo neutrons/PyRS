@@ -21,6 +21,7 @@ Run from the repository root:
 """
 
 import argparse
+import dataclasses
 import json
 import time
 import warnings
@@ -124,7 +125,8 @@ def main() -> None:
     print("\n2. FitCalibration eta-wedge peak residual (mask applied):")
     for lattice, values in LATTICES.items():
         fit = FitCalibration(nexus_file=args.run, mask_file=args.mask)
-        fit._ref_lattice = values
+        # FitCalibration's powders are the shared standards (#1022): swap in this set's lattice constants
+        fit._standards = tuple(dataclasses.replace(s, lattice_a=a) for s, a in zip(fit._standards, values))
         fit.get_powder_lines()
         for label, p in calibrations.items():
             start = time.time()
