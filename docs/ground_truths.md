@@ -1961,3 +1961,21 @@ The Detector Calibration window can run the ring-based calibration (user-approve
 - **FitCalibration's `residual_rmse` / `residual_sum` index an empty list until it has fitted.** The
   calibration progress timer can read them right after the method is switched. The GUI model now
   treats that as "no value yet".
+
+## Calibration GUI: picked ring points and rejected strips on the 2D view (2026-10-30)
+
+After the ring-based **Fit Peaks**, two tick boxes under the 2D view, **Ring points** and **Rejected
+strips**, mark the extraction's picks for the shown sub-run (user-approved GUI change, display
+only). The **Geometry** for predicted rings now defaults to **Current calibration**.
+- **Ring points:** open white circles with a dark edge, exactly at the extracted `(index_0,
+  index_1)`, i.e. drawn at `(i0 + 0.5, i1 + 0.5)` like the image and the rings.
+- **Rejected strips:** grey ✕. A strip that was fitted but then rejected (e.g. as an outlier) is
+  marked at its fitted 2θ. One never fitted is marked at the 2θ the extraction aimed for (the
+  located ring, else the Bragg angle), mapped to the strip's centre row with the extraction's
+  geometry (`ring_extraction.column_at_two_theta`). A strip whose ring misses the row is not marked.
+- **Hovering** a mark shows its reflection and strip, plus the fitted 2θ ± error or the rejection
+  reason.
+- **Diagnostics:** `extract_rings` now keeps the per-strip diagnostics. Passing a diagnostics list
+  does not change the extraction: the driver output is still bit-identical on HB2B_3489/3510/4971.
+- **Seen on HB2B_3489 sub-run 12:** Ni 311 has 4 picks and 1 outlier strip; Ni 222 has all 5 strips
+  rejected as not significant (1.6–1.7σ).

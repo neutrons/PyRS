@@ -257,3 +257,63 @@ def test_controller_fit_peaks_dispatches_by_method(workspace):
     # Assert - ring extraction ran; its residual at the starting geometry is returned
     assert gui_model._ring_calibration is not None
     assert rmse == pytest.approx(np.sqrt(r_sum / len(gui_model._ring_calibration.ring_points)))
+
+
+# ---------------------------------------------------------------- picked ring points and rejected strips
+
+
+@pytest.fixture(scope="module")
+def strip0_masked():
+    """A run whose detector rows 40-228 (strip 0 of 5) are masked: every sub-run rejects that strip"""
+    ws = synthetic_calibration_workspace(default_hb2b_geometry(), TRUE_PARAMS)
+    ws.set_wavelength(MONO_WAVELENGTH, False)
+    mask = np.ones((1024, 1024))
+    mask[:, 40:229] = 0
+    ws.set_detector_mask(mask.ravel(), True)
+    return ws
+
+
+def test_ring_point_marks_are_the_extracted_points(refined):
+    # Arrange
+    gui_model, _ = refined
+    points = gui_model._ring_calibration.ring_points
+
+    # Act
+    accepted, _ = gui_model.ring_point_marks(2)
+
+    # Assert - exactly the sub-run's ring points, each described
+    in_sub_run = points.sub_run == 2
+    np.testing.assert_array_equal(accepted.index_0, points.index_0[in_sub_run])
+    np.testing.assert_array_equal(accepted.index_1, points.index_1[in_sub_run])
+    from pyrs.calibration.pixel_calibration_plots import hkl_label
+
+    structure = {"Ni": "FCC", "Fe": "BCC", "Mo": "BCC"}
+    expected = [
+        f"{p} {hkl_label(int(n), structure[p])}, strip "
+        for p, n in zip(points.powder[in_sub_run], points.hkl_squared[in_sub_run])
+    ]
+    assert all(text.startswith(label) and "2θ" in text for text, label in zip(accepted.text, expected))
+
+
+def test_rejected_strips_marked_where_the_ring_was_sought(strip0_masked):
+    # Arrange
+    gui_model = _model(strip0_masked)
+    gui_model.extract_rings(5)
+
+    # Act
+    _, rejected = gui_model.ring_point_marks(1)
+
+    # Assert - strip 0 on its centre row, at the ring's column; described with the reason
+    assert rejected.text and all("strip 1: rejected, band has no unmasked pixels" in t for t in rejected.text)
+    np.testing.assert_array_equal(rejected.index_1, (40 + 229 - 1) / 2.0)
+    assert np.all((rejected.index_0 > 0) & (rejected.index_0 < 1023))
+
+
+def test_ring_point_marks_need_the_ring_method(workspace):
+    gui_model = _model(workspace, METHOD_FITCALIBRATION)
+    assert gui_model.ring_point_marks(1) is None and not gui_model.has_ring_points
+
+
+def test_current_geometry_before_ring_extraction_is_the_start(workspace):
+    # The default "Current calibration" geometry is usable before Fit Peaks: the window's start values
+    np.testing.assert_array_equal(_model(workspace).current_calibration_array, np.r_[np.zeros(7), MONO_WAVELENGTH])

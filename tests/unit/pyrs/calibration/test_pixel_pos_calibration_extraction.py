@@ -5,7 +5,7 @@ import pytest
 from scipy.optimize import brentq
 
 from pyrs.calibration.pixel_pos_calibration import DetectorModel, PixelCalibration, extract_ring_points
-from pyrs.calibration.ring_extraction import _Candidate, _column_at_two_theta, _fit_band_histograms, _reject_outliers
+from pyrs.calibration.ring_extraction import _Candidate, column_at_two_theta, _fit_band_histograms, _reject_outliers
 from pyrs.calibration.powder_standards import HB2B_STANDARDS
 from pyrs.core.instrument_geometry import DENEXDetectorShift
 from tests.util.instrument_helpers import default_hb2b_geometry
@@ -349,7 +349,7 @@ def test_fitted_ring_inside_margin_rejected(hb2b):
 
     _, unrestricted = _single_ring_extraction(hb2b, 84.0, side_margin=0)
     model = DetectorModel(hb2b)
-    predicted = [_column_at_two_theta(model, d.start_center, d.row, -84.0, 0.985, None) for d in unrestricted]
+    predicted = [column_at_two_theta(model, d.start_center, d.row, -84.0, 0.985, None) for d in unrestricted]
     margin = int(np.floor(min(predicted)))
     inside = sum(d.index_0 < margin for d in unrestricted)
     assert 0 < inside < STRIPS  # the tilt really puts some fitted points inside the margin

@@ -79,11 +79,23 @@ class DetectorCalibrationCrtl:
     def get_powders(self):
         return self._model.powders
 
-    def update_diff_view(self, _ax, diff_plot_type, sub_run, exclude_list, ring_geometry=None, calibration_file=None):
+    def update_diff_view(
+        self,
+        _ax,
+        diff_plot_type,
+        sub_run,
+        exclude_list,
+        ring_geometry=None,
+        calibration_file=None,
+        show_points=False,
+        show_rejected=False,
+    ):
         """Redraw the 2D (``diff_plot_type`` 0) or 1D view of ``sub_run``.
 
         On the 2D view, ``ring_geometry`` (one of the model's ``RING_GEOMETRIES``, or None for none)
         draws the predicted rings of that geometry; ``calibration_file`` is the JSON for "From file...".
+        ``show_points`` / ``show_rejected`` mark the ring-based extraction's picked ring points and
+        rejected strips.
         """
         if diff_plot_type == 0:
             counts_matrix = self._model.get_2D_diffraction_counts(sub_run)
@@ -94,6 +106,9 @@ class DetectorCalibrationCrtl:
                     _ax.set_ring_overlay()
                 else:
                     _ax.set_ring_overlay(*overlay)
+                marks = self._model.ring_point_marks(sub_run) if (show_points or show_rejected) else None
+                accepted, rejected = marks if marks is not None else (None, None)
+                _ax.set_ring_points(accepted if show_points else None, rejected if show_rejected else None)
         else:
             try:
                 if exclude_list[sub_run - 1]:

@@ -6,9 +6,17 @@ from typing import List, Optional, Tuple
 import numpy as np
 from qtpy.QtCore import Signal, QObject  # type:ignore
 from pyrs.calibration.mantid_peakfit_calibration import FitCalibration
-from pyrs.calibration.pixel_calibration_plots import PredictedRing, detector_two_theta_map, predicted_rings
-from pyrs.calibration.pixel_pos_calibration import PixelCalibration, extract_ring_points
-from pyrs.calibration.powder_standards import standard_for_sy
+from pyrs.calibration.pixel_calibration_plots import (
+    PointMarks,
+    PredictedRing,
+    detector_two_theta_map,
+    hkl_label,
+    predicted_rings,
+)
+from pyrs.calibration.pixel_pos_calibration import PixelCalibration, StripFit, extract_ring_points
+from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
+from pyrs.calibration.ring_extraction import column_at_two_theta
+from pyrs.core.detector_model import DetectorModel
 from pyrs.core.instrument_geometry import DENEXDetectorShift
 from pyrs.utilities.calibration_file_io import read_calibration_json_file, write_calibration_to_json
 
@@ -80,6 +88,8 @@ class DetectorCalibrationModel(QObject):
         self._ring_calibration: Optional[PixelCalibration] = None
         self._ring_start: Optional[np.ndarray] = None
         self._ring_history: List[np.ndarray] = []
+        self._ring_diagnostics: List[StripFit] = []
+        self._ring_extraction_shift: Optional[DENEXDetectorShift] = None
         self._ring_refinement = {"method": "trf", "max_nfev": None}
         self._keep_list: Optional[np.ndarray] = None
         self.calibration_warnings: List[str] = []
@@ -107,8 +117,56 @@ class DetectorCalibrationModel(QObject):
         if self.method == METHOD_RING:
             if self._ring_calibration is not None:
                 return self._ring_calibration.calibration_array
-            return None if self._ring_start is None else self._ring_start.copy()
+            if self._ring_start is not None:
+                return self._ring_start.copy()
+        # FitCalibration's vector, which holds the window's starting values until it has refined
         return None if self._calibration_obj is None else np.asarray(self._calibration_obj.calibration_array)
+
+    @property
+    def has_ring_points(self) -> bool:
+        """Whether the ring-based Fit Peaks has extracted ring points (and the method is ring-based)."""
+        return self.method == METHOD_RING and self._ring_calibration is not None
+
+    def ring_point_marks(self, sub_run: int) -> Optional[Tuple[PointMarks, PointMarks]]:
+        """Picked ring points and rejected strips of ``sub_run``, for the 2D view.
+
+        Accepted points are where ring extraction placed them. A rejected strip is marked where the
+        extraction looked for its ring: at its fitted 2theta if it was fitted, otherwise at the
+        2theta it aimed for, mapped to a column with the extraction's geometry; strips whose ring
+        misses the detector row are not marked.
+
+        Returns:
+            ``(accepted, rejected)``, or None before the ring-based Fit Peaks.
+        """
+        if not self.has_ring_points:
+            return None
+        workspace = self._calibration_obj._hidra_ws
+        model = DetectorModel(workspace.get_instrument_setup())
+        arm, l2 = -float(workspace.get_detector_2theta(sub_run)), workspace.get_l2(sub_run)
+        structures = {standard.name: standard.structure for standard in HB2B_STANDARDS}
+        accepted: List[Tuple[float, float, str]] = []  # (index_0, index_1, description)
+        rejected: List[Tuple[float, float, str]] = []
+        for fit in self._ring_diagnostics:
+            if fit.sub_run != sub_run:
+                continue
+            label = f"{fit.powder} {hkl_label(fit.hkl_squared, structures[fit.powder])}, strip {fit.strip + 1}"
+            if fit.accepted:
+                accepted.append((fit.index_0, fit.row, f"{label}: 2θ {fit.center:.3f} ± {fit.center_error:.3f}°"))
+                continue
+            aimed = fit.start_center if np.isfinite(fit.start_center) else fit.bragg_two_theta
+            two_theta = fit.center if np.isfinite(fit.center) else aimed
+            column = column_at_two_theta(model, two_theta, fit.row, arm, l2, self._ring_extraction_shift)
+            if np.isfinite(column):
+                rejected.append((column, fit.row, f"{label}: rejected, {fit.reason}"))
+
+        def marks(rows: List[Tuple[float, float, str]]) -> PointMarks:
+            return PointMarks(
+                np.array([r[0] for r in rows], dtype=float),
+                np.array([r[1] for r in rows], dtype=float),
+                tuple(r[2] for r in rows),
+            )
+
+        return marks(accepted), marks(rejected)
 
     @property
     def nexus_file(self):
@@ -279,7 +337,11 @@ class DetectorCalibrationModel(QObject):
         sub_runs = None
         if self._keep_list is not None:
             sub_runs = [int(s) for s, keep in zip(workspace.get_sub_runs(), self._keep_list) if keep]
-        points = extract_ring_points(workspace, float(start[7]), calibration=shift, strips=strips, sub_runs=sub_runs)
+        diagnostics: List[StripFit] = []
+        points = extract_ring_points(
+            workspace, float(start[7]), calibration=shift, strips=strips, sub_runs=sub_runs, diagnostics=diagnostics
+        )
+        self._ring_diagnostics, self._ring_extraction_shift = diagnostics, shift
         calibration = PixelCalibration(
             points, workspace.get_instrument_setup(), wavelength=float(start[7]), **self._ring_refinement
         )

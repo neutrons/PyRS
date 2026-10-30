@@ -29,6 +29,7 @@ from itertools import product
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
+from matplotlib.artist import Artist
 from matplotlib.axes import Axes
 from matplotlib.contour import QuadContourSet
 from matplotlib.image import AxesImage
@@ -38,6 +39,10 @@ from pyrs.core.detector_model import DetectorModel
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 
 __all__ = [
+    "PointMarks",
+    "plot_ring_points",
+    "remove_artists",
+    "marker_at",
     "remove_ring_overlay",
     "PredictedRing",
     "hkl_label",
@@ -218,3 +223,106 @@ def remove_ring_overlay(contours: Optional[QuadContourSet]) -> None:
     """Remove an overlay drawn by :func:`plot_ring_overlay`, labels included (None: nothing to do)."""
     if contours is not None:
         contours.remove()  # also removes the clabel texts (matplotlib >= 3.8)
+
+
+@dataclass(frozen=True)
+class PointMarks:
+    """Detector positions to mark, with a description of each (e.g. for a tooltip).
+
+    Attributes:
+        index_0: Fractional pixel index across columns.
+        index_1: Fractional pixel index along rows.
+        text: One description per position.
+    """
+
+    index_0: np.ndarray
+    index_1: np.ndarray
+    text: Tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not (len(self.index_0) == len(self.index_1) == len(self.text)):
+            raise ValueError("index_0, index_1 and text must have one entry per position")
+
+
+def plot_ring_points(
+    ax: Axes, accepted: Optional[PointMarks] = None, rejected: Optional[PointMarks] = None
+) -> List[Artist]:
+    """Mark picked ring points (open circles) and rejected strips (small crosses) on the detector view.
+
+    A position ``(index_0, index_1)`` is drawn at ``(index_0 + 0.5, index_1 + 0.5)``, as the detector
+    image and the ring overlay.
+
+    Returns:
+        The artists drawn, for :func:`remove_artists`.
+    """
+    artists: List[Artist] = []
+    if accepted is not None and len(accepted.text):
+        artists.append(
+            ax.scatter(
+                np.asarray(accepted.index_0) + 0.5,
+                np.asarray(accepted.index_1) + 0.5,
+                s=36,
+                facecolors="none",
+                edgecolors="white",
+                linewidths=1.2,
+                zorder=3,
+            )
+        )
+        artists.append(  # a dark ring around each circle keeps it visible on any colour map
+            ax.scatter(
+                np.asarray(accepted.index_0) + 0.5,
+                np.asarray(accepted.index_1) + 0.5,
+                s=64,
+                facecolors="none",
+                edgecolors="black",
+                linewidths=0.6,
+                zorder=2.9,
+            )
+        )
+    if rejected is not None and len(rejected.text):
+        artists.append(
+            ax.scatter(
+                np.asarray(rejected.index_0) + 0.5,
+                np.asarray(rejected.index_1) + 0.5,
+                s=30,
+                marker="x",
+                color="lightgrey",
+                linewidths=1.2,
+                zorder=3,
+            )
+        )
+    return artists
+
+
+def remove_artists(artists: Sequence[Artist]) -> None:
+    """Remove artists drawn by :func:`plot_ring_points`."""
+    for artist in artists:
+        artist.remove()
+
+
+def marker_at(
+    ax: Axes, marks: Sequence[PointMarks], x_display: float, y_display: float, radius: float = 6.0
+) -> Optional[str]:
+    """Description of the mark nearest to a display position (e.g. the mouse), within ``radius`` pixels.
+
+    Args:
+        ax: Axes the marks are drawn on (its current data-to-display transform is used).
+        marks: Marked positions, e.g. accepted and rejected.
+        x_display: Display x of the position (matplotlib event ``x``).
+        y_display: Display y (event ``y``).
+        radius: Largest distance, in screen pixels.
+
+    Returns:
+        The nearest mark's text, or None if none is within ``radius``.
+    """
+    best, best_distance = None, radius
+    for mark in marks:
+        if not len(mark.text):
+            continue
+        points = np.column_stack([np.asarray(mark.index_0) + 0.5, np.asarray(mark.index_1) + 0.5])
+        display = ax.transData.transform(points)
+        distance = np.hypot(display[:, 0] - x_display, display[:, 1] - y_display)
+        nearest = int(np.argmin(distance))
+        if distance[nearest] <= best_distance:
+            best, best_distance = mark.text[nearest], float(distance[nearest])
+    return best

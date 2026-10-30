@@ -23,7 +23,7 @@ from pyrs.core.instrument_geometry import DENEXDetectorShift
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.peaks import FitEngineFactory  # type: ignore
 
-__all__ = ["StripFit", "extract_ring_points"]
+__all__ = ["StripFit", "extract_ring_points", "column_at_two_theta"]
 
 
 @dataclass
@@ -67,7 +67,7 @@ class StripFit:
 _SECANT_STEP_PX = 1e-3
 
 
-def _column_at_two_theta(
+def column_at_two_theta(
     model: DetectorModel,
     target: float,
     row: float,
@@ -361,7 +361,7 @@ def _fit_band_group(
         candidate.reject = _judge_fit(candidate, excluded[i], significance[i], edges, settings)
         if candidate.reject:
             continue
-        column = _column_at_two_theta(model, candidate.center, candidate.index_1, arm, candidate.l2, calibration)
+        column = column_at_two_theta(model, candidate.center, candidate.index_1, arm, candidate.l2, calibration)
         candidate.index_0 = column
         if not np.isfinite(column):
             candidate.reject = "ring off the detector on this row"
@@ -394,7 +394,7 @@ def _extract_reflection(
     candidates: Dict[int, _Candidate] = {}
     groups: Dict[Tuple[int, int], List[int]] = {}
     for k, row in enumerate(rows_center):
-        predicted = _column_at_two_theta(model, target, row, arm, l2, calibration)
+        predicted = column_at_two_theta(model, target, row, arm, l2, calibration)
         if not np.isfinite(predicted):
             continue  # the ring does not cross this band
         candidate = _Candidate(
