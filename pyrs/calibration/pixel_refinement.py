@@ -16,7 +16,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.optimize._numdiff import approx_derivative  # the finite-difference Jacobian least_squares uses
 
-from pyrs.core.detector_model import DetectorModel, _from_shift, _to_shift
+from pyrs.core.detector_model import DetectorModel, from_shift, to_shift
 from pyrs.calibration.ring_points import RingPoints
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry
 
@@ -321,8 +321,8 @@ class PixelCalibration:
         """
         if l2 is None:
             l2 = float(np.median(self.ring_points.l2))
-        calibration = self._model.with_two_theta_0(_to_shift(self._calib), two_theta_0, l2)
-        self._calib[:7] = _from_shift(calibration)
+        calibration = self._model.with_two_theta_0(to_shift(self._calib), two_theta_0, l2)
+        self._calib[:7] = from_shift(calibration)
         self._caliberr[:7] = NOT_REFINED
         stage = StageResult(
             name="set_two_theta_0",
@@ -338,7 +338,7 @@ class PixelCalibration:
 
     def model_two_theta(self, params: Union[Sequence[float], np.ndarray]) -> np.ndarray:
         """2theta (degrees) of every ring point's pixel for calibration vector ``params``."""
-        calibration = _to_shift(params)
+        calibration = to_shift(params)
         two_theta = np.empty(len(self.ring_points))
         points = self.ring_points
         for index, arm_two_theta, l2 in self._groups:
@@ -593,8 +593,8 @@ class PixelCalibration:
             raise RuntimeError("nothing has been refined: refusing to write a calibration with Status -1")
         values, errors = self._calib, self._caliberr
         write_calibration_to_json(
-            _to_shift(values),
-            _to_shift(errors),
+            to_shift(values),
+            to_shift(errors),
             float(values[7]),
             float(errors[7]),
             int(self._status),
@@ -647,7 +647,7 @@ class PixelCalibration:
                 break
         else:
             if passes is None:
-                warnings.warn(f"iterate: not converged to {tolerance} after {max_passes} passes", stacklevel=2)
+                self._warn(f"iterate: not converged to {tolerance} after {max_passes} passes")
 
         if polish:
             self.FullCalibration()

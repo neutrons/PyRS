@@ -546,6 +546,7 @@ def test_iterate_not_converged_warns(hb2b, true_rings):
     calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
     with pytest.warns(UserWarning, match="not converged"):
         calibration.iterate(tolerance=1e-12, max_passes=2, polish=False)
+    assert "iterate: not converged to 1e-12 after 2 passes" in calibration.warning_log  # also logged for the GUI
 
 
 @pytest.mark.parametrize(
