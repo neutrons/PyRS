@@ -1,5 +1,5 @@
 from qtpy.QtWidgets import QHBoxLayout, QVBoxLayout, QLabel, QWidget  # type:ignore
-from qtpy.QtWidgets import QLineEdit, QPushButton, QComboBox  # type:ignore
+from qtpy.QtWidgets import QLineEdit, QPushButton, QComboBox, QCheckBox  # type:ignore
 from qtpy.QtWidgets import QGroupBox, QSplitter, QFileDialog  # type:ignore
 
 # from qtpy.QtWidgets import QStyledItemDelegate, QDoubleSpinBox  # type:ignore
@@ -14,6 +14,7 @@ from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities import get_nexus_file  # type: ignore
 from pyrs.interface.threading.worker_pool import WorkerPool
 from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
+from pyrs.interface.detector_calibration.detector_calibration_model import RING_GEOMETRIES, RING_GEOMETRY_FILE
 
 from matplotlib import rcParams
 
@@ -199,16 +200,60 @@ class DiffractionWindow(QWidget):
         self.sl.setTickInterval(1)
         panel_layout.addWidget(self.sl)
 
+        # predicted rings on the 2D view (#1039): Bragg angles of the sub-run's powder, drawn with
+        # the chosen geometry; display only
+        ring_layout = QHBoxLayout()
+        self.show_rings = QCheckBox("Predicted rings")
+        self.ring_geometry = QComboBox()
+        self.ring_geometry.addItems(list(RING_GEOMETRIES))
+        self._ring_file = None
+        self._ring_geometry_index = 0
+        ring_layout.addWidget(self.show_rings)
+        ring_layout.addWidget(QLabel("Geometry:"))
+        ring_layout.addWidget(self.ring_geometry)
+        ring_layout.addStretch()
+        panel_layout.addLayout(ring_layout)
+
         self.tabs.currentChanged.connect(self.valueChanged)
         self.sl.valueChanged.connect(self.valueChanged)
+        self.show_rings.stateChanged.connect(self.valueChanged)
+        self.ring_geometry.currentIndexChanged.connect(self.ring_geometry_changed)
+
+    def ring_geometry_changed(self):
+        """Ask for the calibration file when "From file..." is chosen; keep the previous choice if cancelled."""
+        if self.ring_geometry.currentText() == RING_GEOMETRY_FILE:
+            filename, _ = QFileDialog.getOpenFileName(
+                self,
+                "Calibration for the predicted rings",
+                "",
+                "json (*.json);;All Files (*)",
+                options=QFileDialog.DontUseNativeDialog,
+            )
+            if not filename:
+                self.ring_geometry.blockSignals(True)
+                self.ring_geometry.setCurrentIndex(self._ring_geometry_index)
+                self.ring_geometry.blockSignals(False)
+                return
+            self._ring_file = filename
+        self._ring_geometry_index = self.ring_geometry.currentIndex()
+        self.valueChanged()
 
     def valueChanged(self):
-        self._parent.controller.update_diff_view(
-            self._parent.compare_diff_data.tabs.currentWidget(),
-            self.tabs.currentIndex(),
-            self.sl.value(),
-            self._parent.peak_lines_setup.get_keep_list(),
-        )
+        ring_geometry = self.ring_geometry.currentText() if self.show_rings.isChecked() else None
+        try:
+            self._parent.controller.update_diff_view(
+                self._parent.compare_diff_data.tabs.currentWidget(),
+                self.tabs.currentIndex(),
+                self.sl.value(),
+                self._parent.peak_lines_setup.get_keep_list(),
+                ring_geometry=ring_geometry,
+                calibration_file=self._ring_file,
+            )
+        except (RuntimeError, ValueError, OSError) as ring_err:
+            self.show_rings.blockSignals(True)
+            self.show_rings.setChecked(False)
+            self.show_rings.blockSignals(False)
+            pop_message(self, "Cannot draw the predicted rings", str(ring_err), "error")
 
 
 class VisualizeResults(QWidget):

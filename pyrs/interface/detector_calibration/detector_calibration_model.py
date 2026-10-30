@@ -1,9 +1,19 @@
 import os
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 from qtpy.QtCore import Signal, QObject  # type:ignore
 from pyrs.calibration.mantid_peakfit_calibration import FitCalibration
+from pyrs.calibration.pixel_calibration_plots import PredictedRing, detector_two_theta_map, predicted_rings
+from pyrs.calibration.powder_standards import standard_for_sy
+from pyrs.core.instrument_geometry import DENEXDetectorShift
+from pyrs.utilities.calibration_file_io import read_calibration_json_file
+
+# geometries the 2D view can draw predicted rings for (#1039)
+RING_GEOMETRY_NOMINAL = "Nominal"
+RING_GEOMETRY_CURRENT = "Current calibration"
+RING_GEOMETRY_FILE = "From file..."
+RING_GEOMETRIES = (RING_GEOMETRY_NOMINAL, RING_GEOMETRY_CURRENT, RING_GEOMETRY_FILE)
 
 # detector mask applied by default; the calibration runs unmasked when the file is not available
 DEFAULT_MASK_FILE = "/HFIR/HB2B/shared/CALIBRATION/HB2B_Mask_Latest.xml"
@@ -161,6 +171,57 @@ class DetectorCalibrationModel(QObject):
     def get_fitted_diffraction_data(self, sub_run):
         if self._calibration_obj.fitted_ws is not None:
             return self._calibration_obj.fitted_ws[sub_run - 1]
+
+    def ring_overlay(
+        self, sub_run: int, geometry: str, calibration_file: Optional[str] = None
+    ) -> Optional[Tuple[np.ndarray, List[PredictedRing], Optional[np.ndarray]]]:
+        """Pixel 2theta map, predicted rings and detector mask for the 2D view's ring overlay.
+
+        The rings are the Bragg angles of the sub-run's powder standard (matched by ``sy``) at the
+        geometry's wavelength, mapped onto the detector with that geometry; nothing is fitted.
+
+        Args:
+            sub_run: Sub-run shown.
+            geometry: One of :data:`RING_GEOMETRIES`: the nominal geometry at the run's mono
+                wavelength, the calibration currently in the window, or ``calibration_file``.
+            calibration_file: Calibration JSON, for :data:`RING_GEOMETRY_FILE`.
+
+        Returns:
+            ``(two_theta_map, rings, mask)``, or None if no run is loaded or the sub-run's ``sy``
+            matches no powder standard.
+
+        Raises:
+            ValueError: On an unknown geometry, or :data:`RING_GEOMETRY_FILE` without a file.
+            RuntimeError: If the calibration file cannot be read.
+        """
+        if geometry not in RING_GEOMETRIES:
+            raise ValueError(f"geometry must be one of {RING_GEOMETRIES}, got {geometry!r}")
+        if self._calibration_obj is None:
+            return None
+        workspace = self._calibration_obj._hidra_ws
+
+        shift: Optional[DENEXDetectorShift]
+        if geometry == RING_GEOMETRY_NOMINAL:
+            shift, wavelength = None, float(workspace.get_wavelength(False, False))
+        elif geometry == RING_GEOMETRY_CURRENT:
+            values = np.asarray(self._calibration_obj.calibration_array, dtype=float)
+            shift, wavelength = DENEXDetectorShift(*values[:7]), float(values[7])
+        else:
+            if not calibration_file:
+                raise ValueError("choose a calibration file to draw its rings")
+            shift, _, file_wavelength, _, _ = read_calibration_json_file(calibration_file)
+            wavelength = float(file_wavelength)
+
+        standard = standard_for_sy(float(workspace.get_sample_log_value("sy", sub_run)))
+        if standard is None:
+            return None
+        two_theta = detector_two_theta_map(
+            workspace.get_instrument_setup(), workspace.get_detector_2theta(sub_run), workspace.get_l2(sub_run), shift
+        )
+        mask = workspace.get_detector_mask(True)
+        visible = two_theta if mask is None else two_theta.ravel()[np.asarray(mask).ravel() != 0]
+        rings = predicted_rings(standard, wavelength, (float(np.min(visible)), float(np.max(visible))))
+        return two_theta, rings, mask
 
     def get_2D_diffraction_counts(self, sub_run):
         if self._nexus_file is not None:

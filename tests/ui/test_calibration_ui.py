@@ -100,6 +100,27 @@ def test_detector_calibration(calibration_window, tmp_path):
     window.compare_diff_data.sl.setValue(1)
     qtbot.wait(wait)
 
+    # predicted rings on the 2D view (#1039): one contour level per ring, cleared when unticked
+    diffraction = window.compare_diff_data
+    detector_view = diffraction.tabs.widget(0)
+    assert detector_view._ring_overlay is None
+    diffraction.show_rings.setChecked(True)
+    qtbot.wait(plot_wait)
+    _, rings, _ = window._model.ring_overlay(1, "Nominal")
+    assert rings
+    assert len(detector_view._ring_overlay.levels) == len({ring.two_theta for ring in rings})
+    diffraction.ring_geometry.setCurrentText("Current calibration")
+    qtbot.wait(plot_wait)
+    assert detector_view._ring_overlay is not None
+    diffraction.sl.setValue(2)
+    qtbot.wait(plot_wait)
+    assert len(detector_view._myCanvas.axes.collections) == 1  # the previous sub-run's rings were removed
+    diffraction.show_rings.setChecked(False)
+    qtbot.wait(plot_wait)
+    assert detector_view._ring_overlay is None and not detector_view._myCanvas.axes.collections
+    diffraction.sl.setValue(1)
+    qtbot.wait(wait)
+
     window.compare_diff_data.tabs.setCurrentIndex(1)
     qtbot.wait(wait)
 

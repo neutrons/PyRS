@@ -11,6 +11,7 @@ from pyrs.calibration.pixel_calibration_plots import (
     plot_detector_counts,
     plot_ring_overlay,
     predicted_rings,
+    remove_ring_overlay,
 )
 from pyrs.calibration.powder_standards import HB2B_STANDARDS, REFLECTIONS
 from pyrs.core.detector_model import DetectorModel
@@ -154,3 +155,18 @@ def test_overlay_mask_wrong_size_raises(two_theta_map):
 def test_counts_not_square_raises():
     with pytest.raises(ValueError, match="square"):
         plot_detector_counts(Figure().add_subplot(), np.ones(10))
+
+
+def test_remove_ring_overlay_removes_contours_and_labels(two_theta_map):
+    # Arrange
+    ax = Figure().add_subplot()
+    rings = predicted_rings(NI, WAVELENGTH, (np.min(two_theta_map), np.max(two_theta_map)))
+    contours = plot_ring_overlay(ax, two_theta_map, rings)
+    assert ax.collections and ax.texts
+
+    # Act
+    remove_ring_overlay(contours)
+    remove_ring_overlay(None)
+
+    # Assert
+    assert not ax.collections and not ax.texts

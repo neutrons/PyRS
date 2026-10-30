@@ -38,6 +38,7 @@ from pyrs.core.detector_model import DetectorModel
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 
 __all__ = [
+    "remove_ring_overlay",
     "PredictedRing",
     "hkl_label",
     "predicted_rings",
@@ -201,5 +202,19 @@ def plot_ring_overlay(
             names[ring.two_theta] = (
                 f"{names[ring.two_theta]} / {ring.label}" if ring.two_theta in names else ring.label
             )
-        ax.clabel(contours, fmt=names, fontsize=8)
+        # one label per ring, at the middle of its longest segment (matplotlib's own choice can land
+        # on the detector edge, where the label is clipped)
+        positions = []
+        for segments in contours.allsegs:
+            segments = [segment for segment in segments if len(segment)]
+            if segments:
+                longest = max(segments, key=len)
+                positions.append(tuple(longest[len(longest) // 2]))
+        ax.clabel(contours, fmt=names, fontsize=8, manual=positions)
     return contours
+
+
+def remove_ring_overlay(contours: Optional[QuadContourSet]) -> None:
+    """Remove an overlay drawn by :func:`plot_ring_overlay`, labels included (None: nothing to do)."""
+    if contours is not None:
+        contours.remove()  # also removes the clabel texts (matplotlib >= 3.8)
