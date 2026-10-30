@@ -1698,3 +1698,25 @@ case the ring points are within 0.10 px of the true ring.
 *Aside (environment):* scripts that import `mantid.simpleapi` hung indefinitely in a background
 session with no reachable display. Mantid's import loads matplotlib's Qt backend, which waits on
 the display socket. `MPLBACKEND=Agg QT_QPA_PLATFORM=offscreen` avoids it.
+
+## The calibration's arbitrary 2θ₀ split is harmless on HB2B: the detector cannot move (2026-10-29)
+
+At one sample–detector distance (L2), the ring fit determines only the set Shift_x / Rot_y / 2θ₀,
+not each value (see the degeneracy entries above). Every member of that set gives the same pixel 2θ
+*at that L2*. At another L2 they differ. The #1019 scientific review measured a near-uniform 2θ
+change of 0.008° at 5 mm, 0.031° at 20 mm and 0.14° at 100 mm, and flagged that the calibration
+JSON does not record its L2.
+
+**Not an issue on HB2B (user, 2026-10-29): the detector is at a fixed location and cannot move.**
+The software is consistent with that:
+- No run logs an L2 (checked: HB2B_3489, 3510, 4971).
+- `HidraWorkspace.get_l2` therefore returns None, and both reduction
+  (`reduction_manager.py`, `build_instrument`) and the ring calibration use the instrument's
+  nominal arm length, 0.985 m.
+
+A calibration is therefore always applied at the distance it was made at, and the split has no
+effect on reduced data.
+
+**This would only change if** runs started carrying an `L2` log different from 0.985 m. The same
+detector would then be described at two distances, and the split would matter. If that happens,
+record L2 in the calibration file and check it in reduction.
