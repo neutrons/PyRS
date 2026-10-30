@@ -5,7 +5,7 @@ Synthetic ring points and synthetic detector images for testing the ring-based d
 calibration (:mod:`pyrs.calibration.pixel_pos_calibration`) without real data.
 """
 
-from typing import Optional, Sequence
+from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 from scipy.optimize import brentq
@@ -109,7 +109,7 @@ def concatenate_ring_points(*point_sets: RingPoints) -> RingPoints:
     """
     if not point_sets:
         raise ValueError("need at least one set of ring points")
-    fields = {name: [] for name in RingPoints.__dataclass_fields__}
+    fields: Dict[str, List[np.ndarray]] = {name: [] for name in RingPoints.__dataclass_fields__}
     offset = 0
     for points in point_sets:
         for name in fields:
