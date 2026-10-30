@@ -274,7 +274,7 @@ def main():
                 sigmas.append(calibration.calibration_error_array)
                 map_errors.append(np.abs(two_theta_maps(model, params) - true_maps).max())
                 dropped = params.copy()
-                dropped[6] = 0.0  # what reduction applies today: the reader drops TTH_0 (#1021)
+                dropped[6] = 0.0  # what reduction applied before #1031, when the reader dropped TTH_0 (#1021)
                 dropped_errors.append(np.abs(two_theta_maps(model, dropped) - true_maps).max())
                 times.append(seconds)
                 nfevs.append(stage.nfev)

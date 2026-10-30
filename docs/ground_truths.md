@@ -1900,3 +1900,65 @@ only). The **Geometry** for predicted rings now defaults to **Current calibratio
   does not change the extraction: the driver output is still bit-identical on HB2B_3489/3510/4971.
 - **Seen on HB2B_3489 sub-run 12:** Ni 311 has 4 picks and 1 outlier strip; Ni 222 has all 5 strips
   rejected as not significant (1.6–1.7σ).
+
+## PR #1046 review: fixes to the calibration GUI and Export (2026-10-30)
+
+A five-agent review of PR #1046 (code, tests, comments, silent failures, type design) found no
+problem in the physics. The forward model, refinement and extraction stand, and there are no
+Constitution issues. It found several ways a wrong or unconverged calibration could reach
+`HB2B_Latest.json`. All are fixed (user-approved):
+
+**What could go wrong, and what changed:**
+- **Loading a new run kept the previous run's ring-based result.** Export could write run A's
+  calibration under run B's monochromator, and the 2D marks showed A's points.
+  `DetectorCalibrationModel._reset_ring_state` now runs on every load.
+- **Calibrate errors were swallowed.** This was in production code on `next`:
+  `pyrs/interface/threading/worker_pool.py` called `traceback.print_exc(e)`, which treats the
+  exception as a line *limit* and raises `TypeError`. So neither `result` nor `finished` was ever
+  emitted: no message, buttons possibly left disabled, and a half-refined calibration still
+  exportable. The worker now prints the traceback, emits a new `error` signal (shown as a message
+  box) and always emits `finished`. A failing ring-based recipe is rolled back to its state before
+  the recipe (`PixelCalibration.checkpoint` / `restore`).
+- **Export now refuses** status -1 (not refined; FitCalibration had no check) and status 0 (a stage
+  stopped at max nfev before converging), each with its reason.
+  - A stage that stops at max nfev now warns ("stopped at max_nfev (n) before converging").
+  - The CLI summary prints a warning line for status 0. The CLI also catches `OSError` (e.g. an
+    unwritable `--output`) and exits with 1.
+- **A partial recipe no longer moves other parameters.** `estimate_errors()` re-fits every parameter
+  except 2θ₀, so after a recipe of just "wavelength" it would also have refined the geometry. After
+  recipes that don't end in a joint refinement ("iterate", "full"), errors now come from
+  `PixelCalibration.errors_at_current()`, which takes the Jacobian at the current values and moves
+  nothing. After a joint refinement the driver's `estimate_errors()` is kept, so the GUI's result is
+  still identical to the driver's.
+- **Export writes are atomic and ordered:**
+  - Every target is checked first: existing files must be writable, new ones need a writable folder.
+  - Each file is written to a temporary file, given the normal umask mode, then renamed into place.
+  - The order is the user's copy, then `<Si…>/HB2B_CAL_<time>.json`, then
+    `HB2B_Latest_<Si…>.json`, then `HB2B_Latest.json` last. A failure never leaves a truncated file,
+    and the production file is never newer than its archived copy.
+  - On failure the message lists what was already written.
+  - Archive names now include seconds (`%Y-%m-%dT%H:%M:%S`), so two exports in the same minute
+    don't overwrite each other.
+- **Controls are locked during Calibrate.** Method, Export and file loading are now locked with the
+  other buttons while the worker refines.
+- **Warnings are visible:**
+  - Bound and convergence warnings are read from `PixelCalibration.warning_log`, not captured with
+    `warnings.catch_warnings`, which is process-wide and not thread-safe in the worker thread.
+  - Extraction warnings, such as a sub-run skipped because its `sy` matches no powder, are named in
+    the status bar and shown in a message box.
+- **Δ2θ means the same for both methods:** the signed sum of residuals (observed − expected). The
+  ring-based field used to show a sum of squares.
+- **Error handling:**
+  - Only an error from the predicted-ring geometry now unticks "Predicted rings". Other 2D-view
+    errors are reported as such.
+  - Fit Peaks also catches table-parsing and missing-log errors.
+  - An old recipe that names "iterate" switches to Ring-based instead of crashing.
+- **`PixelCalibration`:**
+  - `set_calibration_array` resets errors and status, which described the old values.
+  - `set_refinement(method, max_nfev)` validates, replacing the GUI's writes to private attributes.
+
+**Verification:**
+- Driver output is bit-identical on HB2B_3489/3510/4971.
+- The GUI ring-based result still equals the driver's, now compared against the real
+  `run_calibration`.
+- New tests cover each fix, and the worker tests fail on the old worker.

@@ -12,7 +12,7 @@ Typical use, for one sub-run:
 2. :func:`predicted_rings` for the sub-run's powder and wavelength, within the map's 2theta range;
 3. :func:`plot_detector_counts` and :func:`plot_ring_overlay` on one matplotlib axes.
 
-Both plotting functions place pixel ``(index_0, index_1)`` at ``(index_0 + 0.5, index_1 + 0.5)``,
+The plotting functions place pixel ``(index_0, index_1)`` at ``(index_0 + 0.5, index_1 + 0.5)``,
 which is where the calibration GUI's detector view (``DetectorView.plot_detector_view``) draws it,
 so an overlay lines up with that view as well as with :func:`plot_detector_counts`.
 

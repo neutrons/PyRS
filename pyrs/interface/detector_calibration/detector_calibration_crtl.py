@@ -1,6 +1,10 @@
 import numpy as np
 from pyrs.interface.ui.mplconstants import MplBasicColors
-from pyrs.interface.detector_calibration.detector_calibration_model import DEFAULT_STRIPS, METHOD_RING
+from pyrs.interface.detector_calibration.detector_calibration_model import (
+    DEFAULT_STRIPS,
+    METHOD_RING,
+    RingOverlayError,
+)
 
 
 class DetectorCalibrationCrtl:
@@ -101,7 +105,13 @@ class DetectorCalibrationCrtl:
             counts_matrix = self._model.get_2D_diffraction_counts(sub_run)
             if counts_matrix is not None:
                 _ax.plot_detector_view(counts_matrix, (sub_run, None))
-                overlay = self._model.ring_overlay(sub_run, ring_geometry, calibration_file) if ring_geometry else None
+                try:
+                    overlay = (
+                        self._model.ring_overlay(sub_run, ring_geometry, calibration_file) if ring_geometry else None
+                    )
+                except (RuntimeError, ValueError, OSError, KeyError) as ring_err:
+                    _ax.set_ring_overlay()
+                    raise RingOverlayError(str(ring_err)) from ring_err
                 if overlay is None:
                     _ax.set_ring_overlay()
                 else:

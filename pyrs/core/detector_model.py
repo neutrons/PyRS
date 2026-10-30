@@ -11,6 +11,8 @@ see docs/ground_truths.md. Used by the ring-based calibration
 
 from typing import Optional, Sequence, Union
 
+from numpy.typing import ArrayLike
+
 import numpy as np
 
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
@@ -84,7 +86,7 @@ class DetectorModel:
     def _rotation_y(self, angle_rad: float) -> np.ndarray:
         return self._instrument._cal_rotation_matrix_y(angle_rad)
 
-    def local_positions(self, index_0, index_1) -> np.ndarray:
+    def local_positions(self, index_0: ArrayLike, index_1: ArrayLike) -> np.ndarray:
         """Uncalibrated pixel positions in the detector plane (Z = 0), in metres.
 
         Args:
@@ -106,8 +108,8 @@ class DetectorModel:
 
     def lab_positions(
         self,
-        index_0,
-        index_1,
+        index_0: ArrayLike,
+        index_1: ArrayLike,
         two_theta: float,
         l2: Optional[float],
         calibration: Optional[DENEXDetectorShift],
@@ -158,7 +160,12 @@ class DetectorModel:
         return positions.reshape(shape)
 
     def two_theta(
-        self, index_0, index_1, two_theta: float, l2: Optional[float], calibration: Optional[DENEXDetectorShift]
+        self,
+        index_0: ArrayLike,
+        index_1: ArrayLike,
+        two_theta: float,
+        l2: Optional[float],
+        calibration: Optional[DENEXDetectorShift],
     ) -> np.ndarray:
         """Scattering angle 2theta (degrees) of the given pixels; arguments as :meth:`lab_positions`."""
         positions = self.lab_positions(index_0, index_1, two_theta, l2, calibration)
@@ -166,7 +173,12 @@ class DetectorModel:
         return np.arccos(positions[..., 2] / norm) * 180 / np.pi
 
     def eta(
-        self, index_0, index_1, two_theta: float, l2: Optional[float], calibration: Optional[DENEXDetectorShift]
+        self,
+        index_0: ArrayLike,
+        index_1: ArrayLike,
+        two_theta: float,
+        l2: Optional[float],
+        calibration: Optional[DENEXDetectorShift],
     ) -> np.ndarray:
         """Azimuthal angle eta (degrees, in (-180, 180]); arguments as :meth:`lab_positions`."""
         positions = self.lab_positions(index_0, index_1, two_theta, l2, calibration)
@@ -174,7 +186,11 @@ class DetectorModel:
         return np.where(eta > 180.0, eta - 360, eta)
 
     def centre_position(self, calibration: Optional[DENEXDetectorShift], l2: float) -> np.ndarray:
-        """Lab position (m) of the detector centre at arm angle 0 (the arm rotation is common to every split)."""
+        """Lab position (m) of the detector centre at arm angle 0.
+
+        Arm angle 0, because the arm rotation is the same for every equivalent 2theta_0 description of
+        the detector, so it drops out when two descriptions are compared.
+        """
         num_rows, num_columns = self.instrument_setup.detector_size
         return self.lab_positions((num_columns - 1) / 2, (num_rows - 1) / 2, 0.0, l2, calibration)
 
@@ -200,7 +216,8 @@ class DetectorModel:
 
         Raises:
             TypeError: If ``calibration`` is not a DENEXDetectorShift.
-            ValueError: If the new rotation is at the Rx/Ry/Rz gimbal singularity (|Rot_y| = 90 deg).
+            ValueError: If the new rotation is within 1 deg of the Rx/Ry/Rz gimbal singularity
+                (|Rot_y| = 90 deg), where the Rot_x/Rot_z split is ill-defined.
         """
         if not isinstance(calibration, DENEXDetectorShift):
             raise TypeError(f"calibration must be a DENEXDetectorShift, got {type(calibration).__name__}")
@@ -223,7 +240,7 @@ class DetectorModel:
         columns = []
         for k in range(3):
             moved = new.copy()
-            moved[k] += _SHIFT_STEP_M  # any step is exact here: the centre is affine in the shifts
+            moved[k] += _SHIFT_STEP_M
             columns.append((self.centre_position(_to_shift(moved), l2) - base) / _SHIFT_STEP_M)
         new[:3] += np.linalg.solve(np.array(columns).T, target - base)
 

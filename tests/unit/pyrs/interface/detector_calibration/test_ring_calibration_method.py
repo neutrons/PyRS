@@ -5,13 +5,13 @@ settings, and Export writes the user's folder plus, with the shared flag, HB2B_L
 HB2B_Latest_<Si...>.json and <Si...>/HB2B_CAL_<time>.json.
 """
 
+import json
 import os
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
-from pyrs.calibration.pixel_pos_calibration import PixelCalibration, extract_ring_points
 from pyrs.core import MonoSetting  # type: ignore
 from pyrs.interface.detector_calibration import detector_calibration_model as model_module
 from pyrs.interface.detector_calibration.detector_calibration_crtl import DetectorCalibrationCrtl
@@ -62,20 +62,41 @@ def refined(workspace):
     return gui_model, result
 
 
-def test_ring_path_equals_the_driver(workspace, refined):
-    # Arrange - the driver's steps (scripts/pyrs_pixel_calibration.py: run_calibration)
-    points = extract_ring_points(workspace, MONO_WAVELENGTH, strips=5)
-    driver = PixelCalibration(points, workspace.get_instrument_setup(), wavelength=MONO_WAVELENGTH)
-    driver.iterate(passes=3, polish=True)
-    driver.estimate_errors()
+def _driver():
+    import importlib.util
+    from pathlib import Path
+
+    spec = importlib.util.spec_from_file_location(
+        "pyrs_pixel_calibration", Path(__file__).resolve().parents[5] / "scripts" / "pyrs_pixel_calibration.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_ring_path_equals_the_driver(workspace, refined, tmp_path, monkeypatch):
+    # Arrange - the real driver, with the NeXus conversion replaced by the synthetic run
+    class _Converter:
+        def __init__(self, nexus_file, mask_file=None):
+            pass
+
+        def convert(self):
+            return workspace
+
+    monkeypatch.setattr("pyrs.core.nexus_conversion.NeXusConvertingApp", _Converter)
+    nexus = tmp_path / "HB2B_0001.nxs.h5"
+    nexus.write_bytes(b"")
+    driver_file = tmp_path / "driver.json"
+    driver = _driver().run_calibration(str(nexus), str(driver_file), mask_file=None)
 
     # Act
     gui_model, (values, errors, r_sum, rmse) = refined
+    (gui_file,) = gui_model.export_calibration(str(tmp_path), write_shared=False)
 
-    # Assert - bit for bit
+    # Assert - bit for bit, file and arrays
     np.testing.assert_array_equal(values[-1], driver.calibration_array)
     np.testing.assert_array_equal(errors[-1], driver.calibration_error_array)
-    np.testing.assert_array_equal(gui_model.current_calibration_array, driver.calibration_array)
+    assert json.load(open(gui_file)) == json.load(open(driver_file))
     assert rmse == driver.stages[-1].rmse and errors[-1][6] == -1.0
 
 
@@ -204,6 +225,10 @@ def test_export_without_shared_flag_writes_only_folder(refined, tmp_path, shared
     assert not os.listdir(shared)
 
 
+needs_permissions = pytest.mark.skipif(os.geteuid() == 0, reason="root can write read-only files")
+
+
+@needs_permissions
 def test_export_shared_not_writable_still_writes_folder(refined, tmp_path, shared):
     # Arrange
     gui_model, _ = refined
@@ -254,9 +279,11 @@ def test_controller_fit_peaks_dispatches_by_method(workspace):
     # Act
     rmse, r_sum = controller.fit_diffraction_peaks(np.ones(11, dtype=bool), strips=3)
 
-    # Assert - ring extraction ran; its residual at the starting geometry is returned
-    assert gui_model._ring_calibration is not None
-    assert rmse == pytest.approx(np.sqrt(r_sum / len(gui_model._ring_calibration.ring_points)))
+    # Assert - ring extraction ran; RMS and signed sum of its residuals at the starting geometry
+    calibration = gui_model._ring_calibration
+    residual = calibration.residual(calibration.calibration_array)
+    assert rmse == pytest.approx(np.sqrt(np.mean(residual**2)))
+    assert r_sum == pytest.approx(np.sum(residual))
 
 
 # ---------------------------------------------------------------- picked ring points and rejected strips
@@ -317,3 +344,160 @@ def test_ring_point_marks_need_the_ring_method(workspace):
 def test_current_geometry_before_ring_extraction_is_the_start(workspace):
     # The default "Current calibration" geometry is usable before Fit Peaks: the window's start values
     np.testing.assert_array_equal(_model(workspace).current_calibration_array, np.r_[np.zeros(7), MONO_WAVELENGTH])
+
+
+# ---------------------------------------------------------------- review fixes (PR #1046)
+
+
+def _stand_in(workspace, status=1):
+    return SimpleNamespace(
+        _hidra_ws=workspace,
+        monosetting=MonoSetting.Si422,
+        calibration_array=TRUE_PARAMS.copy(),
+        calibration_error_array=np.full(8, 1e-4),
+        _calibstatus=status,
+        set_keep_subrun_list=lambda keep: None,
+    )
+
+
+def test_new_run_clears_ring_state(workspace, monkeypatch, tmp_path):
+    # Arrange - a ring-based result from run A, then load run B
+    gui_model = _model(workspace)
+    gui_model.extract_rings(3)
+    gui_model.calibrate_detector(["iterate"])
+    monkeypatch.setattr(model_module, "FitCalibration", lambda **kwargs: _stand_in(workspace))
+
+    # Act
+    gui_model._init_calibration("run_B.nxs.h5")
+
+    # Assert - nothing of run A can be drawn, refined further or exported
+    assert not gui_model.has_ring_points and gui_model.ring_point_marks(1) is None
+    assert gui_model.ring_summary == "" and gui_model.calibration_warnings == []
+    with pytest.raises(RuntimeError, match="nothing has been refined"):
+        gui_model.export_calibration(str(tmp_path), write_shared=False)
+    with pytest.raises(RuntimeError, match="extract the rings first"):
+        gui_model.calibrate_detector(["iterate"])
+
+
+@pytest.mark.parametrize("status, match", [(-1, "has not been refined"), (0, "before converging")])
+def test_export_refuses_unrefined_or_unconverged(workspace, tmp_path, status, match):
+    gui_model = _model(workspace, METHOD_FITCALIBRATION)
+    gui_model._calibration_obj = _stand_in(workspace, status)
+    with pytest.raises(RuntimeError, match=match):
+        gui_model.export_calibration(str(tmp_path), write_shared=False)
+    assert not os.listdir(tmp_path)
+
+
+def test_unconverged_ring_result_warns_and_cannot_export(workspace, tmp_path):
+    # Arrange - max nfev 1: every stage stops early
+    gui_model = _model(workspace)
+    gui_model.extract_rings(3)
+    gui_model.set_refinement_params("trf", 1)
+
+    # Act
+    gui_model.calibrate_detector(["shifts"])
+
+    # Assert
+    assert any("before converging" in w for w in gui_model.calibration_warnings)
+    with pytest.raises(RuntimeError, match="status 0"):
+        gui_model.export_calibration(str(tmp_path), write_shared=False)
+
+
+def test_partial_recipe_moves_only_its_parameters(workspace):
+    # Arrange
+    gui_model = _model(workspace)
+    gui_model.extract_rings(3)
+    start = gui_model.current_calibration_array
+
+    # Act - only the wavelength is refined; the errors must not re-fit the geometry
+    values, errors, _, _ = gui_model.calibrate_detector(["wavelength"])
+
+    # Assert
+    np.testing.assert_array_equal(values[-1][:7], start[:7])
+    assert values[-1][7] != start[7]
+    assert errors[-1][6] == -1.0 and np.all(errors[-1][[0, 1, 2, 3, 4, 5, 7]] > 0)
+
+
+def test_failed_stage_restores_the_calibration(workspace):
+    # Arrange - Shift_z 0.1 m: inside CalibrateShift's +/-0.15, outside CalibrateGeometry's +/-0.05
+    gui_model = _model(workspace)
+    start = np.r_[0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, MONO_WAVELENGTH]
+    gui_model.set_calibration_params(start)
+    gui_model.extract_rings(3)
+    n_stages, n_history = len(gui_model._ring_calibration.stages), len(gui_model._ring_history)
+
+    # Act - the wavelength stage runs, then the geometry stage refuses its start
+    with pytest.raises(ValueError, match="starting value outside bounds"):
+        gui_model.calibrate_detector(["wavelength", "geometry"])
+
+    # Assert - back to before the recipe
+    np.testing.assert_array_equal(gui_model.current_calibration_array, start)
+    assert len(gui_model._ring_calibration.stages) == n_stages and len(gui_model._ring_history) == n_history
+
+
+def test_export_writes_archive_before_latest_atomically(refined, tmp_path, shared):
+    # Arrange
+    gui_model, _ = refined
+    user = tmp_path / "mine"
+    user.mkdir()
+    umask = os.umask(0)
+    os.umask(umask)
+
+    # Act
+    written = gui_model.export_calibration(str(user), write_shared=True)
+
+    # Assert - user copy, archive, per-monochromator, and HB2B_Latest.json last; no temporary files left
+    assert [os.path.relpath(p, tmp_path).split("/HB2B_CAL_")[0] for p in written] == [
+        "mine",
+        "shared/CALIBRATION/Si422",
+        "shared/CALIBRATION/HB2B_Latest_Si422.json",
+        "shared/CALIBRATION/HB2B_Latest.json",
+    ]
+    for folder in (user, shared, shared / "Si422"):
+        assert not [name for name in os.listdir(folder) if name.startswith(".")]
+    assert all(os.stat(p).st_mode & 0o777 == 0o666 & ~umask for p in written)
+
+
+@needs_permissions
+def test_export_read_only_latest_writes_no_shared_copy(refined, tmp_path, shared):
+    # Arrange - someone else's HB2B_Latest.json
+    gui_model, _ = refined
+    user = tmp_path / "mine"
+    user.mkdir()
+    latest = shared / "HB2B_Latest.json"
+    latest.write_text("{}")
+    latest.chmod(0o444)
+
+    # Act / Assert - refused before any shared file is written; the user copy is written
+    try:
+        with pytest.raises(PermissionError, match="HB2B_Latest.json"):
+            gui_model.export_calibration(str(user), write_shared=True)
+        assert len(os.listdir(user)) == 1
+        assert sorted(os.listdir(shared)) == ["HB2B_Latest.json"] and latest.read_text() == "{}"
+    finally:
+        latest.chmod(0o644)
+
+
+def test_skipped_sub_runs_are_reported(workspace):
+    # Arrange - sub-run 2 moved to an sy with no powder
+    sy = np.array(workspace.get_sample_log_values("sy"), dtype=float)
+    sub_runs = np.arange(1, sy.size + 1)
+    workspace.set_sample_log("sy", sub_runs, np.r_[sy[0], 40.0, sy[2:]])
+    gui_model = _model(workspace)
+
+    # Act
+    try:
+        gui_model.extract_rings(3)
+    finally:
+        workspace.set_sample_log("sy", sub_runs, sy)
+
+    # Assert
+    assert any("sub-run 2" in w for w in gui_model.extraction_warnings)
+    assert "1 warning(s)" in gui_model.ring_summary
+
+
+def test_keep_list_length_must_match(workspace):
+    gui_model = _model(workspace)
+    gui_model.set_keep_subrun_list([True, False])
+    with pytest.raises(ValueError, match="keep flags"):
+        gui_model.extract_rings(3)

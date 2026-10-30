@@ -99,6 +99,8 @@ def _summary(calibration) -> str:
         else:
             error_text = f"+/- {error * scale:.4g}"
         lines.append(f"  {name:8s} {value * scale:12.5f} {unit:3s} {error_text}")
+    if calibration.calibration_status == 0:
+        lines.append("WARNING: the last stage stopped at max_nfev before converging (Status 0)")
     return "\n".join(lines)
 
 
@@ -145,7 +147,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             ring_points_file=args.ring_points,
             sub_runs=args.sub_runs,
         )
-    except (FileNotFoundError, ValueError, RuntimeError) as error:
+    except (OSError, ValueError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(_summary(calibration))

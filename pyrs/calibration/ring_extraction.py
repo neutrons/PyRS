@@ -474,7 +474,7 @@ def extract_ring_points(
     column on the band's centre row *with the same geometry*, which makes the ring point nearly
     independent of how good ``calibration`` is. The fitted point must also lie ``side_margin``
     pixels inside the edges. Failed or imprecise fits are dropped, and one pass of outlier rejection per
-    ring removes points far from a smooth ring.
+    ring removes points far from a smooth ring (rings with fewer than 4 points are not checked).
 
     Args:
         workspace: HidraWorkspace with raw counts and the ``2theta``, ``sy`` (and optionally
@@ -489,8 +489,9 @@ def extract_ring_points(
         side_margin: Minimum distance (pixels) of a ring point from the left/right edges, both as
             predicted and as fitted.
         bin_width: Histogram bin width (deg).
-        fit_half_width: Half-width (deg) of the fit window around each expected reflection.
-        min_window_side: Minimum data (deg) on each side of the expected peak in a clipped window,
+        fit_half_width: Half-width (deg) of the fit window around each reflection's 2theta as located
+            by the all-strips fit (or its Bragg angle if that fit found nothing).
+        min_window_side: Minimum data (deg) on each side of that 2theta in a clipped window,
             so the background is still constrained next to the detector edge.
         peak_function: Peak shape for the fit.
         background_function: Background for the fit.

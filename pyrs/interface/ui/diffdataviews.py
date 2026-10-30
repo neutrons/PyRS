@@ -4,7 +4,12 @@ import numpy as np
 from .mplfitplottingwidget import MplFitPlottingWidget
 from qtpy.QtGui import QCursor  # type: ignore
 from qtpy.QtWidgets import QToolTip  # type: ignore
+from typing import Optional, Sequence
+
+from matplotlib.backend_bases import MouseEvent
 from pyrs.calibration.pixel_calibration_plots import (
+    PointMarks,
+    PredictedRing,
     marker_at,
     plot_ring_overlay,
     plot_ring_points,
@@ -31,7 +36,12 @@ class DetectorView(MplGraphicsView2D):
 
         return
 
-    def set_ring_overlay(self, two_theta_map=None, rings=(), mask=None):
+    def set_ring_overlay(
+        self,
+        two_theta_map: Optional[np.ndarray] = None,
+        rings: Sequence[PredictedRing] = (),
+        mask: Optional[np.ndarray] = None,
+    ) -> None:
         """Draw predicted rings over the detector image, replacing any drawn before.
 
         Called with no arguments it only removes them. ``two_theta_map``, ``rings`` and ``mask`` are
@@ -46,7 +56,7 @@ class DetectorView(MplGraphicsView2D):
             self._ring_overlay = plot_ring_overlay(self._myCanvas.axes, two_theta_map, rings, mask=mask)
         self._myCanvas.draw_idle()
 
-    def set_ring_points(self, accepted=None, rejected=None):
+    def set_ring_points(self, accepted: Optional[PointMarks] = None, rejected: Optional[PointMarks] = None) -> None:
         """Mark picked ring points and rejected strips, replacing any drawn before; no arguments clears them.
 
         ``accepted`` and ``rejected`` are :class:`pyrs.calibration.pixel_calibration_plots.PointMarks`;
@@ -57,11 +67,11 @@ class DetectorView(MplGraphicsView2D):
         self._point_artists = plot_ring_points(self._myCanvas.axes, accepted, rejected)
         self._myCanvas.draw_idle()
 
-    def mark_text_at(self, x_display, y_display):
+    def mark_text_at(self, x_display: float, y_display: float) -> Optional[str]:
         """Description of the mark under a display position, or None."""
         return marker_at(self._myCanvas.axes, self._point_marks, x_display, y_display)
 
-    def _show_mark_tooltip(self, event):
+    def _show_mark_tooltip(self, event: MouseEvent) -> None:
         text = self.mark_text_at(event.x, event.y) if event.inaxes is self._myCanvas.axes else None
         if text is None:
             QToolTip.hideText()

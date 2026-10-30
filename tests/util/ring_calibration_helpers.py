@@ -104,8 +104,9 @@ def synthetic_ring_points(
 def concatenate_ring_points(*point_sets: RingPoints) -> RingPoints:
     """Join ring points of several runs, renumbering sub-runs so they stay distinct across runs.
 
-    ``PixelCalibration`` groups points by sub-run, so two runs that both start at sub-run 1 must not
-    share numbers (e.g. one scan at two sample-detector distances).
+    ``PixelCalibration`` groups points by their own arm angle and L2, so repeated sub-run numbers are
+    safe; renumbering keeps the runs apart in diagnostics and plots (e.g. one scan at two
+    sample-detector distances).
     """
     if not point_sets:
         raise ValueError("need at least one set of ring points")
