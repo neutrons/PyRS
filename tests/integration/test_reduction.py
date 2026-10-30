@@ -1,4 +1,6 @@
+import json
 import os
+from pathlib import Path
 from mantid.simpleapi import LoadEventNexus
 from pyrs.core.nexus_conversion import NeXusConvertingApp, DEFAULT_KEEP_LOGS
 from pyrs.core.powder_pattern import ReductionApp
@@ -8,6 +10,8 @@ from pyrs.core.workspaces import HidraWorkspace
 
 import numpy as np
 import pytest
+
+pytestmark = pytest.mark.integration
 
 DIAGNOSTIC_PLOTS = False
 
@@ -146,7 +150,6 @@ def test_nexus_to_project(nexusfile, projectfile):
     # verify sub run duration
     sub_runs = test_hidra_ws.get_sub_runs()
     durations = test_hidra_ws.get_sample_log_values(HidraConstants.SUB_RUN_DURATION, sub_runs=sub_runs)
-    # plt.plot(sub_runs, durations)
 
     if projectfile == "HB2B_439.h5":
         np.testing.assert_equal(sub_runs, [1, 2, 3, 4])
@@ -155,11 +158,6 @@ def test_nexus_to_project(nexusfile, projectfile):
 
     # extract the powder patterns and add them to the project file
     addPowderToProject(projectfile)
-
-    # cleanup    os.remove(projectfile)
-
-
-# [('/HFIR/HB2B/IPTS-22331/nexus/HB2B_1431.nxs.h5', 'HB2B_1431.h5')],
 
 
 @pytest.mark.parametrize(
@@ -208,7 +206,6 @@ def test_exclude_subruns(nexusfile, projectfile):
 
     # cleanup
     reduced_project.close()
-    os.remove(projectfile)
 
 
 @pytest.mark.parametrize(
@@ -256,14 +253,13 @@ def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
     # Test reduction to diffraction pattern
     reducer = ReductionApp()
     reducer.load_hidra_workspace(hidra_ws)
-    reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None)
+    reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None, num_bins=1000)
 
     # check ranges and total counts
     for sub_run, angle, total_counts in zip(SUBRUNS, CENTERS, histogram_counts):
         assert_label = "mismatch in subrun={} for histogrammed data".format(sub_run)
         x, y, e = reducer.get_diffraction_data(sub_run)
         assert x[0] < angle < x[-1], assert_label
-        # assert np.isnan(np.sum(y[1:])), assert_label
         np.testing.assert_almost_equal(np.nansum(y), total_counts, decimal=1, err_msg=assert_label)
 
 
@@ -275,7 +271,12 @@ def test_reduce_data(mask_file_name, filtered_counts, histogram_counts):
     ],
     ids=("HB2B_1017_Masked", "HB2B_1017_NoMask"),
 )
-def test_reduce_method_data(mask_file_name, filtered_counts, histogram_counts):
+def test_reduce_method_data_valid_nexus_writes_diffraction_files(
+    mask_file_name: str | None,
+    filtered_counts: tuple[int, int, int],
+    histogram_counts: tuple[float, float, float],
+    tmp_path: Path,
+) -> None:
     """Verify NeXus converters including counts and sample log values"""
     SUBRUNS = (1, 2, 3)
     CENTERS = (69.99525, 80.0, 97.50225)
@@ -327,29 +328,34 @@ def test_reduce_method_data(mask_file_name, filtered_counts, histogram_counts):
     # Test reduction to diffraction pattern
     reducer = ReductionApp()
     reducer.load_hidra_workspace(hidra_ws)
-    reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None)
+    reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None, num_bins=1000)
 
     live_reducer = ReductionApp()
     live_reducer.load_hidra_workspace(hidra_live_ws)
-    live_reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None)
+    live_reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=None, mask=None, num_bins=1000)
 
     # check ranges and total counts
-    for sub_run, angle, total_counts in zip(SUBRUNS, CENTERS, histogram_counts):
+    for sub_run, angle, total_intensity in zip(SUBRUNS, CENTERS, histogram_counts):
         assert_label = "mismatch in subrun={} for histogrammed data".format(sub_run)
         x, y, e = reducer.get_diffraction_data(sub_run)
         assert x[0] < angle < x[-1], assert_label
         # assert np.isnan(np.sum(y[1:])), assert_label
-        np.testing.assert_almost_equal(np.nansum(y), total_counts, decimal=1, err_msg=assert_label)
+        np.testing.assert_almost_equal(np.nansum(y), total_intensity, decimal=1, err_msg=assert_label)
 
     # check ranges and total counts
-    for sub_run, angle, total_counts in zip(SUBRUNS, CENTERS, histogram_counts):
+    for sub_run, angle, total_intensity in zip(SUBRUNS, CENTERS, histogram_counts):
         assert_label = "mismatch in subrun={} for histogrammed data".format(sub_run)
         x, y, e = live_reducer.get_diffraction_data(sub_run)
         assert x[0] < angle < x[-1], assert_label
         # assert np.isnan(np.sum(y[1:])), assert_label
-        np.testing.assert_almost_equal(np.nansum(y), total_counts, decimal=1, err_msg=assert_label)
-    reducer.save_diffraction_data("testing.h5")
-    live_reducer.save_diffraction_data("testing2.h5")
+        np.testing.assert_almost_equal(np.nansum(y), total_intensity, decimal=1, err_msg=assert_label)
+    testing_file = tmp_path / "testing.h5"
+    reducer.save_diffraction_data(str(testing_file))
+    assert testing_file.exists(), "reducer.save_diffraction_data did not write a file"
+
+    testing2_file = tmp_path / "testing2.h5"
+    live_reducer.save_diffraction_data(str(testing2_file))
+    assert testing2_file.exists(), "live_reducer.save_diffraction_data did not write a file"
 
 
 def test_split_log_time_average():
@@ -401,9 +407,6 @@ def test_apply_vanadium(project_file, van_project_file, target_project_file):
         sub_runs=None, instrument_file=None, calibration_file=None, mask=None, van_file=van_project_file, num_bins=950
     )
     reducer.save_diffraction_data(target_project_file)
-
-    # plot for proof
-    # reducer.plot_reduced_data()
 
 
 def test_apply_mantid_mask():
@@ -496,6 +499,28 @@ def test_reduce_with_calibration():
     finally:
         if os.path.exists(project):
             os.remove(project)
+
+
+def test_reduce_data_with_unconverged_calibration_status_raises(tmp_path):
+    """Test that a calibration JSON with a negative Status (never successfully refined) is rejected
+
+    Regression test: ReductionApp.reduce_data() previously ignored the calibration's
+    Status field entirely and applied the shift/wavelength from an unconverged (or
+    never-refined) calibration exactly like a valid one.
+    """
+    # Arrange - a known-good calibration, corrupted to carry the "never refined" sentinel status
+    with open("tests/data/HB2B_CAL_Si333.json") as f:
+        calib_dict = json.load(f)
+    calib_dict["Status"] = -1
+    bad_calibration_file = tmp_path / "HB2B_CAL_unconverged.json"
+    bad_calibration_file.write_text(json.dumps(calib_dict))
+
+    reducer = ReductionApp()
+    reducer.load_project_file("tests/data/HB2B_1017.h5")
+
+    # Act / Assert
+    with pytest.raises(RuntimeError, match="never successfully refined"):
+        reducer.reduce_data(sub_runs=None, instrument_file=None, calibration_file=str(bad_calibration_file), mask=None)
 
 
 if __name__ == "__main__":

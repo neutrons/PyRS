@@ -1,9 +1,11 @@
 # This is rs_scan_io.DiffractionFile's 2.0 version
 from enum import Enum
 import h5py
+import hashlib
 from mantid.kernel import Logger
 import numpy
 from pathlib import Path
+from pyrs import __version__
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float, to_int
 from pyrs.utilities.file_util import to_filepath
@@ -14,6 +16,23 @@ from pyrs.projectfile import HidraProjectFileMode  # type: ignore
 from typing import Union
 
 __all__ = ["HidraProjectFile"]
+
+
+def _compute_file_sha256(file_path):
+    """Compute the SHA-256 hex digest of a file's contents
+
+    :param str file_path: path to the file to hash
+    :return: hex digest, or None if the file cannot be read (e.g. it no longer exists)
+    :rtype: str or None
+    """
+    try:
+        hasher = hashlib.sha256()
+        with open(file_path, "rb") as handle:
+            for chunk in iter(lambda: handle.read(65536), b""):
+                hasher.update(chunk)
+        return hasher.hexdigest()
+    except OSError:
+        return None
 
 
 class DiffractionUnit(Enum):
@@ -32,11 +51,14 @@ class HidraProjectFile:
     All the import/export information will be buffered in order to avoid exception during operation
 
     File structure:
+
     - experiment
         - scans (raw counts)
         - logs
+
     - instrument
         - calibration
+
     - reduced diffraction data
         - main
           - sub-run
@@ -76,6 +98,18 @@ class HidraProjectFile:
         self._project_h5 = h5py.File(self._file_name, mode=str(self._io_mode))
         if self._io_mode == HidraProjectFileMode.OVERWRITE:
             self._init_project()
+
+    ######################################
+    ## Context-manager support methods: ##
+    ######################################
+    def __enter__(self) -> "HidraProjectFile":
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+        return False  # do not suppress exceptions
+
+    ######################################
 
     def _checkFileAccess(self):
         """Verify the file has the correct acces permissions and set the value of ``self._is_writable``"""
@@ -204,6 +238,7 @@ class HidraProjectFile:
                     log_name, log_value_array, type(log_value_array), type_err
                 )
             )
+
         if units:
             data_set.attrs["units"] = units
 
@@ -384,14 +419,31 @@ class HidraProjectFile:
             1D vector for unified 2theta vector for all sub runs
             2D array for possibly various 2theta vector for each
 
+        Raises
+        ------
+        KeyError
+            If this project file's "REDUCED_DATA" group is empty -- a legitimate,
+            common case (no reduction step was ever run/saved; the group itself is
+            always created up front, regardless of whether reduction ever happens).
+        RuntimeError
+            If "REDUCED_DATA" is non-empty (e.g. has intensity datasets) but has no
+            "TWO_THETA" coordinate dataset -- the file was written with an older,
+            unsupported schema (e.g. a legacy capitalized "2Theta" key) and must be
+            re-reduced/migrated.
         """
-        if HidraConstants.TWO_THETA not in self._project_h5[HidraConstants.REDUCED_DATA]:
-            # FIXME - This is a patch for 'legacy' data.  It will be removed after codes are stable
-            tth_key = "2Theta"
-        else:
-            tth_key = HidraConstants.TWO_THETA
-
-        two_theta_vec = self._project_h5[HidraConstants.REDUCED_DATA][tth_key][()]
+        try:
+            two_theta_vec = self._project_h5[HidraConstants.REDUCED_DATA][HidraConstants.TWO_THETA][()]
+        except KeyError as key_err:
+            if len(self._project_h5[HidraConstants.REDUCED_DATA].keys()) == 0:
+                # REDUCED_DATA group exists (always created up front) but is empty:
+                # legitimately no reduced data has ever been written to this file.
+                raise
+            err_msg = (
+                'Project file {} has a non-empty "{}" entry but no "{}" coordinate dataset within it. '
+                "Its format is not up-to-date and must be re-reduced before it can be read "
+                "by this version of PyRS."
+            ).format(self._file_name, HidraConstants.REDUCED_DATA, HidraConstants.TWO_THETA)
+            raise RuntimeError("{}\nFYI: {}".format(err_msg, key_err))
 
         return two_theta_vec
 
@@ -472,14 +524,14 @@ class HidraProjectFile:
         """
         masks = list(self._project_h5[HidraConstants.REDUCED_DATA].keys())
 
-        # Clean up data entry '2theta' (or '2Theta')
+        # Clean up TWO_THETA from the data entry
         if HidraConstants.TWO_THETA in masks:
             masks.remove(HidraConstants.TWO_THETA)
 
-        # FIXME - Remove when Hidra-16_Log.h5 is fixed with correction entry name as '2theta'
-        # (aka HidraConstants.TWO_THETA)
-        if "2Theta" in masks:
-            masks.remove("2Theta")
+        # Variance datasets are stored alongside intensity datasets with a '_var' suffix
+        # (e.g. 'main_var' alongside 'main').  They are not masks and must be excluded so
+        # that _load_reduced_diffraction_data does not treat them as intensity entries.
+        masks = [m for m in masks if not m.endswith("_var")]
 
         return masks
 
@@ -487,6 +539,7 @@ class HidraProjectFile:
         """
         Get instrument geometry parameters
         :return: an instance of instrument_geometry.InstrumentSetup
+            *** TODO: actually this returns an instance of `DENEXDetectorGeometry`! ***
         """
         # Get group
         geometry_group = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.GEOMETRY_SETUP]
@@ -646,6 +699,10 @@ class HidraProjectFile:
         self._validate_write_operation()
         checkdatatypes.check_type("Instrument geometry setup", instrument_setup, HidraSetup)
 
+        # PyRS version producing this file: recorded at the root level so it survives
+        # regardless of which writer touches the file afterwards
+        self._project_h5.attrs["pyrs_version"] = __version__
+
         # write value to instrument
         instrument_group = self._project_h5[HidraConstants.INSTRUMENT]
 
@@ -673,6 +730,47 @@ class HidraProjectFile:
         # Set wave length
         if wl is not None:
             wavelength_group.create_dataset("Calibrated", data=numpy.array([wl]))
+
+    def write_reduction_provenance(self, calibration_file=None, vanadium_run=None):
+        """Record which calibration and vanadium run (if any) produced this file's reduced data
+
+        Populates the CALIBRATION group (previously created but never populated) with enough
+        information for a scientist to determine, from the output file alone, which calibration
+        was applied and which vanadium run was used for normalization. Also (re-)records the
+        PyRS version, in case this file was never touched by write_instrument_geometry.
+
+        Parameters
+        ----------
+        calibration_file : str or None
+            path to the calibration JSON/ASCII file applied during reduction, if any
+        vanadium_run : str or None
+            path or run identifier of the vanadium project/NeXus file used for normalization,
+            if any
+        """
+        self._validate_write_operation()
+
+        self._project_h5.attrs["pyrs_version"] = __version__
+
+        if calibration_file is None and vanadium_run is None:
+            return
+
+        try:
+            calibration_group = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.CALIBRATION]
+        except KeyError:
+            raise RuntimeError(
+                "Project file {} has no '{}/{}' group to record provenance in".format(
+                    self._project_h5.filename, HidraConstants.INSTRUMENT, HidraConstants.CALIBRATION
+                )
+            )
+
+        if calibration_file is not None:
+            calibration_group.attrs["calibration_file"] = str(calibration_file)
+            sha256 = _compute_file_sha256(calibration_file)
+            if sha256 is not None:
+                calibration_group.attrs["calibration_file_sha256"] = sha256
+
+        if vanadium_run is not None:
+            calibration_group.attrs["vanadium_run"] = str(vanadium_run)
 
     def read_peak_tags(self):
         """Get all the tags of peaks with parameters stored in HiDRA project
@@ -757,9 +855,12 @@ class HidraProjectFile:
     def write_peak_parameters(self, fitted_peaks):
         """Set the peak fitting results to project file.
 
-         The tree structure for fitted peak in all sub runs is defined as
-        - peaks
-            - [peak-tag]
+        The tree structure for fitted peak in all sub runs is defined as
+
+          - peaks
+
+              - [peak-tag]
+
                 - attr/'peak profile'
                 - sub runs
                 - parameter values
@@ -890,13 +991,19 @@ class HidraProjectFile:
 
     def write_wavelength(self, wave_length: float):
         """Set the calibrated wave length
+
         Location:
+
           .../instrument/monochromator setting/ ... .../
+
         Note:
-        - same wave length to all sub runs
-        - only calibrated wave length in project file
-        - raw wave length comes from a table with setting
+
+          - same wave length to all sub runs
+          - only calibrated wave length in project file
+          - raw wave length comes from a table with setting
+
         :param wave_length: wave length in A
+
         :return: None
         """
         wave_length = to_float("Wave length", wave_length, min_value=0, max_value=1000)
@@ -985,6 +1092,24 @@ class HidraProjectFile:
 
         # Add 2theta vector
         if HidraConstants.TWO_THETA in diff_group.keys():
+            # the file keeps one 2theta axis for all masks: replacing it would leave masks already in the
+            # file, and not rewritten now, on the wrong axis
+            stored = diff_group[HidraConstants.TWO_THETA][()]
+            written = {HidraConstants.REDUCED_MAIN if mask_id is None else mask_id for mask_id in diff_data_set}
+            left_behind = sorted(
+                name
+                for name in diff_group.keys()
+                if name != HidraConstants.TWO_THETA and not name.endswith("_var") and name not in written
+            )
+            same_axis = stored.shape == two_theta_array.shape and numpy.allclose(
+                stored, two_theta_array, rtol=0, atol=1e-9
+            )
+            if left_behind and not same_axis:
+                raise RuntimeError(
+                    "Cannot write reduced data with a different 2theta axis: masks {} already in {} would be "
+                    "relabelled. Reduce all masks with the same 2theta range, or write to a new project "
+                    "file.".format(left_behind, self._file_name)
+                )
             # over write data
             try:
                 diff_group[HidraConstants.TWO_THETA][...] = two_theta_array

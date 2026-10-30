@@ -2,6 +2,8 @@ from pyrs.interface.pyrs_main import PyRSLauncher
 from qtpy import QtCore
 import pytest
 
+pytestmark = [pytest.mark.gui, pytest.mark.integration]
+
 wait = 100
 
 

@@ -1,8 +1,10 @@
 from copy import deepcopy
+import atexit
 import numpy as np
 import os
 import pytest
-import sys
+import shutil
+import tempfile
 
 from pyrs.dataobjects.fields import StrainField, StrainFieldSingle, StressField
 from pyrs.dataobjects.sample_logs import _coerce_to_ndarray, PointList
@@ -11,15 +13,51 @@ from pyrs.peaks.peak_collection import PeakCollection
 from pytestqt.qtbot import QtBot
 from pytestqt.exceptions import format_captured_exceptions, capture_exceptions
 
+# Point Qt's QSettings (native file dialogs, etc.) at a private, disposable
+# config directory instead of the developer's real ~/.config. Without this,
+# any test that opens a QFileDialog shares the *same* ~/.config/QtProject.conf
+# and its QLockFile with a real PyRS GUI instance the developer may have open
+# at the same time; the two processes racing to acquire/release that lock is
+# what produces "Could not remove our own lock file ... .lock.rmlock" /
+# Permission denied. Must be set before any QApplication/QSettings is created,
+# so this runs at module import time, before pytest-qt's `qapp` fixture body
+# ever executes (importing the modules above does not itself create a
+# QApplication, so setting this after them is still early enough).
+_QT_TEST_CONFIG_DIR = tempfile.mkdtemp(prefix="pyrs-test-qtconfig-")
+os.environ["XDG_CONFIG_HOME"] = _QT_TEST_CONFIG_DIR
+atexit.register(shutil.rmtree, _QT_TEST_CONFIG_DIR, ignore_errors=True)
+
 # set to True when running on build servers
 ON_GITHUB_ACTIONS = bool(os.environ.get("GITHUB_ACTIONS", False))
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _clear_ads_at_session_end():
+    r"""
+    Clear Mantid's AnalysisDataService once the whole test session is done.
+
+    UI tests (e.g. the strain/stress viewer) open mantidqt SliceViewer widgets,
+    which register an ADS observer holding a reference back to their Qt view.
+    If a workspace/observer from any test is still alive when the interpreter
+    begins its own shutdown, that observer's C++ Qt object may already be
+    destroyed by the time Python's teardown reaches it, causing a use-after-free
+    segfault -- observed only under a real X server (CI's xvfb+xcb), not under
+    the offscreen platform used for local runs. Clearing the ADS here runs as a
+    normal pytest fixture teardown, well before interpreter shutdown, so any
+    lingering workspaces/observers are torn down in a safe, well-defined order.
+    """
+    yield
+    from mantid.api import AnalysisDataService as ADS
+
+    ADS.clear()
+
+
 @pytest.fixture(scope="session")
-def test_data_dir():
-    this_module_path = sys.modules[__name__].__file__
-    this_module_directory = os.path.dirname(this_module_path)
-    return os.path.join(this_module_directory, "data")
+def test_data_dir(request):
+    # WARNING, there may be multiple `conftest.py`,
+    #   and pytest often screws with the import sequence:
+    #   do _not_ use `sys.modules[__name__].__file__` here!
+    return str(request.config.rootpath / "tests" / "data")
 
 
 @pytest.fixture(scope="session")
@@ -142,7 +180,7 @@ def strain_single_builder():
         )
 
         # Back-calculate the peak centers from supplied lattice spacings
-        centers = 2 * np.rad2deg(np.arcsin(peaks_data["wavelength"] / (2 * peaks_data["d_spacing"])))
+        centers = 2.0 * np.rad2deg(np.arcsin(peaks_data["wavelength"] / (2.0 * peaks_data["d_spacing"])))
 
         # Enter the native parameters in the peak collection
         subruns_count = len(peaks_data["subruns"])

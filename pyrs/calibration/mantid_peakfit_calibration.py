@@ -2,8 +2,10 @@ import numpy as np
 import time
 import json
 import os
+import warnings
 
 # Import pyrs modules
+from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
 from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
@@ -15,6 +17,12 @@ from pyrs.core.powder_pattern import ReductionApp
 # Import scipy libraries for minimization
 from scipy.optimize import least_squares
 from scipy.optimize import brute
+
+# Relative finite-difference step of each calibration parameter (Shift_x/y/z, Rot_x/y/z, TTH_0, Lambda);
+# scipy's absolute step is diff_step * max(1, |x|): 0.5 mm, 0.01 deg (more above 1 deg), ~1.5e-4 A.
+# The residual has a ~1e-3 deg noise floor (peaks are re-binned and re-fitted at every evaluation), so
+# scipy's default 3-point step (~6e-6 relative) gives noise-dominated derivatives (#1030).
+DIFF_STEP = np.array([5e-4, 5e-4, 5e-4, 1e-2, 1e-2, 1e-2, 1e-2, 1e-4])
 
 
 class FitCalibration:
@@ -61,11 +69,11 @@ class FitCalibration:
         self._keep_subrun_list = None
 
         if nexus_file is not None:
-            self._reduce_diffraction_data(nexus_file)
+            self._reduce_diffraction_data(nexus_file, self.mask_file)
         else:
             self._hidra_ws = reduction_engine
 
-        self.initalize_calib_arrays()
+        self.initialize_calib_arrays()
 
         # Initalize calibration status to -1
         self._calibstatus = -1
@@ -80,11 +88,9 @@ class FitCalibration:
         self._max_nfev = max_nfev
         self._ref_method = method
 
-        self._ref_powders = np.array(["Ni", "Fe", "Mo"])
-        self._ref_powders_sy = np.array([62, 12, -13])
-        self._ref_structure = np.array(["FCC", "BCC", "BCC"])
-        # self._ref_lattice = [3.523799438, 2.8663982, 3.14719963]
-        self._ref_lattice = [3.526314, 2.865579, 3.147664]
+        # calibration powders (name, structure, lattice constant, sy position), shared with the ring-based
+        # calibration; the lattice constants are the 2020 set (#1022, docs/ground_truths.md)
+        self._standards = HB2B_STANDARDS
 
         if pow_lines is None:
             self.get_powder_lines()
@@ -158,7 +164,7 @@ class FitCalibration:
             sub_runs=None,
             instrument_file=None,
             calibration_file=None,
-            mask=self.mask_file,
+            mask=None,  # the mask file is applied by NeXusConvertingApp as the workspace's default mask
             num_bins=self.bins,
             eta_step=self.eta_slices,
             van_file=self.vanadium,
@@ -173,7 +179,7 @@ class FitCalibration:
             sub_runs=self.sub_runs[np.array(self._keep_subrun_list)],
             instrument_file=None,
             calibration_file=None,
-            mask=self.mask_file,
+            mask=None,  # the mask file is applied by NeXusConvertingApp as the workspace's default mask
             num_bins=self.bins,
             eta_step=self.eta_slices,
             van_file=self.vanadium,
@@ -191,33 +197,35 @@ class FitCalibration:
         Returns
         -------
         np.array
-            array of two theta peaks for the reference powder.
+            two theta of every reflection of the sub-run's powder reachable at the run's wavelength,
+            lowest angle first.
 
+        Raises
+        ------
+        ValueError
+            If the sub-run's ``sy`` matches no powder standard.
         """
 
-        dspace = self._powders_lattice[sub_run] / self._diff_peaks[self._powders_struc[sub_run]]
-        return np.rad2deg(np.arcsin(self._hidra_ws.get_wavelength(False, False) / 2 / dspace) * 2)
+        standard = self._powder_standards[sub_run]
+        if standard is None:
+            raise ValueError(f"sub-run index {sub_run}: sy {self.sy[sub_run]} matches no powder standard")
+        return standard.two_theta(self._hidra_ws.get_wavelength(False, False))
 
     def get_powder_lines(self):
-        self._powders = [""] * self.sy.size
-        self._powders_struc = [""] * self.sy.size
-        self._powders_lattice = np.zeros_like(self.sy)
-        self._keep_subrun_list = np.array([True] * self.sy.size)
+        """Match each sub-run to the powder standard at its ``sy``; sub-runs matching none are not used."""
+        self._powder_standards = [standard_for_sy(float(sy), self._standards) for sy in self.sy]
+        self._powders = [standard.name if standard is not None else "" for standard in self._powder_standards]
+        self._keep_subrun_list = np.array([standard is not None for standard in self._powder_standards])
 
-        for i_pos in range(self.sy.size):
-            try:
-                index = np.where(np.abs(self._ref_powders_sy - self.sy[i_pos]) < 2)[0]
-                self._powders[i_pos] = self._ref_powders[index[0]]
-                self._powders_struc[i_pos] = self._ref_structure[index[0]]
-                self._powders_lattice[i_pos] = self._ref_lattice[index[0]]
-            except IndexError:
-                pass
+        unknown = [int(sub_run) for sub_run, keep in zip(self.sub_runs, self._keep_subrun_list) if not keep]
+        if unknown:
+            warnings.warn(
+                f"sub-runs {unknown}: sy matches no powder standard {[s.name for s in self._standards]}; "
+                "they are not used",
+                stacklevel=2,
+            )
 
-        self._diff_peaks = {}
-        self._diff_peaks["BCC"] = np.sqrt(np.array([2, 4, 6, 8, 10, 12]))
-        self._diff_peaks["FCC"] = np.sqrt(np.array([3, 4, 8, 11, 12, 19]))
-
-    def initalize_calib_arrays(self):
+    def initialize_calib_arrays(self):
         # calibration: numpy array. size as 7 for ... [6] for wave length
         self._calib = np.array(8 * [0], dtype=np.float64)
         # calibration error: numpy array. size as 7 for ...
@@ -299,7 +307,11 @@ class FitCalibration:
 
         return residual
 
-    def FitDetector(self, fun, x0, jac="3-point", bounds=[], i_index=2, Brute=False):
+    def FitDetector(self, fun, x0, jac="3-point", bounds=[], i_index=2, Brute=False, free=None):
+        """Refine ``x0`` with ``least_squares``; ``free`` are the indices of the refined parameters in
+        the calibration vector, which select their finite-difference steps from ``DIFF_STEP``
+        (None: scipy's default step)."""
+        diff_step = None if free is None else DIFF_STEP[list(free)]
         if Brute:
             BOUNDS = []
             lL = bounds[1]
@@ -318,7 +330,13 @@ class FitCalibration:
 
             if self._ref_method == "lm":
                 out = least_squares(
-                    fun, x0, jac="3-point", method=self._ref_method, max_nfev=self._max_nfev, args=(Brute, i_index)
+                    fun,
+                    x0,
+                    jac="3-point",
+                    method=self._ref_method,
+                    max_nfev=self._max_nfev,
+                    diff_step=diff_step,
+                    args=(Brute, i_index),
                 )
             else:
                 out = least_squares(
@@ -328,6 +346,7 @@ class FitCalibration:
                     bounds=bounds,
                     method=self._ref_method,
                     max_nfev=self._max_nfev,
+                    diff_step=diff_step,
                     args=(Brute, i_index),
                 )
 
@@ -457,7 +476,7 @@ class FitCalibration:
         """
 
         out = self.FitDetector(
-            self.peak_alignment_single, initial_guess, jac="3-point", bounds=(LL, UL), i_index=i_index
+            self.peak_alignment_single, initial_guess, jac="3-point", bounds=(LL, UL), i_index=i_index, free=[i_index]
         )
 
         return out
@@ -504,6 +523,7 @@ class FitCalibration:
             self.peak_alignment_wave_shift,
             initial_guess,
             bounds=([-5.0, self._calib[7] - 0.025], [5.0, self._calib[7] + 0.025]),
+            free=[6, 7],
         )
 
         self.set_wave_shift(out)
@@ -598,7 +618,7 @@ class FitCalibration:
         if bounds is None:
             bounds = [[-0.05, -0.05, -0.15], [0.05, 0.05, 0.15]]
 
-        out = self.FitDetector(self.peak_alignment_shift, initalGuess, bounds=(bounds[0], bounds[1]))
+        out = self.FitDetector(self.peak_alignment_shift, initalGuess, bounds=(bounds[0], bounds[1]), free=[0, 1, 2])
 
         self.set_shift(out)
 
@@ -608,7 +628,9 @@ class FitCalibration:
         if initalGuess is None:
             initalGuess = self.get_rotation()
 
-        out = self.FitDetector(self.peak_alignment_rotation, initalGuess, bounds=([-5.0, -5.0, -5.0], [5.0, 5.0, 5.0]))
+        out = self.FitDetector(
+            self.peak_alignment_rotation, initalGuess, bounds=([-5.0, -5.0, -5.0], [5.0, 5.0, 5.0]), free=[3, 4, 5]
+        )
 
         self.set_rotation(out)
 
@@ -622,6 +644,7 @@ class FitCalibration:
             self.peak_alignment_geometry,
             initalGuess,
             bounds=([-0.05, -0.05, -0.05, -5.0, -5.0, -5.0, -5.0], [0.05, 0.05, 0.05, 5.0, 5.0, 5.0, 5.0]),
+            free=list(range(7)),
         )
 
         self.set_geo(out)
@@ -639,6 +662,7 @@ class FitCalibration:
                 [-0.05, -0.05, -0.15, -5.0, -5.0, -5.0, -5.0, self._calib[7] - 0.05],
                 [0.05, 0.05, 0.15, 5.0, 5.0, 5.0, 5.0, self._calib[7] + 0.05],
             ),
+            free=list(range(8)),
         )
 
         self.set_calibration(out)
@@ -817,9 +841,11 @@ class FitCalibration:
         Parameters
         ----------
         file_name: str or None
-            output Json file name.  If None, write to /HFIR/HB2B/shared/CAL/
+        output Json file name.  If None, write to /HFIR/HB2B/shared/CAL/
+
         write_latest: bool
-            bool saying that the calibration should write HB2B_Cal_Latest
+        bool saying that the calibration should write HB2B_Cal_Latest
+
         Returns
         -------
         None

@@ -459,7 +459,7 @@ class PlotSelect(QGroupBox):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QFormLayout()
-        layout.setFieldGrowthPolicy(0)
+        layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self.plot_param = QComboBox()
         self.plot_param.addItems(
             ["dspacing-center", "d-reference", "Center", "Height", "FWHM", "Mixing", "Intensity", "strain", "stress"]
@@ -483,7 +483,7 @@ class PeakSelection(QGroupBox):
         super().__init__(parent=parent)
         self.setTitle("Select peak")
         layout = QFormLayout()
-        layout.setFieldGrowthPolicy(0)
+        layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self.peak_select = QComboBox()
         layout.addRow(QLabel("Peak"), self.peak_select)
         self.setLayout(layout)

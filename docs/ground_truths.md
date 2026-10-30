@@ -1,0 +1,963 @@
+# Ground Truths
+
+Key findings recorded here for future reference. Link to this file from related
+documentation and code comments when relevant.
+
+## Mantid ecosystem moved to Python 3.12 across all channels (2026-07)
+
+As of early July 2026, every Mantid conda channel used by this project —
+`mantid/label/main`, `mantid/label/nightly`, `mantid-ornl/label/main`,
+`mantid-ornl/label/rc`, and `mantid-ornl/label/nightly` — only publishes
+Mantid 6.16.x builds linked against Python 3.12 (`py312`). Older 6.15.x
+builds (Python 3.11) have been pruned from these channels' repodata; they
+no longer resolve even though their version numbers still satisfy a
+`>=6.15.0` constraint.
+
+**Symptom:** `pixi update` (or `pixi install`) fails to solve any
+environment that depends on `mantidworkbench`/`mantid`/`mantidqt`, with
+errors like:
+- `mantidworkbench >=6.15.0,<6.16.0 cannot be installed ... is excluded
+  because candidate not in requested channel` — the upper-bound pin
+  excludes the only builds left in the channel.
+- A large `pyqt` vs `mantidqt`/`mantidworkbench` conflict tree ending in
+  `python 3.12.13, which conflicts with the versions reported above` —
+  caused by the base (unconstrained) `pyqt = "*"` dependency in
+  `[tool.pixi.dependencies]` / `[tool.pixi.package.run-dependencies]`
+  pulling in PyQt5, while `mantidqt` now requires PyQt6. This wasn't a
+  true "no py312 build" problem (PyQt5 5.15.9 has a `py312` build); it's
+  redundant PyQt5 that isn't needed once Mantid supplies PyQt6 via
+  `mantidqt`.
+
+**Fix applied** (see [pyproject.toml](../pyproject.toml)):
+1. Bump `requires-python` to `>=3.12` (project-wide).
+2. Drop the `<6.16.0` upper bound on `mantidworkbench` in the base
+   dependencies and in the `qa`/`prod` feature dependencies — only
+   `>=6.15.0` is needed now.
+3. Remove the bare `pyqt = "*"` dependency from
+   `[tool.pixi.dependencies]` and `[tool.pixi.package.run-dependencies]`.
+   `qtpy` is kept (binding-agnostic); Mantid's own `mantidqt` dependency
+   now supplies PyQt6.
+
+After these changes, `pixi update` solves cleanly for all four
+environments (`default`, `dev`, `prod`, `qa`), and
+`pixi run -e <env> test-import-framework` (imports `pyrs`, `qtpy`,
+`mantidqt`) passes in each.
+
+**Why this matters going forward:** if `pixi update`/`pixi install`
+starts failing again with a `pyqt`/`mantidqt`/`python_abi` conflict tree,
+check whether Mantid has moved to a newer Python ABI first — the fix is
+usually to relax an upper-bound version pin, not to add new pins.
+
+## PyQt5→PyQt6 fallout after the Mantid/Python 3.12 update (2026-07)
+
+Dropping the unconstrained `pyqt = "*"` dependency (above) moved the
+environment from PyQt5 to PyQt6. Two latent bugs surfaced that had been
+masked by PyQt5 being installed incidentally:
+
+1. `pyrs/icons/icons_rc5.py` was a `pyrcc5`-compiled Qt resource module
+   hard-coded to `from PyQt5 import QtCore`. With PyQt5 no longer
+   installed, importing it raised `ModuleNotFoundError`, which aborted
+   the entire pytest collection phase in CI (pytest treats a collection
+   error as fatal by default, so *no* tests ran — not just the two
+   files that imported it). PyQt6 dropped `pyrcc6` entirely, so
+   recompiling isn't an option. **Fix:** stopped using the compiled Qt
+   resource system for these 5 static PNGs; `peak_fitting_viewer.py` now
+   builds file:// style paths directly from `pyrs.icons.__file__` at
+   import time. `icons_rc5.py` and its source `icons.qrc` were deleted.
+
+2. `QTableWidgetItem.setCheckState()` is strictly typed in PyQt6 (via
+   sip) and rejects a plain `bool`/`int` — PyQt5 silently accepted both.
+   Call sites in `fit_table.py` and
+   `detector_calibration_viewer.py` passed raw `0`/`2`/`bool` values.
+   Because the collection error in (1) aborted the whole test session,
+   these paths were never actually exercised by CI and the bug went
+   undetected until the import bug above was fixed and tests began
+   running for real. **Fix:** pass `Qt.CheckState.Checked` /
+   `Qt.CheckState.Unchecked` (from `qtpy.QtCore`) instead of raw values.
+
+**Why this matters going forward:** a pytest collection error anywhere
+in the suite silently skips *all* tests in that run, not just the
+broken file — a green-looking "0 failed" or a short run time can hide
+that nothing actually executed. When migrating a Qt binding, grep for
+`PyQt5`/`pyrcc`/raw `setCheckState(` calls specifically; qtpy alone
+doesn't catch either class of bug because both are binding-specific
+(and PyQt6 doesn't provide a resource-compiler migration path — the
+`.qrc`-compiled-module pattern needs to be replaced, not ported).
+
+## `pixi-build-python` exact-version pin breaks whenever the pixi CLI advances (2026-07)
+
+The `Build conda package` / `build-package` CI jobs failed with:
+
+```
+Error:   × could not initialize the build-backend
+  ├─▶   × failed to solve the environment
+  ╰─▶ Cannot solve the request because of: pixi-build-python ==0.5.2 cannot be installed because there are no viable options:
+      └─ pixi-build-python 0.5.2 would require
+         └─ pixi-build-api-version >=4,<5, for which no candidates were found.
+      The following packages are incompatible
+      └─ pixi-build-python ==0.5.2 cannot be installed because there are no viable options:
+         └─ pixi-build-python 0.5.2 is excluded because due to strict channel priority not using this option from: 'https://prefix.dev/conda-forge/'
+```
+
+**First hypothesis (wrong, kept here as a warning against a plausible dead
+end):** `[tool.pixi.package.build.backend].channels` listed
+`https://prefix.dev/pixi-build-backends` — a rolling/nightly feed whose
+`pixi-build-python` builds are versioned like
+`0.5.2.20260612.1208.0827e23`, never a bare `0.5.2` — ahead of
+`conda-forge`, which does publish a clean-semver `0.5.2`. It looked like
+strict channel priority was locking onto the nightly channel's
+non-matching versions and never falling through. Removing that channel
+entry solved cleanly locally (even from a fully cleared rattler cache,
+`pixi clean cache --yes`) — but pushing that fix alone did **not** fix
+CI; the exact same error recurred on the next run.
+
+**Actual root cause:** `prefix-dev/setup-pixi@v0.9.6` (used with no
+`pixi-version` input) installs whatever the *latest* pixi CLI release is
+at run time — it drifts forward on every CI run, unpinned. The pixi CLI
+and `pixi-build-python` communicate over a versioned protocol
+(`pixi-build-api-version`), and `pixi-build-python 0.5.2` only supports
+protocol `>=4,<5` — `0.6.0` and later require `>=5,<6`
+(`pixi search -c conda-forge "pixi-build-python==0.6.0"` shows the
+dependency bump). My local pixi was 0.70.2; CI's was 0.72.2 by the time
+this was diagnosed. Once the installed pixi CLI needs protocol 5, an
+exact pin to a protocol-4-only backend build is unsolvable in *any*
+channel, regardless of channel order — the "channel priority" wording in
+the error is a red herring surfaced by the solver's generic reporting,
+not the real constraint.
+
+Confirmed by running `pixi self-update` locally to match CI's 0.72.2
+exactly: the channel-only fix reproduced CI's exact failure locally for
+the first time (my earlier pixi 0.70.2 had solved fine either way,
+masking the real problem).
+
+**Fix applied** (see [pyproject.toml](../pyproject.toml)): changed
+`[tool.pixi.package.build.backend].version` from `"==0.5.2"` to `"*"`.
+Verified by clearing the rattler cache and rebuilding with pixi 0.72.2 —
+solves and builds successfully.
+
+**Why this matters going forward:** an exact pin on a build-backend tool
+that speaks a versioned protocol to its host CLI is only as stable as
+the host CLI's own version — and `setup-pixi` here has no `pixi-version`
+pin, so the host advances on every run. If this breaks again with a
+`pixi-build-api-version` mismatch, check whether the currently-installed
+pixi CLI (`pixi --version` in the failing job's log) needs a newer
+protocol than the pinned backend supports before touching channel
+config at all — `pixi search -c conda-forge "pixi-build-python==<pin>"`
+shows a build's exact `pixi-build-api-version` dependency, and comparing
+that across versions shows where the protocol bumped.
+
+## PyQt6 `Qt.CheckState` enum doesn't compare equal to a plain `int` (2026-07)
+
+A further fallout of the PyQt5→PyQt6 move (see above): PyQt6's
+`Qt.CheckState` is a strict enum that does not compare equal to a plain
+Python `int`, in either direction — `0 == Qt.CheckState.Unchecked` and
+`Qt.CheckState.Unchecked == 0` are both `False` (`int(Qt.CheckState.Unchecked)`
+also raises `TypeError`). PyQt5 allowed both directions transparently.
+
+This broke `_mask_state`/`_calibration_state`/`_output_state` in
+`manual_reduction_viewer.py`, which compare a `state` parameter that is
+polymorphic in origin: `Qt.CheckState` when called directly with
+`checkBox.checkState()` (in `__init__`), but a plain `int` when invoked
+via the `stateChanged` signal (`QCheckBox.stateChanged` still emits
+`int`, unlike the newer `checkStateChanged` signal). Comparing this
+mixed-type value against the bare `Qt.Unchecked` enum member meant the
+"is this checkbox checked" test was always wrong for whichever call path
+didn't match by luck — in practice the default-mask/calibration/output
+line edits stayed permanently disabled after the user toggled the
+checkbox, silently keeping the stale default file path. This surfaced as
+`tests/ui/test_manual_reduction.py` failures with a
+`FileNotFoundError: /HFIR/HB2B/shared/CALIBRATION` (an ORNL-only network
+path that doesn't exist in CI) instead of using the test's intended
+`tests/data/...` file, because the qtbot-driven text entry silently
+no-opped on the disabled, still-defaulted line edit.
+
+The same bare-int-vs-enum bug also existed in
+`fit_table.py`'s `_update_exclude_list` (`checkState() == 0`), separate
+from the `setCheckState()` strict-typing bug fixed earlier in the same
+file.
+
+**Fix applied**: added a small `_is_checked(state)` normalizer in
+`manual_reduction_viewer.py` that unwraps `.value` when `state` is a
+`Qt.CheckState` and returns `bool(...)`, so the same comparison works
+regardless of which call path supplied it. Changed the `fit_table.py`
+comparison to `Qt.CheckState.Unchecked` (both sides now the enum type,
+comparable). Also fixed `QFormLayout.setFieldGrowthPolicy(0)` in
+`strain_stress_view.py` — same strict-enum-typing class of bug as
+`setCheckState`, just a different enum
+(`QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow`).
+
+**Why this matters going forward:** when a value can arrive as *either*
+a raw Qt signal payload (often a plain `int`/`bool` for
+backward-compatible signals like `stateChanged`) or a direct getter call
+(often the strict PyQt6 enum type, e.g. `checkState()`), don't compare
+it directly against an enum member — normalize first. `grep -rn
+"== Qt\.\|!= Qt\.\|checkState() ==" pyrs/` is a reasonable sweep for this
+pattern after any further Qt-binding changes.
+
+## Segfault at interpreter shutdown after all tests pass (2026-07)
+
+Once the bugs above were fixed, CI's `tests` job still failed: pytest
+itself reported `354 passed, 33 skipped` with zero failures, but
+~40 seconds *after* that summary line the process crashed with
+`Segmentation fault (core dumped)` (exit code 139), so GitHub Actions
+still marked the job red.
+
+This lines up with a `RuntimeError: wrapped C/C++ object of type
+SliceViewerView has been deleted` seen locally in `mantidqt`'s own
+`AnalysisDataService` (ADS) observer cleanup code
+(`mantidqt/widgets/sliceviewer/models/adsobsever.py`), which fires
+whenever a workspace tied to an open SliceViewer gets deleted. Locally
+(under `QT_QPA_PLATFORM=offscreen`) this stays a caught, non-fatal
+`RuntimeError` printed to stderr; under CI's real X server
+(`xvfb-run` + the `xcb` platform), the same use-after-free apparently
+escalates into an actual native segfault — I could not reproduce the
+crash locally even after running the full suite twice, which means this
+fix could not be directly verified against the real failure, only
+against "no regressions in the passing 354 tests."
+
+**First fix attempt (insufficient on its own):** added a session-scoped,
+`autouse=True` fixture (`_clear_ads_at_session_end` in
+[tests/conftest.py](../tests/conftest.py)) that calls
+`AnalysisDataService.clear()` once, after the last test finishes, on the
+theory that lingering SliceViewer-owned workspaces/observers were racing
+with native object destruction at interpreter shutdown. Pushed alone,
+the exact same segfault recurred on the next CI run — so ADS state
+wasn't the (or wasn't the only) cause. Kept anyway as reasonable hygiene
+since it's harmless, but it is not the fix that made CI green.
+
+**Actual fix:** don't try to identify the exact native cleanup path that
+crashes — instead, stop the interpreter from reaching it at all. Added
+[scripts/development/run_tests.py](../scripts/development/run_tests.py),
+a tiny wrapper that calls `pytest.main()` directly (rather than going
+through the `pytest` CLI entry point), then explicitly flushes
+stdout/stderr and calls `os._exit(code)`. `pytest.main()` only returns
+once every hook — including pytest-cov's report writing and the
+terminal reporter's final "N passed" summary — has already run, so
+nothing is lost; `os._exit()` then skips the crashing native teardown
+that would otherwise follow. The `[tool.pixi.tasks.test]` command in
+`pyproject.toml` now runs this wrapper instead of `pytest` directly.
+
+Two dead ends worth recording so they aren't retried:
+- A `pytest_sessionfinish` hook with `os._exit()` (even `trylast=True`)
+  fires *before* the terminal reporter's own "N passed" summary and
+  pytest-cov's coverage table are printed — those apparently happen in
+  an even-later stage of pytest's shutdown sequence, not inside
+  `pytest_sessionfinish` itself. Using this hook silently truncated all
+  of pytest's own reporting from the log, even though the exit code was
+  still correct. Only calling `pytest.main()` directly and exiting
+  *after it returns* is late enough.
+- `os._exit()` does not flush Python's buffered stdout/stderr (unlike
+  `sys.exit()`/normal interpreter shutdown) — an explicit
+  `sys.stdout.flush(); sys.stderr.flush()` immediately before it is
+  required or the whole report vanishes from a non-tty (i.e. CI log)
+  destination.
+
+**Why this matters going forward:** if the `tests` job fails again with
+a `Segmentation fault` (exit code 139) *after* a passing pytest summary
+line, that's a process-teardown crash, not a test regression. This
+class of bug is inherently hard to verify locally under `offscreen`;
+matching CI's real display server (`xvfb-run` with the `xcb` platform,
+not `QT_QPA_PLATFORM=offscreen`) is likely required to reproduce it
+directly — I was not able to reproduce this specific segfault locally
+even once. When a fix like this can't be verified against the actual
+failure, verify what you *can*: no regressions in the full local suite,
+and (critically, since this is the actual defect the two dead ends
+above introduced) that the summary output and coverage report are still
+present in the log after the change.
+
+## `tests/ui/test_calibration_ui.py` wrote/deleted files in the repo root, not a tmpdir (2026-07)
+
+While iterating on the segfault fix above, running the full suite
+locally (required, since the crash could only be reproduced/investigated
+by running everything pytest runs in CI) revealed a separate, pre-existing
+bug: `test_detector_calibration` in `test_calibration_ui.py` typed the
+bare relative filenames `"HB2B_test_export.json"` and `"HB2B_CAL.json"`
+into a save/load `QFileDialog`, then did `os.remove("HB2B_test_export.json")`
+/ `os.remove("HB2B_CAL.json")` at the end — all relative to the current
+working directory, i.e. the repo root when pytest is invoked from there
+(exactly how both CI and a local dev shell run it).
+
+This test had been silently doing this on every run; it just never
+mattered in CI, which always starts from a clean checkout with no
+same-named files to collide with. Locally, though, a developer working
+in this exact repo root had files genuinely named `HB2B_CAL.json` and
+`HB2B_test_export.json` sitting there (visible as untracked files in
+`git status`, presumably outputs from manually running
+`pixel_calibration.py`/`reduce_HB2B.py` from the repo root). Running the
+test suite locally overwrote those files with the test's own output and
+then deleted them via the test's cleanup step — untracked files have no
+git history, so they were not recoverable.
+
+**Fix applied**: the test now takes pytest's built-in `tmp_path` fixture
+and builds the export/calibration paths as `tmp_path / "HB2B_..."`
+instead of bare relative filenames, so it writes only inside a
+pytest-managed temp directory that pytest itself cleans up — it can no
+longer collide with anything in a developer's working directory
+regardless of what they happen to have sitting there. The explicit
+`os.remove(...)` calls were removed (no longer needed).
+
+**Why this matters going forward:** a test that writes to a literal
+relative path is writing to whatever the current working directory
+happens to be when it's invoked — which is the repo root for both CI
+and a typical local `pixi run test` — not a private, disposable
+location. Prefer pytest's `tmp_path`/`tmpdir` fixtures for anything a
+test writes to disk, even "cleaned up" output, since "clean up after
+yourself" only works if you're the only thing that could have been
+using that name. `grep -rn '"\.\./\|\.\(json\|csv\|h5\|xml\)"' tests/`
+(and manually check for bare relative filenames passed to file dialogs,
+`open()`, `os.remove()`, etc.) is a reasonable sweep for this pattern in
+other UI tests.
+
+## `pixi run test` hangs on the GUI tier under an interactive display (2026-09)
+
+Running the full suite on a workstation with a real desktop session
+(`DISPLAY=:0` plus a live Wayland compositor) and **no** `QT_QPA_PLATFORM`
+override hangs indefinitely at the first GUI test,
+`tests/ui/test_calibration_ui.py`. It is not slow — it is blocked. The
+process sits at ~6% CPU with `wchan = poll_schedule_timeout`, holding the
+compositor's cursor-shm, `mime.cache` and `icon-theme.cache` file
+descriptors open: the signature of a real, mapped Qt window spinning its
+event loop waiting for an interaction that never arrives. pytest's stdout
+is block-buffered when redirected, so the log shows nothing after the
+`tests/ui/test_calibration_ui.py` line and the run looks merely slow.
+
+Set `QT_QPA_PLATFORM=offscreen` and the same suite completes in under six
+minutes. This matches what `scripts/development/run_tests.py`'s own
+docstring assumes ("the offscreen Qt platform used for local runs"), but
+nothing in the repo actually *sets* it, so whether a local run works
+depends on the developer's desktop environment.
+
+Note the asymmetry with the segfault entry above: `offscreen` is what
+makes a local run finish, while CI's real display server (`xvfb-run` +
+`xcb`) is what makes the shutdown segfault reproducible. The two failure
+modes want opposite platforms, which is why neither is reliably visible
+from the other's environment.
+
+**Resolved (2026-09-18), two ways:**
+
+1. `test-gui` now carries `env = { QT_QPA_PLATFORM = "offscreen" }` in its
+   pixi task definition, so it can no longer open a window regardless of
+   the developer's desktop. It is *not* set on the `test` task: a pixi task
+   `env` overrides the ambient environment unconditionally (verified — a
+   caller's `QT_QPA_PLATFORM=xcb` is ignored, and neither `${VAR:-default}`
+   in `env` nor in `cmd` expands), so setting it there would silently
+   defeat CI's `xvfb-run` wrapper and switch CI off the `xcb` platform
+   this very section is about.
+2. Every test now has a 300s cap (`pytest-timeout`, configured in
+   `pyproject.toml`). A hang is therefore a failure with a stack dump
+   rather than an unbounded wait, including on the full `pixi run test`
+   where offscreen is not forced.
+
+`timeout_method = "thread"` is required, not a preference. Measured
+directly against a `QEventLoop().exec()` that never returns to the
+interpreter: with `--timeout-method=signal` (the plugin's Unix default)
+the 5s timeout passed unnoticed and an external `timeout 40` had to kill
+the process; with `--timeout-method=thread` it was caught at 5s and the
+dump named the exact blocking line. SIGALRM is only delivered when the
+interpreter next executes bytecode, which a blocked C++ event loop never
+does.
+
+**Practical consequence:** prefer `pixi run test-unit` /
+`pixi run test-integration` for day-to-day work — they deselect the `gui`
+marker entirely and never open a window. (Confirmed: the only `tests/ui/`
+tests the integration tier selects are `test_model`,
+`test_model_multiple_files` and `test_model_from_json`, which construct
+`Model()` and touch no widget.) Before the full `pixi run test`, still
+export `QT_QPA_PLATFORM=offscreen` yourself.
+
+## Uncalibrated (`Status: -1`) calibration JSON silently applied during reduction (2026-07)
+
+`read_calibration_json_file()` in
+[pyrs/utilities/calibration_file_io.py](../pyrs/utilities/calibration_file_io.py)
+returns a 5-tuple `(shift, shift_error, wave_length, wave_length_error,
+status)`, where `status` is the exit code of the
+`scipy.optimize.least_squares` call performed during calibration
+refinement (`self._calibstatus = out[2]` in
+`pyrs/calibration/mantid_peakfit_calibration.py`, `out.status` from
+`FitDetector`). That field is initialized to `-1` in `__init__` before
+any refinement has run, and negative values in general mean the
+optimizer never converged. `ReductionApp.reduce_data()` in
+[pyrs/core/powder_pattern.py](../pyrs/core/powder_pattern.py) unpacked
+this 5-tuple but only ever used `calib_values[0]` (shift) and
+`calib_values[2]` (wavelength) — it ignored `status` entirely, so a JSON
+calibration file that was never successfully refined (e.g. a stale
+template still carrying the `-1` sentinel, or one saved after a
+non-converging fit) was applied to reduction exactly like a good one,
+producing plausible-looking but systematically shifted diffraction
+patterns with no diagnostic indication.
+
+**Fix applied**: added `check_calibration_status(status)` to
+`calibration_file_io.py`, which raises `RuntimeError` when `status < 0`.
+`reduce_data()` now calls it immediately after
+`read_calibration_json_file()` returns and before any of the returned
+values are used, so an unconverged/never-refined calibration aborts
+reduction instead of being silently applied. Regression coverage:
+`tests/unit/pyrs/utilities/test_calibration_file_io.py::test_check_calibration_status_negative_status_raises`
+(the guard in isolation) and
+`tests/integration/test_reduction.py::test_reduce_data_with_unconverged_calibration_status_raises`
+(exercises the real `ReductionApp.reduce_data()` call site against
+`tests/data/HB2B_1017.h5` with a corrupted-status copy of
+`tests/data/HB2B_CAL_Si333.json`).
+
+**Why this matters going forward:** `read_calibration_json_file()` has a
+single production caller (`powder_pattern.py`);
+`import_calibration_ascii_file()` (the other calibration loader, used
+for the non-JSON branch of the same `if`) has no `Status` field/concept
+at all, so it needed no change. If another caller of
+`read_calibration_json_file()` is added later, it must also call
+`check_calibration_status()` on the returned status before applying the
+shift/wavelength — `grep -rn "read_calibration_json_file" pyrs/` is the
+sweep to check this hasn't been bypassed.
+
+**Known gap (not yet fixed):** `check_calibration_status()` only rejects
+negative status codes. `status == 0` is scipy's "maximum number of
+function evaluations exceeded" code — the optimizer ran but did **not**
+converge — which is the same class of "never successfully refined"
+problem this fix targets, just not the specific `-1` sentinel that
+motivated it. A calibration JSON saved after a non-converging fit with
+`Status: 0` is currently still applied silently. If this needs closing,
+change the guard's condition and confirm with whoever owns the
+calibration refinement code whether `status == 0` should always be
+rejected outright or only warned on.
+
+## Combined-axis calibration rotation used element-wise multiply instead of matrix multiply (2026-07)
+
+`generate_rotation_matrix()` in
+[pyrs/core/reduce_hb2b_pyrs.py](../pyrs/core/reduce_hb2b_pyrs.py) combined
+the three per-axis rotation matrices (`rot_x_matrix`, `rot_y_matrix`,
+`rot_z_matrix`, each a plain `np.array`, not `np.matrix`) with NumPy's
+`*` operator, which is element-wise (Hadamard) multiplication for plain
+ndarrays — not matrix multiplication.
+
+**Correction to the initial bug report:** the original report (and this
+entry's first draft) described the bug as "quiescent whenever at most
+one axis is non-zero" — i.e., only combined multi-axis rotations were
+assumed broken, with single-axis calibrations assumed fine. That is
+**not** correct, and was disproven by running the actual single-axis
+regression test against the unfixed code (it failed) and independently
+verifying the arithmetic:
+```python
+Rx = rotation matrix for rot_x=2deg, Ry0 = Rz0 = identity (angle=0)
+Rx * Ry0 * Rz0   # elementwise: zeroes every off-diagonal term of Rx too,
+                 # because elementwise-multiplying by an identity matrix
+                 # kills any entry that lands on a zero of the identity
+```
+Elementwise-multiplying any matrix by the identity (which is what a
+zero-angle axis matrix reduces to) zeroes all of that matrix's
+off-diagonal terms, not just the identity's. So the **only** case the
+old code ever got right was all three angles being exactly zero (no
+rotation at all, both sides trivially the identity). Any calibration
+with even one non-zero rotation angle — single-axis or combined — was
+silently wrong.
+
+This is not dead code: `generate_rotation_matrix()` is called from
+`ResidualStressInstrument.build_instrument()`
+(`reduce_hb2b_pyrs.py:133`), and the resulting matrix is applied to
+every detector pixel's position via `_rotate_detector()`
+(`reduce_hb2b_pyrs.py:38-52`) on the real reduction path
+(`reduction_manager.py` → `PyHB2BReduction.build_instrument()` →
+`ResidualStressInstrument.build_instrument()`), whenever a calibration
+with any non-zero rotation is applied. Every pixel's 2theta, and
+therefore every downstream peak position/d-spacing/strain, would be
+silently wrong for such a calibration.
+
+**Fix applied**: changed line 270 from
+`rot_x_matrix * rot_y_matrix * rot_z_matrix` to
+`rot_x_matrix @ rot_y_matrix @ rot_z_matrix` (matrix multiplication).
+Regression coverage added in
+`tests/unit/pyrs/core/test_reduce_hb2b_pyrs.py`:
+`test_generate_rotation_matrix_combined_rotation_is_orthogonal` asserts
+`R @ R.T ≈ I` and `det(R) ≈ 1` for simultaneously non-zero rotations on
+all three axes; `test_generate_rotation_matrix_single_axis_matches_axis_matrix`
+asserts a single-axis rotation reduces exactly to that axis's own
+matrix. Both were confirmed to fail against the unfixed code (verified
+by temporarily reverting the fix) and pass with it.
+
+**Why this matters going forward:** the actual gap in test coverage
+wasn't "single-axis tests don't catch multi-axis bugs" (the initial,
+incorrect hypothesis) — it's that **no test exercised
+`build_instrument()`/`generate_rotation_matrix()` with any non-`None`,
+non-zero calibration at all** (the one test that calls
+`build_instrument()`, in `tests/integration/test_powder_pattern.py`,
+passes `instrument_calibration=None`). A function is only as tested as
+the inputs actually exercised — a plausible-sounding severity
+assessment ("this only breaks when N things are true") still needs to
+be verified against the real unfixed code before it's written down;
+don't propagate an unverified claim about a bug's scope, even from a
+detailed-looking report, without checking it against a failing test.
+`grep -rn '\* rot_\|rot_.*_matrix \*' pyrs/` (and generally
+`grep -rn ' \* .*_matrix\b'`) is a reasonable sweep for the same
+`*`-instead-of-`@` mistake elsewhere in this file or in similar
+geometry code.
+
+**Action needed on existing calibration files:** any previously-saved
+calibration JSON with a non-zero rotation was *fit* using the old,
+broken forward model (`least_squares` in
+`pyrs/calibration/mantid_peakfit_calibration.py` calls the same
+`generate_rotation_matrix()` during refinement, so calibration and
+reduction shared the identical bug, and the fit self-consistently
+absorbed it). Applying such a stale calibration through the now-fixed
+model will **not** reproduce its old (also wrong) geometry — it needs
+to be re-refined from raw data, not just re-applied. Check any
+calibration JSON with 2+ non-zero rotation values against its
+refinement date relative to this fix.
+
+## Vanadium normalization is a flat-field correction only — run-duration scaling is intentionally NOT applied (2026-07)
+
+**Intent.** The vanadium normalization in
+[pyrs/core/reduce_hb2b_pyrs.py](../pyrs/core/reduce_hb2b_pyrs.py)
+(`PyHB2BReduction.histogram_by_numpy()`) is a **flat-field correction**:
+it divides out per-pixel detector-efficiency and solid-angle variation
+so that a uniform scatterer would produce a uniform response. Vanadium
+is a near-isotropic incoherent scatterer, so its measured pattern
+reflects instrument response rather than sample structure. The
+normalized signal is:
+
+```
+normalized signal = Sample / (V_signal / V_signal.max())
+                  = Sample * (V_signal.max() / V_signal)
+```
+
+which is exactly what the code computes:
+
+```python
+normalized_data = data_array * (van_array_max / van_array)
+```
+
+This ratio is deliberately **self-referencing** — `van_array_max` and
+`van_array` are drawn from the same array, so it is algebraically
+invariant to any uniform rescaling of the vanadium counts
+(`(k·V_max)/(k·V) = V_max/V`). It corrects the *shape* of the response,
+not its absolute scale. That scale-invariance is a feature of a
+flat-field correction, not a defect: the correction should not depend on
+how long either run counted.
+
+**Why run-duration scaling was reverted.** A prior change (commit
+`8a979f67`) threaded `sub_run_duration`/`van_duration` through
+`convert_counts_to_diffraction` → `reduce_to_2theta_histogram` →
+`histogram_by_numpy` and, after the flat-field ratio, applied an extra
+multiplicative factor `van_duration / sub_run_duration`. That turns the
+correction into an absolute/counting-time normalization, which is **out
+of scope** for a flat-field correction and changed reduced intensities
+by the ratio of the two runs' counting times (e.g. the
+`test_manual_reduction` UI baseline shifted by ~0.575×). This was
+reverted: `reduce_to_2theta_histogram()`/`histogram_by_numpy()` no
+longer take duration parameters, and the reduction returns to
+flat-field-only output.
+
+**Current state of the duration parameters.**
+`reduce_sub_run_diffraction()`/`reduce_sub_run_texture()`/
+`reduce_diffraction_data()` in
+[pyrs/core/reduction_manager.py](../pyrs/core/reduction_manager.py)
+still *accept* `sub_run_duration` and `van_duration` (and their
+docstrings still describe the "raw / vanadium * vanadium duration / sub
+run duration" formula), but these values are **not** forwarded into the
+histogram arithmetic and have no effect on the output. Treat that
+docstring formula as describing an intent that is intentionally not
+implemented here. If run-duration (absolute counting-time) normalization
+is ever wanted, it belongs in a separate, explicitly-named step — not
+folded into the vanadium flat-field correction — and needs its own
+review of every reduction call site, since it changes output scale for
+every reduced pattern.
+
+## Output project file never recorded which calibration/vanadium/PyRS version produced it (2026-07)
+
+The output HiDRA project file (HDF5) recorded the calibrated wavelength
+and raw instrument geometry, but never recorded which calibration file
+was applied, which PyRS version wrote the file, or which vanadium run
+was used for normalization — a scientist could not verify, from the
+file alone, how it was produced. The schema already had an empty
+`CALIBRATION` subgroup under `INSTRUMENT`, created at file-creation
+time by `_init_project`
+([pyrs/projectfile/file_object.py](../pyrs/projectfile/file_object.py)),
+apparently intended for exactly this — but nothing ever wrote into it
+(`grep -rn "HidraConstants.CALIBRATION" pyrs/` found only the
+group-creation call site).
+
+**Important structural detail**: `write_instrument_geometry` — the
+only function that touches the `INSTRUMENT` group — is called from
+exactly one place in the whole codebase: `NeXusConvertingApp.save()`,
+which runs during the *earlier* NeXus→HiDRA-project conversion stage,
+before any calibration file has even been chosen. The calibration file
+path is a local variable inside `ReductionApp.reduce_data()`
+([pyrs/core/powder_pattern.py](../pyrs/core/powder_pattern.py)), a
+later, separate stage — it was never reachable from
+`write_instrument_geometry` no matter what was added to that function.
+Any fix had to add a new write path at the point where `reduce_data()`
+actually knows the calibration/vanadium inputs, not extend the existing
+one.
+
+**Fix applied**:
+1. Added `write_reduction_provenance(calibration_file=None,
+   vanadium_run=None)` to `HidraProjectFile`
+   (`pyrs/projectfile/file_object.py`): writes `calibration_file` (path)
+   and `calibration_file_sha256` (via a new `_compute_file_sha256`
+   helper, 64KB-chunked, silently skipped if the file can't be read) as
+   attributes on the existing `CALIBRATION` group when a calibration
+   file is given; writes `vanadium_run` similarly when given; always
+   (re-)writes a root-level `pyrs_version` attribute from
+   `pyrs.__version__`.
+2. `write_instrument_geometry` also now writes `pyrs_version` at the
+   root, since it already runs for essentially every produced file
+   during conversion — this means the version is recorded even for
+   files that are never touched by `reduce_data()`/`save_diffraction_data()`.
+3. `ReductionApp` (`powder_pattern.py`) now stores
+   `self._calibration_file`/`self._van_file` from `reduce_data()`'s
+   parameters (previously discarded once the function returned), and
+   `save_diffraction_data()` calls `write_reduction_provenance()` with
+   them before writing reduced diffraction data.
+
+Verified end-to-end (NeXus conversion → calibrated `reduce_data()` →
+`save_diffraction_data()` → reopened with `h5py`): `calibration_file`,
+its real SHA-256, and `pyrs_version` are all present and correct;
+`vanadium_run` is correctly absent when no vanadium was used. Unit
+tests in `tests/unit/pyrs/projectfile/test_file_object.py` cover the
+round-trip, the "neither given" case, and a calibration path that no
+longer exists on disk (path still recorded, hash silently skipped, no
+exception).
+
+**Known gap (not fixed here) — verified by direct repro, not just
+inspection:** `write_reduction_provenance` writes each of
+`calibration_file`/`vanadium_run` only when that specific argument is
+given; it never clears a previously-written attribute for the other
+one. So calling it twice on the same file with different combinations
+of arguments leaves a stale mix:
+```python
+f.write_reduction_provenance(calibration_file="calA.json", vanadium_run="van1")
+f.write_reduction_provenance(calibration_file="calB.json")  # vanadium_run omitted
+# CALIBRATION group now reads: calibration_file="calB.json", vanadium_run="van1" (stale!)
+```
+(Note: calling it with *neither* argument is safe — the method returns
+immediately without touching either attribute, confirmed by
+`test_write_reduction_provenance_no_calibration_or_vanadium_only_records_version`
+— so `save_diffraction_data()` called without a prior `reduce_data()`
+does not clobber good provenance with `None`; the risk above is
+specifically a second call with a *different* partial combination of
+real values.) Audited every current call site
+(`pyrs/interface/manual_reduction/pyrs_api.py`,
+`pyrs/calibration/mantid_peakfit_calibration.py`, all integration
+tests): every one constructs a fresh `ReductionApp()` immediately
+before its `reduce_data()` + `save_diffraction_data()` pair, so this is
+a latent trap for future reuse, not a live bug today. If it needs
+closing, `write_reduction_provenance` should delete the
+`vanadium_run`/`calibration_file`/`calibration_file_sha256` attrs
+explicitly for whichever of the two is `None`, not just skip writing
+them.
+
+**Second gap, resolved by removal (2026-07-22):** `PyRsCore.save_diffraction_data()`
+(`pyrs/core/pyrscore.py`) called `HB2BReductionManager.save_reduced_diffraction()`
+directly, bypassing `ReductionApp.save_diffraction_data()` (and therefore
+`write_reduction_provenance`) entirely. `grep -rn
+"\.save_diffraction_data("` across the repo confirmed zero callers of
+`PyRsCore.save_diffraction_data` — it was dead code. Since nothing used
+it, it was deleted outright rather than wired into provenance-writing;
+if reduced-diffraction saving from `PyRsCore` is needed again in the
+future, add it back calling `ReductionApp.save_diffraction_data()` (or
+thread `write_reduction_provenance()` through directly) so it doesn't
+silently reintroduce this same bypass.
+
+**Why this matters going forward:** before adding a write to an
+existing function because "that's where this kind of data gets
+written," check whether the function is actually called at a stage of
+the pipeline where the new data is available at all — extending
+`write_instrument_geometry` here would have been a no-op fix, since the
+calibration path doesn't exist yet at that call site. The right fix
+needed a new write path anchored to where the data is actually known
+(`save_diffraction_data`), not a bigger version of the existing one.
+
+## `~/.config/QtProject.conf`'s lock file: "Could not remove our own lock file" on export (2026-08)
+
+Exporting peak-fit results from PyRS intermittently produced
+`Could not remove our own lock file "~/.config/QtProject.conf.lock.rmlock"`
+(Permission denied). Reported reproduction: within a *single* PyRS GUI
+session — remove any stale lock file, fit peaks, export (succeeds), load
+a new data file, fit again, export a second time (fails). No test suite
+or second PyRS instance needs to be running.
+
+**Correction (2026-08-31): the first fix attempt below (commit `a1f7ba3d`,
+calling `setOrganizationName()`/`setApplicationName()`) was based on a wrong
+diagnosis and does not work.** It was believed that Qt falls back to a
+generic `"QtProject"` identity only because PyRS never sets its own
+org/app name. That's false: `QFileDialog`'s own C++ implementation
+(`QFileDialogPrivate::saveSettings()`/`restoreSettings()`) **hardcodes**
+`QSettings(QSettings::UserScope, "QtProject")` for its history/sidebar
+state, completely independent of `QCoreApplication::organizationName()`/
+`applicationName()`. This was verified empirically: a probe script that
+called `setOrganizationName("PyRS")`/`setApplicationName("PyRS")` *before*
+constructing `QApplication` and a `QFileDialog` still wrote
+`[FileDialog]` state to the real `~/.config/QtProject.conf` (confirmed by
+content and by a live, reproduced infinite `.rmlock`-chaining loop against
+that exact file). So setting an org/app name does nothing to isolate
+`QFileDialog`'s settings — it only affects code that explicitly
+constructs its own `QSettings()`/`QSettings(org, app)`, which nothing in
+`pyrs/` does.
+
+**Actual root cause, in two parts:**
+1. Every Qt/PyQt process on the machine that ever opens a `QFileDialog`
+   — PyRS, Mantid Workbench, Qt Designer, another PyRS window, `pytest-qt`
+   — reads/writes/locks the *same* `~/.config/QtProject.conf`, by Qt
+   design (it's meant to share "recent places" across apps). Two of them
+   racing on its `QLockFile` at the same moment is what produces "Could
+   not remove our own lock file."
+2. That race is normally recoverable (Qt detects and removes a stale
+   lock), but `~/.config` here lives on an **NFS4-mounted home directory**
+   (`mount` shows `nfs4 ... local_lock=none`). `QLockFile`'s stale-lock
+   recovery depends on atomic `rename()`/`link()`, which NFS does not
+   guarantee. On this filesystem the recovery attempt can itself fail and
+   retry against its own leftover output, producing exactly the observed
+   `.lock.rmlock.rmlock.rmlock...` chains (reproduced live during this
+   investigation — a single hung Python process appended a new `.rmlock`
+   suffix to `~/.config/QtProject.conf.lock` roughly once a minute,
+   indefinitely, until killed).
+
+**Could not reproduce deterministically** in a scripted, single-process,
+offscreen repro at the time of the first fix attempt — consistent with
+this being a race that depends on real concurrent Qt processes and NFS
+timing, neither of which a quiet local repro exercises.
+
+**Fix attempt #2 (superseded, same day):** redirect `XDG_CONFIG_HOME` to
+a PyRS-private, persistent subdirectory *still under the NFS-mounted
+home* (`~/.config/PyRS`) before constructing `QApplication`. This
+correctly isolated PyRS's settings file from every other Qt process
+(`~/.config/QtProject.conf` itself went untouched in verification), so
+it does fix cross-app lock *contention*. It does **not** fix the
+underlying problem: `~/.config/PyRS` is still on NFS, so `QLockFile`'s
+stale-lock recovery is still non-atomic there. This was confirmed for
+real: a PyRS session was killed (or crashed) leaving
+`~/.config/PyRS/QtProject.conf.lock` referencing a dead PID, and the
+*next* launch failed with `Could not remove our own lock file
+.../PyRS/QtProject.conf.lock: Device or resource busy` — the identical
+symptom, just against the now-private file instead of the shared one.
+Moving the file off the contention path was necessary but not
+sufficient; it needed to also move off NFS.
+
+**Actual fix** ([scripts/pyrsplot.py](../scripts/pyrsplot.py)): redirect
+`XDG_CONFIG_HOME` to `<tempfile.gettempdir()>/pyrs-qt-config-<user>` —
+i.e. **local disk** (verified here to be `xfs` on `/`, not NFS),
+namespaced per OS user (`getpass.getuser()`) so it can't collide with
+other users on a shared multi-user analysis/login node, created with
+`0o700` permissions so other users can't read one user's dialog
+history. Because local filesystems support the atomic `rename()`/
+`link()` operations `QLockFile`'s stale-lock recovery depends on, a
+crashed/killed PyRS process's lock is now cleanly detected and reclaimed
+by Qt's own recovery logic on the next launch — no manual intervention
+needed. Verified empirically: two consecutive isolated launches (dialog
+open → close → quit) both completed cleanly with zero lock file left
+behind afterward, on both the first and second run.
+
+Trade-off accepted: this directory is local to whichever compute/login
+node the session happens to run on (typical at a shared, multi-node
+facility), so "recent places" history does not follow the user between
+nodes and may be cleared by OS temp-directory housekeeping. That's a
+purely cosmetic loss — nothing in `pyrs/` reads this state — traded for
+never hitting an NFS-unrecoverable lock again.
+`setOrganizationName()`/`setApplicationName()` calls were kept (correct
+practice for any future code that constructs its own `QSettings`), but
+were never what fixed this.
+
+**Why this matters going forward:** if a similar "permission denied /
+device or resource busy removing our own lock file" resurfaces
+elsewhere, check, in order: (a) whether the affected settings file is
+one Qt itself hardcodes an identity for (`QFileDialog` does via
+`QSettings::UserScope, "QtProject"`; your own explicit `QSettings()`
+calls don't — `setOrganizationName()`/`setApplicationName()` only helps
+the latter); (b) whether the file's directory is shared with other,
+unrelated Qt processes; and (c), the one that actually matters for
+*recovery* from a crash, whether that directory is on NFS — if so,
+isolating the file (b) is not enough, it must also move off NFS
+entirely, since `QLockFile` recovery is fundamentally unreliable there.
+A quiet, single-process, offscreen repro will not reproduce (a)/(b), and
+won't reproduce (c) either unless it specifically kills the process
+mid-lock and relaunches — a clean repro passing is not evidence the fix
+works under real crash/network conditions.
+
+## FitCalibration ignored its mask file and then crashed (2026-10, #1024)
+
+`FitCalibration(nexus_file=..., mask_file=...)` stored `mask_file` but called
+`_reduce_diffraction_data(nexus_file)` without it, so `NeXusConvertingApp` ran unmasked; it then
+passed the mask **path** to `ReductionApp.reduce_data(mask=...)`, which treats a string as the ID of
+an already-loaded mask, so `HB2BReductionManager.get_mask_vector` raised `ValueError`. Any masked
+production calibration (`scripts/pyrs_calibration.py` with `"mask"` in its JSON) crashed; the UI
+never passes a mask, so UI calibrations are unmasked.
+
+Fix (user-approved production change): pass `self.mask_file` to the conversion, which stores it as
+the workspace's default mask, and call `reduce_data(mask=None)` — with `mask=None` the reduction
+manager uses the default mask, and the per-evaluation `reduce_data()` only clears the η-wedge masks,
+not the default mask. Unmasked calibrations take the identical code path (the existing
+`test_peakfit_calibration` gold-file tests are unchanged); `test_mask_file_is_applied` failed with
+the original `ValueError` before the fix. Open: whether the UI should offer the instrument mask.
+
+## Detector rotation matrices are float64; float32 limited angles to ~3e-6° (2026-10)
+
+`ResidualStressInstrument._cal_rotation_matrix_x/y/z` (`pyrs/core/reduce_hb2b_pyrs.py`) built their
+matrices as float32 (~7 significant digits), so every rotation angle — arm 2θ, 2θ₀, Rot_x/y/z —
+resolved only to ~3e-6°. For reduction that is irrelevant, but calibration differentiates its
+residual numerically: scipy's default finite-difference steps (1.5e-8 for 2-point, ~6e-6 for
+3-point) sit at or below that resolution, giving zero or noisy angle derivatives (found in the
+ring-based calibration work on `detector_calib_v3`, commit 095c7980 there). The matrices are now
+float64 (user-approved). Effect on reduction: pixel 2θ/η move by ≤ 4.5e-7°; unit, reduction and
+calibration integration tests unchanged. `test_rotation_matrix_resolves_tiny_angle_change` fails
+with float32.
+
+## `FindBackgroundSigma` is ignored by Mantid `FitPeaks` (2026-10)
+
+The Mantid in this environment logs `FitPeaks property "FindBackgroundSigma" is deprecated and will
+be ignored` for every call. `MantidPeakFitEngine.fit_peaks` passed `FindBackgroundSigma=1`; it was
+removed (user-approved). Verified: `FitPeaks` on the same synthetic spectra gives bit-identical
+fitted parameters with and without the property, for `HighBackground=True` and `False`; peak-fitting
+and FitCalibration tests unchanged.
+
+## The calibration GUI applies the production detector mask by default (2026-10)
+
+`DetectorCalibrationModel` never passed a mask, so GUI calibrations ran unmasked even after #1024.
+It now uses `/HFIR/HB2B/shared/CALIBRATION/HB2B_Mask_Latest.xml` when that file exists and no mask
+otherwise (user decision, 2026-10-26), resolved when a run is loaded, and passes it to *both* places
+it builds `FitCalibration` — changing the 2θ/η bins rebuilds the object and used to drop any mask.
+`DetectorCalibrationModel.mask_file` reports which was used. On machines without `/HFIR` (CI) the
+behaviour is unchanged. Unit tests: `tests/unit/pyrs/interface/detector_calibration/`.
+
+## `HidraWorkspace` stores 2θ and intensities as float64, never the input's dtype (2026-10)
+
+`set_reduced_diffraction_data` used to create the 2θ matrix and the intensity matrix with
+`intensity_array.dtype`. Integer intensities (e.g. an unweighted `np.histogram`) therefore truncated
+**2θ** to whole degrees (75.79° → 75°) without warning, and float32 rounded it (~1e-5° at 100°); a
+mask added later took its first sub-run's dtype, so later float intensities into an integer array
+were truncated too. Both matrices are now always float64 (both branches). Every caller at the time
+(reduction, `FitCalibration`, the ring calibration, tests) already passed float64, so results are
+bit-identical; regression tests in `tests/unit/pyrs/core/test_workspaces.py`.
+
+## Calibration files' 2θ offset (`TTH_0`) is now read by reduction (2026-10, #1021)
+
+`DENEXDetectorShift.convert_to_dict` (and so `FitCalibration` and every calibration file) writes the
+2θ offset as **`TTH_0`**, but `read_calibration_json_file` — the path reduction uses, via
+`PowderPattern` — read **`two_theta_0`**, and `check_calibration_dictionary` filled the missing key with
+0. Reduction therefore applied **2θ₀ = 0 for every calibration file**, whatever the calibration found.
+(NXstress files and `FitCalibration.get_archived_calibration` already used the right key.)
+
+Fix (user-approved): read `TTH_0` / `error_TTH_0`; accept the legacy `two_theta_0` /
+`error_two_theta_0`; raise `ValueError` if a file gives both with different values; no key → 0 with
+error −1, as before; `TTH_0` without `error_TTH_0` still loads (error −1).
+
+**Effect on results:** files with `TTH_0 = 0` — every file in this repository — are bit-identical. A file
+with `TTH_0 = δ` now shifts every reduced pattern by δ in 2θ (δ on the detector's centre row, 0.982–1.000 δ
+over the face at arms 60–120°), an absolute d-spacing / strain change of (δ/2)·cot θ: for δ = 0.1°,
+1511 / 873 / 504 µε at 2θ = 60 / 90 / 120°. `FitCalibration` refines TTH_0 jointly with the shifts and
+rotations (`wavelength_tth0`, `full` stages), so such a file describes a geometry that reduction applied
+only partly; the fix applies what the calibration found. Strains relative to a d₀ reduced with the same
+file largely cancel; absolute d-spacings and lattice parameters do not.
+
+**Audit the archive before relying on old reductions:** `tests/scripts/audit_calibration_tth0.py`
+(default `/HFIR/HB2B/shared/CALIBRATION`) lists every calibration file's 2θ offset and the strain change.
+Regression tests: `tests/unit/pyrs/utilities/test_calibration_file_io.py`.
+## `FitCalibration` uses per-parameter finite-difference steps (2026-10, #1030)
+
+`FitCalibration`'s residual is not smooth on small scales: every evaluation re-bins the data and re-fits
+the peaks, leaving a noise floor of ~1e-3° per residual. Its stages call `least_squares(jac="3-point")`,
+whose default relative step is ε^(1/3) ≈ 6e-6 (6 µm, 6e-6°, ~9e-6 Å) — deep in that noise. A step scan on
+HB2B_3510 (mask applied) found derivatives stable only from ~1 mm (Shift_z), ≥ 3e-4 (TTH_0) and above
+~3e-3° (rotations); Shift_y was noise at every step.
+
+Every stage now passes `diff_step = DIFF_STEP[free]` (`mantid_peakfit_calibration.DIFF_STEP`, user-approved):
+5e-4 for the shifts, 1e-2 for the angles, 1e-4 for λ. scipy's absolute step is `diff_step · max(1, |x|)`,
+so 0.5 mm for the shifts (always < 1 m), 0.01° for angles below 1° (growing with the angle above it, e.g.
+0.05° at the ±5° bound), ~1.5e-4 Å for λ; it follows the current value during a refinement (user decision:
+keep scipy's relative `diff_step`, not fixed absolute steps).
+
+**Effect** (full recipe, 2020 lattice, mask; `tests/scripts/fitcalibration_stepsize_study.py`):
+HB2B_3510 RMS 0.0261 → 0.0259°, pixel 2θ change ≤ 0.042° with TTH_0 applied; HB2B_3489 changes from a
+failed fit (Rot_z on its −5° bound, RMS 0.059°, error estimate all zero) to RMS 0.038° with rotations
+−0.90 / 0.22 / −0.09° (pixel 2θ up to 1.2° different). Run time similar or shorter. The gold-file tests
+(1–3 evaluations) still pass (max difference 6.8e-4 against a 5e-3 tolerance). The error estimates still
+come from the Jacobian and remain unreliable. Tests: `tests/unit/pyrs/calibration/test_fitcalibration_diff_step.py`.
+
+## η-wedge (texture) reductions use one 2θ range per sub-run (2026-10, #1033)
+
+`ReductionManager.reduce_sub_run_texture` binned each η wedge over the 2θ range of *its own* pixels when no
+`min_2theta` / `max_2theta` was given, but `HidraWorkspace.set_reduced_diffraction_data` keeps **one 2θ axis per
+sub-run**, which each wedge overwrote: every wedge but the last written (order 0, +3, +6, −3, −6 → η = −6°)
+was returned on another wedge's axis. Wedge ranges differ by only 0.01–0.06°, but bins are matched by index,
+so wedge peaks moved by up to 66 mdeg (RMS ~26 mdeg on HB2B_4971 and HB2B_3510; ≈ 40–500 µε varying with η).
+This biased `FitCalibration` (its residual is these wedges) and every η-resolved/texture reduction without an
+explicit 2θ range.
+
+Fix (user-approved): when no range is given, take **one range per sub-run from the pixels the default detector
+mask keeps** (`workspace.get_detector_mask(is_default=True)`), and bin every wedge on it. A user ROI does not
+change the bins; callers that pass a range are unchanged. Effect: the four affected wedges move to their
+correct 2θ (up to ±66 mdeg); the last wedge changes only by re-binning (≤ 0.5–1.6 mdeg). `FitCalibration`'s
+gold file `HB2B_mantid_calib.json` changes only in its error estimates (`error_TTH_0` 1.775 → 1.449°,
+`error_Lambda` 0.0352 → 0.0261 Å; all parameters unchanged at 1 evaluation per stage). Regression test:
+`test_eta_wedges_are_binned_on_the_stored_axis` (`tests/integration/test_texture_reduction.py`). Not yet
+checked: reductions with several user ROI masks, which share the same per-sub-run 2θ storage.
+
+## FitCalibration uses the 2020 lattice constants (2026-10, #1022)
+
+`FitCalibration`'s powder lattice constants were the 2023-08 set (Ni 3.526314, Fe 2.865579, Mo 3.147664 Å,
+commit `47d1e558`, "modified lattice based on newly calibrated data"). They were fitted from HB2B data, which
+is circular for a calibration — only λ/a is measured — and their Fe/Ni ratio (0.81263) is ~0.1% off both the
+2020 set and what HB2B shows (≈ 0.81335). They are now the 2020 set (Ni 3.523799438, Fe 2.8663982,
+Mo 3.14719963 Å; `d6cd5e04`, common room-temperature reference values), user-approved.
+
+**Effect:** η-wedge RMS of a full FitCalibration on HB2B_4971 0.0564 → 0.0121° (correctly binned wedges,
+#1034), λ 1.5315 → 1.5313 Å; on HB2B_3510 (old binning) 0.0551 → 0.0261°; the ring calibration's RMS on
+HB2B_3510 0.050 → 0.0175° with the Ni/Fe mean residuals going from +0.040 / −0.056° to −0.006 / +0.009°.
+Calibrated λ changes by ~0.01–0.07% depending on the Ni/Fe balance of the run, and the geometry with it, so
+calibrations made with the 2023 set differ from new ones for that reason alone. The `FitCalibration` gold files
+still pass (`test_wavelength` λ 1.53002 vs gold 1.53030 Å; `test_all_refinements` only `error_Lambda`
+0.02614 → 0.02315). Absolute λ rests on these constants; a certificate for the actual HB2B Ni/Fe standards
+would be the final check. Pointing FitCalibration at `pyrs/calibration/powder_standards.py` (also adds FCC 400)
+follows once that module (ring-based calibration) is merged.
+## A project file keeps one 2θ axis for all masks: writes may not relabel masks already in it (2026-10)
+
+`HidraProjectFile.write_reduced_diffraction_data_set` stores one 2θ dataset per file and used to replace it on
+every write, while each mask's intensities are added beside it. Appending a reduction whose 2θ axis differs
+(e.g. ROI masks, which `reduce_sub_run_diffraction` bins over the ROI's own pixels) left the masks already in
+the file on the new axis: reducing HB2B_3510 sub-run 1 with a left-half ROI (67.91–76.11°), then a right-half
+ROI (76.00–84.15°) in append mode, labelled the left-half pattern ~8° too high. No shipped workflow appends
+(manual reduction, `reduce_HB2B.py`, `reduce_texture.py` save one reduction), so the risk was latent — the
+file-level counterpart of #1033.
+
+Guard (user-approved): the write raises `RuntimeError` when the new 2θ axis differs (beyond 1e-9°) from the
+stored one *and* masks already in the file are not being rewritten. Single saves, re-saving a workspace that
+rewrites all its masks, and appending data on the same axis are unchanged; no reduced data changes. Tests:
+`tests/unit/pyrs/projectfile/test_reduced_data_2theta_guard.py`. Separate ROI reductions still get their own
+axes; making them share one is a separate change.
+## `MantidPeakFitEngine` left FitPeaks' positions table behind after every fit (2026-10-29, #1040)
+
+`fit_peaks` passes FitPeaks four outputs. It deleted the two parameter tables after converting
+them to a `PeakCollection`, and returned the fitted and difference workspaces, which the
+peak-fitting and texture GUIs plot. The fourth, the peak-positions table
+`fitted_peak_positions_<input>`, was neither returned nor deleted, and nothing in PyRS reads it.
+
+- **Reused names** (GUI, `FitCalibration`) overwrote one table.
+- **Fresh names** (the ring calibration's strip fits) left one table per fit in Mantid's workspace
+  store: 26 after one synthetic 11-sub-run extraction.
+
+It is now deleted with the parameter tables; no fitted value changes. The input, fitted and
+difference workspaces remain the caller's to keep or delete. Regression test:
+`test_fit_leaves_only_returned_workspaces` (fails without the fix).
+
+## FitCalibration reads the shared powder standards (2026-10-30, #1022)
+
+`FitCalibration` had its own copy of the calibration powders: names, `sy` positions, structures,
+lattice constants and reflection lists. It now uses `pyrs/calibration/powder_standards.py`
+(`HB2B_STANDARDS`, `standard_for_sy`), the same table as the ring-based calibration. User-approved,
+including the unknown-`sy` change below.
+
+**Differences from the old copy, and their effect:**
+- **FCC 400 added.** FitCalibration fits only the lowest-angle reflection at least 1° inside each
+  sub-run's pattern, so 400 matters only if it is the first in range. That needs the arm near 105°
+  or above. On HB2B_3489/3510/4971 (33 sub-runs) every sub-run fits the same powder and reflection
+  as before.
+- **Lattice constants were silently float32.** The old code stored them in `np.zeros_like(sy)`, and
+  the `sy` log is float32, so Fe was off by −3.6e-8 relative and Ni by −5.3e-9. The shared table
+  keeps float64. Expected peak positions, which are the fit-window centres and the reference of the
+  residual, move by ≤ 4.9e-6° (the residual's noise floor is ~1e-3°). Verified: the new code with
+  float32-rounded constants reproduces the old selection bit for bit.
+- **Unknown `sy`:** a sub-run whose `sy` matches no standard used to crash `get_diff_peaks` (the
+  empty powder name is not a reflection key). It is now dropped from `_keep_subrun_list` with a
+  warning, and `get_diff_peaks` raises a clear `ValueError` if that sub-run is used anyway.
+- **Unreachable reflections** (λ > 2d) are left out instead of returning NaN. Selection is
+  unchanged, because NaN never passed the range filter.
+
+Tests: `tests/unit/pyrs/calibration/test_fitcalibration_powders.py` and the updated integration
+test `test_reference_lattice_is_the_2020_set`.

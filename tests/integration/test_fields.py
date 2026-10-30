@@ -478,6 +478,7 @@ def test_interpolate_volume_scan(data_interpolate_volume_scan, allclose_with_sor
 #######################################
 
 
+@pytest.mark.integration
 def test_combine_strains_1(test_data_dir):
     r"""Combine strains along the same direction with StrainField.fuse_strains"""
     #
@@ -533,6 +534,7 @@ def data_stack_strains_1(test_data_dir):
     return strains, strain11, strain22, strain33
 
 
+@pytest.mark.integration
 def test_stack_strains_1(data_stack_strains_1):
     strains, strain11, strain22, strain33 = data_stack_strains_1
     #
@@ -570,6 +572,7 @@ def data_create_stress_1(test_data_dir):
     return strain11, strain22, strain33
 
 
+@pytest.mark.integration
 def test_create_stress_1(data_create_stress_1):
     strain11, strain22, strain33 = data_create_stress_1
     #

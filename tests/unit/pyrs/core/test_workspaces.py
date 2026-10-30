@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.projectfile import HidraProjectFile  # type: ignore
@@ -13,6 +14,7 @@ class TestHidraWorkspace:
         workspace.set_sample_log("vx", subruns, vx, "mm")
         assert workspace.get_sample_log_units("vx") == "mm"
 
+    @pytest.mark.integration
     def test_append_projectfiels(self):
         # import data file: detector ID and file name
         test_data = [
@@ -33,3 +35,36 @@ class TestHidraWorkspace:
             test_project.close()
 
         assert test_ws.get_sub_runs().size == 362
+
+    def test_integer_intensities_keep_two_theta(self):
+        """2theta must not take the intensities' dtype: integer counts used to truncate it"""
+        # Arrange
+        workspace = HidraWorkspace()
+        workspace.set_sub_runs([1, 2])
+        two_theta = np.array([75.79, 75.82, 75.85])
+        counts = np.array([3, 10, 4])
+
+        # Act
+        workspace.set_reduced_diffraction_data(1, None, two_theta, counts)
+
+        # Assert
+        np.testing.assert_array_equal(workspace.get_reduced_diffraction_data_2theta(1), two_theta)
+        _, intensity, _ = workspace.get_reduced_diffraction_data(1)
+        np.testing.assert_array_equal(intensity, counts)
+
+    def test_new_mask_stores_float_intensities(self):
+        """A mask added after the first one must store float intensities whatever its first input"""
+        # Arrange
+        workspace = HidraWorkspace()
+        workspace.set_sub_runs([1, 2])
+        two_theta = np.array([75.79, 75.82, 75.85])
+        workspace.set_reduced_diffraction_data(1, None, two_theta, np.array([1.5, 2.5, 3.5]))
+        variances = np.ones(3)
+
+        # Act
+        workspace.set_reduced_diffraction_data(1, "wedge", two_theta, np.array([3, 10, 4]), variances)
+        workspace.set_reduced_diffraction_data(2, "wedge", two_theta, np.array([0.5, 1.25, 2.75]), variances)
+
+        # Assert
+        _, intensity, _ = workspace.get_reduced_diffraction_data(2, mask_id="wedge")
+        np.testing.assert_array_equal(intensity, [0.5, 1.25, 2.75])

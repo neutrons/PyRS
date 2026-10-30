@@ -1,5 +1,6 @@
 # Data manager
 import numpy as np
+from mantid.kernel import Logger
 from pyrs.dataobjects import HidraConstants, SampleLogs  # type: ignore
 from pyrs.projectfile import HidraProjectFile  # type: ignore
 from pyrs.utilities import checkdatatypes
@@ -23,6 +24,8 @@ class HidraWorkspace:
         """
         # workspace name
         self._name = name
+
+        self._log = Logger(__name__)
 
         # raw counts
         self._raw_counts = dict()  # dict [sub-run] = count vector
@@ -120,11 +123,11 @@ class HidraWorkspace:
         try:
             vec_2theta = hidra_file.read_diffraction_2theta_array()
         except KeyError as key_err:
-            print(
-                "[INFO] Unable to load 2theta vector from HidraProject file due to {}."
-                "It is very likely that no reduced data is recorded."
-                "".format(key_err)
-            )
+            # read_diffraction_2theta_array only raises a bare KeyError for the
+            # legitimate "no REDUCED_DATA group at all" case -- an unrecognized/
+            # unsupported schema instead raises RuntimeError, which is deliberately
+            # NOT caught here, so it propagates instead of being silently swallowed.
+            self._log.information("No reduced-diffraction data recorded in this project file ({}).".format(key_err))
             return
         # TRY-CATCH
 
@@ -171,10 +174,8 @@ class HidraWorkspace:
             if self._var_data_set[mask_name] is None:
                 self._var_data_set[mask_name] = np.sqrt(self._diff_data_set[mask_name])
 
-        print(
-            "[INFO] Loaded diffraction data from {} includes : {}".format(
-                self._project_file_name, self._diff_data_set.keys()
-            )
+        self._log.information(
+            "Loaded diffraction data from {} includes : {}".format(self._project_file_name, self._diff_data_set.keys())
         )
 
     def _append_reduced_diffraction_data(self, hidra_file):
@@ -189,11 +190,11 @@ class HidraWorkspace:
         try:
             vec_2theta = hidra_file.read_diffraction_2theta_array()
         except KeyError as key_err:
-            print(
-                "[INFO] Unable to load 2theta vector from HidraProject file due to {}."
-                "It is very likely that no reduced data is recorded."
-                "".format(key_err)
-            )
+            # read_diffraction_2theta_array only raises a bare KeyError for the
+            # legitimate "no REDUCED_DATA group at all" case -- an unrecognized/
+            # unsupported schema instead raises RuntimeError, which is deliberately
+            # NOT caught here, so it propagates instead of being silently swallowed.
+            self._log.information("No reduced-diffraction data recorded in this project file ({}).".format(key_err))
             return
         # TRY-CATCH
 
@@ -239,10 +240,8 @@ class HidraWorkspace:
             if self._var_data_set[mask_name] is None:
                 self._var_data_set[mask_name] = np.sqrt(self._diff_data_set[mask_name])
 
-        print(
-            "[INFO] Loaded diffraction data from {} includes : {}".format(
-                self._project_file_name, self._diff_data_set.keys()
-            )
+        self._log.information(
+            "Loaded diffraction data from {} includes : {}".format(self._project_file_name, self._diff_data_set.keys())
         )
 
     def _load_instrument(self, hidra_file):
@@ -420,9 +419,9 @@ class HidraWorkspace:
         calibrated : bool
             whether the wave length is calibrated or raw
         throw_if_not_set : bool
-            throw an exception if wave length is not set to workspace
+            throw an exception if wave length is not set on the workspace
         sub_run : None or int
-            sub run number for the wave length associated with
+            sub run number for the wave length
 
         Returns
         -------
@@ -907,15 +906,13 @@ class HidraWorkspace:
         if self._2theta_matrix is None or len(self._2theta_matrix.shape) != 2:
             # First time set up or legacy from input file: create the 2D array
             num_sub_runs = len(self._sample_logs.subruns)
-            self._2theta_matrix = np.ndarray(
-                shape=(num_sub_runs, two_theta_array.shape[0]), dtype=intensity_array.dtype
-            )
+            # 2theta and intensities are always float64: taking the input's dtype truncated 2theta to
+            # whole degrees for integer counts
+            self._2theta_matrix = np.ndarray(shape=(num_sub_runs, two_theta_array.shape[0]), dtype=np.float64)
 
             # set the diffraction data (2D) array with new dimension
             num_sub_runs = len(self._sample_logs.subruns)
-            self._diff_data_set[mask_id] = np.ndarray(
-                shape=(num_sub_runs, intensity_array.shape[0]), dtype=intensity_array.dtype
-            )
+            self._diff_data_set[mask_id] = np.ndarray(shape=(num_sub_runs, intensity_array.shape[0]), dtype=np.float64)
 
             if variances_array is None:
                 temp_intensity_array = intensity_array.copy()
@@ -934,9 +931,7 @@ class HidraWorkspace:
         elif mask_id not in self._diff_data_set:
             # A new mask: reset the diff_data_set again
             num_sub_runs = len(self._sample_logs.subruns)
-            self._diff_data_set[mask_id] = np.ndarray(
-                shape=(num_sub_runs, intensity_array.shape[0]), dtype=intensity_array.dtype
-            )
+            self._diff_data_set[mask_id] = np.ndarray(shape=(num_sub_runs, intensity_array.shape[0]), dtype=np.float64)
 
             # set the diffraction data (2D) array with new dimension
             num_sub_runs = len(self._sample_logs.subruns)
@@ -1048,7 +1043,7 @@ class HidraWorkspace:
                 if sub_runs is None or sub_run_i in sub_runs:
                     hidra_project.append_raw_counts(sub_run_i, self._raw_counts[sub_run_i])
                 else:
-                    print("[WARNING] sub run {} is not exported to {}".format(sub_run_i, hidra_project.name))
+                    self._log.warning("sub run {} is not exported to {}".format(sub_run_i, hidra_project.name))
                 # END-IF-ELSE
             # END-FOR
 
@@ -1073,6 +1068,9 @@ class HidraWorkspace:
             # Convert each sample log to a np array
             sample_log_value = self.get_sample_log_values(sample_log_name=log_name, sub_runs=sub_runs)
             sample_log_units = self.get_sample_log_units(log_name)
+
+            if b"" in sample_log_value:
+                sample_log_value = np.where(sample_log_value == b"", b"None", sample_log_value)
 
             # Add log value to project file
             hidra_project.append_experiment_log(log_name, sample_log_value, units=sample_log_units)
@@ -1189,6 +1187,73 @@ class HidraWorkspace:
             self._wave_length_calibrated_dict = wl_dict
         else:
             self._wave_length_dict = wl_dict
+
+    def set_sample_logs_from_object(self, sample_logs):
+        """Replace the current sample logs with the provided SampleLogs object.
+
+        Parameters
+        ----------
+        sample_logs : SampleLogs
+            Complete SampleLogs object to set
+
+        Returns
+        -------
+        None
+        """
+        self._sample_logs = sample_logs
+
+    def set_wavelength_from_value(self, wavelength):
+        """Set the universal wavelength (not per-subrun).
+
+        Parameters
+        ----------
+        wavelength : float
+            Wavelength value to set
+
+        Returns
+        -------
+        None
+        """
+        self._wave_length = wavelength
+
+    def set_reduced_diffraction_data_set(self, two_theta_matrix, diff_data_set, var_data_set):
+        """Set the full reduced diffraction data matrices directly.
+
+        Parameters
+        ----------
+        two_theta_matrix : np.ndarray
+            2D array, shape (n_subruns, n_2theta)
+        diff_data_set : dict
+            {mask_id: np.ndarray} intensity matrices
+        var_data_set : dict
+            {mask_id: np.ndarray} variance matrices
+
+        Returns
+        -------
+        None
+        """
+        self._2theta_matrix = np.copy(two_theta_matrix)
+        self._diff_data_set = {k: np.copy(v) for k, v in diff_data_set.items()}
+        self._var_data_set = {k: np.copy(v) for k, v in var_data_set.items()}
+
+    def set_masks_from_dict(self, default_mask, mask_dict):
+        """Set detector masks from explicit arrays.
+
+        Parameters
+        ----------
+        default_mask : np.ndarray or None
+            Default mask array, or None if no default
+        mask_dict : dict
+            {mask_name: mask_array}
+
+        Returns
+        -------
+        None
+        """
+        if default_mask is not None:
+            self.set_detector_mask(default_mask, True)
+        for name, arr in mask_dict.items():
+            self.set_detector_mask(arr, False, name)
 
     def reset_diffraction_data(self):
         """Reset the data structures to store the diffraction data set
