@@ -888,3 +888,18 @@ gold file `HB2B_mantid_calib.json` changes only in its error estimates (`error_T
 `error_Lambda` 0.0352 → 0.0261 Å; all parameters unchanged at 1 evaluation per stage). Regression test:
 `test_eta_wedges_are_binned_on_the_stored_axis` (`tests/integration/test_texture_reduction.py`). Not yet
 checked: reductions with several user ROI masks, which share the same per-sub-run 2θ storage.
+
+## `MantidPeakFitEngine` left FitPeaks' positions table behind after every fit (2026-10-29, #1040)
+
+`fit_peaks` passes FitPeaks four outputs. It deleted the two parameter tables after converting
+them to a `PeakCollection`, and returned the fitted and difference workspaces, which the
+peak-fitting and texture GUIs plot. The fourth, the peak-positions table
+`fitted_peak_positions_<input>`, was neither returned nor deleted, and nothing in PyRS reads it.
+
+- **Reused names** (GUI, `FitCalibration`) overwrote one table.
+- **Fresh names** (the ring calibration's strip fits) left one table per fit in Mantid's workspace
+  store: 26 after one synthetic 11-sub-run extraction.
+
+It is now deleted with the parameter tables; no fitted value changes. The input, fitted and
+difference workspaces remain the caller's to keep or delete. Regression test:
+`test_fit_leaves_only_returned_workspaces` (fails without the fix).
