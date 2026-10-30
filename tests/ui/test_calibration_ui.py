@@ -27,6 +27,15 @@ def calibration_window(my_qtbot):
     return window, my_qtbot
 
 
+def handle_export_dialog(folder, write_shared):
+    """Fill in and accept the Export Calibration dialog."""
+    dialog = QtWidgets.QApplication.activeModalWidget()
+    assert dialog.write_shared.isChecked()  # the shared HB2B calibration is written by default
+    dialog.folder_lineEdit.setText(folder)
+    dialog.write_shared.setChecked(write_shared)
+    dialog.accept()
+
+
 def test_detector_calibration(calibration_window, tmp_path):
     window, qtbot = calibration_window
 
@@ -80,15 +89,19 @@ def test_detector_calibration(calibration_window, tmp_path):
 
     # Write export/calibration files under pytest's tmp_path
     export_recipe_path = str(tmp_path / "HB2B_test_export.json")
-    calib_path = str(tmp_path / "HB2B_CAL.json")
+    calib_folder = tmp_path / "calibration"
+    calib_folder.mkdir()
 
     QtCore.QTimer.singleShot(300, functools.partial(handle_dialog, export_recipe_path))
     qtbot.mouseClick(window.peak_lines_setup.export_recipe, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
 
-    QtCore.QTimer.singleShot(300, functools.partial(handle_dialog, calib_path))
-    qtbot.mouseClick(window.calib_summary.export_local_calib_bttn, QtCore.Qt.LeftButton)
+    # Export: the user's folder, with the shared-calibration flag (ticked by default) unticked here
+    QtCore.QTimer.singleShot(300, functools.partial(handle_export_dialog, str(calib_folder), False))
+    qtbot.mouseClick(window.calib_summary.export_calib_bttn, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
+    assert not hasattr(window.calib_summary, "export_local_calib_bttn")  # Export replaces it (#1045)
+    (calib_path,) = [str(path) for path in calib_folder.iterdir()]
 
     QtCore.QTimer.singleShot(300, functools.partial(handle_dialog, calib_path))
     qtbot.mouseClick(window.fileLoading.file_load_calib.browse_button, QtCore.Qt.LeftButton)
@@ -127,4 +140,62 @@ def test_detector_calibration(calibration_window, tmp_path):
     window.param_window.plot_paramX.setCurrentIndex(1)
     qtbot.wait(wait)
 
+    window.hide()
+
+
+def test_ring_based_calibration_matches_driver(calibration_window, tmp_path):
+    """#1045: the window's ring-based calibration gives exactly the pyrs-pixel-calibration driver's result"""
+    import importlib.util
+    import json
+    from pathlib import Path
+
+    window, qtbot = calibration_window
+    window.show()
+    nexus = "tests/data/calibration_tests/HB2B_3510.nxs.h5"
+    window._nexus_file = nexus
+    window.fileLoading.file_load_dilg.load_nexus()
+    qtbot.wait(wait)
+    setup = window.peak_lines_setup
+
+    # Arrange - the driver's settings; the session window keeps the first test's recipe (max nfev 3,
+    # only sub-run 1 kept), which the window rightly applies to the ring-based calibration too
+    window.calib_summary.method_combo_box.setCurrentText("trf")
+    window.calib_summary.neval_lineEdit.setText("300")
+    for row in range(setup.calibrant_table.rowCount()):
+        setup.calibrant_table.item(row, 1).setCheckState(QtCore.Qt.CheckState.Unchecked)
+    # ... and the calibration it loaded and refined: start from the nominal geometry, as a new run
+    table = window.calib_summary._cal_summary_table
+    table.setColumnCount(1)
+    for row in range(7):
+        table.setItem(row, 0, QtWidgets.QTableWidgetItem("0"))
+    table.set_wavelength(0, window.controller.get_wavelength())
+
+    # Act - ring-based, default strips, recipe "iterate", as the driver
+    setup.method_combo.setCurrentText("Ring-based")
+    assert setup.strips_lineEdit.text() == "5" and setup.strips_lineEdit.isEnabled()
+    assert not setup.tthbin_lineEdit.isEnabled()
+    for i_row in range(8):
+        setup.recipe_combos[i_row].setCurrentIndex(0)
+    setup.recipe_combos[0].setCurrentText("iterate")
+    qtbot.mouseClick(setup.fit, QtCore.Qt.LeftButton)
+    qtbot.waitUntil(lambda: window.model._ring_calibration is not None, timeout=120000)
+    qtbot.mouseClick(setup.calibrate, QtCore.Qt.LeftButton)
+    qtbot.waitUntil(lambda: setup.calibrate.isEnabled() and window.model.rmse is not None, timeout=120000)
+    qtbot.wait(wait)
+    folder = tmp_path / "ring"
+    folder.mkdir()
+    written = window.calib_summary.write_calibration(str(folder), write_shared=False)
+
+    # Assert - the same file as the driver, with the window's mask (none without /HFIR) and wavelength
+    spec = importlib.util.spec_from_file_location(
+        "pyrs_pixel_calibration", Path(__file__).resolve().parents[2] / "scripts" / "pyrs_pixel_calibration.py"
+    )
+    driver = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(driver)
+    driver_file = str(tmp_path / "driver.json")
+    driver.run_calibration(nexus, driver_file, mask_file=window.model.mask_file)
+    assert json.load(open(written[0])) == json.load(open(driver_file))
+
+    setup.method_combo.setCurrentText("FitCalibration")
+    assert "iterate" not in [setup.recipe_combos[0].itemText(i) for i in range(setup.recipe_combos[0].count())]
     window.hide()

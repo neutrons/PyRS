@@ -14,7 +14,15 @@ from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities import get_nexus_file  # type: ignore
 from pyrs.interface.threading.worker_pool import WorkerPool
 from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
-from pyrs.interface.detector_calibration.detector_calibration_model import RING_GEOMETRIES, RING_GEOMETRY_FILE
+from pyrs.interface.detector_calibration.detector_calibration_model import (
+    CALIBRATION_METHODS,
+    DEFAULT_STRIPS,
+    ITERATE_ROUTINE,
+    METHOD_RING,
+    RING_GEOMETRIES,
+    RING_GEOMETRY_FILE,
+    SHARED_CALIBRATION_DIR,
+)
 
 from matplotlib import rcParams
 
@@ -423,7 +431,26 @@ class PeakLinesSetupView(QGroupBox):
         recipe_setup_layout.addWidget(self.fit, 11, 0, 1, 2)
         recipe_setup_layout.addWidget(self.calibrate, 11, 2, 1, 2)
 
-        self.recipe_setup.setLayout(recipe_setup_layout)
+        # calibration method (#1045): FitCalibration (default) or the ring-based calibration, which
+        # fits each ring once in detector strips
+        method_row = QHBoxLayout()
+        method_row.addWidget(QLabel("Method"))
+        self.method_combo = QComboBox(self)
+        self.method_combo.addItems(list(CALIBRATION_METHODS))
+        self.method_combo.currentIndexChanged.connect(self.method_changed)
+        method_row.addWidget(self.method_combo)
+        method_row.addWidget(QLabel("Strips"))
+        self.strips_lineEdit = QLineEdit()
+        self.strips_lineEdit.setText(str(DEFAULT_STRIPS))
+        self.strips_lineEdit.setFixedWidth(50)
+        self.strips_lineEdit.setToolTip("Strips per sub-run for the ring-based calibration's ring extraction")
+        method_row.addWidget(self.strips_lineEdit)
+        method_row.addStretch()
+
+        recipe_outer_layout = QVBoxLayout()
+        recipe_outer_layout.addLayout(method_row)
+        recipe_outer_layout.addLayout(recipe_setup_layout)
+        self.recipe_setup.setLayout(recipe_outer_layout)
 
         self.splitter.addWidget(self.calibration_setup)
         self.splitter.addWidget(self.recipe_setup)
@@ -431,8 +458,39 @@ class PeakLinesSetupView(QGroupBox):
         layout.addWidget(self.splitter)
 
         self.setLayout(layout)
+        self.method_changed()
 
         return
+
+    @property
+    def ring_based(self) -> bool:
+        return self.method_combo.currentText() == METHOD_RING
+
+    def method_changed(self):
+        """Switch the calibration method: only the chosen method's settings and routines are offered."""
+        self._parent.controller.set_method(self.method_combo.currentText())
+        ring = self.ring_based
+        self.strips_lineEdit.setEnabled(ring)
+        self.tthbin_lineEdit.setEnabled(not ring)
+        self.etabin_lineEdit.setEnabled(not ring)
+        for combo in self.recipe_combos.values():
+            index = combo.findText(ITERATE_ROUTINE)
+            if ring and index < 0:
+                combo.addItem(ITERATE_ROUTINE)
+            elif not ring and index >= 0:
+                if combo.currentIndex() == index:
+                    combo.setCurrentIndex(0)
+                combo.removeItem(index)
+
+    def strips(self) -> int:
+        """Strips per sub-run from the Strips field."""
+        try:
+            strips = int(self.strips_lineEdit.text())
+        except ValueError:
+            raise ValueError(f"strips must be a whole number, got {self.strips_lineEdit.text()!r}")
+        if strips < 1:
+            raise ValueError(f"strips must be at least 1, got {strips}")
+        return strips
 
     def set_reduction_param(self):
         self._parent.controller.set_reduction_param(self.tthbin_lineEdit.text(), self.etabin_lineEdit.text())
@@ -471,17 +529,31 @@ class PeakLinesSetupView(QGroupBox):
         return np.array(keep_list)
 
     def fit_peaks(self):
-        self.set_reduction_param()
+        """FitCalibration: reduce and fit the peaks; ring-based: extract the ring points."""
+        if not self.ring_based:
+            self.set_reduction_param()
         self.set_calibration_params()
         keep_list = self.get_keep_list()
-        rmse, deltatth = self._parent.controller.fit_diffraction_peaks(keep_list)
+        try:
+            strips = self.strips() if self.ring_based else None
+            rmse, deltatth = self._parent.controller.fit_diffraction_peaks(keep_list, strips=strips)
+        except (ValueError, RuntimeError) as fit_err:
+            pop_message(self, "Fit Peaks failed", str(fit_err), "error")
+            return
+        if self.ring_based:
+            self._parent.statusBar().showMessage(self._parent.model.ring_summary)
         self._parent.compare_diff_data.valueChanged()  # auto plot data after fitting
 
         self._parent.calib_summary.rmse_lineEdit.setText("{0:3f}".format(rmse))
         self._parent.calib_summary.delta_tth_lineEdit.setText("{0:4f}".format(deltatth))
 
     def calibrate_detector(self):
-        self.set_reduction_param()
+        if self.ring_based:
+            if self._parent.model.current_calibration_array is None or self._parent.model._ring_calibration is None:
+                pop_message(self, "No ring points", "Run Fit Peaks first: it extracts the ring points.", "error")
+                return
+        else:
+            self.set_reduction_param()
         self.set_calibration_params()
         self.set_refinement_params()
 
@@ -540,6 +612,9 @@ class PeakLinesSetupView(QGroupBox):
         self._parent.calib_summary.rmse_lineEdit.setText("{0:3f}".format(rmse))
         self._parent.calib_summary.delta_tth_lineEdit.setText("{0:4f}".format(r_sum))
 
+        if self._parent.model.calibration_warnings:
+            pop_message(self, "Calibration warnings", "\n".join(self._parent.model.calibration_warnings), "warning")
+
     def setup_calibration_table(self, powders):
         self.calibrant_table.setRowCount(len(powders))
 
@@ -596,6 +671,8 @@ class PeakLinesSetupView(QGroupBox):
         # write eta bins
         output_dict["eta_bin"] = self.etabin_lineEdit.text()
 
+        output_dict["calibration_method"] = self.method_combo.currentText()
+        output_dict["strips"] = self.strips_lineEdit.text()
         output_dict["method"] = self._parent.calib_summary.method_combo_box.currentText()
         output_dict["neval"] = self._parent.calib_summary.neval_lineEdit.text()
 
@@ -632,9 +709,16 @@ class PeakLinesSetupView(QGroupBox):
             "tth0",
         ]
 
+        # the method first: it decides which routines the recipe combos offer
+        if "calibration_method" in input_dict:
+            self.method_combo.setCurrentText(input_dict["calibration_method"])
+        if "strips" in input_dict:
+            self.strips_lineEdit.setText(str(input_dict["strips"]))
+
         if "recipe" in input_dict.keys():
             for i_item, item in enumerate(input_dict["recipe"].split(",")):
-                self.recipe_combos[i_item].setCurrentIndex(methods.index(item))
+                index = self.recipe_combos[i_item].findText(item)
+                self.recipe_combos[i_item].setCurrentIndex(index if index >= 0 else methods.index(item))
 
         # load input calibration if specified
         if self._parent._nexus_file is not None:  # Error check to make sure nexus file is loaded
@@ -659,21 +743,52 @@ class PeakLinesSetupView(QGroupBox):
 
 
 class ExportCalibDialog(QDialog):
-    def __init__(self):
-        super().__init__()
+    """Export: a folder of the user's choice, and (ticked by default) the shared HB2B calibration."""
 
-        self.setWindowTitle("Overwrite Calibration")
+    def __init__(self, parent=None, folder="", mono="SiXXX"):
+        super().__init__(parent)
 
-        QBtn = QDialogButtonBox.Ok | QDialogButtonBox.No
+        self.setWindowTitle("Export Calibration")
 
-        self.buttonBox = QDialogButtonBox(QBtn)
+        folder_row = QHBoxLayout()
+        folder_row.addWidget(QLabel("Folder"))
+        self.folder_lineEdit = QLineEdit(folder)
+        self.folder_lineEdit.setMinimumWidth(350)
+        folder_row.addWidget(self.folder_lineEdit)
+        browse = QPushButton("Browse")
+        browse.clicked.connect(self.browse)
+        folder_row.addWidget(browse)
+
+        self.write_shared = QCheckBox("Also write the shared HB2B calibration")
+        self.write_shared.setChecked(True)
+        shared = QLabel(
+            f"{SHARED_CALIBRATION_DIR}/HB2B_Latest.json\n"
+            f"{SHARED_CALIBRATION_DIR}/HB2B_Latest_{mono}.json\n"
+            f"{SHARED_CALIBRATION_DIR}/{mono}/HB2B_CAL_<time>.json"
+        )
+        shared.setIndent(20)
+
+        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
         self.layout = QVBoxLayout()
-        self.layout.addWidget(QLabel("Write latest calibration?"))
+        self.layout.addLayout(folder_row)
+        self.layout.addWidget(self.write_shared)
+        self.layout.addWidget(shared)
         self.layout.addWidget(self.buttonBox)
         self.setLayout(self.layout)
+
+    def browse(self):
+        folder = QFileDialog.getExistingDirectory(
+            self, "Folder for the calibration", self.folder_lineEdit.text(), options=QFileDialog.DontUseNativeDialog
+        )
+        if folder:
+            self.folder_lineEdit.setText(folder)
+
+    @property
+    def folder(self) -> str:
+        return self.folder_lineEdit.text().strip()
 
 
 class CalibrationSummaryView(QGroupBox):
@@ -729,11 +844,9 @@ class CalibrationSummaryView(QGroupBox):
 
         self.export_calib_bttn = QPushButton("Export Calibration")
         self.export_calib_bttn.clicked.connect(self.export_calib)
-        self.export_local_calib_bttn = QPushButton("Save Local Calibration")
-        self.export_local_calib_bttn.clicked.connect(self.export_local_calib)
+        self._export_folder = os.getcwd()
 
         calib_layout.addWidget(self.export_calib_bttn, i_row + 5, 0, 1, 2)
-        calib_layout.addWidget(self.export_local_calib_bttn, i_row + 6, 0, 1, 2)
         calib_summary.setLayout(calib_layout)
         _layout.addWidget(calib_summary)
 
@@ -744,20 +857,21 @@ class CalibrationSummaryView(QGroupBox):
         self.method_combo_box.setCurrentIndex(methods.index(method))
 
     def export_calib(self):
-        dlg = ExportCalibDialog()
-        if dlg.exec():
-            write_latest = True
-        else:
-            write_latest = False
-
-        self._parent.controller.export_calibration(filename=None, write_latest=write_latest)
-
-    def export_local_calib(self):
-        filename = save_json_file(self)
-        if not filename:
+        dlg = ExportCalibDialog(self, self._export_folder, self._parent.model.monochromator)
+        if not dlg.exec():
             return
+        self._export_folder = dlg.folder
+        self.write_calibration(dlg.folder, dlg.write_shared.isChecked())
 
-        self._parent.controller.export_calibration(filename=filename)
+    def write_calibration(self, folder, write_shared):
+        """Write the calibration and report which files were written (or why not)."""
+        try:
+            written = self._parent.controller.export_calibration(folder, write_shared=write_shared)
+        except (FileNotFoundError, PermissionError, RuntimeError, OSError) as export_err:
+            pop_message(self, "Export failed", str(export_err), "error")
+            return None
+        self._parent.statusBar().showMessage("Calibration written to " + ", ".join(written))
+        return written
 
 
 class CalibrationSummaryTable(QTableWidget):

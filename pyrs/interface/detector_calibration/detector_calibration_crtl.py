@@ -1,5 +1,6 @@
 import numpy as np
 from pyrs.interface.ui.mplconstants import MplBasicColors
+from pyrs.interface.detector_calibration.detector_calibration_model import DEFAULT_STRIPS, METHOD_RING
 
 
 class DetectorCalibrationCrtl:
@@ -32,8 +33,12 @@ class DetectorCalibrationCrtl:
 
         return tth_bins, eta_bins
 
-    def export_calibration(self, filename=None, write_latest=False):
-        self._model.export_calibration(filename=filename, write_latest=write_latest)
+    def export_calibration(self, folder, write_shared=True):
+        """Write the calibration to ``folder`` and, with ``write_shared``, the shared HB2B copies; returns the files."""
+        return self._model.export_calibration(folder, write_shared=write_shared)
+
+    def set_method(self, method):
+        self._model.set_method(method)
 
     def load_nexus(self, nexus_file, tth_bins, eta_bins):
         tth_bins, eta_bins = self.validate_eta_tth(tth_bins, eta_bins)
@@ -53,9 +58,16 @@ class DetectorCalibrationCrtl:
     def get_wavelength(self):
         return self._model.get_wavelength
 
-    def fit_diffraction_peaks(self, keep_list):
+    def fit_diffraction_peaks(self, keep_list, strips=None):
+        """FitCalibration: fit the peaks; ring-based: extract the ring points in ``strips`` strips.
+
+        Returns the RMS and the residual sum at the current calibration for both methods.
+        """
         # self.check_eta_tth_bins(tth_bins, eta_bins)
         self._model.set_keep_subrun_list(keep_list)
+        if self._model.method == METHOD_RING:
+            _, _, rmse, r_sum = self._model.extract_rings(DEFAULT_STRIPS if strips is None else strips)
+            return rmse, r_sum
         return self._model.fit_diffraction_peaks()
 
     def calibrate_detector(self, args):
