@@ -38,6 +38,14 @@ repos:
       - id: taplo-format
   - repo: local
     hooks:
+      # the same command and scope as CI's lint job: mypy checks types across files, so it runs on
+      # the whole project, not just the changed files
+      - id: mypy
+        name: mypy (same scope as CI)
+        entry: pixi run mypy pyrs scripts tests
+        language: system
+        pass_filenames: false
+        types: [python]
       - id: pixi-lock-check
         name: pixi-lock-check
         entry: bash -c "pixi lock --check"
