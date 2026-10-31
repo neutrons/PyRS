@@ -2,6 +2,13 @@
 import numpy as np
 import uncertainties.unumpy as unp
 from pyrs.core import instrument_geometry
+from pyrs.core.detector_model import (
+    rotate_positions,
+    rotation_matrix,
+    rotation_matrix_x,
+    rotation_matrix_y,
+    rotation_matrix_z,
+)
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float
 from typing import Optional
@@ -36,20 +43,8 @@ class ResidualStressInstrument:
 
     @staticmethod
     def _rotate_detector(detector_matrix, rotation_matrix):
-        """
-        rotate instrument
-        :param detector_matrix:
-        :param rotation_matrix:
-        :return:
-        """
-        rotate_det = np.zeros(detector_matrix.shape, dtype="float")
-
-        for i in range(3):
-            for j in range(3):
-                temp_det = rotation_matrix[i, j] * detector_matrix[:, :, j]
-                rotate_det[:, :, i] += temp_det[:, :]
-
-        return rotate_det
+        """Rotate pixel positions; see :func:`pyrs.core.detector_model.rotate_positions` (#1011)."""
+        return rotate_positions(detector_matrix, rotation_matrix)
 
     def _set_uncalibrated_pixels(self):
         """
@@ -252,78 +247,23 @@ class ResidualStressInstrument:
         return
 
     def generate_rotation_matrix(self, rot_x_rad, rot_y_rad, rot_z_rad):
-        """
-        Build a ration matrix with 3 orthogonal directions
-
-        :param float rot_x_rad: rotation about X-axis in rad (flip forward/backward)
-        :param float rot_y_rad: rotation about Y-axis in rad (vertical rotation)
-        :param float rot_z_rad: rotation about Z-axis in rad (spin)
-        :return:
-        """
-        rot_x_matrix = self._cal_rotation_matrix_x(rot_x_rad)
-        rot_y_matrix = self._cal_rotation_matrix_y(rot_y_rad)
-        rot_z_matrix = self._cal_rotation_matrix_z(rot_z_rad)
-
-        rotation_matrix = rot_x_matrix @ rot_y_matrix @ rot_z_matrix
-
-        return rotation_matrix
+        """``Rx @ Ry @ Rz`` (radians); see :func:`pyrs.core.detector_model.rotation_matrix` (#1011)."""
+        return rotation_matrix(rot_x_rad, rot_y_rad, rot_z_rad)
 
     @staticmethod
     def _cal_rotation_matrix_x(angle_rad):
-        """
-        build rotation matrix around X-axis
-
-        :param float angle_rad: roation angle
-        :return:
-        """
-        rotate_matrix = np.array(
-            [
-                [1.0, 0.0, 0.0],
-                [0.0, np.cos(angle_rad), -np.sin(angle_rad)],
-                [0.0, np.sin(angle_rad), np.cos(angle_rad)],
-            ],
-            dtype=np.float64,
-        )
-
-        return rotate_matrix
+        """Rotation about X; see :func:`pyrs.core.detector_model.rotation_matrix_x` (#1011)."""
+        return rotation_matrix_x(angle_rad)
 
     @staticmethod
     def _cal_rotation_matrix_y(angle_rad):
-        """
-        build rotation matrix around Y-axis
-
-        :param float angle_rad: roation angle
-        :return:
-        """
-        rotate_matrix = np.array(
-            [
-                [np.cos(angle_rad), 0.0, np.sin(angle_rad)],
-                [0.0, 1.0, 0.0],
-                [-np.sin(angle_rad), 0.0, np.cos(angle_rad)],
-            ],
-            dtype=np.float64,
-        )
-
-        return rotate_matrix
+        """Rotation about Y; see :func:`pyrs.core.detector_model.rotation_matrix_y` (#1011)."""
+        return rotation_matrix_y(angle_rad)
 
     @staticmethod
     def _cal_rotation_matrix_z(angle_rad):
-        """
-        build rotation matrix around Z-axis
-
-        :param float angle_rad: roation angle
-        :return:
-        """
-        rotate_matrix = np.array(
-            [
-                [np.cos(angle_rad), -np.sin(angle_rad), 0.0],
-                [np.sin(angle_rad), np.cos(angle_rad), 0.0],
-                [0.0, 0.0, 1.0],
-            ],
-            dtype=np.float64,
-        )
-
-        return rotate_matrix
+        """Rotation about Z; see :func:`pyrs.core.detector_model.rotation_matrix_z` (#1011)."""
+        return rotation_matrix_z(angle_rad)
 
     def get_pixel_matrix(self):
         """
