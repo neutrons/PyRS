@@ -218,6 +218,7 @@ class PixelCalibration:
         self._calib[7] = wavelength
         self._caliberr = np.full(8, NOT_REFINED)
         self._status = -1
+        self._worst_status = -1  # lowest status of the refinements since the last start (-1: none)
         self.stages: List[StageResult] = []
         # every warning a stage issued (stopped at a bound, not converged), also sent to ``warnings``;
         # callers read it instead of capturing warnings, which is not thread-safe
@@ -270,6 +271,7 @@ class PixelCalibration:
         self._calib = values.copy()
         self._caliberr = np.full(8, NOT_REFINED)
         self._status = -1
+        self._worst_status = -1
 
     def set_refinement(self, method: str = "trf", max_nfev: Optional[int] = None) -> None:
         """Change the ``least_squares`` method and evaluation limit used by later stages.
@@ -283,15 +285,25 @@ class PixelCalibration:
         self._method = method
         self._max_nfev = None if max_nfev is None else int(max_nfev)
 
-    def checkpoint(self) -> Tuple[np.ndarray, np.ndarray, int, int]:
-        """The current values, errors, status and number of stages, for :meth:`restore`."""
-        return self._calib.copy(), self._caliberr.copy(), self._status, len(self.stages)
+    def checkpoint(self) -> Tuple[np.ndarray, np.ndarray, int, int, int]:
+        """The current values, errors, status, worst status and number of stages, for :meth:`restore`."""
+        return self._calib.copy(), self._caliberr.copy(), self._status, self._worst_status, len(self.stages)
 
-    def restore(self, checkpoint: Tuple[np.ndarray, np.ndarray, int, int]) -> None:
-        """Return to a :meth:`checkpoint`: its values, errors and status, dropping later stages."""
-        values, errors, status, n_stages = checkpoint
+    def restore(self, checkpoint: Tuple[np.ndarray, np.ndarray, int, int, int]) -> None:
+        """Return to a :meth:`checkpoint`: its values, errors and statuses, dropping later stages."""
+        values, errors, status, worst_status, n_stages = checkpoint
         self._calib, self._caliberr, self._status = values.copy(), errors.copy(), status
+        self._worst_status = worst_status
         del self.stages[n_stages:]
+
+    @property
+    def worst_status(self) -> int:
+        """Lowest ``least_squares`` status of the refinements since the last start; -1 if none ran.
+
+        0 means at least one stage stopped at ``max_nfev`` before converging, even if a later
+        stage converged: :attr:`calibration_status` reports only the last stage.
+        """
+        return self._worst_status
 
     def _warn(self, message: str) -> None:
         self.warning_log.append(message)
@@ -444,6 +456,7 @@ class PixelCalibration:
         self._calib[free] = out.x
         self._caliberr[free] = errors
         self._status = int(out.status)
+        self._worst_status = self._status if self._worst_status < 0 else min(self._worst_status, self._status)
         stage = StageResult(
             name=name,
             free_parameters=tuple(PARAMETER_NAMES[i] for i in free),

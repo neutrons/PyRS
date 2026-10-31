@@ -244,12 +244,13 @@ def test_recipe_keeps_method_and_strips(calibration_window, tmp_path, monkeypatc
     monkeypatch.setattr(viewer_module, "save_json_file", lambda parent: recipe)
     monkeypatch.setattr(viewer_module.QFileDialog, "getOpenFileName", lambda *args, **kwargs: (recipe, ""))
 
-    # Arrange - Ring-based, 3 strips, "iterate"
+    # Arrange - Ring-based, 3 strips, two steps (saving kept only the last step before)
     setup.method_combo.setCurrentText("Ring-based")
     setup.strips_lineEdit.setText("3")
     for i_row in range(8):
         setup.recipe_combos[i_row].setCurrentIndex(0)
-    setup.recipe_combos[0].setCurrentText("iterate")
+    setup.recipe_combos[0].setCurrentText("shifts")
+    setup.recipe_combos[1].setCurrentText("iterate")
 
     # Act - save, change everything, load
     setup.save_json()
@@ -260,7 +261,8 @@ def test_recipe_keeps_method_and_strips(calibration_window, tmp_path, monkeypatc
 
     # Assert
     assert (setup.method_combo.currentText(), setup.strips_lineEdit.text()) == ("Ring-based", "3")
-    assert setup.recipe_combos[0].currentText() == "iterate"
+    assert [setup.recipe_combos[i].currentText() for i in range(3)] == ["shifts", "iterate", ""]
+    assert json.load(open(recipe))["recipe"] == "shifts,iterate"
 
     # a recipe from before #1045 (no "calibration_method") with "iterate" selects the ring-based method
     saved = json.load(open(recipe))
@@ -269,7 +271,7 @@ def test_recipe_keeps_method_and_strips(calibration_window, tmp_path, monkeypatc
     setup.method_combo.setCurrentText("FitCalibration")
     setup.load_json()
     qtbot.wait(wait)
-    assert setup.method_combo.currentText() == "Ring-based" and setup.recipe_combos[0].currentText() == "iterate"
+    assert setup.method_combo.currentText() == "Ring-based" and setup.recipe_combos[1].currentText() == "iterate"
     setup.method_combo.setCurrentText("FitCalibration")
 
 
