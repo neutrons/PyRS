@@ -8,6 +8,7 @@ class Worker(QObject):
     finished = Signal()
     success = Signal(bool)
     result = Signal(object)
+    error = Signal(str)  # the exception's message, when the target raised
 
     target = None
     args = None
@@ -18,20 +19,25 @@ class Worker(QObject):
         self.args = args
 
     def run(self):
-        """Long-running task."""
+        """Long-running task: emits ``result`` and ``success``, or ``error``, and always ``finished``.
+
+        On failure ``error`` carries the message and ``result`` is still emitted, with None, so a slot
+        connected to ``result`` must handle None.
+        """
         try:
             results = self.target(self.args)
             # results.code = 200 # set to 200 for testing
             self.result.emit(results)
             self.success.emit(True)
-        except Exception as e:  # noqa: BLE001
-            # print stacktrace
+        except Exception as e:  # noqa: BLE001 - reported to the GUI through ``error``
             import traceback
 
-            traceback.print_exc(e)
+            traceback.print_exc()  # print_exc(e) took the exception as its line limit and raised TypeError
+            self.error.emit(f"{type(e).__name__}: {e}")
             self.result.emit(None)
             self.success.emit(False)
-        self.finished.emit()
+        finally:
+            self.finished.emit()
 
 
 class TimmerWorker(QObject):

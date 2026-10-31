@@ -2,6 +2,20 @@ from .mplgraphicsview1d import MplGraphicsView1D
 from .mplgraphicsview2d import MplGraphicsView2D
 import numpy as np
 from .mplfitplottingwidget import MplFitPlottingWidget
+from qtpy.QtGui import QCursor  # type: ignore
+from qtpy.QtWidgets import QToolTip  # type: ignore
+from typing import Optional, Sequence
+
+from matplotlib.backend_bases import MouseEvent
+from pyrs.calibration.pixel_calibration_plots import (
+    PointMarks,
+    PredictedRing,
+    marker_at,
+    plot_ring_overlay,
+    plot_ring_points,
+    remove_artists,
+    remove_ring_overlay,
+)
 
 
 class DetectorView(MplGraphicsView2D):
@@ -15,8 +29,54 @@ class DetectorView(MplGraphicsView2D):
         :param parent:
         """
         MplGraphicsView2D.__init__(self, parent)
+        self._ring_overlay = None
+        self._point_artists = []
+        self._point_marks = []
+        self._myCanvas.mpl_connect("motion_notify_event", self._show_mark_tooltip)
 
         return
+
+    def set_ring_overlay(
+        self,
+        two_theta_map: Optional[np.ndarray] = None,
+        rings: Sequence[PredictedRing] = (),
+        mask: Optional[np.ndarray] = None,
+    ) -> None:
+        """Draw predicted rings over the detector image, replacing any drawn before.
+
+        Called with no arguments it only removes them. ``two_theta_map``, ``rings`` and ``mask`` are
+        as for :func:`pyrs.calibration.pixel_calibration_plots.plot_ring_overlay`; the rings line up
+        with :meth:`plot_detector_view`, which puts pixel (i0, i1) at (i0 + 0.5, i1 + 0.5).
+        """
+        # the view adds a new image on every redraw; contours draw above images, so an old overlay
+        # would stay visible over the new image unless it is removed
+        remove_ring_overlay(self._ring_overlay)
+        self._ring_overlay = None
+        if two_theta_map is not None and rings:
+            self._ring_overlay = plot_ring_overlay(self._myCanvas.axes, two_theta_map, rings, mask=mask)
+        self._myCanvas.draw_idle()
+
+    def set_ring_points(self, accepted: Optional[PointMarks] = None, rejected: Optional[PointMarks] = None) -> None:
+        """Mark picked ring points and rejected strips, replacing any drawn before; no arguments clears them.
+
+        ``accepted`` and ``rejected`` are :class:`pyrs.calibration.pixel_calibration_plots.PointMarks`;
+        hovering over a mark shows its description.
+        """
+        remove_artists(self._point_artists)
+        self._point_marks = [marks for marks in (accepted, rejected) if marks is not None]
+        self._point_artists = plot_ring_points(self._myCanvas.axes, accepted, rejected)
+        self._myCanvas.draw_idle()
+
+    def mark_text_at(self, x_display: float, y_display: float) -> Optional[str]:
+        """Description of the mark under a display position, or None."""
+        return marker_at(self._myCanvas.axes, self._point_marks, x_display, y_display)
+
+    def _show_mark_tooltip(self, event: MouseEvent) -> None:
+        text = self.mark_text_at(event.x, event.y) if event.inaxes is self._myCanvas.axes else None
+        if text is None:
+            QToolTip.hideText()
+        else:
+            QToolTip.showText(QCursor.pos(), text, self._myCanvas)
 
     def plot_counts(self, count_vec):
         linear_size = np.sqrt(count_vec.shape[0])
