@@ -2041,3 +2041,55 @@ Constitution issues. It found several ways a wrong or unconverged calibration co
 - The GUI ring-based result still equals the driver's, now compared against the real
   `run_calibration`.
 - New tests cover each fix, and the worker tests fail on the old worker.
+
+## PR #1046 re-review: Export permissions, worst status, failed FitCalibration recipes (2026-10-31)
+
+A second review of the fixes (code reviewer and silent-failure hunter) confirmed most of them, and
+found that two were wrong. This entry corrects the one above where they differ.
+
+**Export permissions (user decision: anyone with write access to the folder may overwrite a calibration file).**
+- **The problem:** the atomic replace created a new file with the exporter's ownership, group and
+  umask mode (0600 under umask 077, unreadable by reduction run as other users). It briefly set the
+  process-wide umask to read it. And its pre-check tested write access to the *file*, while a rename
+  needs write and search access to the *folder*.
+- **Now:**
+  - Files are written as `rw-rw-r--` (`CALIBRATION_FILE_MODE = 0o664`) in the folder's group, where
+    the user may set it, so group members may also overwrite them in place. The umask is not touched.
+  - A created archive folder gets `rwxrwsr-x` (0o2775), so its files inherit its group.
+  - The pre-check requires write and search permission on the folder. In a sticky-bit folder, the
+    exporter must also own any file being replaced, or own the folder.
+  - A read-only `HB2B_Latest.json` in a writable folder is replaced. A writable one in a read-only
+    folder is refused before any shared file is written.
+  - Per-file ACLs on a replaced file are not kept.
+
+**Export checks the worst status, not the last.**
+- **The problem:** a stage stopped at max nfev (status 0), a later stage converged, and Export
+  accepted the result. For FitCalibration this was silent. The entry above overstated this ("Export
+  now refuses status 0").
+- **Now:**
+  - `PixelCalibration.worst_status` keeps the lowest status since the last start; `set_calibration_array`
+    resets it. The GUI model records FitCalibration's status after every recipe stage.
+  - Export refuses if any stage did not converge.
+  - The written `Status` is still the last stage's, so the driver output is unchanged.
+
+**A FitCalibration recipe that fails partway can't be exported.** The stages before the failure
+have changed the calibration. The GUI model marks it as incomplete, without touching FitCalibration,
+until the next Calibrate.
+
+**The Export dialog states what it will write:** the method, status, λ, shifts and 2θ₀. If the
+calibration can't be exported, it shows why and disables OK.
+
+**Smaller fixes:**
+- Fit Peaks and Calibrate with no run loaded raise a clear error instead of an `AttributeError`
+  escaping a Qt slot.
+- The recipe boxes, strips field and keep table are locked during Calibrate. The result columns are
+  labelled from the recipe.
+- A failed ring recipe shows its own warnings.
+- `Worker` documents that `result` is None on failure.
+- FitCalibration's ten-branch `if/elif` uses the shared routine table (same names, same methods).
+
+**Bugs already on `next`:**
+- Fixed: saving a recipe kept only its last routine, because `save_json` overwrote the string on
+  each pass.
+- Reported, not fixed (production FitCalibration): it writes an error of **0** for undetermined
+  parameters, because `-2 * np.zeros_like(...)` is zeros, not −2 (#1049).

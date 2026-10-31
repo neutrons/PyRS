@@ -579,11 +579,11 @@ class PeakLinesSetupView(QGroupBox):
                 self.set_reduction_param()
             self.set_calibration_params()
             self.set_refinement_params()
+            exclude_list = self.get_keep_list()
         except (ValueError, RuntimeError, OSError) as setup_err:
             pop_message(self, "Calibrate failed", str(setup_err), "error")
             return
 
-        exclude_list = self.get_keep_list()
         fit_recipe = [self.recipe_combos[i_row].currentText() for i_row in range(8)]
 
         fit_recipe = [_recipe for _recipe in fit_recipe if _recipe != ""]
@@ -596,9 +596,11 @@ class PeakLinesSetupView(QGroupBox):
                 self.fit,
                 self.calibrate,
                 self.method_combo,
+                self.strips_lineEdit,
+                self.calibrant_table,
                 self._parent.calib_summary.export_calib_bttn,
                 self._parent.fileLoading,
-            ]
+            ] + list(self.recipe_combos.values())  # the result columns are labelled from the recipe
             for widget in busy:
                 widget.setEnabled(False)
 
@@ -645,8 +647,9 @@ class PeakLinesSetupView(QGroupBox):
         self._parent.compare_diff_data.valueChanged()  # auto plot data after fitting
         self._parent.param_window.change_plot()
 
-        self._parent.calib_summary.rmse_lineEdit.setText("{0:3f}".format(rmse))
-        self._parent.calib_summary.delta_tth_lineEdit.setText("{0:4f}".format(r_sum))
+        if rmse is not None and r_sum is not None:
+            self._parent.calib_summary.rmse_lineEdit.setText("{0:3f}".format(rmse))
+            self._parent.calib_summary.delta_tth_lineEdit.setText("{0:4f}".format(r_sum))
 
         if self._parent.model.calibration_warnings:
             pop_message(self, "Calibration warnings", "\n".join(self._parent.model.calibration_warnings), "warning")
@@ -693,13 +696,12 @@ class PeakLinesSetupView(QGroupBox):
         # write exclude list
         output_dict["keep"] = self.get_keep_list().tolist()
 
-        # write routines
-        Method = ""
-        for i_item in range(8):
-            if self.recipe_combos[i_item].currentText() != "":
-                recipe = "{},{}".format(Method, self.recipe_combos[i_item].currentText())
-
-        output_dict["recipe"] = recipe[1:]
+        # write routines: every non-empty step, in order (only the last one was kept before)
+        output_dict["recipe"] = ",".join(
+            self.recipe_combos[i_item].currentText()
+            for i_item in range(8)
+            if self.recipe_combos[i_item].currentText() != ""
+        )
 
         # write tth bins
         output_dict["tth_bin"] = self.tthbin_lineEdit.text()
@@ -773,10 +775,14 @@ class PeakLinesSetupView(QGroupBox):
 class ExportCalibDialog(QDialog):
     """Export: a folder of the user's choice, and (ticked by default) the shared HB2B calibration."""
 
-    def __init__(self, parent=None, folder="", mono="SiXXX"):
+    def __init__(self, parent=None, folder="", mono="SiXXX", description=(True, "")):
         super().__init__(parent)
 
         self.setWindowTitle("Export Calibration")
+        exportable, text = description
+        # what will be written (method, status, key values), or why it cannot be
+        self.description = QLabel(text)
+        self.description.setWordWrap(True)
 
         folder_row = QHBoxLayout()
         folder_row.addWidget(QLabel("Folder"))
@@ -800,7 +806,10 @@ class ExportCalibDialog(QDialog):
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
+        self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(exportable)
+
         self.layout = QVBoxLayout()
+        self.layout.addWidget(self.description)
         self.layout.addLayout(folder_row)
         self.layout.addWidget(self.write_shared)
         self.layout.addWidget(shared)
@@ -885,7 +894,9 @@ class CalibrationSummaryView(QGroupBox):
         self.method_combo_box.setCurrentIndex(methods.index(method))
 
     def export_calib(self):
-        dlg = ExportCalibDialog(self, self._export_folder, self._parent.model.monochromator)
+        dlg = ExportCalibDialog(
+            self, self._export_folder, self._parent.model.monochromator, self._parent.model.export_description()
+        )
         if not dlg.exec():
             return
         self._export_folder = dlg.folder

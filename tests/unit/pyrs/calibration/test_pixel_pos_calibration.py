@@ -764,13 +764,31 @@ def test_set_refinement_invalid_raises(hb2b, true_rings, kwargs, match):
 
 def test_restore_returns_to_checkpoint(refined_noisy):
     # Arrange
-    values, errors, status, n_stages = refined_noisy.checkpoint()
+    checkpoint = refined_noisy.checkpoint()
+    values, errors, status, worst, n_stages = checkpoint
 
     # Act
     refined_noisy.calibrate_wave_length()
-    refined_noisy.restore((values, errors, status, n_stages))
+    refined_noisy.restore(checkpoint)
 
     # Assert
     np.testing.assert_array_equal(refined_noisy.calibration_array, values)
     np.testing.assert_array_equal(refined_noisy.calibration_error_array, errors)
     assert refined_noisy.calibration_status == status and len(refined_noisy.stages) == n_stages
+    assert refined_noisy.worst_status == worst
+
+
+def test_worst_status_remembers_an_unconverged_stage(hb2b, true_rings):
+    # Arrange
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH, max_nfev=1)
+    with pytest.warns(UserWarning):
+        calibration.CalibrateShift()  # stops at max_nfev: status 0
+    calibration.set_refinement("trf", None)
+
+    # Act
+    calibration.calibrate_wave_length()
+
+    # Assert - the last stage converged, the worst did not; a new start forgets it
+    assert calibration.calibration_status > 0 and calibration.worst_status == 0
+    calibration.set_calibration_array(calibration.calibration_array)
+    assert calibration.worst_status == -1

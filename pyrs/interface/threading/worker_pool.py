@@ -19,7 +19,11 @@ class Worker(QObject):
         self.args = args
 
     def run(self):
-        """Long-running task: emits ``result`` and ``success``, or ``error``, and always ``finished``."""
+        """Long-running task: emits ``result`` and ``success``, or ``error``, and always ``finished``.
+
+        On failure ``error`` carries the message and ``result`` is still emitted, with None, so a slot
+        connected to ``result`` must handle None.
+        """
         try:
             results = self.target(self.args)
             # results.code = 200 # set to 200 for testing

@@ -1,4 +1,5 @@
 import os
+import stat
 import tempfile
 import time
 import warnings
@@ -75,20 +76,62 @@ def _signed_residual_sum(calibration: PixelCalibration) -> float:
     return float(np.sum(calibration.residual(calibration.calibration_array)))
 
 
-def _writable(path: str) -> bool:
-    """Whether ``path`` can be written: an existing writable file, or a new file in a writable folder."""
-    if os.path.exists(path):
-        return os.access(path, os.W_OK)
-    folder = os.path.dirname(path)
-    while folder and not os.path.exists(folder):  # a missing archive folder is created in its parent
+# Calibration files are saved rw-rw-r-- in the folder's group: anyone who may write the folder may
+# replace them, everyone may read them (production reduction runs under other accounts)
+CALIBRATION_FILE_MODE = 0o664
+CALIBRATION_FOLDER_MODE = 0o2775  # a created archive folder: group-writable, new files inherit its group
+
+
+def _existing_folder(path: str) -> str:
+    """The nearest existing folder above ``path`` (a missing archive folder is created inside it)."""
+    folder = os.path.dirname(os.path.abspath(path))
+    while not os.path.isdir(folder):
         folder = os.path.dirname(folder)
-    return bool(folder) and os.access(folder, os.W_OK)
+    return folder
+
+
+def _writable(path: str) -> bool:
+    """Whether ``path`` can be (re)placed: a file is written by renaming a temporary file over it.
+
+    A rename needs write and search permission on the folder, not on the file; in a sticky-bit
+    folder (``chmod +t``) only the owner of an existing file may replace it.
+    """
+    folder = _existing_folder(path)
+    if not os.access(folder, os.W_OK | os.X_OK):
+        return False
+    if os.path.exists(path) and os.stat(folder).st_mode & stat.S_ISVTX:
+        return os.stat(path).st_uid in (os.getuid(), os.stat(folder).st_uid)
+    return True
+
+
+def _share_with_folder_group(path: str, mode: int) -> None:
+    """Set ``mode`` and, where the user is allowed to, the group of the folder that holds ``path``."""
+    os.chmod(path, mode)
+    try:
+        os.chown(path, -1, os.stat(os.path.dirname(os.path.abspath(path))).st_gid)
+    except PermissionError:  # not a member of that group: the file keeps the user's group
+        pass
+
+
+def _make_folder(folder: str) -> None:
+    """Create ``folder`` (and missing parents) shared like the calibration files."""
+    missing = []
+    while not os.path.isdir(folder):
+        missing.append(folder)
+        folder = os.path.dirname(folder)
+    for created in reversed(missing):
+        os.mkdir(created)
+        _share_with_folder_group(created, CALIBRATION_FOLDER_MODE)
 
 
 def _write_atomically(values: np.ndarray, errors: np.ndarray, status: int, file_name: str) -> None:
-    """Write a calibration JSON to a temporary file next to ``file_name``, then rename it into place."""
-    folder, name = os.path.split(file_name)
-    handle, temporary = tempfile.mkstemp(prefix=f".{name}.", suffix=".json", dir=folder or ".")
+    """Write a calibration JSON to a temporary file next to ``file_name``, then rename it into place.
+
+    The rename replaces an existing file in one step (never a truncated file); the file gets
+    :data:`CALIBRATION_FILE_MODE` and the folder's group, whoever wrote it before.
+    """
+    folder, name = os.path.split(os.path.abspath(file_name))
+    handle, temporary = tempfile.mkstemp(prefix=f".{name}.", suffix=".json", dir=folder)
     os.close(handle)
     try:
         write_calibration_to_json(
@@ -99,9 +142,7 @@ def _write_atomically(values: np.ndarray, errors: np.ndarray, status: int, file_
             int(status),
             temporary,
         )
-        umask = os.umask(0)
-        os.umask(umask)
-        os.chmod(temporary, 0o666 & ~umask)  # mkstemp makes it private; give it a normal file's mode
+        _share_with_folder_group(temporary, CALIBRATION_FILE_MODE)
         os.replace(temporary, file_name)
     except BaseException:
         if os.path.exists(temporary):
@@ -137,6 +178,12 @@ class DetectorCalibrationModel(QObject):
         self.method = METHOD_FITCALIBRATION
         self._ring_refinement = {"method": "trf", "max_nfev": None}
         self._reset_ring_state()
+        self._reset_fit_state()
+
+    def _reset_fit_state(self) -> None:
+        """Forget FitCalibration's recipe statuses (call whenever its calibration object is rebuilt)."""
+        self._fit_statuses: List[int] = []
+        self._fit_failed = False
 
     def _reset_ring_state(self) -> None:
         """Forget everything the ring-based calibration derived from the loaded run (call on a new run)."""
@@ -324,13 +371,25 @@ class DetectorCalibrationModel(QObject):
         written: List[str] = []
         for target in [user_copy] + shared:
             try:
-                os.makedirs(os.path.dirname(target), exist_ok=True)
+                _make_folder(os.path.dirname(os.path.abspath(target)))
                 _write_atomically(values, errors, status, target)
             except (OSError, RuntimeError) as write_err:
                 done = ", ".join(written) if written else "nothing"
                 raise OSError(f"writing {target} failed ({write_err}); written so far: {done}") from write_err
             written.append(target)
         return written
+
+    def export_description(self) -> Tuple[bool, str]:
+        """Whether the chosen method's calibration can be exported, and what (or why not), for the dialog."""
+        try:
+            values, _, status = self._export_values()
+        except RuntimeError as reason:
+            return False, f"{self.method} calibration cannot be exported: {reason}"
+        return True, (
+            f"{self.method} calibration (status {status}): "
+            f"λ = {values[7]:.5f} Å, Shift = ({values[0] * 1e3:.2f}, {values[1] * 1e3:.2f}, {values[2] * 1e3:.2f}) mm, "
+            f"2θ₀ = {values[6]:.4f}°"
+        )
 
     def _export_values(self) -> Tuple[np.ndarray, np.ndarray, int]:
         """Values, errors and status of the chosen method's calibration, if it may be exported."""
@@ -343,22 +402,28 @@ class DetectorCalibrationModel(QObject):
                 calibration.calibration_error_array,
                 calibration.calibration_status,
             )
+            worst = calibration.worst_status
         else:
             if self._calibration_obj is None:
                 raise RuntimeError("no calibration run is loaded")
+            if self._fit_failed:
+                raise RuntimeError("the last Calibrate failed partway: its result is incomplete; Calibrate again")
             fit = self._calibration_obj
             values, errors = np.asarray(fit.calibration_array), np.asarray(fit.calibration_error_array)
             status = int(fit._calibstatus)
+            worst = min(self._fit_statuses) if self._fit_statuses else status
         if status < 0:
             raise RuntimeError("the calibration has not been refined (status -1): run Calibrate first")
-        if status == 0:
+        if 0 in (status, worst):
             raise RuntimeError(
-                "the last refinement stopped at max nfev before converging (status 0): raise max nfev and "
+                "a refinement stage stopped at max nfev before converging (status 0): raise max nfev and "
                 "Calibrate again"
             )
         return values, errors, status
 
     def set_refinement_params(self, method, max_nfev):
+        if self._calibration_obj is None:
+            raise RuntimeError("load a calibration run first")
         if self.method == METHOD_RING:
             self._ring_refinement = {"method": method, "max_nfev": int(max_nfev)}
             if self._ring_calibration is not None:
@@ -368,6 +433,8 @@ class DetectorCalibrationModel(QObject):
         self._calibration_obj.set_max_nfev(int(max_nfev))
 
     def set_calibration_params(self, params_list):
+        if self._calibration_obj is None:
+            raise RuntimeError("load a calibration run first")
         if self.method == METHOD_RING:
             self._ring_start = np.asarray(params_list, dtype=float).copy()
             if self._ring_calibration is not None:
@@ -440,6 +507,7 @@ class DetectorCalibrationModel(QObject):
         return len(points), rings, float(np.sqrt(np.mean(residual**2))), float(np.sum(residual))
 
     def set_reduction_param(self, tth_bins, eta_bins):
+        self._reset_fit_state()  # a new FitCalibration object: nothing refined yet
         if self._calibration_obj is not None:
             self._calibration_obj = FitCalibration(
                 nexus_file=self._nexus_file, mask_file=self._mask_file, eta_slice=eta_bins, bins=tth_bins
@@ -447,6 +515,7 @@ class DetectorCalibrationModel(QObject):
 
     def _init_calibration(self, nexus_file, tth=512, eta=3.0):
         self._reset_ring_state()  # ring points and results belong to the previous run
+        self._reset_fit_state()
         self._mask_file = default_mask_file()
         self._calibration_obj = FitCalibration(
             nexus_file=nexus_file, mask_file=self._mask_file, eta_slice=eta, bins=tth
@@ -476,44 +545,26 @@ class DetectorCalibrationModel(QObject):
         if self.method == METHOD_RING:
             return self._calibrate_rings(fit_recipe)
         if self._calibration_obj is not None:
-            # self._calibration_obj.initalize_calib_results()
+            fit = self._calibration_obj
+            self._reset_fit_state()
             calibration = []
             calibration_error = []
-            for recipe in fit_recipe:
-                if recipe == "wavelength":
-                    self._calibration_obj.calibrate_wave_length()
-                elif recipe == "rotations":
-                    self._calibration_obj.CalibrateRotation()
-                elif recipe == "geometry":
-                    self._calibration_obj.CalibrateGeometry()
-                elif recipe == "shifts":
-                    self._calibration_obj.CalibrateShift()
-                elif recipe == "shift x":
-                    self._calibration_obj.calibrate_shiftx()
-                elif recipe == "shift y":
-                    self._calibration_obj.calibrate_shifty()
-                elif recipe == "distance":
-                    self._calibration_obj.calibrate_distance()
-                elif recipe == "full":
-                    self._calibration_obj.FullCalibration()
-                elif recipe == "wavelength_tth0":
-                    self._calibration_obj.calibrate_wave_shift()
-                elif recipe == "tth0":
-                    self._calibration_obj.calibrate_tth0()
-
-                if recipe != "":
-                    calibration.append(np.copy(self._calibration_obj.calibration_array))
-                    calibration_error.append(np.copy(self._calibration_obj.calibration_error_array))
+            try:
+                for recipe in fit_recipe:
+                    if recipe in RECIPE_STAGES:
+                        getattr(fit, RECIPE_STAGES[recipe])()
+                    if recipe != "":
+                        calibration.append(np.copy(fit.calibration_array))
+                        calibration_error.append(np.copy(fit.calibration_error_array))
+                        self._fit_statuses.append(int(fit._calibstatus))
+            except Exception:
+                self._fit_failed = True  # the stages before the failure changed it: not exportable
+                raise
 
             try:
-                return (
-                    calibration,
-                    calibration_error,
-                    self._calibration_obj.residual_sum,
-                    self._calibration_obj.residual_rmse,
-                )
-            except IndexError:
-                return calibration, -1, -1, -1
+                return calibration, calibration_error, fit.residual_sum, fit.residual_rmse
+            except IndexError:  # no residual recorded
+                return calibration, calibration_error, None, None
 
     def _calibrate_rings(
         self, fit_recipe: Sequence[str]
@@ -561,6 +612,7 @@ class DetectorCalibrationModel(QObject):
                 values[-1], errors[-1] = calibration.calibration_array, calibration.calibration_error_array
                 self._ring_history[-1] = calibration.calibration_array
         except Exception:
+            self.calibration_warnings = calibration.warning_log[first_warning:]  # this run's, not the last's
             calibration.restore(checkpoint)
             del self._ring_history[history_length:]
             raise

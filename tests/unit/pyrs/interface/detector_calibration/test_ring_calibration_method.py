@@ -440,8 +440,6 @@ def test_export_writes_archive_before_latest_atomically(refined, tmp_path, share
     gui_model, _ = refined
     user = tmp_path / "mine"
     user.mkdir()
-    umask = os.umask(0)
-    os.umask(umask)
 
     # Act
     written = gui_model.export_calibration(str(user), write_shared=True)
@@ -455,18 +453,37 @@ def test_export_writes_archive_before_latest_atomically(refined, tmp_path, share
     ]
     for folder in (user, shared, shared / "Si422"):
         assert not [name for name in os.listdir(folder) if name.startswith(".")]
-    assert all(os.stat(p).st_mode & 0o777 == 0o666 & ~umask for p in written)
+    # rw-rw-r--: anyone who may write the folder may replace it, everyone may read it
+    assert all(os.stat(p).st_mode & 0o777 == 0o664 for p in written)
+    assert os.stat(shared / "Si422").st_mode & 0o7777 == 0o2775  # the archive folder it created
+
+
+def test_export_replaces_a_read_only_latest(refined, tmp_path, shared):
+    """Folder write access is enough to replace HB2B_Latest.json, whoever wrote it and whatever its mode"""
+    # Arrange - someone else's read-only HB2B_Latest.json
+    gui_model, _ = refined
+    latest = shared / "HB2B_Latest.json"
+    latest.write_text("{}")
+    latest.chmod(0o444)
+
+    # Act
+    gui_model.export_calibration(str(tmp_path), write_shared=True)
+
+    # Assert - replaced, and now rw-rw-r--
+    assert json.loads(latest.read_text())["Lambda"] == gui_model.current_calibration_array[7]
+    assert os.stat(latest).st_mode & 0o777 == 0o664
 
 
 @needs_permissions
-def test_export_read_only_latest_writes_no_shared_copy(refined, tmp_path, shared):
-    # Arrange - someone else's HB2B_Latest.json
+def test_export_read_only_folder_writes_no_shared_copy(refined, tmp_path, shared):
+    # Arrange - a writable HB2B_Latest.json in a folder this user may not write: it cannot be replaced
     gui_model, _ = refined
     user = tmp_path / "mine"
     user.mkdir()
     latest = shared / "HB2B_Latest.json"
     latest.write_text("{}")
-    latest.chmod(0o444)
+    latest.chmod(0o666)
+    shared.chmod(0o555)
 
     # Act / Assert - refused before any shared file is written; the user copy is written
     try:
@@ -475,7 +492,102 @@ def test_export_read_only_latest_writes_no_shared_copy(refined, tmp_path, shared
         assert len(os.listdir(user)) == 1
         assert sorted(os.listdir(shared)) == ["HB2B_Latest.json"] and latest.read_text() == "{}"
     finally:
-        latest.chmod(0o644)
+        shared.chmod(0o755)
+
+
+def _fit_stand_in(workspace, statuses, fail_on=None):
+    """A FitCalibration stand-in whose recipe stages set the given statuses (or raise)."""
+    fit = _stand_in(workspace, status=-1)
+    fit.residual_sum, fit.residual_rmse = 0.01, 0.002
+
+    def stage(name, status):
+        def run():
+            if name == fail_on:
+                raise RuntimeError(f"{name} failed")
+            fit._calibstatus = status
+
+        return run
+
+    for name, status in statuses.items():
+        setattr(fit, name, stage(name, status))
+    return fit
+
+
+def test_export_refuses_an_unconverged_earlier_stage(workspace, tmp_path):
+    # Arrange - FitCalibration: the wavelength stage stops at max nfev, the shift stage then converges
+    gui_model = _model(workspace, METHOD_FITCALIBRATION)
+    gui_model._calibration_obj = _fit_stand_in(workspace, {"calibrate_wave_length": 0, "CalibrateShift": 1})
+
+    # Act
+    gui_model.calibrate_detector(["wavelength", "shifts"])
+
+    # Assert - the last status is 1, but a stage did not converge
+    exportable, text = gui_model.export_description()
+    assert not exportable and "status 0" in text
+    with pytest.raises(RuntimeError, match="status 0"):
+        gui_model.export_calibration(str(tmp_path), write_shared=False)
+
+
+def test_ring_export_refuses_an_unconverged_earlier_stage(workspace, tmp_path):
+    # Arrange - ring-based: one stage at max nfev 1, a later one converging
+    gui_model = _model(workspace)
+    gui_model.extract_rings(3)
+    gui_model.set_refinement_params("trf", 1)
+    gui_model.calibrate_detector(["shifts"])
+    gui_model.set_refinement_params("trf", 300)
+
+    # Act
+    gui_model.calibrate_detector(["wavelength"])
+
+    # Assert
+    assert gui_model._ring_calibration.calibration_status > 0
+    with pytest.raises(RuntimeError, match="status 0"):
+        gui_model.export_calibration(str(tmp_path), write_shared=False)
+
+
+def test_failed_fitcalibration_recipe_is_not_exportable(workspace, tmp_path):
+    # Arrange
+    gui_model = _model(workspace, METHOD_FITCALIBRATION)
+    gui_model._calibration_obj = _fit_stand_in(
+        workspace, {"CalibrateShift": 1, "CalibrateRotation": 1}, fail_on="CalibrateRotation"
+    )
+
+    # Act - the shift stage changed the calibration, then the rotation stage fails
+    with pytest.raises(RuntimeError, match="CalibrateRotation failed"):
+        gui_model.calibrate_detector(["shifts", "rotations"])
+
+    # Assert
+    with pytest.raises(RuntimeError, match="failed partway"):
+        gui_model.export_calibration(str(tmp_path), write_shared=False)
+
+
+def test_export_description_names_method_and_status(refined, workspace):
+    exportable, text = refined[0].export_description()
+    assert exportable and text.startswith("Ring-based calibration (status ") and "λ = " in text
+    exportable, text = _model(workspace).export_description()
+    assert not exportable and "cannot be exported" in text
+
+
+def test_failed_recipe_keeps_its_warnings(workspace):
+    # Arrange - the wavelength stage stops at max nfev (warns), then the geometry stage refuses its start
+    gui_model = _model(workspace)
+    gui_model.set_calibration_params(np.r_[0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, MONO_WAVELENGTH])
+    gui_model.extract_rings(3)
+    gui_model.set_refinement_params("trf", 1)
+
+    # Act
+    with pytest.raises(ValueError, match="outside bounds"):
+        gui_model.calibrate_detector(["wavelength", "geometry"])
+
+    # Assert - this run's warning, not the previous run's list
+    assert any("calibrate_wave_length" in w and "before converging" in w for w in gui_model.calibration_warnings)
+
+
+@pytest.mark.parametrize("call", ["set_calibration_params", "set_refinement_params"])
+def test_no_run_loaded_raises(call):
+    args = (np.r_[np.zeros(7), MONO_WAVELENGTH],) if call == "set_calibration_params" else ("trf", 300)
+    with pytest.raises(RuntimeError, match="load a calibration run first"):
+        getattr(DetectorCalibrationModel(None), call)(*args)
 
 
 def test_skipped_sub_runs_are_reported(workspace):
