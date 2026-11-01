@@ -3,6 +3,7 @@ import numpy as np
 import uncertainties.unumpy as unp
 from pyrs.core import instrument_geometry
 from pyrs.core.detector_model import (
+    DetectorModel,
     rotate_positions,
     rotation_matrix,
     rotation_matrix_x,
@@ -53,36 +54,15 @@ class ResidualStressInstrument:
           1. the pixel matrix is set up such that with a simple reshape to 1D, the order of the pixel ID is ordered
              from lower left corner, going up and then going right.
           2. this is not a useful geometry because arm length is not set.
-        :return: numpy.ndarray; shape = (num_rows) x (num_cols) x 3
+          3. positions come from :meth:`pyrs.core.detector_model.DetectorModel.local_positions` (#1011).
+        :return: numpy.ndarray; shape = (num_columns) x (num_rows) x 3
         """
         assert self._instrument_geom_params is not None, "Initial instrument setup is not set yet"
 
-        # build raw instrument/pixel matrix
         num_rows, num_columns = self._instrument_geom_params.detector_size
-        pixel_size_x, pixel_size_y = self._instrument_geom_params.pixel_dimension
-        # arm_length = self._instrument_geom_params.arm_length
-
-        # instrument is a N x M matrix, each element has
-        pixel_matrix = np.ndarray(shape=(num_rows, num_columns, 3), dtype="float")
-
-        # set Y as different from each row
-        start_y_pos = -(num_rows * 0.5 - 0.5) * pixel_size_y
-        start_x_pos = (num_columns * 0.5 - 0.5) * pixel_size_x
-
-        for row_index in range(num_rows):
-            pixel_matrix[row_index, :, 1] = start_y_pos + float(row_index) * pixel_size_y
-        # set X as different from each column
-        for col_index in range(num_columns):
-            pixel_matrix[:, col_index, 0] = start_x_pos - float(col_index) * pixel_size_x
-        # set Z: zero at origin
-        pixel_matrix[:, :, 2] = 0.0
-
-        # Transpose is required to match instrument pixel ID arrangement:
-        # This is the only pixel positions to be transposed in the instrument setup
-        # Causing Error?  FIXME -
-        pixel_matrix = pixel_matrix.transpose((1, 0, 2))
-
-        return pixel_matrix
+        return DetectorModel(self._instrument_geom_params).local_positions(
+            np.arange(num_columns)[:, np.newaxis], np.arange(num_rows)[np.newaxis, :]
+        )
 
     def build_instrument(self, two_theta: float, l2: Optional[float] = None, instrument_calibration=None):
         """
