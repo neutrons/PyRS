@@ -83,48 +83,23 @@ class ResidualStressInstrument:
         else:
             l2 = to_float("L2", l2, 1e-2)
 
-        # print('[DB...L101] Build instrument: 2theta = {}, arm = {} (diff to default = {})'
-        #       ''.format(two_theta, l2, l2 - self._instrument_geom_params.arm_length))
-
-        # make a copy from raw (constant position)
-        self._pixel_matrix = self._raw_pixel_matrix.copy()
-
-        # Check and set instrument calibration
         if instrument_calibration is not None:
-            # check type
             checkdatatypes.check_type(
                 "Instrument calibration", instrument_calibration, instrument_geometry.DENEXDetectorShift
             )
 
-            # shift center
-            self._pixel_matrix[:, :, 0] += instrument_calibration.center_shift_x
-            self._pixel_matrix[:, :, 1] += instrument_calibration.center_shift_y
+        # the shared forward model, also used by the ring calibration (#1011)
+        num_rows, num_columns = self._instrument_geom_params.detector_size
+        self._pixel_matrix = DetectorModel(self._instrument_geom_params).lab_positions(
+            np.arange(num_columns)[:, np.newaxis],
+            np.arange(num_rows)[np.newaxis, :],
+            two_theta,
+            l2,
+            instrument_calibration,
+        )
 
-            # rotation around instrument center
-            # get rotation matrix at origin (for flip, spin and vertical): all data from calibration value
-            rot_x_flip = instrument_calibration.rotation_x * np.pi / 180.0
-            rot_y_flip = instrument_calibration.rotation_y * np.pi / 180.0
-            rot_z_spin = instrument_calibration.rotation_z * np.pi / 180.0
-            calib_matrix = self.generate_rotation_matrix(rot_x_flip, rot_y_flip, rot_z_spin)
-            # print ('[DB...BAT] Calibration rotation matrix:\n{}'.format(calib_matrix))
-            # and rotate at origin
-            self._pixel_matrix = self._rotate_detector(self._pixel_matrix, calib_matrix)
-
-            # shift two_theta by offset
-            two_theta += instrument_calibration.two_theta_0
-
-        # END-IF-ELSE
-
-        # push to +Z at length of detector arm
-        arm_l2 = l2
-        if instrument_calibration is not None:
-            # Apply the shift on Z (arm length)
-            arm_l2 += instrument_calibration.center_shift_z
-        # END-IF
-        self._pixel_matrix[:, :, 2] += arm_l2
-
-        # rotate detector (2theta) if it is not zero
-        self.rotate_detector_2theta(two_theta)
+        self._calculate_pixel_2theta()
+        self._calculate_pixel_eta()
 
         return self._pixel_matrix
 
