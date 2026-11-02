@@ -2023,7 +2023,7 @@ calibration can't be exported, it shows why and disables OK.
 - Fixed: saving a recipe kept only its last routine, because `save_json` overwrote the string on
   each pass.
 - Reported, not fixed (production FitCalibration): it writes an error of **0** for undetermined
-  parameters, because `-2 * np.zeros_like(...)` is zeros, not −2 (#1049).
+  parameters, because `-2 * np.zeros_like(...)` is zeros, not −2 (#1049). *Fixed 2026-11, see the #1049 entry.*
 
 ## Reduction places pixels with `DetectorModel`: one forward model (2026-11, #1011)
 
@@ -2084,3 +2084,48 @@ all fixed so the new code again matches the old:
 the latter builds `DENEXDetectorShift` with 6 arguments in the wrong order. `PyRsCore.reduce_diffraction_data`
 (`pyrs/core/pyrscore.py`) also builds `DENEXDetectorShift(0, 0, 0, 0, 0, 0)` without `tth_0`, so a
 calibration passed as a JSON file path raises `TypeError`.
+
+## FitCalibration's errors: scaled by the residual scatter, −2 when undetermined (2026-11, #1049)
+
+`FitCalibration.FitDetector` (`pyrs/calibration/mantid_peakfit_calibration.py`) reported
+`sqrt(diag(inv(JᵀJ)))`. Two defects:
+
+- **No fit-quality factor.** Without `Σr²/(n−p)` the errors assume every residual (a peak-position
+  difference in degrees) has σ = 1°. The real scatter is 0.03–0.2°, so every error was too large.
+- **Undetermined parameters reported 0.** When `JᵀJ` was ~0 or singular, `-2 * np.zeros_like(...)`
+  gave zeros, not −2, so a failed error estimate looked perfect. The brute-force path returned `[0]`.
+
+**Fix (user-approved production change):** errors come from `pixel_refinement._parameter_errors`,
+the ring calibration's formula `sqrt(diag(inv(JᵀJ)) · Σr²/(n−p))` with −2 (`UNDETERMINED`) for a
+rank-deficient direction; the brute-force path reports −2 (it gives no covariance; it has no callers).
+A zero Jacobian column flags *every* parameter −2, the ring calibration's existing conservative rule.
+
+**Effect, HB2B_3510** (mask `HB2B_Mask_12-18-19.xml`, `max_nfev` 20; old = origin/next 7dde880b):
+calibrated values bit-identical in every stage; only `error_*` changes.
+
+| Stage | Parameter | Old error | New error | Old/new |
+|---|---|---|---|---|
+| `calibrate_wave_length` | λ | 0.00195 Å | 0.000443 Å | 4.4 |
+| `CalibrateShift` | Shift_x / y / z | 2.09 / 3.97 / 36.2 mm | 0.054 / 0.10 / 0.93 mm | 38.9 |
+| `CalibrateGeometry` (from nominal) | Shift_x / y / z | 32.2 / 5.71 / 40.7 mm | 3.82 / 0.68 / 4.83 mm | 8.4 |
+| | Rot_x / y / z | 11.1 / 5.17 / 0.894° | 1.31 / 0.613 / 0.106° | 8.4 |
+| | TTH_0 | 1.98° | 0.235° | 8.4 |
+
+The ratio is constant within a stage: it is 1/√(χ²/dof), the residual scatter in degrees.
+
+**Limit: FitCalibration does not flag the Shift_x/Rot_y/TTH_0 degeneracy.** In the ring
+calibration that direction is ~4e-10 of the largest singular value of the column-scaled Jacobian and
+is flagged −2. In FitCalibration's geometry stage the smallest relative singular value is 0.04
+(others 0.31–0.98): the residual is noisy (peaks are re-binned and re-fitted at every evaluation,
+#1030), so the degeneracy looks weak rather than exact and the 1e-6 rank test does not fire. Those
+three parameters get large but finite errors (±3.8 mm, ±0.61°, ±0.24°). Meaningful errors for them
+need 2θ₀ held, as the ring calibration's `estimate_errors` does — a separate change.
+
+Tests: `tests/unit/pyrs/calibration/test_fitcalibration_errors.py` (constant fit gives s/√n, line
+fit matches the covariance, errors scale with scatter, `lm` gives the same, degenerate pair → −2 with
+the independent parameter finite, zero column → all −2, brute force → −2); all 7 fail on the old code.
+
+**Gold files updated (user-approved):** `tests/data/calibration_tests/HB2B_mantid_calib.json` stored
+the bug as the expected answer (`error_Shift_*`/`error_Rot_*` = −0.0); only the `error_*` fields of it
+and `HB2B_mantid_calib_lambda.json` were replaced by the new output, values untouched
+(`test_peakfit_calibration.py`; its round-trip test's hand-set `error_Lambda` follows the gold file).

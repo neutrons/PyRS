@@ -23,7 +23,7 @@ def calibration(monkeypatch):
     def recording_least_squares(fun, x0, **kwargs):
         calls.append(kwargs)
         x0 = np.asarray(x0, dtype=float)
-        return SimpleNamespace(x=x0, jac=np.eye(x0.size), status=1)
+        return SimpleNamespace(x=x0, jac=np.eye(x0.size), fun=np.zeros(x0.size), status=1)
 
     monkeypatch.setattr(mpc, "least_squares", recording_least_squares)
     fit = mpc.FitCalibration.__new__(mpc.FitCalibration)
