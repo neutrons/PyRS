@@ -75,7 +75,10 @@ def test_predicted_rings_skip_unreachable_reflections():
 
 
 def test_two_theta_map_is_reductions_pixel_two_theta(hb2b, two_theta_map):
-    """The map is indexed [index_0, index_1], i.e. pixel ID index_0 * n_rows + index_1, as reduction"""
+    """The map is indexed [index_0, index_1], i.e. pixel ID index_0 * n_rows + index_1, as reduction
+
+    Both use DetectorModel (#1011), so this guards the map's indexing and ravel order, not the geometry.
+    """
     # Arrange
     instrument = ResidualStressInstrument(hb2b)
 

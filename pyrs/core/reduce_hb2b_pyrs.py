@@ -34,29 +34,25 @@ class ResidualStressInstrument:
 
     def build_instrument(self, two_theta: float, l2: Optional[float] = None, instrument_calibration=None):
         """
-        Build instrument considering calibration
-        step 1: rotate instrument according to the calibration
-        step 2: rotate instrument about 2theta
+        Build instrument considering calibration: pixel positions come from
+        :meth:`pyrs.core.detector_model.DetectorModel.lab_positions` (see it for the order of operations,
+        #1011), then each pixel's 2theta and eta are computed.
 
         :param float two_theta: 2theta position of the detector arm
-        :param float l2: distance of detector from the center of rotation
+        :param float l2: distance of detector from the center of rotation; None for the arm length
         :param DENEXDetectorShift instrument_calibration: DENEXDetectorShift or None (no calibration)
-        :return:
+        :return: numpy.ndarray of pixel positions; shape = (num_columns) x (num_rows) x 3
         """
-        # Check input
         two_theta = to_float("2theta", two_theta)
-        # Check or set L2
-        if l2 is None:
-            l2 = self._instrument_geom_params.arm_length
-        else:
+        if l2 is not None:
             l2 = to_float("L2", l2, 1e-2)
 
+        # kept although lab_positions re-validates: a wrong type has always raised AssertionError here
         if instrument_calibration is not None:
             checkdatatypes.check_type(
                 "Instrument calibration", instrument_calibration, instrument_geometry.DENEXDetectorShift
             )
 
-        # the shared forward model, also used by the ring calibration (#1011)
         num_rows, num_columns = self._instrument_geom_params.detector_size
         self._pixel_matrix = DetectorModel(self._instrument_geom_params).lab_positions(
             np.arange(num_columns)[:, np.newaxis],

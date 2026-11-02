@@ -33,17 +33,17 @@ __all__ = [
 # cannot drift apart.
 
 
-def rotate_positions(detector_matrix: np.ndarray, rotation_matrix: np.ndarray) -> np.ndarray:
+def rotate_positions(positions: np.ndarray, matrix: np.ndarray) -> np.ndarray:
     """Rotate an ``(N, M, 3)`` array of positions by a 3x3 matrix.
 
     The element-wise sum (not ``@``) is reduction's original arithmetic, kept so results stay
     bit-identical.
     """
-    rotate_det = np.zeros(detector_matrix.shape, dtype="float")
+    rotate_det = np.zeros(positions.shape, dtype="float")
 
     for i in range(3):
         for j in range(3):
-            temp_det = rotation_matrix[i, j] * detector_matrix[:, :, j]
+            temp_det = matrix[i, j] * positions[:, :, j]
             rotate_det[:, :, i] += temp_det[:, :]
 
     return rotate_det
@@ -208,12 +208,14 @@ class DetectorModel:
             )
             positions = rotate_positions(positions, calib_matrix)
 
-            two_theta += calibration.two_theta_0
+            # reduction made the sum a Python float before rotating; doing the same keeps a numpy-typed
+            # two_theta_0 (float32, 1-element array) from making the arm rotation float32 or an array
+            two_theta = np.asarray(two_theta + calibration.two_theta_0, dtype=np.float64).item()
             arm_l2 += calibration.center_shift_z
 
         positions[:, :, 2] += arm_l2
 
-        if abs(two_theta) > 1.0e-7:  # the same threshold as build_instrument, to stay bit-identical
+        if abs(two_theta) > 1.0e-7:  # reduction's original threshold, kept to stay bit-identical
             two_theta_matrix = rotation_matrix_y(np.deg2rad(two_theta))
             positions = rotate_positions(positions, two_theta_matrix)
 

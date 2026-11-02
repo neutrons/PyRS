@@ -114,12 +114,30 @@ GEOMETRY_CASES = [
         id="calib-arm0",
     ),
 ]
-# loose enough for a last-bit difference in a future numpy, far tighter than any geometry change
+# Tolerance in degrees: arccos amplifies a last-bit change near 2theta = 0 (the arm-0 centre pixel) to
+# ~3e-11 deg, which a pure rtol of 1e-12 would fail; 1e-9 deg is still >1e4 times smaller than the
+# smallest geometry error these references catch (a reversed rotation order: 8e-4 deg)
 REFERENCE_RTOL = 1e-12
+REFERENCE_ATOL = 1e-9
+# a non-square detector with unequal pixel pitch catches swapped rows/columns or x/y pixel sizes:
+# 4 rows x 6 columns, 10 mm x 20 mm pixels, at arm -85 deg, L2 0.95 m with CALIBRATION_ARM85
+NON_SQUARE_PIXELS = [(0, 0), (0, 3), (5, 0), (5, 3), (2, 1)]
+NON_SQUARE_TWO_THETA = [82.58102018340435, 82.65512537859829, 85.55620981539323, 85.62961154703855, 83.79246970222512]
+NON_SQUARE_ETA = [
+    -1.9433503526058757,
+    1.6555647186151816,
+    -1.9966164354000284,
+    1.5854780726171782,
+    -0.7672941038105137,
+]
+
+
+def assert_matches_reference(actual, reference):
+    np.testing.assert_allclose(actual, reference, rtol=REFERENCE_RTOL, atol=REFERENCE_ATOL)
 
 
 @pytest.mark.parametrize("arm_two_theta, l2, calibration, two_theta_ref, eta_ref", GEOMETRY_CASES)
-def test_detector_model_matches_reference(setup, arm_two_theta, l2, calibration, two_theta_ref, eta_ref):
+def test_two_theta_eta_match_reference(setup, arm_two_theta, l2, calibration, two_theta_ref, eta_ref):
     # Arrange
     index_0, index_1 = np.array(REFERENCE_PIXELS).T
     model = DetectorModel(setup)
@@ -129,8 +147,8 @@ def test_detector_model_matches_reference(setup, arm_two_theta, l2, calibration,
     eta = model.eta(index_0, index_1, arm_two_theta, l2, calibration)
 
     # Assert
-    np.testing.assert_allclose(two_theta, two_theta_ref, rtol=REFERENCE_RTOL)
-    np.testing.assert_allclose(eta, eta_ref, rtol=REFERENCE_RTOL)
+    assert_matches_reference(two_theta, two_theta_ref)
+    assert_matches_reference(eta, eta_ref)
 
 
 @pytest.mark.parametrize("arm_two_theta, l2, calibration, two_theta_ref, eta_ref", GEOMETRY_CASES)
@@ -143,17 +161,90 @@ def test_build_instrument_matches_reference(setup, arm_two_theta, l2, calibratio
     # Act
     instrument.build_instrument(arm_two_theta, l2, calibration)
 
+    # Assert - 2D maps are (column, row); 1D arrays are in pixel-ID order, column * n_rows + row
+    pixel_ids = index_0 * NUM_PIXELS + index_1
+    assert_matches_reference(instrument.get_pixels_2theta(2)[index_0, index_1], two_theta_ref)
+    assert_matches_reference(instrument.get_eta_values(2)[index_0, index_1], eta_ref)
+    assert_matches_reference(instrument.get_pixels_2theta(1)[pixel_ids], two_theta_ref)
+    assert_matches_reference(instrument.get_eta_values(1)[pixel_ids], eta_ref)
+    np.testing.assert_array_equal(
+        instrument.get_pixel_array()[pixel_ids],
+        DetectorModel(setup).lab_positions(index_0, index_1, arm_two_theta, l2, calibration),
+    )
+
+
+def test_build_instrument_non_square_matches_reference():
+    # Arrange
+    setup = DENEXDetectorGeometry(4, 6, 0.01, 0.02, 0.985, False)
+    instrument = ResidualStressInstrument(setup)
+    index_0, index_1 = np.array(NON_SQUARE_PIXELS).T
+
+    # Act
+    instrument.build_instrument(-85.0, 0.95, CALIBRATION_ARM85)
+
+    # Assert - 6 columns x 4 rows
+    assert instrument.get_pixels_2theta(2).shape == (6, 4)
+    assert_matches_reference(instrument.get_pixels_2theta(2)[index_0, index_1], NON_SQUARE_TWO_THETA)
+    assert_matches_reference(instrument.get_eta_values(2)[index_0, index_1], NON_SQUARE_ETA)
+    assert_matches_reference(instrument.get_pixels_2theta(1)[index_0 * 4 + index_1], NON_SQUARE_TWO_THETA)
+    assert_matches_reference(
+        DetectorModel(setup).two_theta(index_0, index_1, -85.0, 0.95, CALIBRATION_ARM85), NON_SQUARE_TWO_THETA
+    )
+
+
+def test_build_instrument_bad_calibration_raises(setup):
+    # Arrange
+    instrument = ResidualStressInstrument(setup)
+
+    # Act / Assert - reduction's long-standing exception type, kept by the delegation (#1011)
+    with pytest.raises(AssertionError):
+        instrument.build_instrument(-85.0, None, "not a calibration")
+
+
+def test_build_instrument_default_l2_is_arm_length():
+    # Arrange - an arm shorter than the 1 cm minimum for an explicit L2 must still work by default
+    setup = DENEXDetectorGeometry(3, 3, 1e-3, 1e-3, 0.005, False)
+    instrument = ResidualStressInstrument(setup)
+    grid = np.meshgrid(np.arange(3), np.arange(3), indexing="ij")
+
+    # Act
+    positions = instrument.build_instrument(-30.0, None, None)
+
     # Assert
-    np.testing.assert_allclose(instrument.get_pixels_2theta(2)[index_0, index_1], two_theta_ref, rtol=REFERENCE_RTOL)
-    np.testing.assert_allclose(instrument.get_eta_values(2)[index_0, index_1], eta_ref, rtol=REFERENCE_RTOL)
+    np.testing.assert_array_equal(positions, DetectorModel(setup).lab_positions(*grid, -30.0, None, None))
+    assert positions[1, 1, 2] == pytest.approx(0.005 * np.cos(np.deg2rad(30.0)))
+
+
+@pytest.mark.parametrize("two_theta_0", [np.float32(0.123456), np.array([0.123456])], ids=["float32", "array"])
+def test_numpy_two_theta_0_rotates_in_float64(setup, two_theta_0):
+    """Regression (#1011 review): a numpy-typed 2theta_0 made the arm rotation float32, or an array that
+    raised; reduction has always rotated by the Python-float sum of the arm angle and 2theta_0"""
+    # Arrange
+    arm = -35.0
+    arm_plus_two_theta_0 = np.asarray(arm + two_theta_0, dtype=np.float64).item()
+    numpy_calibration = DENEXDetectorShift(0.004, -0.003, 0.012, 0.3, -0.5, 1.2, two_theta_0)
+    zero_calibration = DENEXDetectorShift(0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.0)
+    index_0, index_1 = np.array(REFERENCE_PIXELS).T
+    model = DetectorModel(setup)
+
+    # Act
+    positions = model.lab_positions(index_0, index_1, arm, None, numpy_calibration)
+
+    # Assert
+    assert positions.dtype == np.float64
+    expected = model.lab_positions(index_0, index_1, arm_plus_two_theta_0, None, zero_calibration)
+    np.testing.assert_array_equal(positions, expected)
 
 
 def test_rotation_matrix_combined_rotation_is_orthogonal():
     """Regression: the three axis matrices were once combined element-wise (``*``) instead of by matrix
     product (``@``), which is not a rotation when two or more angles are non-zero. See docs/ground_truths.md.
     """
+    # Arrange
+    angles_rad = np.deg2rad([0.3, -0.5, 1.2])
+
     # Act
-    matrix = rotation_matrix(np.deg2rad(0.3), np.deg2rad(-0.5), np.deg2rad(1.2))
+    matrix = rotation_matrix(*angles_rad)
 
     # Assert - a rotation is orthogonal with determinant +1
     np.testing.assert_allclose(matrix @ matrix.T, np.eye(3), atol=1e-6)
@@ -164,8 +255,11 @@ def test_rotation_matrix_single_axis_matches_axis_matrix():
     # Arrange
     rot_x_rad = np.deg2rad(2.0)
 
-    # Act / Assert
-    np.testing.assert_allclose(rotation_matrix(rot_x_rad, 0.0, 0.0), rotation_matrix_x(rot_x_rad), atol=1e-6)
+    # Act
+    matrix = rotation_matrix(rot_x_rad, 0.0, 0.0)
+
+    # Assert
+    np.testing.assert_allclose(matrix, rotation_matrix_x(rot_x_rad), atol=1e-6)
 
 
 def test_rotation_matrix_resolves_tiny_angle_change():

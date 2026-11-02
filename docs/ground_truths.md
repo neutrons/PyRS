@@ -502,9 +502,10 @@ to be re-refined from raw data, not just re-applied. Check any
 calibration JSON with 2+ non-zero rotation values against its
 refinement date relative to this fix.
 
-*Since 2026-11 (#1011):* the rotation helpers are `rotation_matrix` and `rotation_matrix_x/y/z` in
-`pyrs/core/detector_model.py`; `generate_rotation_matrix`, `_cal_rotation_matrix_x/y/z` and
-`_rotate_detector` were removed from `reduce_hb2b_pyrs.py`. The two regression tests above now test
+*Since 2026-11 (#1011):* the rotation helpers are `rotation_matrix`, `rotation_matrix_x/y/z` and
+`rotate_positions` (formerly `_rotate_detector`) in `pyrs/core/detector_model.py`;
+`generate_rotation_matrix`, `_cal_rotation_matrix_x/y/z` and `_rotate_detector` were removed from
+`reduce_hb2b_pyrs.py`, so the `reduce_hb2b_pyrs.py` line numbers in this entry are historical. The two regression tests above now test
 `rotation_matrix` in `tests/unit/pyrs/core/test_detector_model.py`
 (`test_rotation_matrix_combined_rotation_is_orthogonal`,
 `test_rotation_matrix_single_axis_matches_axis_matrix`).
@@ -2049,11 +2050,37 @@ patterns (nominal and calibrated, two η steps). All were identical, as were the
 driver output and ring points on HB2B_3489/3510/4971, and the unit, integration and GUI tiers.
 
 **Tests.** The old bit-identity test (`DetectorModel` against `build_instrument`) cannot fail once
-one calls the other, so it was replaced: `test_detector_model_matches_reference` and
+one calls the other, so it was replaced: `test_two_theta_eta_match_reference` and
 `test_build_instrument_matches_reference` pin 2θ and η of six pixels (corners, centre, one
 off-centre) in four geometries to values computed by the pre-#1011 reduction code (origin/next
-7dde880b), with rtol 1e-12. Verified: reversing the rotation order to `Rz @ Ry @ Rx` fails both.
+7dde880b), the latter through reduction's 2D maps, its 1D pixel-ID order and `get_pixel_array`.
+`test_build_instrument_non_square_matches_reference` does the same on a 4-row × 6-column detector
+with 10 × 20 mm pixels, which catches swapped rows/columns or x/y pixel sizes. Tolerance: rtol 1e-12
+plus atol 1e-9°, because `arccos` amplifies a last-bit change near 2θ = 0 (the arm-0 centre pixel,
+0.012°) to ~3e-11°; the smallest geometry error the references catch is 8e-4° (reversed rotation
+order). Verified: reversing the rotation order to `Rz @ Ry @ Rx` fails both; an independent review
+injected 11 geometry mutations (transposed indices, flipped X, half-pixel offset, inverted rotation,
+shift and 2θ₀ signs, shift after rotation, arm sign) and each failed by 4e-5° to 210°.
 
-**Found, not fixed:** `PyHB2BReduction.rotate_two_theta` calls a nonexistent
-`ResidualStressInstrument.rotate_detector`; it and `build_instrument_prototype` have no callers
-(#1051).
+**Review (2026-11, user-approved fixes).** An independent differential test of 9,290 input
+combinations (detector sizes down to 1 × 3, 2θ at the 1e-7 threshold, string/int/float32 inputs, bad
+types) found the pixel map, shapes, dtype, pixel-ID order and exception types bit-identical for
+Python-float/float64 calibrations. It found three latent differences on inputs no loader creates,
+all fixed so the new code again matches the old:
+- a `float32` 2θ₀ rotated the arm in float32 (≤ 1.6e-6° in 2θ) and a 1-element-array 2θ₀ raised:
+  `lab_positions` now rotates by the Python-float sum, as reduction always did
+  (`test_numpy_two_theta_0_rotates_in_float64`; bit-identical to pre-#1011 for float32, array and
+  float);
+  that sum is still float32-rounded for a float32 2θ₀ (as before #1011); making `DENEXDetectorShift`
+  store float64 so the whole instrument is float64 for any caller is #1052;
+- an arm length below 1 cm raised with `l2=None`, because `lab_positions` re-checked the resolved
+  arm length against the 1 cm minimum for an explicit L2: `build_instrument` now passes `None` through
+  (`test_build_instrument_default_l2_is_arm_length`);
+- `build_instrument` keeps its own calibration type check so a wrong type is still an
+  `AssertionError` (`test_build_instrument_bad_calibration_raises`).
+
+**Found, not fixed (#1051):** `PyHB2BReduction.rotate_two_theta` calls a nonexistent
+`ResidualStressInstrument.rotate_detector`; it and `build_instrument_prototype` have no callers, and
+the latter builds `DENEXDetectorShift` with 6 arguments in the wrong order. `PyRsCore.reduce_diffraction_data`
+(`pyrs/core/pyrscore.py`) also builds `DENEXDetectorShift(0, 0, 0, 0, 0, 0)` without `tth_0`, so a
+calibration passed as a JSON file path raises `TypeError`.
