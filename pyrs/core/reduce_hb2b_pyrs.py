@@ -2,14 +2,7 @@
 import numpy as np
 import uncertainties.unumpy as unp
 from pyrs.core import instrument_geometry
-from pyrs.core.detector_model import (
-    DetectorModel,
-    rotate_positions,
-    rotation_matrix,
-    rotation_matrix_x,
-    rotation_matrix_y,
-    rotation_matrix_z,
-)
+from pyrs.core.detector_model import DetectorModel
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float
 from typing import Optional
@@ -31,9 +24,6 @@ class ResidualStressInstrument:
         # Instrument geometry parameters
         self._instrument_geom_params = instrument_setup
 
-        # Pixels' positions without calibration. It is kept stable upon calibration values (shifts) and arm (000 plane)
-        self._raw_pixel_matrix = self._set_uncalibrated_pixels()  # never been used for external client: len(shape) = 3
-
         self._pixel_matrix = None  # used by external after build_instrument: matrix for pixel positions
         self._pixel_2theta_matrix = None  # matrix for pixel's 2theta value
         self._pixel_eta_matrix = None  # matrix for pixel's eta value
@@ -41,28 +31,6 @@ class ResidualStressInstrument:
         self._wave_length = None
 
         return
-
-    @staticmethod
-    def _rotate_detector(detector_matrix, rotation_matrix):
-        """Rotate pixel positions; see :func:`pyrs.core.detector_model.rotate_positions` (#1011)."""
-        return rotate_positions(detector_matrix, rotation_matrix)
-
-    def _set_uncalibrated_pixels(self):
-        """
-        set up a matrix of pixels instrument on XY plane (Z=0)
-        Note:
-          1. the pixel matrix is set up such that with a simple reshape to 1D, the order of the pixel ID is ordered
-             from lower left corner, going up and then going right.
-          2. this is not a useful geometry because arm length is not set.
-          3. positions come from :meth:`pyrs.core.detector_model.DetectorModel.local_positions` (#1011).
-        :return: numpy.ndarray; shape = (num_columns) x (num_rows) x 3
-        """
-        assert self._instrument_geom_params is not None, "Initial instrument setup is not set yet"
-
-        num_rows, num_columns = self._instrument_geom_params.detector_size
-        return DetectorModel(self._instrument_geom_params).local_positions(
-            np.arange(num_columns)[:, np.newaxis], np.arange(num_rows)[np.newaxis, :]
-        )
 
     def build_instrument(self, two_theta: float, l2: Optional[float] = None, instrument_calibration=None):
         """
@@ -98,25 +66,6 @@ class ResidualStressInstrument:
             instrument_calibration,
         )
 
-        self._calculate_pixel_2theta()
-        self._calculate_pixel_eta()
-
-        return self._pixel_matrix
-
-    def rotate_detector_2theta(self, det_2theta):
-        """Rotate detector, i.e., change 2theta value of the detector
-
-        :param float det_2theta: detector's 2theta (motor) position in degree
-
-        :return: multiple dimensional array for detector positions
-        """
-        det_2theta = float(det_2theta)
-        if abs(det_2theta) > 1.0e-7:
-            two_theta_rad = np.deg2rad(det_2theta)
-            two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_rad)
-            self._pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
-
-        # get 2theta and eta
         self._calculate_pixel_2theta()
         self._calculate_pixel_eta()
 
@@ -200,25 +149,6 @@ class ResidualStressInstrument:
         self._pixel_eta_matrix = return_value
 
         return
-
-    def generate_rotation_matrix(self, rot_x_rad, rot_y_rad, rot_z_rad):
-        """``Rx @ Ry @ Rz`` (radians); see :func:`pyrs.core.detector_model.rotation_matrix` (#1011)."""
-        return rotation_matrix(rot_x_rad, rot_y_rad, rot_z_rad)
-
-    @staticmethod
-    def _cal_rotation_matrix_x(angle_rad):
-        """Rotation about X; see :func:`pyrs.core.detector_model.rotation_matrix_x` (#1011)."""
-        return rotation_matrix_x(angle_rad)
-
-    @staticmethod
-    def _cal_rotation_matrix_y(angle_rad):
-        """Rotation about Y; see :func:`pyrs.core.detector_model.rotation_matrix_y` (#1011)."""
-        return rotation_matrix_y(angle_rad)
-
-    @staticmethod
-    def _cal_rotation_matrix_z(angle_rad):
-        """Rotation about Z; see :func:`pyrs.core.detector_model.rotation_matrix_z` (#1011)."""
-        return rotation_matrix_z(angle_rad)
 
     def get_pixel_matrix(self):
         """

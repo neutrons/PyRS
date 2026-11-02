@@ -1,12 +1,12 @@
 """
-Forward model of the HB2B detector for the ring-based calibration.
+Forward model of the HB2B detector, shared by reduction and the ring-based calibration.
 
 :class:`DetectorModel` gives the lab position, 2theta and eta of arbitrary (fractional) detector
-pixels for any trial calibration. It reproduces
-:meth:`pyrs.core.reduce_hb2b_pyrs.ResidualStressInstrument.build_instrument` exactly (a unit test
-pins bit-identity), so a calibration found with it means the same thing when reduction applies it;
-see docs/ground_truths.md. Used by the ring-based calibration
-(:mod:`pyrs.calibration.pixel_pos_calibration`); reduction itself does not use it (#1011).
+pixels for any trial calibration. Reduction
+(:meth:`pyrs.core.reduce_hb2b_pyrs.ResidualStressInstrument.build_instrument`) and the ring-based
+calibration (:mod:`pyrs.calibration.pixel_pos_calibration`) both use it, so a calibration found with it
+means the same thing when reduction applies it (#1011). Unit tests pin its 2theta and eta to the values
+reduction gave before it delegated here; see docs/ground_truths.md.
 """
 
 from typing import Optional, Sequence, Union
@@ -29,8 +29,8 @@ __all__ = [
 ]
 
 
-# Rotation helpers shared with reduction (ResidualStressInstrument delegates to them, #1011): one
-# implementation, so the calibration's forward model and reduction cannot drift apart.
+# The detector's only rotation helpers, used by reduction and calibration alike (#1011), so the two
+# cannot drift apart.
 
 
 def rotate_positions(detector_matrix: np.ndarray, rotation_matrix: np.ndarray) -> np.ndarray:
@@ -125,8 +125,7 @@ class DetectorModel:
     ``index_0 * n_rows + index_1``: ``index_0`` runs across columns (X decreases with it) and
     ``index_1`` along rows (Y increases with it).
 
-    The order of operations, and the rotation-matrix helpers, are those of
-    ``ResidualStressInstrument.build_instrument``:
+    ``ResidualStressInstrument.build_instrument`` delegates here (#1011). The order of operations is:
 
     1. shift the detector in X and Y;
     2. rotate about the detector centre by ``Rx @ Ry @ Rz``;

@@ -502,6 +502,13 @@ to be re-refined from raw data, not just re-applied. Check any
 calibration JSON with 2+ non-zero rotation values against its
 refinement date relative to this fix.
 
+*Since 2026-11 (#1011):* the rotation helpers are `rotation_matrix` and `rotation_matrix_x/y/z` in
+`pyrs/core/detector_model.py`; `generate_rotation_matrix`, `_cal_rotation_matrix_x/y/z` and
+`_rotate_detector` were removed from `reduce_hb2b_pyrs.py`. The two regression tests above now test
+`rotation_matrix` in `tests/unit/pyrs/core/test_detector_model.py`
+(`test_rotation_matrix_combined_rotation_is_orthogonal`,
+`test_rotation_matrix_single_axis_matches_axis_matrix`).
+
 ## Vanadium normalization is a flat-field correction only — run-duration scaling is intentionally NOT applied (2026-07)
 
 **Intent.** The vanadium normalization in
@@ -823,6 +830,8 @@ from 1.5e-8 to 1e-2 gives the same derivative (Rot_y, the weakest, to ~1.5e-4 at
 step), so `PixelCalibration` uses scipy's default step (`diff_step=None`).
 `test_scipy_default_step_gives_accurate_angle_derivative` and (from #1029)
 `test_rotation_matrix_resolves_tiny_angle_change` fail if the matrices go back to float32.
+*Since 2026-11 (#1011)* the matrices are built by `rotation_matrix_x/y/z` in
+`pyrs/core/detector_model.py`, and that test is in `tests/unit/pyrs/core/test_detector_model.py`.
 
 ## Ring calibration: why it has its own forward model, and the draft's defects (2026-10, #1012–#1014)
 
@@ -869,7 +878,7 @@ Two consequences:
 - **No new convention is introduced.** A unit test pins 2θ and η to be bit-identical to
   `build_instrument` on the full grid, nominal and calibrated, at two arm angles.
 - **Reduction is unchanged.** Making `build_instrument` delegate to `DetectorModel`, so that one
-  piece of code defines the detector, is the follow-up #1011.
+  piece of code defines the detector, is the follow-up #1011 (done 2026-11, see the #1011 entry).
 
 *Since 2026-10-30 (#1020):* `DetectorModel` lives in `pyrs/core/detector_model.py`, next to the
 reduction geometry it reproduces. The calibration imports it from there, and
@@ -2014,3 +2023,37 @@ calibration can't be exported, it shows why and disables OK.
   each pass.
 - Reported, not fixed (production FitCalibration): it writes an error of **0** for undetermined
   parameters, because `-2 * np.zeros_like(...)` is zeros, not −2 (#1049).
+
+## Reduction places pixels with `DetectorModel`: one forward model (2026-11, #1011)
+
+`ResidualStressInstrument.build_instrument` (reduction) now takes its lab-frame pixel positions from
+`DetectorModel.lab_positions` in `pyrs/core/detector_model.py`, the forward model the ring-based
+calibration refines. Before, reduction and the calibration each had their own copy of the geometry,
+kept equal only by a test. Done as four separately approved production steps:
+
+1. The rotation helpers moved into `detector_model.py` as `rotate_positions`, `rotation_matrix` and
+   `rotation_matrix_x/y/z` (verbatim arithmetic; this also removed `DetectorModel`'s import of
+   `ResidualStressInstrument`).
+2. `_set_uncalibrated_pixels` used `DetectorModel.local_positions`.
+3. `build_instrument` delegated to `DetectorModel.lab_positions`, keeping its input checks (a wrong
+   calibration type is still an `AssertionError`), then computes 2θ and η as before.
+4. The now-unused duplicates were removed: `_raw_pixel_matrix`, `_set_uncalibrated_pixels`,
+   `rotate_detector_2theta`, `_rotate_detector`, `generate_rotation_matrix`,
+   `_cal_rotation_matrix_x/y/z`. Their tests moved to `tests/unit/pyrs/core/test_detector_model.py`.
+
+**Effect on results: none, to the bit.** After every step, a 177-entry SHA-256 golden file was
+compared with the pre-#1011 baseline: `build_instrument` positions, rotation matrix and 2θ/η (1D and
+2D) for 4 calibrations (none, zero, GUI-like, large) × 8 arm angles (−120° to 120°, including 0 and
+5e-8, below the 1e-7 threshold for applying the 2θ rotation) × 3 L2, plus 80 reduced HB2B_3510
+patterns (nominal and calibrated, two η steps). All were identical, as were the ring-calibration
+driver output and ring points on HB2B_3489/3510/4971, and the unit, integration and GUI tiers.
+
+**Tests.** The old bit-identity test (`DetectorModel` against `build_instrument`) cannot fail once
+one calls the other, so it was replaced: `test_detector_model_matches_reference` and
+`test_build_instrument_matches_reference` pin 2θ and η of six pixels (corners, centre, one
+off-centre) in four geometries to values computed by the pre-#1011 reduction code (origin/next
+7dde880b), with rtol 1e-12. Verified: reversing the rotation order to `Rz @ Ry @ Rx` fails both.
+
+**Found, not fixed:** `PyHB2BReduction.rotate_two_theta` calls a nonexistent
+`ResidualStressInstrument.rotate_detector`; it and `build_instrument_prototype` have no callers
+(#1051).

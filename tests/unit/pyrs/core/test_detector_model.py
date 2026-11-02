@@ -1,14 +1,13 @@
-"""Unit tests for pyrs.core.detector_model: the detector forward model of the ring-based calibration
+"""Unit tests for pyrs.core.detector_model: the detector forward model of reduction and the ring calibration
 
-DetectorModel must reproduce ResidualStressInstrument.build_instrument exactly (bit-identical 2theta
-and eta), so a calibration found with it means the same thing when reduction applies it; see
-docs/ground_truths.md.
+ResidualStressInstrument.build_instrument delegates to DetectorModel (#1011), so the pixel map is pinned
+to reference values computed by the reduction code before that change; see docs/ground_truths.md.
 """
 
 import numpy as np
 import pytest
 
-from pyrs.core.detector_model import DetectorModel
+from pyrs.core.detector_model import DetectorModel, rotation_matrix, rotation_matrix_x, rotation_matrix_y
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 from pyrs.core.reduce_hb2b_pyrs import ResidualStressInstrument
 from tests.util.instrument_helpers import default_hb2b_geometry
@@ -29,39 +28,169 @@ def hb2b():
     return default_hb2b_geometry()
 
 
-@pytest.fixture(scope="module")
-def full_grid():
-    return np.meshgrid(np.arange(NUM_PIXELS), np.arange(NUM_PIXELS), indexing="ij")
-
-
 def _two_theta_map(model, params, arm):
     grid = np.meshgrid(np.arange(NUM_PIXELS), np.arange(NUM_PIXELS), indexing="ij")
     return model.two_theta(*grid, -arm, 0.985, DENEXDetectorShift(*params[:7]))
 
 
+CALIBRATION_ARM85 = DENEXDetectorShift(0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.656)
+CALIBRATION_ARM0 = DENEXDetectorShift(0.001, 0.002, -0.01, 0.0, 0.2, 0.0, -0.1)
+REFERENCE_PIXELS = [(0, 0), (0, 1023), (1023, 0), (1023, 1023), (511, 511), (200, 700)]
+# 2theta and eta (degrees) of REFERENCE_PIXELS from ResidualStressInstrument.build_instrument as it was
+# before #1011 (origin/next 7dde880b), when it had its own copy of the geometry
 GEOMETRY_CASES = [
-    pytest.param(0.0, None, None, id="nominal-arm0"),
-    pytest.param(-85.0, 0.95, None, id="nominal-arm85"),
-    pytest.param(-85.0, 0.95, DENEXDetectorShift(0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.656), id="calib-arm85"),
-    pytest.param(0.0, None, DENEXDetectorShift(0.001, 0.002, -0.01, 0.0, 0.2, 0.0, -0.1), id="calib-arm0"),
+    pytest.param(
+        0.0,
+        None,
+        None,
+        [12.142212654967848] * 4 + [0.012050156728558248, 6.1806220502915075],
+        [-135.0, 135.0, -45.0, 45.0, -135.0, 148.82033952701045],
+        id="nominal-arm0",
+    ),
+    pytest.param(
+        -85.0,
+        0.95,
+        None,
+        [
+            76.20579124627643,
+            76.20579124627643,
+            93.91667219492433,
+            93.91667219492433,
+            84.99116538981714,
+            79.53054896737282,
+        ],
+        [
+            -9.121496391514825,
+            9.121496391514825,
+            -8.87717003734764,
+            8.87717003734764,
+            -0.00886853652133368,
+            3.3678465120396197,
+        ],
+        id="nominal-arm85",
+    ),
+    pytest.param(
+        -85.0,
+        0.95,
+        CALIBRATION_ARM85,
+        [
+            75.2560645501971,
+            75.63022630845553,
+            92.7590457623418,
+            93.11309640206474,
+            84.09321549344203,
+            78.77900793744644,
+        ],
+        [
+            -9.02001226908476,
+            9.025573764387502,
+            -9.134905589008042,
+            8.41851879218629,
+            -0.1831636435654218,
+            3.2684784035019447,
+        ],
+        id="calib-arm85",
+    ),
+    pytest.param(
+        0.0,
+        None,
+        CALIBRATION_ARM0,
+        [
+            12.159062553565171,
+            12.318217464831982,
+            12.208811955703002,
+            12.367079177539903,
+            0.1137036024204848,
+            6.27097693411383,
+        ],
+        [
+            -135.25041236144665,
+            134.48570727368795,
+            -44.4813200292906,
+            45.24602456865219,
+            73.32464204776555,
+            147.71073161192453,
+        ],
+        id="calib-arm0",
+    ),
 ]
+# loose enough for a last-bit difference in a future numpy, far tighter than any geometry change
+REFERENCE_RTOL = 1e-12
 
 
-@pytest.mark.parametrize("arm_two_theta, l2, calibration", GEOMETRY_CASES)
-def test_detector_model_matches_build_instrument(setup, full_grid, arm_two_theta, l2, calibration):
-    """The calibration's forward model must reproduce reduction's pixel map exactly"""
+@pytest.mark.parametrize("arm_two_theta, l2, calibration, two_theta_ref, eta_ref", GEOMETRY_CASES)
+def test_detector_model_matches_reference(setup, arm_two_theta, l2, calibration, two_theta_ref, eta_ref):
     # Arrange
-    instrument = ResidualStressInstrument(setup)
-    instrument.build_instrument(arm_two_theta, l2, calibration)
+    index_0, index_1 = np.array(REFERENCE_PIXELS).T
     model = DetectorModel(setup)
 
     # Act
-    two_theta = model.two_theta(*full_grid, arm_two_theta, l2, calibration)
-    eta = model.eta(*full_grid, arm_two_theta, l2, calibration)
+    two_theta = model.two_theta(index_0, index_1, arm_two_theta, l2, calibration)
+    eta = model.eta(index_0, index_1, arm_two_theta, l2, calibration)
 
     # Assert
-    np.testing.assert_array_equal(two_theta, instrument.get_pixels_2theta(2))
-    np.testing.assert_array_equal(eta, instrument.get_eta_values(2))
+    np.testing.assert_allclose(two_theta, two_theta_ref, rtol=REFERENCE_RTOL)
+    np.testing.assert_allclose(eta, eta_ref, rtol=REFERENCE_RTOL)
+
+
+@pytest.mark.parametrize("arm_two_theta, l2, calibration, two_theta_ref, eta_ref", GEOMETRY_CASES)
+def test_build_instrument_matches_reference(setup, arm_two_theta, l2, calibration, two_theta_ref, eta_ref):
+    """Reduction's pixel map, through its own 2D arrays, is unchanged by the delegation (#1011)"""
+    # Arrange
+    instrument = ResidualStressInstrument(setup)
+    index_0, index_1 = np.array(REFERENCE_PIXELS).T
+
+    # Act
+    instrument.build_instrument(arm_two_theta, l2, calibration)
+
+    # Assert
+    np.testing.assert_allclose(instrument.get_pixels_2theta(2)[index_0, index_1], two_theta_ref, rtol=REFERENCE_RTOL)
+    np.testing.assert_allclose(instrument.get_eta_values(2)[index_0, index_1], eta_ref, rtol=REFERENCE_RTOL)
+
+
+def test_rotation_matrix_combined_rotation_is_orthogonal():
+    """Regression: the three axis matrices were once combined element-wise (``*``) instead of by matrix
+    product (``@``), which is not a rotation when two or more angles are non-zero. See docs/ground_truths.md.
+    """
+    # Act
+    matrix = rotation_matrix(np.deg2rad(0.3), np.deg2rad(-0.5), np.deg2rad(1.2))
+
+    # Assert - a rotation is orthogonal with determinant +1
+    np.testing.assert_allclose(matrix @ matrix.T, np.eye(3), atol=1e-6)
+    np.testing.assert_allclose(np.linalg.det(matrix), 1.0, atol=1e-6)
+
+
+def test_rotation_matrix_single_axis_matches_axis_matrix():
+    # Arrange
+    rot_x_rad = np.deg2rad(2.0)
+
+    # Act / Assert
+    np.testing.assert_allclose(rotation_matrix(rot_x_rad, 0.0, 0.0), rotation_matrix_x(rot_x_rad), atol=1e-6)
+
+
+def test_rotation_matrix_resolves_tiny_angle_change():
+    """Regression: float32 matrices could not resolve angle changes below ~3e-6 deg, which made
+    numerical derivatives of the calibration residual with respect to angles zero.
+    See docs/ground_truths.md.
+    """
+    # Arrange
+    arm_angle_rad = np.deg2rad(85.0)
+    delta_rad = 1e-9
+
+    # Act
+    before = rotation_matrix_y(arm_angle_rad)
+    after = rotation_matrix_y(arm_angle_rad + delta_rad)
+
+    # Assert - the change is the analytic derivative times delta, not rounding noise
+    assert before.dtype == np.float64
+    derivative = np.array(
+        [
+            [-np.sin(arm_angle_rad), 0.0, np.cos(arm_angle_rad)],
+            [0.0, 0.0, 0.0],
+            [-np.cos(arm_angle_rad), 0.0, -np.sin(arm_angle_rad)],
+        ]
+    )
+    np.testing.assert_allclose((after - before) / delta_rad, derivative, atol=1e-5)
 
 
 def test_detector_model_fractional_pixel_between_neighbours(setup):
