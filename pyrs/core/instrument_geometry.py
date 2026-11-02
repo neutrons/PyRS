@@ -153,17 +153,21 @@ class DENEXDetectorShift:
         :param rotation_z: detector rotation about z
         :param tth_0: shift of detector tth reference frame
         :param calibration_file: name of calibration file
+
+        Every value is stored as a Python float (float64) whatever type it is given in, so a numpy
+        float32 never makes the geometry float32 (#1052). Unlike the setters there is no range check:
+        this class also holds a calibration's errors, and a rotation's error may exceed 360 degrees.
         """
 
-        self._center_shift_x = shift_x
-        self._center_shift_y = shift_y
-        self._center_shift_z = shift_z  # center shift Z along detector arm
+        self._center_shift_x = to_float("Center shift along X direction", shift_x)
+        self._center_shift_y = to_float("Center shift along Y direction", shift_y)
+        self._center_shift_z = to_float("Center shift along Z direction", shift_z)  # along detector arm
 
-        self._rotation_x = rotation_x  # in Y-Z plane (horizontal), i.e, flip
-        self._rotation_y = rotation_y  # in X-Z plane along Y axis (vertical), i.e., rotate
-        self._rotation_z = rotation_z  # in X-Y plane along Z axis, i.e., spin at detector center
+        self._rotation_x = to_float("Rotation along X direction", rotation_x)  # in Y-Z plane, i.e., flip
+        self._rotation_y = to_float("Rotation along Y direction", rotation_y)  # in X-Z plane, i.e., rotate
+        self._rotation_z = to_float("Rotation along Z direction", rotation_z)  # in X-Y plane, i.e., spin
 
-        self._two_theta_0 = tth_0  # in rotation of detector arm about X
+        self._two_theta_0 = to_float("offset in two_theta arm for ideal 0", tth_0)  # arm rotation offset
 
         self.calibration_file = calibration_file
 
@@ -303,18 +307,18 @@ class DENEXDetectorShift:
         checkdatatypes.check_dict("Geometry shift parameters", geometry_shift_dict)
 
         if "shift x" in geometry_shift_dict:
-            self._center_shift_x = geometry_shift_dict["shift x"]
+            self._center_shift_x = to_float("Center shift along X direction", geometry_shift_dict["shift x"])
         if "shift y" in geometry_shift_dict:
-            self._center_shift_y = geometry_shift_dict["shift y"]
+            self._center_shift_y = to_float("Center shift along Y direction", geometry_shift_dict["shift y"])
         if "shift z" in geometry_shift_dict:
-            self._center_shift_z = geometry_shift_dict["shift z"]
+            self._center_shift_z = to_float("Center shift along Z direction", geometry_shift_dict["shift z"])
 
         if "rotation x" in geometry_shift_dict:
-            self._rotation_x = geometry_shift_dict["rotation x"]
+            self._rotation_x = to_float("Rotation along X direction", geometry_shift_dict["rotation x"])
         if "rotation y" in geometry_shift_dict:
-            self._rotation_y = geometry_shift_dict["rotation y"]
+            self._rotation_y = to_float("Rotation along Y direction", geometry_shift_dict["rotation y"])
         if "rotation z" in geometry_shift_dict:
-            self._rotation_z = geometry_shift_dict["rotation z"]
+            self._rotation_z = to_float("Rotation along Z direction", geometry_shift_dict["rotation z"])
 
     # TODO - #86 - Synchronize with convert_to_dict and implement
     def set_from_dict_error(self):

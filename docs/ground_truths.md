@@ -2075,6 +2075,7 @@ all fixed so the new code again matches the old:
   float);
   that sum is still float32-rounded for a float32 2θ₀ (as before #1011); making `DENEXDetectorShift`
   store float64 so the whole instrument is float64 for any caller is #1052;
+  *since #1052 the stored 2θ₀ is float64 and the sum is exact; see the #1052 entry;*
 - an arm length below 1 cm raised with `l2=None`, because `lab_positions` re-checked the resolved
   arm length against the 1 cm minimum for an explicit L2: `build_instrument` now passes `None` through
   (`test_build_instrument_default_l2_is_arm_length`);
@@ -2161,3 +2162,27 @@ anything (or had no caller). User-approved production changes:
 Tests (`tests/unit/pyrs/core/test_pyrscore.py`, `test_powder_pattern.py`, all failing on the old code):
 a calibration file reaches reduction with every value including TTH_0; an uncalibrated file
 (`Status` −1) is refused before reduction; a non-`.json` file raises the clear error.
+
+## `DENEXDetectorShift` stores float64, so the instrument is float64 for any caller (2026-11, #1052)
+
+`DENEXDetectorShift`'s setters converted with `to_float`, but `__init__` (and `set_from_dict`) stored
+values as given. A calibration built from numpy float32 values therefore ran reduction's geometry in
+float32 under numpy 2's type rules: `rotation_* * np.pi / 180` gave float32 angles, and the arm angle
+`two_theta + tth_0` was rounded to ~4e-6° (pixel 2θ off by up to 1.6e-6°, measured at arm −35°,
+`tth_0 = np.float32(0.123456)`). No code produced float32 (the JSON reader, both calibrations and the
+GUI pass Python floats or float64 elements), so no result was affected.
+
+**Fix (user-approved production change):** `__init__` and `set_from_dict` convert every field with
+`to_float`, so each is a Python float (float64) whatever type it is given in (float32, int, string,
+1-element array — the last with numpy's "array to scalar" deprecation warning). `DetectorModel.lab_positions`'
+explicit conversion of the arm-angle sum (added in the #1011 review) is back to a plain sum.
+
+**No range check in `__init__`, deliberately.** The setters reject rotations and 2θ₀ outside ±360°,
+but the same class holds a calibration's *errors*, and a badly determined rotation's error can exceed
+360°; checking ranges in `__init__` would make writing or reading such a calibration raise.
+`test_error_above_360_degrees_constructs` guards this; the setters keep their checks.
+
+**Effect:** real calibrations bit-identical (golden check, driver on HB2B_3489/3510/4971, FitCalibration
+gold files). A float32 2θ₀ now gives the float64 sum of the arm angle and the exact stored value,
+not the float32-rounded sum (`test_numpy_two_theta_0_rotates_in_float64` updated accordingly).
+Tests: `tests/unit/pyrs/core/test_instrument_geometry.py`.
