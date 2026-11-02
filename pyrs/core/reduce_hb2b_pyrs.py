@@ -282,57 +282,6 @@ class PyHB2BReduction:
 
         return
 
-    def build_instrument_prototype(
-        self,
-        two_theta,
-        arm_length,
-        arm_length_shift,
-        center_shift_x,
-        center_shift_y,
-        rot_x_flip,
-        rot_y_flip,
-        rot_z_spin,
-        two_theta_shift,
-    ):
-        """
-        build an instrument definition from calibration inputs
-
-        :param float two_theta: 2theta position of the detector panel.  It shall be negative to sample log value
-        :param float arm_length: Distance of detector from center of rotation
-        :param float arm_length_shift: shift along Z-direction (arm length)
-        :param float center_shift_x: shift along X-direction
-        :param float center_shift_y: shift along Y-direction
-        :param float rot_x_flip: rotation of the detector panel about the X-direction
-        :param float rot_y_flip: rotation of the detector panel about the Y-direction
-        :param float rot_z_spin: rotation of the detector panel about the Z-direction
-        :param float two_theta_shift: 2theta offset
-
-        :return: 2D numpy array
-        """
-        print("[INFO] Building instrument: 2theta @ {}".format(two_theta + two_theta_shift))
-
-        calibration = instrument_geometry.DENEXDetectorShift(
-            arm_length_shift, center_shift_x, center_shift_y, rot_x_flip, rot_y_flip, rot_z_spin
-        )
-
-        self._instrument.build_instrument(
-            two_theta=(two_theta + two_theta_shift), l2=arm_length, instrument_calibration=calibration
-        )
-
-        return
-
-    def rotate_two_theta(self, two_theta_0, two_theta_1):
-        """
-        Rotate instrument about Y
-
-        :param two_theta_0: inital 2theta position of the detector panel.
-        :param two_theta_1: final 2theta position of the detector panel.
-        """
-        print("[INFO] Rotating: 2theta from {} to {}".format(two_theta_0, two_theta_1))
-        self._instrument.rotate_detector(two_theta_1 - two_theta_0)
-
-        return
-
     def get_pixel_positions(self, is_matrix=False, corner_center=False):
         """Get pixels' positions
 

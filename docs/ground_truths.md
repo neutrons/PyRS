@@ -403,7 +403,9 @@ reduction instead of being silently applied. Regression coverage:
 single production caller (`powder_pattern.py`);
 `import_calibration_ascii_file()` (the other calibration loader, used
 for the non-JSON branch of the same `if`) has no `Status` field/concept
-at all, so it needed no change. If another caller of
+at all, so it needed no change. *(Removed 2026-11, #1051: a non-`.json` calibration
+file now raises `ValueError`. `PyRsCore.reduce_diffraction_data` is a second caller of
+`read_calibration_json_file()` and also calls `check_calibration_status()`.)* If another caller of
 `read_calibration_json_file()` is added later, it must also call
 `check_calibration_status()` on the returned status before applying the
 shift/wavelength — `grep -rn "read_calibration_json_file" pyrs/` is the
@@ -2083,7 +2085,7 @@ all fixed so the new code again matches the old:
 `ResidualStressInstrument.rotate_detector`; it and `build_instrument_prototype` have no callers, and
 the latter builds `DENEXDetectorShift` with 6 arguments in the wrong order. `PyRsCore.reduce_diffraction_data`
 (`pyrs/core/pyrscore.py`) also builds `DENEXDetectorShift(0, 0, 0, 0, 0, 0)` without `tth_0`, so a
-calibration passed as a JSON file path raises `TypeError`.
+calibration passed as a JSON file path raises `TypeError`. *All fixed 2026-11, see the #1051 entry.*
 
 ## FitCalibration's errors: scaled by the residual scatter, −2 when undetermined (2026-11, #1049)
 
@@ -2129,3 +2131,33 @@ the independent parameter finite, zero column → all −2, brute force → −2
 the bug as the expected answer (`error_Shift_*`/`error_Rot_*` = −0.0); only the `error_*` fields of it
 and `HB2B_mantid_calib_lambda.json` were replaced by the new output, values untouched
 (`test_peakfit_calibration.py`; its round-trip test's hand-set `error_Lambda` follows the gold file).
+
+## Broken, unreachable geometry paths removed or fixed (2026-11, #1051)
+
+Found in the #1011 review; none could have affected a result, because each crashed before doing
+anything (or had no caller). User-approved production changes:
+
+- **Removed `PyHB2BReduction.rotate_two_theta` and `build_instrument_prototype`**
+  (`pyrs/core/reduce_hb2b_pyrs.py`): no callers. The first called a nonexistent
+  `ResidualStressInstrument.rotate_detector`; the second built `DENEXDetectorShift` with 6 arguments
+  (7 are required since `tth_0` was added) and in the wrong order (the Z shift as X).
+- **Fixed `PyRsCore.reduce_diffraction_data` with a calibration file path** (`pyrs/core/pyrscore.py`):
+  it built a 6-argument `DENEXDetectorShift` (`TypeError`). Worse, with 7 it would have *silently
+  applied a zero calibration*: `DENEXDetectorShift.from_json` → `set_from_dict` reads keys `"shift x"`,
+  `"rotation x"`, …, but calibration files use `Shift_x`, `Rot_x`, … (the keys `convert_to_dict`
+  writes), and it never reads `TTH_0`. It now uses the standard reader, as `ReductionApp` does:
+  `read_calibration_json_file` + `check_calibration_status` (an uncalibrated file is refused). The
+  file's wavelength is still not applied by this API, as before. `PyRsCore.reduce_diffraction_data`
+  has no caller in `pyrs/`, `scripts/` or `tests/`. `from_json`/`set_from_dict` themselves are
+  unchanged and still disagree with `convert_to_dict`; nothing else uses them.
+- **Removed the ASCII geometry reader `import_calibration_ascii_file`**
+  (`pyrs/utilities/calibration_file_io.py`). It was reachable — Manual Reduction and
+  `ReductionApp.reduce_data` sent any calibration file not ending in `.json` to it — but always
+  crashed on the 6-argument `DENEXDetectorShift`. Behind that it was wrong throughout: it matched
+  `cal::shift_x` while its own docstring wrote `cal::shiftx`, `cal::rot_y` set `rotation_x`, `cal::arm`
+  set an attribute nothing reads, and Shift_z and TTH_0 could not be set. Nothing writes the format.
+  A non-`.json` calibration file now raises `ValueError("Calibration file must be a .json file, ...")`.
+
+Tests (`tests/unit/pyrs/core/test_pyrscore.py`, `test_powder_pattern.py`, all failing on the old code):
+a calibration file reaches reduction with every value including TTH_0; an uncalibrated file
+(`Status` −1) is refused before reduction; a non-`.json` file raises the clear error.

@@ -183,56 +183,6 @@ def read_calibration_json_file(calibration_file_name):
     return shift, shift_error, wave_length, wave_length_error, status
 
 
-def import_calibration_ascii_file(geometry_file_name):
-    """
-    import geometry set up file
-    arm = 0.95
-    cal::arm = 0.
-    cal::shiftx = 0.
-    cal::shifty = 0.1
-    :param geometry_file_name:
-    :return: calibration instance
-    """
-    checkdatatypes.check_file_name(geometry_file_name, True, False, False, "Geometry configuration file in ASCII")
-
-    # init output
-    calibration_setup = DENEXDetectorShift(0, 0, 0, 0, 0, 0)
-
-    calibration_file = open(geometry_file_name, "r")
-    geom_lines = calibration_file.readlines()
-    calibration_file.close()
-
-    for line in geom_lines:
-        line = line.strip()
-
-        # skip empty or comment line
-        if line == "" or line.startswith("#"):
-            continue
-
-        terms = line.replace("=", " ").split()
-        config_name = terms[0].strip().lower()
-        config_value = float(terms[1].strip())
-
-        if config_name == "cal::shift_x":
-            calibration_setup.center_shift_x = config_value
-        elif config_name == "cal::shift_y":
-            calibration_setup.center_shift_y = config_value
-        elif config_name == "cal::arm":
-            calibration_setup.arm_calibration = config_value
-        elif config_name == "cal::rot_x":
-            calibration_setup.rotation_x = config_value
-        elif config_name == "cal::rot_y":
-            calibration_setup.rotation_x = config_value
-        elif config_name == "cal::rot_z":
-            calibration_setup.rotation_z = config_value
-        else:
-            raise RuntimeError(
-                "Instrument geometry setup item {} is not recognized and supported.".format(config_name)
-            )
-
-    return calibration_setup
-
-
 def import_instrument_setup(instrument_ascii_file):
     """Import instrument file in ASCII format
 
