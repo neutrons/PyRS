@@ -93,10 +93,20 @@ def test_ring_path_equals_the_driver(workspace, refined, tmp_path, monkeypatch):
     gui_model, (values, errors, r_sum, rmse) = refined
     (gui_file,) = gui_model.export_calibration(str(tmp_path), write_shared=False)
 
-    # Assert - bit for bit, file and arrays
+    # Assert - bit for bit, file and arrays; the provenance differs only in time and who ran it (#1053)
     np.testing.assert_array_equal(values[-1], driver.calibration_array)
     np.testing.assert_array_equal(errors[-1], driver.calibration_error_array)
-    assert json.load(open(gui_file)) == json.load(open(driver_file))
+    gui_json, driver_json = json.load(open(gui_file)), json.load(open(driver_file))
+    gui_provenance, driver_provenance = gui_json.pop("provenance"), driver_json.pop("provenance")
+    assert gui_json == driver_json
+    # everything but when, by whom and through which interface is the same
+    varying = {"created", "user", "host", "inputs", "start"}  # the start: same values, says who set it
+    assert gui_provenance["start"]["values"] == driver_provenance["start"]["values"]
+    assert {k: v for k, v in gui_provenance.items() if k not in varying} == {
+        k: v for k, v in driver_provenance.items() if k not in varying
+    }
+    assert gui_provenance["inputs"]["interface"] == "PyRS detector calibration GUI"
+    assert driver_provenance["inputs"]["driver"] == "scripts/pyrs_pixel_calibration.py"
     assert rmse == driver.stages[-1].rmse and errors[-1][6] == -1.0
 
 
@@ -613,3 +623,111 @@ def test_keep_list_length_must_match(workspace):
     gui_model.set_keep_subrun_list([True, False])
     with pytest.raises(ValueError, match="keep flags"):
         gui_model.extract_rings(3)
+
+
+# ---------------------------------------------------------------- provenance (#1053)
+
+
+def test_export_writes_the_same_provenance_to_every_file(refined, tmp_path, shared):
+    # Arrange
+    gui_model, _ = refined
+    user = tmp_path / "mine"
+    user.mkdir()
+
+    # Act
+    written = gui_model.export_calibration(str(user), write_shared=True)
+
+    # Assert - one block, identical in the user copy and the three shared files
+    from pyrs.utilities.calibration_file_io import read_calibration_provenance
+
+    blocks = [read_calibration_provenance(path) for path in written]
+    assert len(written) == 4 and all(block == blocks[0] for block in blocks)
+    block = blocks[0]
+    assert block["method"] == "ring" and block["inputs"]["interface"] == "PyRS detector calibration GUI"
+    assert block["inputs"]["recipes"] == [["iterate"]]
+    assert block["inputs"]["monochromator"] == "Si422"
+    assert block["inputs"]["extraction"]["strips"] == DEFAULT_STRIPS
+    assert [step["routine"] for step in block["steps"]] == [s.name for s in gui_model._ring_calibration.stages]
+
+
+def test_new_start_drops_earlier_steps_and_recipes(workspace):
+    # Arrange
+    gui_model = _model(workspace)
+    gui_model.extract_rings(3)
+    gui_model.calibrate_detector(["shifts"])
+    assert gui_model.export_provenance()["steps"]
+
+    # Act - the user sets a new starting calibration
+    gui_model.set_calibration_params(gui_model.current_calibration_array)
+
+    # Assert
+    block = gui_model.export_provenance()
+    assert block["steps"] == [] and block["inputs"]["recipes"] == []
+    assert block["start"]["source"] == model_module.GUI_START
+
+
+def test_provenance_failure_does_not_block_export(refined, tmp_path, monkeypatch):
+    # Arrange
+    gui_model, _ = refined
+
+    def broken(inputs=None):
+        raise RuntimeError("no residual")
+
+    monkeypatch.setattr(gui_model._ring_calibration, "provenance", broken)
+
+    # Act
+    with pytest.warns(UserWarning, match="provenance could not be built"):
+        (path,) = gui_model.export_calibration(str(tmp_path), write_shared=False)
+    assert gui_model.provenance_problem and "no residual" in gui_model.provenance_problem
+
+    # Assert - the calibration is written, with the reason in place of the provenance
+    from pyrs.utilities.calibration_file_io import read_calibration_provenance
+
+    _assert_calibration_file(
+        path, gui_model.current_calibration_array, gui_model._ring_calibration.calibration_error_array
+    )
+    assert (
+        read_calibration_provenance(path)["error"]
+        == "calibration provenance could not be built: RuntimeError: no residual"
+    )
+
+
+def test_peak_fit_export_passes_the_recipes(workspace, tmp_path):
+    # Arrange
+    gui_model = _model(workspace, METHOD_FITCALIBRATION)
+    received = {}
+
+    def provenance(inputs=None):
+        received["inputs"] = inputs
+        return {"method": "peak-fit"}
+
+    gui_model._calibration_obj.provenance = provenance
+    gui_model._fit_recipes = [["wavelength", "shifts"]]
+
+    # Act
+    block = gui_model.export_provenance()
+
+    # Assert
+    assert received["inputs"]["recipes"] == [["wavelength", "shifts"]]
+    assert received["inputs"]["interface"] == "PyRS detector calibration GUI"
+    assert block == {"method": "peak-fit"}
+
+
+def test_failed_recipe_is_not_in_the_provenance(workspace, monkeypatch):
+    """#1053 review (F3): a recipe that failed and was rolled back is not part of the calibration"""
+    # Arrange
+    gui_model = _model(workspace)
+    gui_model.extract_rings(3)
+
+    def fails(*args, **kwargs):
+        raise ValueError("starting value outside bounds")
+
+    monkeypatch.setattr(gui_model._ring_calibration, "CalibrateShift", fails)
+
+    # Act
+    with pytest.raises(ValueError, match="outside bounds"):
+        gui_model.calibrate_detector(["shifts"])
+    block = gui_model.export_provenance()
+
+    # Assert
+    assert block["inputs"]["recipes"] == [] and block["steps"] == []

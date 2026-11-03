@@ -222,7 +222,15 @@ def test_ring_based_calibration_matches_driver(calibration_window, tmp_path):
     spec.loader.exec_module(driver)
     driver_file = str(tmp_path / "driver.json")
     driver.run_calibration(nexus, driver_file, mask_file=window.model.mask_file)
-    assert json.load(open(written[0])) == json.load(open(driver_file))
+    gui_json, driver_json = json.load(open(written[0])), json.load(open(driver_file))
+    # the provenance differs only in its time and who ran it (#1053): the calibration and its steps match
+    gui_provenance, driver_provenance = gui_json.pop("provenance"), driver_json.pop("provenance")
+    assert gui_json == driver_json
+    varying = {"created", "user", "host", "inputs", "start"}  # the start: same values, says who set it
+    assert gui_provenance["start"]["values"] == driver_provenance["start"]["values"]
+    assert {k: v for k, v in gui_provenance.items() if k not in varying} == {
+        k: v for k, v in driver_provenance.items() if k not in varying
+    }
 
     setup.method_combo.setCurrentText("FitCalibration")
     assert "iterate" not in [setup.recipe_combos[0].itemText(i) for i in range(setup.recipe_combos[0].count())]

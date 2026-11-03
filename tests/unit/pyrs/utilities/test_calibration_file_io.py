@@ -128,6 +128,78 @@ def test_round_trip_keeps_nonzero_tth0(tmp_path):
     assert reread_error.two_theta_0 == pytest.approx(0.05)
 
 
+def _shift_and_errors():
+    from pyrs.core.instrument_geometry import DENEXDetectorShift
+
+    return DENEXDetectorShift(0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.25), DENEXDetectorShift(*[0.01] * 7)
+
+
+def test_write_without_provenance_is_unchanged(tmp_path):
+    """No provenance: the file is byte-for-byte what json.dump of the values gave before #1053"""
+    # Arrange
+    shift, error = _shift_and_errors()
+    target = tmp_path / "cal.json"
+    expected = shift.convert_to_dict()
+    expected["Lambda"] = 1.54
+    expected.update(error.convert_error_to_dict())
+    expected["error_Lambda"] = 1e-4
+    expected["Status"] = 1
+    expected = {key: float(value) for key, value in expected.items()}
+
+    # Act
+    calibration_file_io.write_calibration_to_json(shift, error, 1.54, 1e-4, 1, str(target))
+
+    # Assert
+    assert target.read_text() == json.dumps(expected)
+
+
+def test_provenance_round_trip(tmp_path):
+    # Arrange
+    shift, error = _shift_and_errors()
+    target = str(tmp_path / "cal.json")
+    provenance = {"schema": 1, "method": "ring", "steps": [{"step": 1, "routine": "CalibrateShift"}]}
+
+    # Act
+    calibration_file_io.write_calibration_to_json(shift, error, 1.54, 1e-4, 1, target, provenance=provenance)
+
+    # Assert
+    assert calibration_file_io.read_calibration_provenance(target) == provenance
+    reread, _, wavelength, _, status = calibration_file_io.read_calibration_json_file(target)
+    assert (reread.two_theta_0, wavelength, status) == (0.25, 1.54, 1)
+
+
+def test_file_without_provenance_reads_none(tmp_path):
+    # Arrange
+    source = _write_calibration(tmp_path / "old.json", TTH_0=0.1, error_TTH_0=0.01)
+
+    # Act / Assert
+    assert calibration_file_io.read_calibration_provenance(source) is None
+
+
+def test_unwritable_provenance_raises_and_writes_nothing(tmp_path):
+    # Arrange
+    shift, error = _shift_and_errors()
+    target = tmp_path / "cal.json"
+
+    # Act / Assert
+    with pytest.raises(TypeError):
+        calibration_file_io.write_calibration_to_json(
+            shift, error, 1.54, 1e-4, 1, str(target), provenance={"x": object()}
+        )
+    assert not target.exists()
+
+
+def test_provenance_not_a_dict_raises(tmp_path):
+    # Arrange
+    shift, error = _shift_and_errors()
+
+    # Act / Assert
+    with pytest.raises(TypeError, match="provenance must be a dict"):
+        calibration_file_io.write_calibration_to_json(
+            shift, error, 1.54, 1e-4, 1, str(tmp_path / "c.json"), provenance=[]
+        )
+
+
 @pytest.mark.integration
 def test_calibration_json_io():
     """Test the calibration file (in Json format) I/O methods
@@ -178,3 +250,14 @@ def test_calibration_json_io():
 
 if __name__ == "__main__":
     pytest.main()
+
+
+def test_unknown_provenance_schema_warns(tmp_path):
+    # Arrange
+    shift, error = _shift_and_errors()
+    target = str(tmp_path / "cal.json")
+    calibration_file_io.write_calibration_to_json(shift, error, 1.54, 1e-4, 1, target, provenance={"schema": 99})
+
+    # Act / Assert - returned as stored, with a warning
+    with pytest.warns(UserWarning, match="provenance schema 99"):
+        assert calibration_file_io.read_calibration_provenance(target) == {"schema": 99}

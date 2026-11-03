@@ -64,6 +64,8 @@ def run_calibration(
         FileNotFoundError: If the NeXus or mask file does not exist.
     """
     from pyrs.calibration.pixel_pos_calibration import PixelCalibration, extract_ring_points
+    from pyrs.calibration.provenance import file_record
+    from pyrs.core import MonoSetting  # type: ignore
     from pyrs.core.nexus_conversion import NeXusConvertingApp
 
     if not Path(nexus_file).is_file():
@@ -82,7 +84,22 @@ def run_calibration(
     calibration = PixelCalibration(ring_points, workspace.get_instrument_setup(), wavelength=wavelength)
     calibration.iterate(passes=passes, polish=polish)
     calibration.estimate_errors()
-    calibration.write_calibration(output)
+    monochromator_error = None
+    try:
+        monochromator: Optional[str] = MonoSetting.getFromRotation(workspace.get_sample_log_value("mrot", 1)).name
+    except (AssertionError, KeyError, ValueError) as mono_err:  # no or ambiguous mrot log: recorded as unknown
+        monochromator, monochromator_error = None, f"{type(mono_err).__name__}: {mono_err}"
+    inputs = {
+        "runs": [file_record(nexus_file)],
+        "mask": file_record(mask_file),
+        "monochromator": monochromator,
+        "monochromator_error": monochromator_error,
+        "wavelength_start_A": wavelength,
+        "extraction": {"strips": strips, "sub_runs": None if sub_runs is None else [int(s) for s in sub_runs]},
+        "iteration": {"passes": passes, "polish": polish, "errors": "estimate_errors, TTH_0 held"},
+        "driver": "scripts/pyrs_pixel_calibration.py",
+    }
+    calibration.write_calibration(output, inputs=inputs)
     return calibration
 
 

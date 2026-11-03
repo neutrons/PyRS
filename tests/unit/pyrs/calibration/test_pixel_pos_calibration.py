@@ -770,7 +770,7 @@ def test_set_refinement_invalid_raises(hb2b, true_rings, kwargs, match):
 def test_restore_returns_to_checkpoint(refined_noisy):
     # Arrange
     checkpoint = refined_noisy.checkpoint()
-    values, errors, status, worst, n_stages = checkpoint
+    values, errors, status, worst, n_stages, _ = checkpoint
 
     # Act
     refined_noisy.calibrate_wave_length()

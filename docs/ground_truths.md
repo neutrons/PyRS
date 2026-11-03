@@ -2239,3 +2239,82 @@ FitCalibration gold-file tests pass unchanged (tolerance 5e-3).
 
 **Golden baseline.** Bit-identity checks of later refactors must compare against a baseline recorded
 *after* this change; the #1011 baseline (pre-#1011 code) differs from it in the last bits.
+
+## Calibration files record how they were obtained: the `provenance` block (2026-11, #1053 part A)
+
+Every calibration JSON written by `FitCalibration`, the ring calibration (`PixelCalibration`, the
+`pyrs_pixel_calibration.py` driver) or the calibration GUI's Export now carries a `"provenance"` key
+beside the values (`write_calibration_to_json(..., provenance=)`; `read_calibration_provenance()`
+returns it, or None for older files). User-approved production change; **values, errors and `Status`
+are bit-identical** to before (all keys except `provenance` compared on the ring driver for
+HB2B_3489/3510/4971 and on FitCalibration for HB2B_3510), and a file written without provenance is
+byte-for-byte what the old writer gave. PyRS's reader only looks up the keys it needs, so the extra
+key is safe for it; check the deployed PyRS release's reader before the shared `HB2B_Latest.json` gains it.
+
+**Schema 1** (`pyrs/calibration/provenance.py`): `created` (ISO 8601 with time zone), `pyrs_version`,
+`user`, `host` (user decision: record them), `method` (`"peak-fit"` / `"ring"`); `inputs` (run and mask
+with SHA-256, powders, monochromator, settings; the GUI adds its recipes and extraction settings);
+`start`; `steps`, one per refinement routine *since the current start* (routine, free parameters, values,
+errors, status, n, RMSE, nfev, the optimizer's message, why any parameter is −2); `fit_quality` at the
+final calibration (n, dof, RMSE, χ²/dof, scatter, residuals per sub-run and reflection — and η mask for
+peak-fit; in the JSON by user decision, ~50 entries); `error_model`; `held_parameters` (ring); and
+`undetermined` with reasons. Non-finite numbers are written as `null`, so the file stays standard JSON.
+
+Found while prototyping on HB2B_3510, and handled:
+- **Step names.** FitCalibration's single-parameter routines go through `calibrate_single`; each public
+  routine now passes its own name to `FitDetector`, so the step reads `calibrate_wave_length`, not the helper.
+- **Reflections.** FitCalibration's residual is one peak per sub-run and η mask, the lowest reflection
+  in the detector's range; `fit_peaks` records which (e.g. `"Ni 111"`) without changing the choice.
+- **Why −2.** The ring calibration records *rank-deficient Jacobian* or *stopped at a bound*; after
+  `FullCalibration` at one L2 the rank test flags Shift_x, Rot_y, TTH_0 and also Shift_y, Shift_z,
+  Rot_z (see the degeneracy entry above). `estimate_errors` records TTH_0 as **held**.
+- **A new start.** The GUI lets the user set a new starting calibration and Calibrate again; earlier
+  steps (still kept for the GUI's plots) are not part of the new calibration, so the provenance lists
+  only the steps, recipes and final residual since the latest start.
+- **Robustness.** The provenance must never stop a calibration from being written: unknown inputs
+  (e.g. a run without the `mrot` log) are recorded as null, and if the GUI cannot build the block the
+  file is still exported with `{"error": ...}` in its place (and a warning).
+
+**Keys by method (schema 1).** Both: `schema, created, pyrs_version, user, host, method, inputs, start
+{source, values}, steps[], fit_quality, error_model, undetermined[]`. `inputs` — ring (driver):
+`runs, mask, monochromator, monochromator_error, wavelength_start_A, extraction {strips, sub_runs},
+iteration, driver, powders, ring_points, refinement`; ring (GUI): `interface, runs, mask, monochromator,
+extraction {strips, sub_runs, starting_calibration, strip_fits, strip_fits_rejected {reason: count}},
+recipes, powders, ring_points, refinement`; peak-fit: `[interface, recipes,] runs, mask, vanadium,
+powders, sub_runs_used, monochromator, reduction {two_theta_bins, eta_slice_deg}, refinement`.
+Ring only: `held_parameters`. Peak-fit `fit_quality` adds `residual_source`. A step that could not be
+recorded is `{step, routine, error}`; a block that could not be built is `{schema, error}`. The reader
+(`read_calibration_provenance`) warns on any other schema and returns the block as stored.
+
+**Review fixes (2026-11-03, user-approved F1–F9).** Three independent reviews found no change to a
+calibrated value, but the "never block" promise was not fully kept and some records could mislead:
+- **F1 — one guard for every writer.** `provenance.safe_build` builds the block, converts numpy types
+  (`jsonable`) and test-serializes it; any failure writes `{"schema", "error"}` and warns. Used by
+  `PixelCalibration.write_calibration`, `FitCalibration.write_calibration` and the GUI; before, only the
+  GUI was guarded and a numpy `bins` could still fail at serialization, outside it.
+- **F2 — nothing fragile inside the fit.** `fit_peaks` records plain numbers per residual (sub-run,
+  powder, structure, h²+k²+l², η mask) behind an index guard; the text label is built in
+  `provenance()`. Step recording in `FitDetector` cannot lose the refinement's result. `hkl_label` moved
+  to `powder_standards.py` (pure numpy; `pixel_calibration_plots` re-exports it), so no matplotlib
+  import on the calibration path.
+- **F3 — a recipe is recorded only after it ran** (a failed, rolled-back one is not listed).
+- **F4 — FitCalibration's fit quality is evaluated at the solution** (user decision): the last peak fit
+  of a refinement is a Jacobian probe, so its labels need not describe `out.fun`. After each routine,
+  `fit_peaks` runs once more at `out.x` (called directly, so the GUI's residual history is unchanged;
+  afterwards the workspace holds the solution rather than the last probe). If it fails, `out.fun` is kept
+  without labels and `residual_source` says so. A label/residual mismatch is noted
+  (`by_reflection_and_run_unavailable`), never guessed.
+- **F5 — stale state:** `get_archived_calibration` and the brute-force path clear the previous fit
+  quality; the ring `checkpoint()` includes the start, so `restore()` brings it back.
+- **F6 — visible fallback:** the GUI status bar adds "(provenance incomplete: …)".
+- **F7 — reasons beside nulls:** `sha256_error` for an unreadable file, `monochromator_error` in the
+  driver (which now also catches a multi-valued `mrot`).
+- **F8 — schema pinned** (keys above; reader warns on another schema). **F9** — both methods build the
+  block with one `provenance.assemble`.
+- The ring start records *who* set it (`set_calibration_array(..., source=)`; the GUI passes "starting
+  calibration set in the GUI" or "nominal geometry, monochromator wavelength"), found when the GUI/driver
+  test was strengthened to compare the whole block except time, user, host and inputs.
+- Found, not fixed (outside provenance): `FitCalibration.set_calibration_array` keeps the previous
+  `_caliberr`, so values set as a new start are exported with the errors of the earlier fit.
+
+Next (#1053 part B): reduced project files record the calibration applied and this block.

@@ -5,8 +5,14 @@ import os
 import warnings
 
 # Import pyrs modules
+from pyrs.calibration import provenance as _provenance
 from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
-from pyrs.calibration.pixel_refinement import UNDETERMINED, _parameter_errors
+from pyrs.calibration.pixel_refinement import (
+    PARAMETER_NAMES,
+    RANK_DEFICIENT,
+    UNDETERMINED,
+    _parameter_errors,
+)
 from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
@@ -66,6 +72,7 @@ class FitCalibration:
         self.bins = bins
         self.vanadium = vanadium
         self.mask_file = mask_file
+        self._nexus_file = nexus_file
 
         self._keep_subrun_list = None
 
@@ -126,6 +133,13 @@ class FitCalibration:
 
     def set_calibration_array(self, params):
         self._calib = np.array(params)
+        # steps before this start belong to an earlier attempt: the provenance lists only later ones
+        self._start = {
+            "source": "set_calibration_array",
+            "values": np.array(params, dtype=float),
+            "first_step": len(getattr(self, "steps", [])),
+        }
+        self._final_residual = None
 
     def set_refinement_method(self, method):
         self._ref_method = method
@@ -243,12 +257,24 @@ class FitCalibration:
         self._residual_sum = []
         self._residual_rmse = []
 
+        # provenance (#1053): the starting calibration, one record per refinement routine, and what
+        # each residual of the last peak fit is (sub-run, powder, reflection, eta mask)
+        self._start = {
+            "source": "nominal geometry, monochromator wavelength",
+            "values": self._calib.copy(),
+            "first_step": 0,
+        }
+        self.steps = []
+        self._residual_labels = []
+        self._final_residual = None
+
     def fit_peaks(self):
         self.reduce_data()
         self._fitting_ws = HidraWorkspace()
         self._fitting_ws.set_sub_runs(range(1, len(self._hidra_ws.reduction_masks) + 1))
 
         center_errors = np.array([])
+        labels = []  # see _raw_labels
         self.fitted_ws = [None] * self.sub_runs.size
 
         for i_run, sub_run in enumerate(self.sub_runs):
@@ -262,10 +288,14 @@ class FitCalibration:
                     self._fitting_ws, "PseudoVoigt", "Linear", wavelength=self._calib[7], out_of_plane_angle=None
                 )
 
+                # which reflection each reachable peak is, for the provenance: two_theta() keeps the
+                # standard's reflection order, so index i is hkl_squared[i]
+                in_range = np.flatnonzero((peaks > (tth.min() + 1)) * (peaks < (tth.max() - 1)))
                 peaks = peaks[(peaks > (tth.min() + 1)) * (peaks < (tth.max() - 1))]
 
                 if peaks.size > 1:
                     peaks = peaks[:1]
+                    in_range = in_range[:1]
 
                 _ws = []
                 for peak in peaks:
@@ -273,13 +303,34 @@ class FitCalibration:
                     fits = _fit_engine.fit_multiple_peaks(["peak_tags"], [peak - 3], [peak + 3])
 
                     _ws.append(fits.fitted)
-                    center_errors = np.concatenate(
-                        (center_errors, fits.peakcollections[0].get_effective_params()[0]["Center"] - peak)
-                    )
+                    centers = fits.peakcollections[0].get_effective_params()[0]["Center"]
+                    center_errors = np.concatenate((center_errors, centers - peak))
+                    labels += self._raw_labels(sub_run, in_range, len(_ws) - 1, np.size(centers))
 
                 self.fitted_ws[i_run] = _ws
 
+        self._residual_labels = labels
         return center_errors
+
+    def _raw_labels(self, sub_run, in_range, i_peak, n_centers):
+        """(sub-run, powder, structure, h^2+k^2+l^2, eta mask) of each fitted center, for the provenance;
+        None where it cannot be told. Plain indexing only: nothing here may abort a refinement (#1053)."""
+        try:
+            standard = self._powder_standards[sub_run - 1]
+            hkl_squared = int(standard.hkl_squared[in_range[i_peak]])
+            masks = list(self._hidra_ws.reduction_masks)
+            return [
+                (
+                    int(sub_run),
+                    standard.name,
+                    standard.structure,
+                    hkl_squared,
+                    str(masks[i]) if i < len(masks) else None,
+                )
+                for i in range(n_centers)
+            ]
+        except (AttributeError, IndexError, TypeError):
+            return [None] * n_centers
 
     def get_alignment_residual(self, x):
         """Cost function for peaks alignment to determine wavelength
@@ -308,10 +359,54 @@ class FitCalibration:
 
         return residual
 
-    def FitDetector(self, fun, x0, jac="3-point", bounds=[], i_index=2, Brute=False, free=None):
+    def _residual_at_solution(self, out, free):
+        """Residual and labels at the least-squares solution, for the provenance's fit quality (#1053).
+
+        The last peak fit of a refinement is usually a Jacobian probe, not the solution, so its labels may
+        not describe ``out.fun``: the peaks are fitted once more at ``out.x`` (one extra evaluation; the
+        values and errors already come from ``least_squares``). Calls ``fit_peaks`` directly, so the
+        residual history shown in the GUI is unchanged. If that fails, ``out.fun`` is kept with no labels.
+        """
+        try:
+            solution = np.copy(self._calib)
+            solution[list(free) if free is not None else slice(None)] = out.x
+            self.set_inst_shifts_wl(solution)
+            residual = self.fit_peaks()
+            return np.array(residual), list(self._residual_labels), out.x.size, "residual at the solution"
+        except Exception as refit_err:  # noqa: BLE001 - the provenance must never abort a refinement
+            return np.array(out.fun), None, out.x.size, f"least_squares residual; re-evaluation failed: {refit_err}"
+
+    def _record_step(self, routine, free, values, errors, status, residual=None, nfev=None, message="", reason=""):
+        """Append the provenance record of one refinement routine to :attr:`steps` (#1053)."""
+        try:
+            names = [PARAMETER_NAMES[i] for i in free] if free is not None else [f"x{i}" for i in range(len(values))]
+            errors = np.asarray(errors, dtype=float)
+            reasons = {name: reason for name, error in zip(names, errors) if error == UNDETERMINED}
+            step = _provenance.step_record(
+                len(self.steps) + 1,
+                routine,
+                names,
+                np.asarray(values, dtype=float),
+                errors,
+                status,
+                n=None if residual is None else np.size(residual),
+                rmse=None if residual is None else float(np.sqrt(np.mean(np.square(residual)))),
+                nfev=nfev,
+                message=message,
+                undetermined_reasons=reasons,
+            )
+        except Exception as record_err:  # noqa: BLE001 - the refinement's result must never be lost
+            step = {
+                "step": len(self.steps) + 1,
+                "routine": str(routine),
+                "error": f"{type(record_err).__name__}: {record_err}",
+            }
+        self.steps.append(step)
+
+    def FitDetector(self, fun, x0, jac="3-point", bounds=[], i_index=2, Brute=False, free=None, routine="FitDetector"):
         """Refine ``x0`` with ``least_squares``; ``free`` are the indices of the refined parameters in
         the calibration vector, which select their finite-difference steps from ``DIFF_STEP``
-        (None: scipy's default step)."""
+        (None: scipy's default step). ``routine`` names the refinement in the provenance (#1053)."""
         diff_step = None if free is None else DIFF_STEP[list(free)]
         if Brute:
             BOUNDS = []
@@ -321,7 +416,18 @@ class FitCalibration:
                 BOUNDS.append([lL[i_b], uL[i_b]])
             out1 = brute(fun, ranges=BOUNDS, args=(Brute, i_index), Ns=11)
             # brute() gives no covariance, so the errors are undetermined (#1049)
-            return [out1, np.full(len(BOUNDS), UNDETERMINED), 1]
+            errors = np.full(len(BOUNDS), UNDETERMINED)
+            self._final_residual = None  # a grid search has no residual at a least-squares solution
+            self._record_step(
+                routine,
+                free,
+                np.atleast_1d(out1),
+                errors,
+                1,
+                message="brute-force grid search (scipy.optimize.brute, Ns=11)",
+                reason="brute-force grid search gives no covariance",
+            )
+            return [out1, errors, 1]
 
         else:
             if len(bounds[0]) != len(bounds[1]):
@@ -355,6 +461,18 @@ class FitCalibration:
             # errors scaled by the residual scatter, -2 where undetermined: same formula as the ring
             # calibration (#1049, docs/ground_truths.md)
             errors = _parameter_errors(out.jac, out.fun, out.fun.size - out.x.size)
+            self._final_residual = self._residual_at_solution(out, free)
+            self._record_step(
+                routine,
+                free,
+                out.x,
+                errors,
+                out.status,
+                residual=out.fun,
+                nfev=out.nfev,
+                message=str(out.message),
+                reason=RANK_DEFICIENT,
+            )
 
             return [out.x, errors, out.status]
 
@@ -458,7 +576,9 @@ class FitCalibration:
 
         return residual
 
-    def calibrate_single(self, initial_guess=None, ConstrainPosition=True, LL=[], UL=[], i_index=0):
+    def calibrate_single(
+        self, initial_guess=None, ConstrainPosition=True, LL=[], UL=[], i_index=0, routine="calibrate_single"
+    ):
         """Calibrate wave length
 
         Parameters
@@ -471,7 +591,13 @@ class FitCalibration:
         """
 
         out = self.FitDetector(
-            self.peak_alignment_single, initial_guess, jac="3-point", bounds=(LL, UL), i_index=i_index, free=[i_index]
+            self.peak_alignment_single,
+            initial_guess,
+            jac="3-point",
+            bounds=(LL, UL),
+            i_index=i_index,
+            free=[i_index],
+            routine=routine,
         )
 
         return out
@@ -492,7 +618,11 @@ class FitCalibration:
             initial_guess = self.get_wavelength()
 
         out = self.calibrate_single(
-            initial_guess=initial_guess, LL=[self._calib[7] - 0.025], UL=[self._calib[7] + 0.025], i_index=7
+            initial_guess=initial_guess,
+            LL=[self._calib[7] - 0.025],
+            UL=[self._calib[7] + 0.025],
+            i_index=7,
+            routine="calibrate_wave_length",
         )
 
         self.set_wavelength(out)
@@ -519,6 +649,7 @@ class FitCalibration:
             initial_guess,
             bounds=([-5.0, self._calib[7] - 0.025], [5.0, self._calib[7] + 0.025]),
             free=[6, 7],
+            routine="calibrate_wave_shift",
         )
 
         self.set_wave_shift(out)
@@ -540,7 +671,9 @@ class FitCalibration:
         if initial_guess is None:
             initial_guess = np.array([self.get_calib()[0]])
 
-        out = self.calibrate_single(initial_guess=initial_guess, LL=[-0.05], UL=[0.05], i_index=0)
+        out = self.calibrate_single(
+            initial_guess=initial_guess, LL=[-0.05], UL=[0.05], i_index=0, routine="calibrate_shiftx"
+        )
 
         self.set_shiftx(out)
 
@@ -559,7 +692,9 @@ class FitCalibration:
         if initial_guess is None:
             initial_guess = np.array([self.get_calib()[1]])
 
-        out = self.calibrate_single(initial_guess=initial_guess, LL=[-0.05], UL=[0.05], i_index=1)
+        out = self.calibrate_single(
+            initial_guess=initial_guess, LL=[-0.05], UL=[0.05], i_index=1, routine="calibrate_shifty"
+        )
 
         self.set_shifty(out)
 
@@ -580,7 +715,9 @@ class FitCalibration:
         if initial_guess is None:
             initial_guess = np.array([self.get_calib()[2]])
 
-        out = self.calibrate_single(initial_guess=initial_guess, LL=[-0.1], UL=[0.1], i_index=2)
+        out = self.calibrate_single(
+            initial_guess=initial_guess, LL=[-0.1], UL=[0.1], i_index=2, routine="calibrate_distance"
+        )
 
         self.set_distance(out)
 
@@ -601,7 +738,9 @@ class FitCalibration:
         if initial_guess is None:
             initial_guess = np.array([self.get_calib()[6]])
 
-        out = self.calibrate_single(initial_guess=initial_guess, LL=[-5.0], UL=[5.0], i_index=6)
+        out = self.calibrate_single(
+            initial_guess=initial_guess, LL=[-5.0], UL=[5.0], i_index=6, routine="calibrate_tth0"
+        )
 
         self.set_tth0(out)
 
@@ -613,7 +752,13 @@ class FitCalibration:
         if bounds is None:
             bounds = [[-0.05, -0.05, -0.15], [0.05, 0.05, 0.15]]
 
-        out = self.FitDetector(self.peak_alignment_shift, initalGuess, bounds=(bounds[0], bounds[1]), free=[0, 1, 2])
+        out = self.FitDetector(
+            self.peak_alignment_shift,
+            initalGuess,
+            bounds=(bounds[0], bounds[1]),
+            free=[0, 1, 2],
+            routine="CalibrateShift",
+        )
 
         self.set_shift(out)
 
@@ -624,7 +769,11 @@ class FitCalibration:
             initalGuess = self.get_rotation()
 
         out = self.FitDetector(
-            self.peak_alignment_rotation, initalGuess, bounds=([-5.0, -5.0, -5.0], [5.0, 5.0, 5.0]), free=[3, 4, 5]
+            self.peak_alignment_rotation,
+            initalGuess,
+            bounds=([-5.0, -5.0, -5.0], [5.0, 5.0, 5.0]),
+            free=[3, 4, 5],
+            routine="CalibrateRotation",
         )
 
         self.set_rotation(out)
@@ -640,6 +789,7 @@ class FitCalibration:
             initalGuess,
             bounds=([-0.05, -0.05, -0.05, -5.0, -5.0, -5.0, -5.0], [0.05, 0.05, 0.05, 5.0, 5.0, 5.0, 5.0]),
             free=list(range(7)),
+            routine="CalibrateGeometry",
         )
 
         self.set_geo(out)
@@ -658,6 +808,7 @@ class FitCalibration:
                 [0.05, 0.05, 0.15, 5.0, 5.0, 5.0, 5.0, self._calib[7] + 0.05],
             ),
             free=list(range(8)),
+            routine="FullCalibration",
         )
 
         self.set_calibration(out)
@@ -827,10 +978,78 @@ class FitCalibration:
                 self._calib[i] = CalibData[keys[i]]
 
         self._calib_start = np.copy(self._calib)
+        self._start = {
+            "source": _provenance.file_record(file_name),
+            "values": self._calib.copy(),
+            "first_step": len(getattr(self, "steps", [])),
+        }
+        self._final_residual = None
 
         return
 
-    def write_calibration(self, file_name=None, write_latest=False):
+    def provenance(self, inputs=None):
+        """How this calibration was obtained, for the calibration JSON (#1053, :mod:`pyrs.calibration.provenance`)
+
+        Parameters
+        ----------
+        inputs: dict or None
+            what the caller adds (e.g. the GUI recipe); the run, mask, powders, monochromator and
+            reduction/refinement settings are added here
+
+        Returns
+        -------
+        dict
+            header, inputs, starting calibration, one step per refinement routine (:attr:`steps`),
+            the fit quality of the last step with residuals per sub-run, reflection and eta mask, the
+            error model and the undetermined parameters with reasons
+        """
+        # read defensively: the provenance must never stop a calibration from being written
+        standards = getattr(self, "_powder_standards", None) or []
+        keep = getattr(self, "_keep_subrun_list", None)
+        mono = getattr(self, "monosetting", None)
+        block_inputs = dict(inputs or {})
+        block_inputs.update(
+            {
+                "runs": [_provenance.file_record(self._nexus_file)] if self._nexus_file is not None else [],
+                "mask": _provenance.file_record(self.mask_file),
+                "vanadium": None if self.vanadium is None else str(self.vanadium),
+                "powders": sorted({standard.name for standard in standards if standard is not None}),
+                "sub_runs_used": (
+                    None if keep is None else [int(sub_run) for sub_run, used in zip(self.sub_runs, keep) if used]
+                ),
+                "monochromator": None if mono is None else mono.name,
+                "reduction": {"two_theta_bins": self.bins, "eta_slice_deg": self.eta_slices},
+                "refinement": {"method": self._ref_method, "max_nfev": self._max_nfev},
+            }
+        )
+        steps = self.steps[min(self._start.get("first_step", 0), len(self.steps)) :]
+        quality = None
+        if self._final_residual is not None:
+            residual, raw_labels, n_free, residual_source = self._final_residual
+            labels = None
+            if raw_labels is not None:
+                labels = [
+                    None
+                    if raw is None
+                    else (raw[0], raw[1], _provenance.reflection_label(raw[1], raw[2], raw[3]), raw[4])
+                    for raw in raw_labels
+                ]
+            quality = _provenance.fit_quality(residual, n_free, labels)
+            quality["residual_source"] = residual_source
+        return _provenance.assemble(
+            "peak-fit",
+            block_inputs,
+            self._start["source"],
+            self._start["values"],
+            steps,
+            quality,
+            "sqrt(diag(inv(J^T J)) * sum(r^2) / (n - p)) from each routine's Jacobian (#1049); "
+            "-2 where the scaled Jacobian is rank-deficient",
+            PARAMETER_NAMES,
+            self._caliberr,
+        )
+
+    def write_calibration(self, file_name=None, write_latest=False, inputs=None):
         """Write the calibration to a Json file
 
         Parameters
@@ -841,10 +1060,14 @@ class FitCalibration:
         write_latest: bool
         bool saying that the calibration should write HB2B_Cal_Latest
 
+        inputs: dict or None
+        passed to :meth:`provenance`, which every file written carries (#1053)
+
         Returns
         -------
         None
         """
+        provenance = _provenance.safe_build(lambda: self.provenance(inputs))
 
         # Form DENEXDetectorShift objects
         cal_shift = DENEXDetectorShift(
@@ -877,13 +1100,17 @@ class FitCalibration:
                 file_name = "/HFIR/HB2B/shared/CALIBRATION/{}/HB2B_CAL_{}.json".format(
                     self.monosetting.name, time.strftime("%Y-%m-%dT%H:%M", time.localtime())
                 )
-                write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name)
+                write_calibration_to_json(
+                    cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name, provenance=provenance
+                )
 
             else:
                 print("User does not privilege to write to {}".format("/HFIR/HB2B/shared"))
 
         else:
-            write_calibration_to_json(cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name)
+            write_calibration_to_json(
+                cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name, provenance=provenance
+            )
 
         if write_latest:
             if os.access("/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json", os.W_OK):
@@ -894,6 +1121,7 @@ class FitCalibration:
                     wl_error,
                     self._calibstatus,
                     "/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json",
+                    provenance=provenance,
                 )
             else:
                 print("User does not privilege to write /HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json")

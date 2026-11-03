@@ -25,7 +25,6 @@ Example::
 """
 
 from dataclasses import dataclass
-from itertools import product
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -34,7 +33,7 @@ from matplotlib.axes import Axes
 from matplotlib.contour import QuadContourSet
 from matplotlib.image import AxesImage
 
-from pyrs.calibration.powder_standards import PowderStandard
+from pyrs.calibration.powder_standards import PowderStandard, hkl_label  # hkl_label re-exported
 from pyrs.core.detector_model import DetectorModel
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 
@@ -64,28 +63,6 @@ class PredictedRing:
 
     label: str
     two_theta: float
-
-
-def hkl_label(hkl_squared: int, structure: str) -> str:
-    """Miller indices of a cubic reflection from ``h^2 + k^2 + l^2``, e.g. ``"220"``.
-
-    The indices are the largest-first triple with that sum of squares allowed by the structure
-    (FCC: all odd or all even; BCC: ``h + k + l`` even); for the HB2B reflections it is unique.
-
-    Raises:
-        ValueError: If ``structure`` is not FCC or BCC, or no allowed reflection has that sum.
-    """
-    if structure not in ("FCC", "BCC"):
-        raise ValueError(f"structure must be 'FCC' or 'BCC', got {structure!r}")
-    limit = int(np.sqrt(hkl_squared)) + 1
-    for h, k, l in product(range(limit, -1, -1), repeat=3):  # noqa: E741 - Miller index
-        if not h >= k >= l or h * h + k * k + l * l != hkl_squared:
-            continue
-        parities = {h % 2, k % 2, l % 2}
-        allowed = len(parities) == 1 if structure == "FCC" else (h + k + l) % 2 == 0
-        if allowed:
-            return f"{h}{k}{l}"
-    raise ValueError(f"no {structure} reflection has h^2 + k^2 + l^2 = {hkl_squared}")
 
 
 def predicted_rings(

@@ -2,6 +2,7 @@
 from pyrs.utilities import checkdatatypes
 from pyrs.core.instrument_geometry import DENEXDetectorShift, DENEXDetectorGeometry
 import json
+import warnings
 
 
 def check_calibration_dictionary(calib_dict):
@@ -253,16 +254,24 @@ def import_instrument_setup(instrument_ascii_file):
 
 
 def write_calibration_to_json(
-    shifts, shifts_error, wave_length, wave_lenngth_error, calibration_status, file_name=None
+    shifts, shifts_error, wave_length, wave_lenngth_error, calibration_status, file_name=None, provenance=None
 ):
     """Write geometry and wave length calibration to a JSON file
 
     Parameters
     ----------
+    provenance : dict or None
+        How the calibration was obtained (``pyrs.calibration.provenance``, #1053), written under the
+        key ``"provenance"`` beside the values; None writes none. Readers of the values ignore it.
 
     Returns
     -------
     None
+
+    Raises
+    ------
+    TypeError
+        If ``provenance`` is not a dict or cannot be written as JSON (nothing is written then).
     """
     # Check inputs
     checkdatatypes.check_file_name(file_name, False, True, False, "Output JSON calibration file")
@@ -282,6 +291,42 @@ def write_calibration_to_json(
         calibration_dict[item] = float(calibration_dict[item])
     print("DICTIONARY:\n{}".format(calibration_dict))
 
+    if provenance is not None:
+        if not isinstance(provenance, dict):
+            raise TypeError(f"provenance must be a dict, got {type(provenance).__name__}")
+        calibration_dict["provenance"] = provenance
+
+    # serialized before the file is opened, so a provenance that is not valid JSON writes nothing
+    text = json.dumps(calibration_dict)
     with open(file_name, "w") as outfile:
-        json.dump(calibration_dict, outfile)
+        outfile.write(text)
     print("[INFO] Calibration file is written to {}".format(file_name))
+
+
+def read_calibration_provenance(calibration_file_name):
+    """The ``"provenance"`` block of a calibration JSON file (#1053), or None if it has none
+
+    Parameters
+    ----------
+    calibration_file_name : str
+        calibration JSON file
+
+    Returns
+    -------
+    dict or None
+    """
+    checkdatatypes.check_file_name(calibration_file_name, True, False, False, "Calibration JSON file")
+    with open(calibration_file_name, "r") as calib_file:
+        calib_dict = json.load(calib_file)
+    provenance = calib_dict.get("provenance") if isinstance(calib_dict, dict) else None
+    if not isinstance(provenance, dict):
+        return None
+    from pyrs.calibration.provenance import SCHEMA_VERSION  # pyrs.calibration imports this module
+
+    if provenance.get("schema") != SCHEMA_VERSION:
+        warnings.warn(
+            f"{calibration_file_name}: provenance schema {provenance.get('schema')!r}, this PyRS reads "
+            f"schema {SCHEMA_VERSION}; returned as stored",
+            stacklevel=2,
+        )
+    return provenance
