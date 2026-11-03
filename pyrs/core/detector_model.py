@@ -208,9 +208,8 @@ class DetectorModel:
             )
             positions = rotate_positions(positions, calib_matrix)
 
-            # reduction made the sum a Python float before rotating; doing the same keeps a numpy-typed
-            # two_theta_0 (float32, 1-element array) from making the arm rotation float32 or an array
-            two_theta = np.asarray(two_theta + calibration.two_theta_0, dtype=np.float64).item()
+            # a Python float: DENEXDetectorShift stores float64 (#1052)
+            two_theta += calibration.two_theta_0
             arm_l2 += calibration.center_shift_z
 
         positions[:, :, 2] += arm_l2

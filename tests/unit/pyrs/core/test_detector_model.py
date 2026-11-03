@@ -217,11 +217,12 @@ def test_build_instrument_default_l2_is_arm_length():
 
 @pytest.mark.parametrize("two_theta_0", [np.float32(0.123456), np.array([0.123456])], ids=["float32", "array"])
 def test_numpy_two_theta_0_rotates_in_float64(setup, two_theta_0):
-    """Regression (#1011 review): a numpy-typed 2theta_0 made the arm rotation float32, or an array that
-    raised; reduction has always rotated by the Python-float sum of the arm angle and 2theta_0"""
+    """Regression (#1011 review, #1052): a numpy-typed 2theta_0 made the arm rotation float32, or an array
+    that raised. DENEXDetectorShift now stores float64, so the arm rotates by the float64 sum of the arm
+    angle and the exact stored 2theta_0 (before #1052, by the float32-rounded sum)"""
     # Arrange
     arm = -35.0
-    arm_plus_two_theta_0 = np.asarray(arm + two_theta_0, dtype=np.float64).item()
+    arm_plus_two_theta_0 = arm + np.asarray(two_theta_0, dtype=np.float64).item()
     numpy_calibration = DENEXDetectorShift(0.004, -0.003, 0.012, 0.3, -0.5, 1.2, two_theta_0)
     zero_calibration = DENEXDetectorShift(0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.0)
     index_0, index_1 = np.array(REFERENCE_PIXELS).T
