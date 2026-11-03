@@ -18,6 +18,9 @@ def calibration():
     fit = mpc.FitCalibration.__new__(mpc.FitCalibration)
     fit._ref_method = "trf"
     fit._max_nfev = None
+    fit.steps = []  # provenance (#1053), set by initialize_calib_arrays in a real FitCalibration
+    fit._residual_labels = []
+    fit._final_residual = None
     return fit
 
 

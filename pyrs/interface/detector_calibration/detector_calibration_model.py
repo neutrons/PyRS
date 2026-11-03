@@ -3,7 +3,8 @@ import stat
 import tempfile
 import time
 import warnings
-from typing import List, Optional, Sequence, Tuple
+from collections import Counter
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from qtpy.QtCore import Signal, QObject  # type:ignore
@@ -16,6 +17,7 @@ from pyrs.calibration.pixel_calibration_plots import (
     predicted_rings,
 )
 from pyrs.calibration.pixel_pos_calibration import PixelCalibration, StripFit, extract_ring_points
+from pyrs.calibration.provenance import file_record, safe_build
 from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
 from pyrs.calibration.ring_extraction import column_at_two_theta
 from pyrs.core.detector_model import DetectorModel
@@ -80,6 +82,9 @@ def _signed_residual_sum(calibration: PixelCalibration) -> float:
 # replace them, everyone may read them (production reduction runs under other accounts)
 CALIBRATION_FILE_MODE = 0o664
 CALIBRATION_FOLDER_MODE = 0o2775  # a created archive folder: group-writable, new files inherit its group
+# where the ring calibration's starting values came from, as recorded in its provenance (#1053)
+GUI_START = "starting calibration set in the GUI"
+NOMINAL_START = "nominal geometry, monochromator wavelength"
 
 
 def _existing_folder(path: str) -> str:
@@ -124,8 +129,12 @@ def _make_folder(folder: str) -> None:
         _share_with_folder_group(created, CALIBRATION_FOLDER_MODE)
 
 
-def _write_atomically(values: np.ndarray, errors: np.ndarray, status: int, file_name: str) -> None:
+def _write_atomically(
+    values: np.ndarray, errors: np.ndarray, status: int, file_name: str, provenance: Optional[Dict[str, Any]] = None
+) -> None:
     """Write a calibration JSON to a temporary file next to ``file_name``, then rename it into place.
+
+    ``provenance`` (#1053) is written beside the values, the same block in every file of one export.
 
     The rename replaces an existing file in one step (never a truncated file); the file gets
     :data:`CALIBRATION_FILE_MODE` and the folder's group, whoever wrote it before.
@@ -141,6 +150,7 @@ def _write_atomically(values: np.ndarray, errors: np.ndarray, status: int, file_
             float(errors[7]),
             int(status),
             temporary,
+            provenance=provenance,
         )
         _share_with_folder_group(temporary, CALIBRATION_FILE_MODE)
         os.replace(temporary, file_name)
@@ -179,6 +189,7 @@ class DetectorCalibrationModel(QObject):
         self._ring_refinement = {"method": "trf", "max_nfev": None}
         self._reset_ring_state()
         self._reset_fit_state()
+        self._fit_recipes: List[List[str]] = []  # recipes run since the start, for the provenance (#1053)
 
     def _reset_fit_state(self) -> None:
         """Forget FitCalibration's recipe statuses (call whenever its calibration object is rebuilt)."""
@@ -193,6 +204,9 @@ class DetectorCalibrationModel(QObject):
         self._ring_diagnostics: List[StripFit] = []
         self._ring_extraction_shift: Optional[DENEXDetectorShift] = None
         self._keep_list: Optional[np.ndarray] = None
+        self._ring_extraction: Dict[str, Any] = {}  # extraction settings, for the provenance (#1053)
+        self.provenance_problem: Optional[str] = None  # why the last export's provenance is incomplete
+        self._ring_recipes: List[List[str]] = []
         self.calibration_warnings: List[str] = []
         self.extraction_warnings: List[str] = []
         self.ring_summary = ""
@@ -351,6 +365,7 @@ class DetectorCalibrationModel(QObject):
         values, errors, status = self._export_values()
         if not os.path.isdir(folder):
             raise FileNotFoundError(f"folder {folder} does not exist")
+        provenance = self.export_provenance()
         stamp = time.strftime(CALIBRATION_TIME_FORMAT, time.localtime())
         mono = self.monochromator
         user_copy = os.path.join(folder, f"HB2B_CAL_{stamp}.json")
@@ -364,7 +379,7 @@ class DetectorCalibrationModel(QObject):
             ]
             blocked = [target for target in shared if not _writable(target)]
             if blocked:
-                _write_atomically(values, errors, status, user_copy)
+                _write_atomically(values, errors, status, user_copy, provenance)
                 raise PermissionError(
                     f"cannot write {', '.join(blocked)}; the calibration was written to {user_copy} only"
                 )
@@ -372,12 +387,43 @@ class DetectorCalibrationModel(QObject):
         for target in [user_copy] + shared:
             try:
                 _make_folder(os.path.dirname(os.path.abspath(target)))
-                _write_atomically(values, errors, status, target)
+                _write_atomically(values, errors, status, target, provenance)
             except (OSError, RuntimeError) as write_err:
                 done = ", ".join(written) if written else "nothing"
                 raise OSError(f"writing {target} failed ({write_err}); written so far: {done}") from write_err
             written.append(target)
         return written
+
+    def export_provenance(self) -> Dict[str, Any]:
+        """The chosen method's provenance block (#1053), with what the GUI knows: run, mask, recipes, settings.
+
+        Never raises (:func:`~pyrs.calibration.provenance.safe_build`): if the block cannot be built or
+        written as JSON, a minimal one saying why is returned and :attr:`provenance_problem` is set,
+        because the provenance must not stop a calibration from being exported.
+        """
+        inputs: Dict[str, Any] = {"interface": "PyRS detector calibration GUI"}
+
+        def build() -> Dict[str, Any]:
+            if self.method == METHOD_RING:
+                if self._ring_calibration is None:
+                    raise RuntimeError("nothing has been refined with the ring-based calibration")
+                inputs.update(
+                    {
+                        "runs": [file_record(self._nexus_file)] if self._nexus_file is not None else [],
+                        "mask": file_record(self._mask_file),
+                        "monochromator": self.monochromator,
+                        "extraction": dict(self._ring_extraction),
+                        "recipes": [list(recipe) for recipe in self._ring_recipes],
+                    }
+                )
+                return self._ring_calibration.provenance(inputs)
+            inputs["recipes"] = [list(recipe) for recipe in self._fit_recipes]
+            return self._calibration_obj.provenance(inputs)
+
+        block = safe_build(build)
+        # shown by the GUI next to "Calibration written": the file is fine, its provenance is not
+        self.provenance_problem = block.get("error")
+        return block
 
     def export_description(self) -> Tuple[bool, str]:
         """Whether the chosen method's calibration can be exported, and what (or why not), for the dialog."""
@@ -438,10 +484,12 @@ class DetectorCalibrationModel(QObject):
         if self.method == METHOD_RING:
             self._ring_start = np.asarray(params_list, dtype=float).copy()
             if self._ring_calibration is not None:
-                self._ring_calibration.set_calibration_array(self._ring_start)
+                self._ring_calibration.set_calibration_array(self._ring_start, source=GUI_START)
+            self._ring_recipes = []  # a new start: earlier recipes are not part of this calibration
             return
         self._calibration_obj.set_calibration_array(params_list)
         self._calibration_obj.set_inst_shifts_wl(params_list)
+        self._fit_recipes = []  # a new start: earlier recipes are not part of this calibration
 
     def extract_rings(self, strips: int = DEFAULT_STRIPS) -> Tuple[int, int, float, float]:
         """Ring-based "Fit Peaks": find the ring points in ``strips`` strips per sub-run.
@@ -491,10 +539,20 @@ class DetectorCalibrationModel(QObject):
             )
         self.extraction_warnings = [str(w.message) for w in caught if issubclass(w.category, UserWarning)]
         self._ring_diagnostics, self._ring_extraction_shift = diagnostics, shift
+        self._ring_extraction = {
+            "strips": strips,
+            "sub_runs": sub_runs,
+            "starting_calibration": "current calibration" if shift is not None else "nominal",
+            "strip_fits": len(diagnostics),
+            "strip_fits_rejected": dict(
+                Counter(fit.reason or "unspecified" for fit in diagnostics if not fit.accepted)
+            ),
+        }
+        self._ring_recipes = []
         calibration = PixelCalibration(
             points, workspace.get_instrument_setup(), wavelength=float(start[7]), **self._ring_refinement
         )
-        calibration.set_calibration_array(start)
+        calibration.set_calibration_array(start, source=GUI_START if self._ring_start is not None else NOMINAL_START)
         self._ring_calibration = calibration
         self._ring_history = [calibration.calibration_array]
         residual = calibration.residual(start)
@@ -508,6 +566,7 @@ class DetectorCalibrationModel(QObject):
 
     def set_reduction_param(self, tth_bins, eta_bins):
         self._reset_fit_state()  # a new FitCalibration object: nothing refined yet
+        self._fit_recipes = []
         if self._calibration_obj is not None:
             self._calibration_obj = FitCalibration(
                 nexus_file=self._nexus_file, mask_file=self._mask_file, eta_slice=eta_bins, bins=tth_bins
@@ -516,6 +575,7 @@ class DetectorCalibrationModel(QObject):
     def _init_calibration(self, nexus_file, tth=512, eta=3.0):
         self._reset_ring_state()  # ring points and results belong to the previous run
         self._reset_fit_state()
+        self._fit_recipes = []
         self._mask_file = default_mask_file()
         self._calibration_obj = FitCalibration(
             nexus_file=nexus_file, mask_file=self._mask_file, eta_slice=eta, bins=tth
@@ -560,6 +620,7 @@ class DetectorCalibrationModel(QObject):
             except Exception:
                 self._fit_failed = True  # the stages before the failure changed it: not exportable
                 raise
+            self._fit_recipes.append([r for r in fit_recipe if r])  # only a recipe that ran
 
             try:
                 return calibration, calibration_error, fit.residual_sum, fit.residual_rmse
@@ -617,6 +678,7 @@ class DetectorCalibrationModel(QObject):
             del self._ring_history[history_length:]
             raise
         self.calibration_warnings = calibration.warning_log[first_warning:]
+        self._ring_recipes.append(list(routines))  # only a recipe that ran is part of the calibration
         rmse = calibration.stages[-1].rmse if calibration.stages else None
         r_sum = _signed_residual_sum(calibration) if calibration.stages else None
         return values, errors, r_sum, rmse

@@ -17,11 +17,12 @@ docs/ground_truths.md. The FCC 400 reflection, missing in ``FitCalibration``, is
 """
 
 from dataclasses import dataclass
+from itertools import product
 from typing import Optional, Sequence
 
 import numpy as np
 
-__all__ = ["PowderStandard", "REFLECTIONS", "HB2B_STANDARDS", "standard_for_sy"]
+__all__ = ["PowderStandard", "REFLECTIONS", "HB2B_STANDARDS", "hkl_label", "standard_for_sy"]
 
 # h^2 + k^2 + l^2 of the allowed reflections (FCC: h, k, l all odd or all even; BCC: h + k + l even)
 REFLECTIONS = {
@@ -83,6 +84,28 @@ class PowderStandard:
             raise ValueError(f"wavelength must be positive, got {wavelength}")
         sin_theta = wavelength / (2 * self.d_spacings())
         return 2 * np.rad2deg(np.arcsin(sin_theta[sin_theta <= 1]))
+
+
+def hkl_label(hkl_squared: int, structure: str) -> str:
+    """Miller indices of a cubic reflection from ``h^2 + k^2 + l^2``, e.g. ``"220"``.
+
+    The indices are the largest-first triple with that sum of squares allowed by the structure
+    (FCC: all odd or all even; BCC: ``h + k + l`` even); for the HB2B reflections it is unique.
+
+    Raises:
+        ValueError: If ``structure`` is not FCC or BCC, or no allowed reflection has that sum.
+    """
+    if structure not in ("FCC", "BCC"):
+        raise ValueError(f"structure must be 'FCC' or 'BCC', got {structure!r}")
+    limit = int(np.sqrt(hkl_squared)) + 1
+    for h, k, l in product(range(limit, -1, -1), repeat=3):  # noqa: E741 - Miller index
+        if not h >= k >= l or h * h + k * k + l * l != hkl_squared:
+            continue
+        parities = {h % 2, k % 2, l % 2}
+        allowed = len(parities) == 1 if structure == "FCC" else (h + k + l) % 2 == 0
+        if allowed:
+            return f"{h}{k}{l}"
+    raise ValueError(f"no {structure} reflection has h^2 + k^2 + l^2 = {hkl_squared}")
 
 
 HB2B_STANDARDS = (

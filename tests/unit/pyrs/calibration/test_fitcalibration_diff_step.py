@@ -23,12 +23,15 @@ def calibration(monkeypatch):
     def recording_least_squares(fun, x0, **kwargs):
         calls.append(kwargs)
         x0 = np.asarray(x0, dtype=float)
-        return SimpleNamespace(x=x0, jac=np.eye(x0.size), fun=np.zeros(x0.size), status=1)
+        return SimpleNamespace(x=x0, jac=np.eye(x0.size), fun=np.zeros(x0.size), status=1, nfev=1, message="fake")
 
     monkeypatch.setattr(mpc, "least_squares", recording_least_squares)
     fit = mpc.FitCalibration.__new__(mpc.FitCalibration)
     fit._ref_method = "trf"
     fit._max_nfev = None
+    fit.steps = []  # provenance (#1053), set by initialize_calib_arrays in a real FitCalibration
+    fit._residual_labels = []
+    fit._final_residual = None
     fit._calib = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.54])
     fit._caliberr = np.full(8, -1.0)
     fit._calibstatus = -1

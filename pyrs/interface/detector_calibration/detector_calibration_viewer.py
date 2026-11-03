@@ -909,7 +909,10 @@ class CalibrationSummaryView(QGroupBox):
         except (FileNotFoundError, PermissionError, RuntimeError, OSError) as export_err:
             pop_message(self, "Export failed", str(export_err), "error")
             return None
-        self._parent.statusBar().showMessage("Calibration written to " + ", ".join(written))
+        message = "Calibration written to " + ", ".join(written)
+        if self._parent.model.provenance_problem:
+            message += f" (provenance incomplete: {self._parent.model.provenance_problem})"
+        self._parent.statusBar().showMessage(message)
         return written
 
 

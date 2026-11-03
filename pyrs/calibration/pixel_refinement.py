@@ -8,15 +8,17 @@ mirror :class:`pyrs.calibration.mantid_peakfit_calibration.FitCalibration`. Erro
 """
 
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.optimize._numdiff import approx_derivative  # the finite-difference Jacobian least_squares uses
 
 from pyrs.core.detector_model import DetectorModel, from_shift, to_shift
+from pyrs.calibration import provenance as _provenance
+from pyrs.calibration.powder_standards import HB2B_STANDARDS
 from pyrs.calibration.ring_points import RingPoints
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry
 
@@ -75,6 +77,23 @@ def _check_method(method: str) -> None:
 def _rmse(residual: np.ndarray) -> float:
     """Root-mean-square of a residual vector."""
     return float(np.sqrt(np.mean(residual**2)))
+
+
+# why a parameter is flagged UNDETERMINED, as recorded in the calibration's provenance (#1053)
+RANK_DEFICIENT = "rank-deficient Jacobian: degenerate with other free parameters, or no effect on the residual"
+AT_BOUND = "stopped at a bound"
+
+
+def _undetermined_reasons(
+    names: Sequence[str], errors: np.ndarray, at_bound: Optional[np.ndarray] = None
+) -> Dict[str, str]:
+    """The reason for every :data:`UNDETERMINED` error: at a bound if ``at_bound``, else rank deficiency."""
+    at_bound = np.zeros(len(names), dtype=bool) if at_bound is None else at_bound
+    return {
+        str(name): AT_BOUND if bound else RANK_DEFICIENT
+        for name, error, bound in zip(names, errors, at_bound)
+        if error == UNDETERMINED
+    }
 
 
 def _parameter_indices(parameters: Sequence[Union[int, str]], context: str) -> np.ndarray:
@@ -140,6 +159,10 @@ class StageResult:
             -1 if nothing has been refined.
         rmse: Root-mean-square 2theta residual (degrees) after the stage.
         nfev: Number of residual evaluations.
+        message: The optimizer's termination message, or what a stage without refinement did.
+        undetermined_reasons: Why each parameter flagged :data:`UNDETERMINED` is undetermined.
+        held_parameters: Parameters held fixed while estimating errors (``estimate_errors``,
+            ``errors_at_current``); their errors are :data:`NOT_REFINED`.
     """
 
     name: str
@@ -149,6 +172,9 @@ class StageResult:
     status: int
     rmse: float
     nfev: int
+    message: str = ""
+    undetermined_reasons: Mapping[str, str] = field(default_factory=dict)
+    held_parameters: Tuple[str, ...] = ()
 
 
 class PixelCalibration:
@@ -216,6 +242,12 @@ class PixelCalibration:
 
         self._calib = np.zeros(8)
         self._calib[7] = wavelength
+        # the starting calibration, for the provenance (#1053): nominal unless set_calibration_array
+        self._start: Dict[str, Any] = {
+            "source": "nominal geometry, monochromator wavelength",
+            "values": self._calib.copy(),
+            "first_stage": 0,
+        }
         self._caliberr = np.full(8, NOT_REFINED)
         self._status = -1
         self._worst_status = -1  # lowest status of the refinements since the last start (-1: none)
@@ -257,11 +289,14 @@ class PixelCalibration:
         """Sum of squared 2theta residuals (degrees^2) after each stage."""
         return [stage.rmse**2 * len(self.ring_points) for stage in self.stages]
 
-    def set_calibration_array(self, params: Union[Sequence[float], np.ndarray]) -> None:
+    def set_calibration_array(
+        self, params: Union[Sequence[float], np.ndarray], source: str = "set_calibration_array"
+    ) -> None:
         """Set the starting calibration vector (8 values, :data:`PARAMETER_NAMES` order).
 
         The errors and the status are reset (they described the previous values), so a calibration
-        is not written with errors of values it no longer has.
+        is not written with errors of values it no longer has. ``source`` says where the values came
+        from, for the provenance (#1053).
         """
         values = np.asarray(params, dtype=float)
         if values.shape != (8,):
@@ -269,6 +304,8 @@ class PixelCalibration:
         if not values[7] > 0:
             raise ValueError(f"wavelength must be positive, got {values[7]}")
         self._calib = values.copy()
+        # stages before this start belong to an earlier attempt: the provenance lists only later ones
+        self._start = {"source": str(source), "values": values.copy(), "first_stage": len(self.stages)}
         self._caliberr = np.full(8, NOT_REFINED)
         self._status = -1
         self._worst_status = -1
@@ -285,15 +322,18 @@ class PixelCalibration:
         self._method = method
         self._max_nfev = None if max_nfev is None else int(max_nfev)
 
-    def checkpoint(self) -> Tuple[np.ndarray, np.ndarray, int, int, int]:
-        """The current values, errors, status, worst status and number of stages, for :meth:`restore`."""
-        return self._calib.copy(), self._caliberr.copy(), self._status, self._worst_status, len(self.stages)
+    def checkpoint(self) -> Tuple[np.ndarray, np.ndarray, int, int, int, Dict[str, Any]]:
+        """The current values, errors, status, worst status, number of stages and starting calibration
+        (for the provenance), for :meth:`restore`."""
+        start = dict(self._start, values=self._start["values"].copy())
+        return self._calib.copy(), self._caliberr.copy(), self._status, self._worst_status, len(self.stages), start
 
-    def restore(self, checkpoint: Tuple[np.ndarray, np.ndarray, int, int, int]) -> None:
-        """Return to a :meth:`checkpoint`: its values, errors and statuses, dropping later stages."""
-        values, errors, status, worst_status, n_stages = checkpoint
+    def restore(self, checkpoint: Tuple[np.ndarray, np.ndarray, int, int, int, Dict[str, Any]]) -> None:
+        """Return to a :meth:`checkpoint`: its values, errors, statuses and start, dropping later stages."""
+        values, errors, status, worst_status, n_stages, start = checkpoint
         self._calib, self._caliberr, self._status = values.copy(), errors.copy(), status
         self._worst_status = worst_status
+        self._start = dict(start, values=start["values"].copy())
         del self.stages[n_stages:]
 
     @property
@@ -344,6 +384,7 @@ class PixelCalibration:
             status=self._status,
             rmse=_rmse(self.residual(self._calib)),
             nfev=0,
+            message=f"no refinement: the calibration re-expressed with 2theta_0 = {two_theta_0} deg at L2 = {l2} m",
         )
         self.stages.append(stage)
         return stage
@@ -450,6 +491,7 @@ class PixelCalibration:
             errors = np.where(at_bound, UNDETERMINED, errors)
             pinned = [PARAMETER_NAMES[i] for i in free[at_bound]]
             self._warn(f"{name}: {pinned} stopped at a bound; their errors are flagged -2")
+        free_names = tuple(PARAMETER_NAMES[i] for i in free)
         if out.status == 0:
             self._warn(f"{name}: stopped at max_nfev ({self._max_nfev}) before converging (status 0)")
 
@@ -459,12 +501,14 @@ class PixelCalibration:
         self._worst_status = self._status if self._worst_status < 0 else min(self._worst_status, self._status)
         stage = StageResult(
             name=name,
-            free_parameters=tuple(PARAMETER_NAMES[i] for i in free),
+            free_parameters=free_names,
             values=out.x.copy(),
             errors=errors,
             status=int(out.status),
             rmse=_rmse(out.fun),
             nfev=int(out.nfev),
+            message=str(out.message),
+            undetermined_reasons=_undetermined_reasons(free_names, errors, at_bound),
         )
         self.stages.append(stage)
         return stage
@@ -552,6 +596,8 @@ class PixelCalibration:
         current = self._calib[free]
         stage = self.refine("estimate_errors", free, current - span, current + span)
         self._caliberr[held] = NOT_REFINED
+        stage = replace(stage, held_parameters=tuple(PARAMETER_NAMES[i] for i in held))
+        self.stages[-1] = stage
         return stage
 
     def errors_at_current(self, hold: Sequence[Union[int, str]] = ("TTH_0",)) -> StageResult:
@@ -579,23 +625,99 @@ class PixelCalibration:
         errors = _parameter_errors(jacobian, residual, residual.size - free.size)
         self._caliberr[free] = errors
         self._caliberr[held] = NOT_REFINED
+        free_names = tuple(PARAMETER_NAMES[i] for i in free)
         stage = StageResult(
             name="errors_at_current",
-            free_parameters=tuple(PARAMETER_NAMES[i] for i in free),
+            free_parameters=free_names,
             values=values[free].copy(),
             errors=errors,
             status=self._status,
             rmse=_rmse(residual),
             nfev=0,
+            message="no refinement: errors from the Jacobian at the current values",
+            undetermined_reasons=_undetermined_reasons(free_names, errors),
+            held_parameters=tuple(PARAMETER_NAMES[i] for i in held),
         )
         self.stages.append(stage)
         return stage
 
-    def write_calibration(self, file_name: Union[str, Path]) -> None:
+    def provenance(self, inputs: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+        """How this calibration was obtained, for the calibration JSON (#1053, :mod:`pyrs.calibration.provenance`).
+
+        Args:
+            inputs: What the caller knows and this object does not: run and mask files
+                (:func:`~pyrs.calibration.provenance.file_record`), monochromator, extraction settings.
+                The powders, number of ring points and refinement settings are added here.
+
+        Returns:
+            The header, inputs, starting calibration, one step per stage in :attr:`stages`, the fit
+            quality at the current values (with residuals per sub-run and reflection), the error model
+            and the parameters that are undetermined, with reasons.
+        """
+        points = self.ring_points
+        structures = {standard.name: standard.structure for standard in HB2B_STANDARDS}
+        labels = [
+            (
+                int(sub_run),
+                str(powder),
+                _provenance.reflection_label(str(powder), structures.get(str(powder)), int(hkl)),
+                None,
+            )
+            for sub_run, powder, hkl in zip(points.sub_run, points.powder, points.hkl_squared)
+        ]
+        stages = self.stages[min(self._start["first_stage"], len(self.stages)) :]
+        held: Tuple[str, ...] = ()
+        for stage in stages:
+            if stage.held_parameters:
+                held = stage.held_parameters
+        last_free = len(stages[-1].free_parameters) if stages else 0
+        steps = [
+            _provenance.step_record(
+                0,
+                stage.name,
+                stage.free_parameters,
+                stage.values,
+                stage.errors,
+                stage.status,
+                n=len(points),
+                rmse=stage.rmse,
+                nfev=stage.nfev,
+                message=stage.message,
+                undetermined_reasons=stage.undetermined_reasons,
+            )
+            for stage in stages
+        ]
+        known_inputs = dict(inputs or {})
+        known_inputs.update(
+            {
+                "powders": sorted({str(powder) for powder in points.powder}),
+                "ring_points": len(points),
+                "refinement": {"method": self._method, "max_nfev": self._max_nfev, "diff_step": self._diff_step},
+            }
+        )
+        return _provenance.assemble(
+            "ring",
+            known_inputs,
+            self._start["source"],
+            self._start["values"],
+            steps,
+            _provenance.fit_quality(self.residual(self._calib), last_free, labels),
+            "sqrt(diag(inv(J^T J)) * sum(r^2) / (n - p)) from the last stage's Jacobian; "
+            "-2 where the scaled Jacobian is rank-deficient or a parameter stopped at a bound",
+            PARAMETER_NAMES,
+            self._caliberr,
+            extra={"held_parameters": list(held)},
+        )
+
+    def write_calibration(self, file_name: Union[str, Path], inputs: Optional[Mapping[str, Any]] = None) -> None:
         """Write the calibration in the standard calibration JSON format (``write_calibration_to_json``).
 
         Values and errors are :attr:`calibration_array` and :attr:`calibration_error_array`; ``Status``
-        is the scipy status of the last stage.
+        is the scipy status of the last stage. The file also carries :meth:`provenance` (#1053).
+
+        Args:
+            file_name: Calibration JSON to write.
+            inputs: Passed to :meth:`provenance`: run and mask files, monochromator, settings.
 
         Raises:
             RuntimeError: If nothing has been refined yet (reduction rejects ``Status`` < 0).
@@ -612,6 +734,7 @@ class PixelCalibration:
             float(errors[7]),
             int(self._status),
             str(file_name),
+            provenance=_provenance.safe_build(lambda: self.provenance(inputs)),
         )
 
     def iterate(

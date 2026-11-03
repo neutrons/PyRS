@@ -44,6 +44,8 @@ def are_equivalent_jsons(test_json_name, gold_json_name, atol):
     # Compare
     diff = False
     for key in gold_json_dict.keys():
+        if key == "provenance":  # how the calibration was obtained (#1053), not a calibration value
+            continue
         # expect a file with same key
         if key not in test_json_dict:
             print(key)
@@ -300,3 +302,39 @@ def test_reference_lattice_is_the_2020_set():
     lattice_by_powder = {s.name: s.lattice_a for s in calibrator._powder_standards}
     assert lattice_by_powder == {"Ni": 3.523799438, "Fe": 2.8663982}
     assert all(calibrator._keep_subrun_list)
+
+
+def test_written_calibration_carries_provenance(tmp_path):
+    """A FitCalibration file records how it was obtained: routine, inputs and per-peak residuals (#1053)"""
+    from pyrs.utilities.calibration_file_io import read_calibration_json_file, read_calibration_provenance
+
+    # Arrange
+    nexus_file = "tests/data/calibration_tests/HB2B_3510.nxs.h5"
+    calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file=nexus_file)
+    calibrator._keep_subrun_list = [False] * calibrator.sy.size
+    calibrator._keep_subrun_list[0] = True
+    calibrator.set_max_nfev(3)
+    calibrator.calibrate_wave_length()
+    path = tmp_path / "calibration.json"
+
+    # Act
+    calibrator.write_calibration(str(path), inputs={"recipe": ["wavelength"]})
+
+    # Assert
+    block = read_calibration_provenance(str(path))
+    assert block["method"] == "peak-fit" and block["inputs"]["recipe"] == ["wavelength"]
+    assert block["inputs"]["runs"][0]["file"].endswith("HB2B_3510.nxs.h5") and block["inputs"]["runs"][0]["sha256"]
+    assert block["inputs"]["sub_runs_used"] == [int(calibrator.sub_runs[0])]
+    assert [step["routine"] for step in block["steps"]] == ["calibrate_wave_length"]
+    assert block["steps"][0]["free_parameters"] == ["Lambda"]
+    quality = block["fit_quality"]
+    groups = quality["by_reflection_and_run"]
+    assert quality["n"] == len(calibrator._hidra_ws.reduction_masks) == len(groups)
+    powder = calibrator._powder_standards[0].name
+    assert all(
+        g["sub_run"] == int(calibrator.sub_runs[0]) and g["reflection"].startswith(powder + " ") for g in groups
+    )
+    assert {g["eta_mask"] for g in groups} == {str(m) for m in calibrator._hidra_ws.reduction_masks}
+    # the values are those of the calibration, as before
+    wavelength = read_calibration_json_file(str(path))[2]
+    assert wavelength == calibrator.calibration_array[7]
