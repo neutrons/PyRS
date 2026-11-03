@@ -237,7 +237,7 @@ nothing is lost; `os._exit()` then skips the crashing native teardown
 that would otherwise follow. The `[tool.pixi.tasks.test]` command in
 `pyproject.toml` now runs this wrapper instead of `pytest` directly.
 
-Two dead ends worth recording so they aren't retried:
+Dead ends worth recording so they aren't retried:
 - A `pytest_sessionfinish` hook with `os._exit()` (even `trylast=True`)
   fires *before* the terminal reporter's own "N passed" summary and
   pytest-cov's coverage table are printed — those apparently happen in
@@ -251,19 +251,34 @@ Two dead ends worth recording so they aren't retried:
   `sys.stdout.flush(); sys.stderr.flush()` immediately before it is
   required or the whole report vanishes from a non-tty (i.e. CI log)
   destination.
+- `mantid.utils.logging.log_to_python()` (routing Mantid's C++ logging
+  through Python's `logging` module instead of its native Poco console
+  channel, on the theory that a native-channel log call during
+  interpreter shutdown was the crash trigger) does **not** prevent the
+  crash. Tried two ways: as a session-wide `autouse` fixture, and scoped
+  narrowly to just `test_stress_strain_viewer` (the only test that
+  exercises `SliceViewer`, matching the crash's traceback) with a
+  proper backup/restore of the channel afterward, mirroring
+  `mantid.utils.logging.capture_logs()`'s pattern. Neither prevented the
+  crash — in fact this is the only way I ever reproduced the segfault
+  locally at all (2 of 3 local full-suite runs crashed with some form of
+  `log_to_python()` active, versus 0 of 4 without it). Small sample, but
+  the direction is consistently unhelpful; abandoned in favor of the
+  `os._exit()` wrapper, which is the only thing confirmed to pass real
+  CI (twice).
 
 **Why this matters going forward:** if the `tests` job fails again with
 a `Segmentation fault` (exit code 139) *after* a passing pytest summary
 line, that's a process-teardown crash, not a test regression. This
-class of bug is inherently hard to verify locally under `offscreen`;
-matching CI's real display server (`xvfb-run` with the `xcb` platform,
-not `QT_QPA_PLATFORM=offscreen`) is likely required to reproduce it
-directly — I was not able to reproduce this specific segfault locally
-even once. When a fix like this can't be verified against the actual
-failure, verify what you *can*: no regressions in the full local suite,
-and (critically, since this is the actual defect the two dead ends
-above introduced) that the summary output and coverage report are still
-present in the log after the change.
+class of bug is hard to verify locally under `offscreen` — most local
+runs never reproduce it at all; matching CI's real display server
+(`xvfb-run` with the `xcb` platform, not `QT_QPA_PLATFORM=offscreen`)
+is likely required to reproduce it reliably. When a fix like this can't
+be verified against the actual failure, verify what you *can*: no
+regressions in the full local suite, and (critically, since this is the
+actual defect the first two dead ends above introduced) that the
+summary output and coverage report are still present in the log after
+the change.
 
 ## `tests/ui/test_calibration_ui.py` wrote/deleted files in the repo root, not a tmpdir (2026-07)
 
@@ -2186,3 +2201,41 @@ but the same class holds a calibration's *errors*, and a badly determined rotati
 gold files). A float32 2θ₀ now gives the float64 sum of the arm angle and the exact stored value,
 not the float32-rounded sum (`test_numpy_two_theta_0_rotates_in_float64` updated accordingly).
 Tests: `tests/unit/pyrs/core/test_instrument_geometry.py`.
+
+## Angle conversions use `np.deg2rad` / `np.rad2deg` throughout the detector geometry (2026-11, #1058)
+
+The geometry converted angles two ways: `np.deg2rad` for the arm rotation and in
+`DetectorModel.with_two_theta_0`, but by hand in 10 places — the calibration rotations
+(`rotation_* * np.pi / 180.0`) and pixel 2θ/η (`* 180 / np.pi`) in `pyrs/core/detector_model.py`, and
+the pixel 2θ/η maps and d-spacing in `pyrs/core/reduce_hb2b_pyrs.py`. `x * np.pi / 180` rounds twice
+(x·π, then ÷180); `np.deg2rad` multiplies once by π/180, so the two differ in the last bit of ~27 % of
+values. All 10 now use `np.deg2rad` / `np.rad2deg` (user-approved; **not bit-identical**, so kept out
+of #1055/#1056).
+
+**Effect** (pre-#1011 code vs this change; 96 geometries: 4 calibrations × 8 arm angles × 3 L2):
+
+| quantity | largest change |
+|---|---|
+| pixel x, z / y | 4.4e-16 m / 0 |
+| pixel η | 1.1e-13° |
+| pixel 2θ | 2.2e-12° — one pixel at 2θ = 0.33° (arm 0, large calibration); next largest 7.4e-13° |
+| reduced HB2B_3510 intensities and errors (80 patterns) | identical: no count changes bin |
+| reduced 2θ axis (bin centres) | ≤ 2.8e-14° |
+
+**Tolerance for 2θ: two roundings** (user decision, 2026-11-03): |Δ2θ| ≤ 2 × (one bit of the 2θ value
++ ε / sin(2θ) rad), ε = 2.2e-16 — i.e. the last bit of the result plus one bit of cos(2θ) magnified by
+arccos. Measured over all 100.7 M pixels of the 96 geometries: 71.4 % unchanged, 99.9997 % within one
+such unit, maximum 1.51. Two narrower criteria were tried first and were wrong: a fixed 1e-12° fails
+near the beam (at 2θ = 0.33° one bit of cos(2θ) is 2.23e-12°, exactly the largest change observed),
+and "one bit of cos(2θ)" alone fails for ~10 % of pixels at high 2θ because it leaves out the rounding
+of the 2θ value itself (one bit of 120 is 1.4e-14°). Positions and η: 1e-15 m, 1e-12°.
+
+**Ring calibration is not bit-identical either.** The ring points move by ≤ 1.6e-12 pixel, and the
+iterative fit stops a hair further along the flat Shift_x / Rot_y / 2θ₀ direction. On the driver runs
+(HB2B_3489 / 3510 / 4971, `Status` 1 unchanged) every refined value changes by ≤ 1e-3 of its own
+uncertainty; largest: Shift_x on 3510 (1.0e-3 σ); Rot_y and TTH_0 move together by 1.6e-5° on 3510
+(TTH_0 is set by the virtual swing, not fitted). Accepted (user, 2026-11-03).
+FitCalibration gold-file tests pass unchanged (tolerance 5e-3).
+
+**Golden baseline.** Bit-identity checks of later refactors must compare against a baseline recorded
+*after* this change; the #1011 baseline (pre-#1011 code) differs from it in the last bits.

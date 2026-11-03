@@ -202,9 +202,9 @@ class DetectorModel:
             positions[:, :, 1] += calibration.center_shift_y
 
             calib_matrix = rotation_matrix(
-                calibration.rotation_x * np.pi / 180.0,
-                calibration.rotation_y * np.pi / 180.0,
-                calibration.rotation_z * np.pi / 180.0,
+                np.deg2rad(calibration.rotation_x),
+                np.deg2rad(calibration.rotation_y),
+                np.deg2rad(calibration.rotation_z),
             )
             positions = rotate_positions(positions, calib_matrix)
 
@@ -231,7 +231,7 @@ class DetectorModel:
         """Scattering angle 2theta (degrees) of the given pixels; arguments as :meth:`lab_positions`."""
         positions = self.lab_positions(index_0, index_1, two_theta, l2, calibration)
         norm = np.sqrt(positions[..., 0] ** 2 + positions[..., 1] ** 2 + positions[..., 2] ** 2)
-        return np.arccos(positions[..., 2] / norm) * 180 / np.pi
+        return np.rad2deg(np.arccos(positions[..., 2] / norm))
 
     def eta(
         self,
@@ -243,7 +243,7 @@ class DetectorModel:
     ) -> np.ndarray:
         """Azimuthal angle eta (degrees, in (-180, 180]); arguments as :meth:`lab_positions`."""
         positions = self.lab_positions(index_0, index_1, two_theta, l2, calibration)
-        eta = 180.0 - np.arctan2(positions[..., 1], positions[..., 0]) * 180 / np.pi
+        eta = 180.0 - np.rad2deg(np.arctan2(positions[..., 1], positions[..., 0]))
         return np.where(eta > 180.0, eta - 360, eta)
 
     def centre_position(self, calibration: Optional[DENEXDetectorShift], l2: float) -> np.ndarray:

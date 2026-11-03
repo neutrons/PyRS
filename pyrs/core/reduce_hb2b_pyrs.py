@@ -88,7 +88,7 @@ class ResidualStressInstrument:
                 + self._pixel_matrix[:][:, :, 1] ** 2
                 + self._pixel_matrix[:][:, :, 2] ** 2
             )
-            twotheta_matrix = np.arccos(det_pos_array[:, :, 2] / det_pos_norm_matrix) * 180 / np.pi
+            twotheta_matrix = np.rad2deg(np.arccos(det_pos_array[:, :, 2] / det_pos_norm_matrix))
             return_value = twotheta_matrix
         else:
             # (N x M) x 3 array
@@ -98,7 +98,7 @@ class ResidualStressInstrument:
             det_pos_norm_array = np.sqrt(
                 des_pos_array[:, 0] ** 2 + des_pos_array[:, 1] ** 2 + des_pos_array[:, 2] ** 2
             )
-            twotheta_array = np.arccos(det_pos_array[:, 2] / det_pos_norm_array) * 180 / np.pi
+            twotheta_array = np.rad2deg(np.arccos(det_pos_array[:, 2] / det_pos_norm_array))
             return_value = twotheta_array
         # END-IF-ELSE
 
@@ -123,7 +123,7 @@ class ResidualStressInstrument:
             # N x M x 3 array
             # convert detector position matrix to 2theta
 
-            eta_matrix = 180.0 - np.arctan2(det_pos_array[:, :, 1], det_pos_array[:, :, 0]) * 180 / np.pi
+            eta_matrix = 180.0 - np.rad2deg(np.arctan2(det_pos_array[:, :, 1], det_pos_array[:, :, 0]))
             eta_temp = eta_matrix.reshape(-1)
             index = np.where(eta_temp > 180.0)[0]
             eta_temp[index] -= 360
@@ -135,7 +135,7 @@ class ResidualStressInstrument:
             # convert detector positions array to 2theta array
             # normalize the detector position 2D array
 
-            eta_array = 180.0 - np.arctan2(det_pos_array[:, 1], det_pos_array[:, 0]) * 180 / np.pi
+            eta_array = 180.0 - np.rad2deg(np.arctan2(det_pos_array[:, 1], det_pos_array[:, 0]))
             index = np.where(eta_array > 180.0)[0]
             eta_array[index] -= 360
 
@@ -205,7 +205,7 @@ class ResidualStressInstrument:
         assert isinstance(two_theta_array, np.ndarray), "check"
 
         # convert to d-spacing
-        d_spacing_array = 0.5 * self._wave_length / np.sin(0.5 * two_theta_array * np.pi / 180.0)
+        d_spacing_array = 0.5 * self._wave_length / np.sin(np.deg2rad(0.5 * two_theta_array))
         assert isinstance(d_spacing_array, np.ndarray)
 
         print("[DB...BAT] Converted d-spacing range: ({}, {})".format(d_spacing_array.min(), d_spacing_array.max()))
