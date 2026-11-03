@@ -403,7 +403,9 @@ reduction instead of being silently applied. Regression coverage:
 single production caller (`powder_pattern.py`);
 `import_calibration_ascii_file()` (the other calibration loader, used
 for the non-JSON branch of the same `if`) has no `Status` field/concept
-at all, so it needed no change. If another caller of
+at all, so it needed no change. *(Removed 2026-11, #1051: a non-`.json` calibration
+file now raises `ValueError`. `PyRsCore.reduce_diffraction_data` is a second caller of
+`read_calibration_json_file()` and also calls `check_calibration_status()`.)* If another caller of
 `read_calibration_json_file()` is added later, it must also call
 `check_calibration_status()` on the returned status before applying the
 shift/wavelength — `grep -rn "read_calibration_json_file" pyrs/` is the
@@ -501,6 +503,14 @@ model will **not** reproduce its old (also wrong) geometry — it needs
 to be re-refined from raw data, not just re-applied. Check any
 calibration JSON with 2+ non-zero rotation values against its
 refinement date relative to this fix.
+
+*Since 2026-11 (#1011):* the rotation helpers are `rotation_matrix`, `rotation_matrix_x/y/z` and
+`rotate_positions` (formerly `_rotate_detector`) in `pyrs/core/detector_model.py`;
+`generate_rotation_matrix`, `_cal_rotation_matrix_x/y/z` and `_rotate_detector` were removed from
+`reduce_hb2b_pyrs.py`, so the `reduce_hb2b_pyrs.py` line numbers in this entry are historical. The two regression tests above now test
+`rotation_matrix` in `tests/unit/pyrs/core/test_detector_model.py`
+(`test_rotation_matrix_combined_rotation_is_orthogonal`,
+`test_rotation_matrix_single_axis_matches_axis_matrix`).
 
 ## Vanadium normalization is a flat-field correction only — run-duration scaling is intentionally NOT applied (2026-07)
 
@@ -823,6 +833,8 @@ from 1.5e-8 to 1e-2 gives the same derivative (Rot_y, the weakest, to ~1.5e-4 at
 step), so `PixelCalibration` uses scipy's default step (`diff_step=None`).
 `test_scipy_default_step_gives_accurate_angle_derivative` and (from #1029)
 `test_rotation_matrix_resolves_tiny_angle_change` fail if the matrices go back to float32.
+*Since 2026-11 (#1011)* the matrices are built by `rotation_matrix_x/y/z` in
+`pyrs/core/detector_model.py`, and that test is in `tests/unit/pyrs/core/test_detector_model.py`.
 
 ## Ring calibration: why it has its own forward model, and the draft's defects (2026-10, #1012–#1014)
 
@@ -869,7 +881,7 @@ Two consequences:
 - **No new convention is introduced.** A unit test pins 2θ and η to be bit-identical to
   `build_instrument` on the full grid, nominal and calibrated, at two arm angles.
 - **Reduction is unchanged.** Making `build_instrument` delegate to `DetectorModel`, so that one
-  piece of code defines the detector, is the follow-up #1011.
+  piece of code defines the detector, is the follow-up #1011 (done 2026-11, see the #1011 entry).
 
 *Since 2026-10-30 (#1020):* `DetectorModel` lives in `pyrs/core/detector_model.py`, next to the
 reduction geometry it reproduces. The calibration imports it from there, and
@@ -2013,4 +2025,139 @@ calibration can't be exported, it shows why and disables OK.
 - Fixed: saving a recipe kept only its last routine, because `save_json` overwrote the string on
   each pass.
 - Reported, not fixed (production FitCalibration): it writes an error of **0** for undetermined
-  parameters, because `-2 * np.zeros_like(...)` is zeros, not −2 (#1049).
+  parameters, because `-2 * np.zeros_like(...)` is zeros, not −2 (#1049). *Fixed 2026-11, see the #1049 entry.*
+
+## Reduction places pixels with `DetectorModel`: one forward model (2026-11, #1011)
+
+`ResidualStressInstrument.build_instrument` (reduction) now takes its lab-frame pixel positions from
+`DetectorModel.lab_positions` in `pyrs/core/detector_model.py`, the forward model the ring-based
+calibration refines. Before, reduction and the calibration each had their own copy of the geometry,
+kept equal only by a test. Done as four separately approved production steps:
+
+1. The rotation helpers moved into `detector_model.py` as `rotate_positions`, `rotation_matrix` and
+   `rotation_matrix_x/y/z` (verbatim arithmetic; this also removed `DetectorModel`'s import of
+   `ResidualStressInstrument`).
+2. `_set_uncalibrated_pixels` used `DetectorModel.local_positions`.
+3. `build_instrument` delegated to `DetectorModel.lab_positions`, keeping its input checks (a wrong
+   calibration type is still an `AssertionError`), then computes 2θ and η as before.
+4. The now-unused duplicates were removed: `_raw_pixel_matrix`, `_set_uncalibrated_pixels`,
+   `rotate_detector_2theta`, `_rotate_detector`, `generate_rotation_matrix`,
+   `_cal_rotation_matrix_x/y/z`. Their tests moved to `tests/unit/pyrs/core/test_detector_model.py`.
+
+**Effect on results: none, to the bit.** After every step, a 177-entry SHA-256 golden file was
+compared with the pre-#1011 baseline: `build_instrument` positions, rotation matrix and 2θ/η (1D and
+2D) for 4 calibrations (none, zero, GUI-like, large) × 8 arm angles (−120° to 120°, including 0 and
+5e-8, below the 1e-7 threshold for applying the 2θ rotation) × 3 L2, plus 80 reduced HB2B_3510
+patterns (nominal and calibrated, two η steps). All were identical, as were the ring-calibration
+driver output and ring points on HB2B_3489/3510/4971, and the unit, integration and GUI tiers.
+
+**Tests.** The old bit-identity test (`DetectorModel` against `build_instrument`) cannot fail once
+one calls the other, so it was replaced: `test_two_theta_eta_match_reference` and
+`test_build_instrument_matches_reference` pin 2θ and η of six pixels (corners, centre, one
+off-centre) in four geometries to values computed by the pre-#1011 reduction code (origin/next
+7dde880b), the latter through reduction's 2D maps, its 1D pixel-ID order and `get_pixel_array`.
+`test_build_instrument_non_square_matches_reference` does the same on a 4-row × 6-column detector
+with 10 × 20 mm pixels, which catches swapped rows/columns or x/y pixel sizes. Tolerance: rtol 1e-12
+plus atol 1e-9°, because `arccos` amplifies a last-bit change near 2θ = 0 (the arm-0 centre pixel,
+0.012°) to ~3e-11°; the smallest geometry error the references catch is 8e-4° (reversed rotation
+order). Verified: reversing the rotation order to `Rz @ Ry @ Rx` fails both; an independent review
+injected 11 geometry mutations (transposed indices, flipped X, half-pixel offset, inverted rotation,
+shift and 2θ₀ signs, shift after rotation, arm sign) and each failed by 4e-5° to 210°.
+
+**Review (2026-11, user-approved fixes).** An independent differential test of 9,290 input
+combinations (detector sizes down to 1 × 3, 2θ at the 1e-7 threshold, string/int/float32 inputs, bad
+types) found the pixel map, shapes, dtype, pixel-ID order and exception types bit-identical for
+Python-float/float64 calibrations. It found three latent differences on inputs no loader creates,
+all fixed so the new code again matches the old:
+- a `float32` 2θ₀ rotated the arm in float32 (≤ 1.6e-6° in 2θ) and a 1-element-array 2θ₀ raised:
+  `lab_positions` now rotates by the Python-float sum, as reduction always did
+  (`test_numpy_two_theta_0_rotates_in_float64`; bit-identical to pre-#1011 for float32, array and
+  float);
+  that sum is still float32-rounded for a float32 2θ₀ (as before #1011); making `DENEXDetectorShift`
+  store float64 so the whole instrument is float64 for any caller is #1052;
+- an arm length below 1 cm raised with `l2=None`, because `lab_positions` re-checked the resolved
+  arm length against the 1 cm minimum for an explicit L2: `build_instrument` now passes `None` through
+  (`test_build_instrument_default_l2_is_arm_length`);
+- `build_instrument` keeps its own calibration type check so a wrong type is still an
+  `AssertionError` (`test_build_instrument_bad_calibration_raises`).
+
+**Found, not fixed (#1051):** `PyHB2BReduction.rotate_two_theta` calls a nonexistent
+`ResidualStressInstrument.rotate_detector`; it and `build_instrument_prototype` have no callers, and
+the latter builds `DENEXDetectorShift` with 6 arguments in the wrong order. `PyRsCore.reduce_diffraction_data`
+(`pyrs/core/pyrscore.py`) also builds `DENEXDetectorShift(0, 0, 0, 0, 0, 0)` without `tth_0`, so a
+calibration passed as a JSON file path raises `TypeError`. *All fixed 2026-11, see the #1051 entry.*
+
+## FitCalibration's errors: scaled by the residual scatter, −2 when undetermined (2026-11, #1049)
+
+`FitCalibration.FitDetector` (`pyrs/calibration/mantid_peakfit_calibration.py`) reported
+`sqrt(diag(inv(JᵀJ)))`. Two defects:
+
+- **No fit-quality factor.** Without `Σr²/(n−p)` the errors assume every residual (a peak-position
+  difference in degrees) has σ = 1°. The real scatter is 0.03–0.2°, so every error was too large.
+- **Undetermined parameters reported 0.** When `JᵀJ` was ~0 or singular, `-2 * np.zeros_like(...)`
+  gave zeros, not −2, so a failed error estimate looked perfect. The brute-force path returned `[0]`.
+
+**Fix (user-approved production change):** errors come from `pixel_refinement._parameter_errors`,
+the ring calibration's formula `sqrt(diag(inv(JᵀJ)) · Σr²/(n−p))` with −2 (`UNDETERMINED`) for a
+rank-deficient direction; the brute-force path reports −2 (it gives no covariance; it has no callers).
+A zero Jacobian column flags *every* parameter −2, the ring calibration's existing conservative rule.
+
+**Effect, HB2B_3510** (mask `HB2B_Mask_12-18-19.xml`, `max_nfev` 20; old = origin/next 7dde880b):
+calibrated values bit-identical in every stage; only `error_*` changes.
+
+| Stage | Parameter | Old error | New error | Old/new |
+|---|---|---|---|---|
+| `calibrate_wave_length` | λ | 0.00195 Å | 0.000443 Å | 4.4 |
+| `CalibrateShift` | Shift_x / y / z | 2.09 / 3.97 / 36.2 mm | 0.054 / 0.10 / 0.93 mm | 38.9 |
+| `CalibrateGeometry` (from nominal) | Shift_x / y / z | 32.2 / 5.71 / 40.7 mm | 3.82 / 0.68 / 4.83 mm | 8.4 |
+| | Rot_x / y / z | 11.1 / 5.17 / 0.894° | 1.31 / 0.613 / 0.106° | 8.4 |
+| | TTH_0 | 1.98° | 0.235° | 8.4 |
+
+The ratio is constant within a stage: it is 1/√(χ²/dof), the residual scatter in degrees.
+
+**Limit: FitCalibration does not flag the Shift_x/Rot_y/TTH_0 degeneracy.** In the ring
+calibration that direction is ~4e-10 of the largest singular value of the column-scaled Jacobian and
+is flagged −2. In FitCalibration's geometry stage the smallest relative singular value is 0.04
+(others 0.31–0.98): the residual is noisy (peaks are re-binned and re-fitted at every evaluation,
+#1030), so the degeneracy looks weak rather than exact and the 1e-6 rank test does not fire. Those
+three parameters get large but finite errors (±3.8 mm, ±0.61°, ±0.24°). Meaningful errors for them
+need 2θ₀ held, as the ring calibration's `estimate_errors` does — a separate change.
+
+Tests: `tests/unit/pyrs/calibration/test_fitcalibration_errors.py` (constant fit gives s/√n, line
+fit matches the covariance, errors scale with scatter, `lm` gives the same, degenerate pair → −2 with
+the independent parameter finite, zero column → all −2, brute force → −2); all 7 fail on the old code.
+
+**Gold files updated (user-approved):** `tests/data/calibration_tests/HB2B_mantid_calib.json` stored
+the bug as the expected answer (`error_Shift_*`/`error_Rot_*` = −0.0); only the `error_*` fields of it
+and `HB2B_mantid_calib_lambda.json` were replaced by the new output, values untouched
+(`test_peakfit_calibration.py`; its round-trip test's hand-set `error_Lambda` follows the gold file).
+
+## Broken, unreachable geometry paths removed or fixed (2026-11, #1051)
+
+Found in the #1011 review; none could have affected a result, because each crashed before doing
+anything (or had no caller). User-approved production changes:
+
+- **Removed `PyHB2BReduction.rotate_two_theta` and `build_instrument_prototype`**
+  (`pyrs/core/reduce_hb2b_pyrs.py`): no callers. The first called a nonexistent
+  `ResidualStressInstrument.rotate_detector`; the second built `DENEXDetectorShift` with 6 arguments
+  (7 are required since `tth_0` was added) and in the wrong order (the Z shift as X).
+- **Fixed `PyRsCore.reduce_diffraction_data` with a calibration file path** (`pyrs/core/pyrscore.py`):
+  it built a 6-argument `DENEXDetectorShift` (`TypeError`). Worse, with 7 it would have *silently
+  applied a zero calibration*: `DENEXDetectorShift.from_json` → `set_from_dict` reads keys `"shift x"`,
+  `"rotation x"`, …, but calibration files use `Shift_x`, `Rot_x`, … (the keys `convert_to_dict`
+  writes), and it never reads `TTH_0`. It now uses the standard reader, as `ReductionApp` does:
+  `read_calibration_json_file` + `check_calibration_status` (an uncalibrated file is refused). The
+  file's wavelength is still not applied by this API, as before. `PyRsCore.reduce_diffraction_data`
+  has no caller in `pyrs/`, `scripts/` or `tests/`. `from_json`/`set_from_dict` themselves are
+  unchanged and still disagree with `convert_to_dict`; nothing else uses them.
+- **Removed the ASCII geometry reader `import_calibration_ascii_file`**
+  (`pyrs/utilities/calibration_file_io.py`). It was reachable — Manual Reduction and
+  `ReductionApp.reduce_data` sent any calibration file not ending in `.json` to it — but always
+  crashed on the 6-argument `DENEXDetectorShift`. Behind that it was wrong throughout: it matched
+  `cal::shift_x` while its own docstring wrote `cal::shiftx`, `cal::rot_y` set `rotation_x`, `cal::arm`
+  set an attribute nothing reads, and Shift_z and TTH_0 could not be set. Nothing writes the format.
+  A non-`.json` calibration file now raises `ValueError("Calibration file must be a .json file, ...")`.
+
+Tests (`tests/unit/pyrs/core/test_pyrscore.py`, `test_powder_pattern.py`, all failing on the old code):
+a calibration file reaches reduction with every value including TTH_0; an uncalibrated file
+(`Status` −1) is refused before reduction; a non-`.json` file raises the clear error.

@@ -642,7 +642,12 @@ def test_write_calibration_round_trip(tmp_path, refined_with_errors):
 
 @pytest.mark.parametrize("arm", [76.0, 103.0])
 def test_written_calibration_reproduces_fitted_map(tmp_path, hb2b, refined_with_errors, arm):
-    """Reduction, applying the file as written (TTH_0 included), must see the 2theta that was fitted"""
+    """Reduction, applying the file as written (TTH_0 included), must see the 2theta that was fitted
+
+    Reduction and the fit share DetectorModel (#1011), so this guards the file round trip (every value,
+    TTH_0 included, written and read back unchanged), not the geometry; that is pinned by the
+    reference tests in tests/unit/pyrs/core/test_detector_model.py.
+    """
     # Arrange
     path = tmp_path / "pixel_calibration.json"
     refined_with_errors.write_calibration(path)

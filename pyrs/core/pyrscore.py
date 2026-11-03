@@ -1,6 +1,7 @@
 # This is the core of PyRS serving as the controller of PyRS and hub for all the data
 from pyrs.utilities import checkdatatypes
 from pyrs.core import instrument_geometry
+from pyrs.utilities import calibration_file_io
 from pyrs.utilities import file_util
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core import reduction_manager
@@ -266,7 +267,9 @@ class PyRsCore:
         :param num_bins:
         :param pyrs_engine:
         :param mask_file_name:
-        :param geometry_calibration: True/file name/DENEXDetectorShift/None), False, None/(False, )
+        :param geometry_calibration: True (use the workspace's), calibration JSON file name, DENEXDetectorShift,
+            or None/False (no calibration). A file is read and status-checked as ReductionApp does; its
+            wavelength is not applied here.
         :param sub_run_list: list of sub run numbers or None (for all)
         :return:
         """
@@ -283,10 +286,11 @@ class PyRsCore:
             # No apply
             apply_calibration = False
         elif isinstance(geometry_calibration, str):
-            # From a Json file
-            calib_shift = instrument_geometry.DENEXDetectorShift(0, 0, 0, 0, 0, 0)
-            calib_shift.from_json(geometry_calibration)
-            apply_calibration = calib_shift
+            # the standard calibration file reader: DENEXDetectorShift.from_json expects other keys and
+            # would silently give a zero calibration (#1051)
+            calib_values = calibration_file_io.read_calibration_json_file(geometry_calibration)
+            calibration_file_io.check_calibration_status(calib_values[4])
+            apply_calibration = calib_values[0]
         elif isinstance(geometry_calibration, instrument_geometry.DENEXDetectorShift):
             # Already a DENEXDetectorShift instance
             apply_calibration = geometry_calibration

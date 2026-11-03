@@ -7,15 +7,16 @@ Debye ring once, in strips of the raw detector image, and records where on the d
 lies (fractional pixel coordinates). The global geometry (shift x/y/z, rotation x/y/z, 2theta_0,
 wavelength) is then refined by computing 2theta at those pixels for each trial geometry.
 
-The detector geometry here deliberately reproduces
-:meth:`pyrs.core.reduce_hb2b_pyrs.ResidualStressInstrument.build_instrument` rather than defining its
-own convention, so a calibration found here means the same thing when reduction applies it. That
-equivalence is pinned by a unit test; see docs/ground_truths.md.
+The detector geometry is reduction's own: :meth:`pyrs.core.reduce_hb2b_pyrs.ResidualStressInstrument.build_instrument`
+delegates to the same :class:`DetectorModel` (#1011), so a calibration found here means the same thing
+when reduction applies it. Unit tests pin that model to the values reduction gave before the change
+(``test_*_matches_reference`` in ``tests/unit/pyrs/core/test_detector_model.py``); see
+docs/ground_truths.md.
 
 The implementation is split by step, and each step's public names are re-exported here:
 
-- :mod:`pyrs.core.detector_model`: :class:`DetectorModel`, the forward model (in core, next to the
-  reduction geometry it reproduces);
+- :mod:`pyrs.core.detector_model`: :class:`DetectorModel`, the forward model (in core, shared with
+  reduction);
 - :mod:`pyrs.calibration.ring_points`: :class:`RingPoints`;
 - :mod:`pyrs.calibration.ring_extraction`: :func:`extract_ring_points`, :class:`StripFit`;
 - :mod:`pyrs.calibration.pixel_refinement`: :class:`PixelCalibration`, :class:`StageResult` and the

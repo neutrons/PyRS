@@ -6,6 +6,7 @@ import warnings
 
 # Import pyrs modules
 from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
+from pyrs.calibration.pixel_refinement import UNDETERMINED, _parameter_errors
 from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
@@ -319,7 +320,8 @@ class FitCalibration:
             for i_b in range(len(uL)):
                 BOUNDS.append([lL[i_b], uL[i_b]])
             out1 = brute(fun, ranges=BOUNDS, args=(Brute, i_index), Ns=11)
-            return [out1, np.array([0]), 1]
+            # brute() gives no covariance, so the errors are undetermined (#1049)
+            return [out1, np.full(len(BOUNDS), UNDETERMINED), 1]
 
         else:
             if len(bounds[0]) != len(bounds[1]):
@@ -350,18 +352,11 @@ class FitCalibration:
                     args=(Brute, i_index),
                 )
 
-            J = out.jac
+            # errors scaled by the residual scatter, -2 where undetermined: same formula as the ring
+            # calibration (#1049, docs/ground_truths.md)
+            errors = _parameter_errors(out.jac, out.fun, out.fun.size - out.x.size)
 
-            if np.sum(J.T.dot(J)) < 1e-8:
-                var = np.diagonal(-2 * np.zeros_like(J.T.dot(J)))
-            else:
-                try:
-                    cov = np.linalg.inv(J.T.dot(J))
-                    var = np.sqrt(np.diagonal(cov))
-                except np.linalg.LinAlgError:
-                    var = np.diagonal(-2 * np.zeros_like(J.T.dot(J)))
-
-            return [out.x, var, out.status]
+            return [out.x, errors, out.status]
 
     def peak_alignment_wave_shift(self, x, ReturnScalar=False, i_index=2):
         """Cost function for peaks alignment to determine wavelength

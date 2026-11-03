@@ -1,12 +1,12 @@
 """
-Forward model of the HB2B detector for the ring-based calibration.
+Forward model of the HB2B detector, shared by reduction and the ring-based calibration.
 
 :class:`DetectorModel` gives the lab position, 2theta and eta of arbitrary (fractional) detector
-pixels for any trial calibration. It reproduces
-:meth:`pyrs.core.reduce_hb2b_pyrs.ResidualStressInstrument.build_instrument` exactly (a unit test
-pins bit-identity), so a calibration found with it means the same thing when reduction applies it;
-see docs/ground_truths.md. Used by the ring-based calibration
-(:mod:`pyrs.calibration.pixel_pos_calibration`); reduction itself does not use it (#1011).
+pixels for any trial calibration. Reduction
+(:meth:`pyrs.core.reduce_hb2b_pyrs.ResidualStressInstrument.build_instrument`) and the ring-based
+calibration (:mod:`pyrs.calibration.pixel_pos_calibration`) both use it, so a calibration found with it
+means the same thing when reduction applies it (#1011). Unit tests pin its 2theta and eta to the values
+reduction gave before it delegated here; see docs/ground_truths.md.
 """
 
 from typing import Optional, Sequence, Union
@@ -15,10 +15,82 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
-from pyrs.core.reduce_hb2b_pyrs import ResidualStressInstrument
 from pyrs.utilities.convertdatatypes import to_float
 
-__all__ = ["DetectorModel", "to_shift", "from_shift"]
+__all__ = [
+    "DetectorModel",
+    "to_shift",
+    "from_shift",
+    "rotate_positions",
+    "rotation_matrix",
+    "rotation_matrix_x",
+    "rotation_matrix_y",
+    "rotation_matrix_z",
+]
+
+
+# The detector's only rotation helpers, used by reduction and calibration alike (#1011), so the two
+# cannot drift apart.
+
+
+def rotate_positions(positions: np.ndarray, matrix: np.ndarray) -> np.ndarray:
+    """Rotate an ``(N, M, 3)`` array of positions by a 3x3 matrix.
+
+    The element-wise sum (not ``@``) is reduction's original arithmetic, kept so results stay
+    bit-identical.
+    """
+    rotate_det = np.zeros(positions.shape, dtype="float")
+
+    for i in range(3):
+        for j in range(3):
+            temp_det = matrix[i, j] * positions[:, :, j]
+            rotate_det[:, :, i] += temp_det[:, :]
+
+    return rotate_det
+
+
+def rotation_matrix_x(angle_rad: float) -> np.ndarray:
+    """Rotation matrix about the X axis (float64)."""
+    return np.array(
+        [
+            [1.0, 0.0, 0.0],
+            [0.0, np.cos(angle_rad), -np.sin(angle_rad)],
+            [0.0, np.sin(angle_rad), np.cos(angle_rad)],
+        ],
+        dtype=np.float64,
+    )
+
+
+def rotation_matrix_y(angle_rad: float) -> np.ndarray:
+    """Rotation matrix about the Y axis (float64); the detector arm turns about Y."""
+    return np.array(
+        [
+            [np.cos(angle_rad), 0.0, np.sin(angle_rad)],
+            [0.0, 1.0, 0.0],
+            [-np.sin(angle_rad), 0.0, np.cos(angle_rad)],
+        ],
+        dtype=np.float64,
+    )
+
+
+def rotation_matrix_z(angle_rad: float) -> np.ndarray:
+    """Rotation matrix about the Z axis (float64)."""
+    return np.array(
+        [
+            [np.cos(angle_rad), -np.sin(angle_rad), 0.0],
+            [np.sin(angle_rad), np.cos(angle_rad), 0.0],
+            [0.0, 0.0, 1.0],
+        ],
+        dtype=np.float64,
+    )
+
+
+def rotation_matrix(rot_x_rad: float, rot_y_rad: float, rot_z_rad: float) -> np.ndarray:
+    """The detector calibration's rotation ``Rx @ Ry @ Rz`` (angles in radians)."""
+    rot_x_matrix = rotation_matrix_x(rot_x_rad)
+    rot_y_matrix = rotation_matrix_y(rot_y_rad)
+    rot_z_matrix = rotation_matrix_z(rot_z_rad)
+    return rot_x_matrix @ rot_y_matrix @ rot_z_matrix
 
 
 def to_shift(values: Union[Sequence[float], np.ndarray]) -> DENEXDetectorShift:
@@ -53,8 +125,7 @@ class DetectorModel:
     ``index_0 * n_rows + index_1``: ``index_0`` runs across columns (X decreases with it) and
     ``index_1`` along rows (Y increases with it).
 
-    The order of operations, and the rotation-matrix helpers, are those of
-    ``ResidualStressInstrument.build_instrument``:
+    ``ResidualStressInstrument.build_instrument`` delegates here (#1011). The order of operations is:
 
     1. shift the detector in X and Y;
     2. rotate about the detector centre by ``Rx @ Ry @ Rz``;
@@ -74,16 +145,6 @@ class DetectorModel:
         if not isinstance(instrument_setup, DENEXDetectorGeometry):
             raise TypeError(f"instrument_setup must be a DENEXDetectorGeometry, got {type(instrument_setup).__name__}")
         self.instrument_setup = instrument_setup
-        # only used for its rotation helpers, so the arithmetic matches reduction exactly
-        self._instrument = ResidualStressInstrument(instrument_setup)
-
-    # The only uses of ResidualStressInstrument's private helpers: reusing them keeps the arithmetic
-    # bit-identical to reduction, and if they are renamed this is the one place to change (#1011/#1020).
-    def _rotate(self, positions: np.ndarray, matrix: np.ndarray) -> np.ndarray:
-        return self._instrument._rotate_detector(positions, matrix)
-
-    def _rotation_y(self, angle_rad: float) -> np.ndarray:
-        return self._instrument._cal_rotation_matrix_y(angle_rad)
 
     def local_positions(self, index_0: ArrayLike, index_1: ArrayLike) -> np.ndarray:
         """Uncalibrated pixel positions in the detector plane (Z = 0), in metres.
@@ -130,7 +191,7 @@ class DetectorModel:
 
         positions = self.local_positions(index_0, index_1)
         shape = positions.shape
-        # ResidualStressInstrument._rotate_detector expects (N, M, 3)
+        # rotate_positions expects (N, M, 3)
         positions = positions.reshape(1, -1, 3)
 
         arm_l2 = l2
@@ -140,21 +201,23 @@ class DetectorModel:
             positions[:, :, 0] += calibration.center_shift_x
             positions[:, :, 1] += calibration.center_shift_y
 
-            calib_matrix = self._instrument.generate_rotation_matrix(
+            calib_matrix = rotation_matrix(
                 calibration.rotation_x * np.pi / 180.0,
                 calibration.rotation_y * np.pi / 180.0,
                 calibration.rotation_z * np.pi / 180.0,
             )
-            positions = self._rotate(positions, calib_matrix)
+            positions = rotate_positions(positions, calib_matrix)
 
-            two_theta += calibration.two_theta_0
+            # reduction made the sum a Python float before rotating; doing the same keeps a numpy-typed
+            # two_theta_0 (float32, 1-element array) from making the arm rotation float32 or an array
+            two_theta = np.asarray(two_theta + calibration.two_theta_0, dtype=np.float64).item()
             arm_l2 += calibration.center_shift_z
 
         positions[:, :, 2] += arm_l2
 
-        if abs(two_theta) > 1.0e-7:  # the same threshold as build_instrument, to stay bit-identical
-            two_theta_matrix = self._rotation_y(np.deg2rad(two_theta))
-            positions = self._rotate(positions, two_theta_matrix)
+        if abs(two_theta) > 1.0e-7:  # reduction's original threshold, kept to stay bit-identical
+            two_theta_matrix = rotation_matrix_y(np.deg2rad(two_theta))
+            positions = rotate_positions(positions, two_theta_matrix)
 
         return positions.reshape(shape)
 
@@ -223,7 +286,7 @@ class DetectorModel:
         two_theta_0 = to_float("2theta_0", two_theta_0)
         old = from_shift(calibration)
         delta = np.deg2rad(two_theta_0 - old[6])
-        rotation = self._rotation_y(-delta) @ self._instrument.generate_rotation_matrix(*np.deg2rad(old[3:6]))
+        rotation = rotation_matrix_y(-delta) @ rotation_matrix(*np.deg2rad(old[3:6]))
         if abs(rotation[0, 2]) > np.sin(np.deg2rad(_GIMBAL_LIMIT_DEG)):
             raise ValueError("compensated rotation is at the Rot_y = +/-90 deg singularity")
 

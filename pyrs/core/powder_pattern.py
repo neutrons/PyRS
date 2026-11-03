@@ -187,9 +187,8 @@ class ReductionApp:
                 wave_length = calib_values[2]
                 self._hydra_ws.set_wavelength(wave_length, True)
             else:
-                geometry_calibration = calibration_file_io.import_calibration_ascii_file(
-                    geometry_file_name=calibration_file
-                )
+                # the ASCII geometry format was never readable and nothing writes it (#1051)
+                raise ValueError(f"Calibration file must be a .json file, got {calibration_file!r}")
         # END-IF
 
         # Vanadium

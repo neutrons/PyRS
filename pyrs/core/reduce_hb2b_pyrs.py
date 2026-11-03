@@ -2,6 +2,7 @@
 import numpy as np
 import uncertainties.unumpy as unp
 from pyrs.core import instrument_geometry
+from pyrs.core.detector_model import DetectorModel
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float
 from typing import Optional
@@ -23,9 +24,6 @@ class ResidualStressInstrument:
         # Instrument geometry parameters
         self._instrument_geom_params = instrument_setup
 
-        # Pixels' positions without calibration. It is kept stable upon calibration values (shifts) and arm (000 plane)
-        self._raw_pixel_matrix = self._set_uncalibrated_pixels()  # never been used for external client: len(shape) = 3
-
         self._pixel_matrix = None  # used by external after build_instrument: matrix for pixel positions
         self._pixel_2theta_matrix = None  # matrix for pixel's 2theta value
         self._pixel_eta_matrix = None  # matrix for pixel's eta value
@@ -34,139 +32,36 @@ class ResidualStressInstrument:
 
         return
 
-    @staticmethod
-    def _rotate_detector(detector_matrix, rotation_matrix):
-        """
-        rotate instrument
-        :param detector_matrix:
-        :param rotation_matrix:
-        :return:
-        """
-        rotate_det = np.zeros(detector_matrix.shape, dtype="float")
-
-        for i in range(3):
-            for j in range(3):
-                temp_det = rotation_matrix[i, j] * detector_matrix[:, :, j]
-                rotate_det[:, :, i] += temp_det[:, :]
-
-        return rotate_det
-
-    def _set_uncalibrated_pixels(self):
-        """
-        set up a matrix of pixels instrument on XY plane (Z=0)
-        Note:
-          1. the pixel matrix is set up such that with a simple reshape to 1D, the order of the pixel ID is ordered
-             from lower left corner, going up and then going right.
-          2. this is not a useful geometry because arm length is not set.
-        :return: numpy.ndarray; shape = (num_rows) x (num_cols) x 3
-        """
-        assert self._instrument_geom_params is not None, "Initial instrument setup is not set yet"
-
-        # build raw instrument/pixel matrix
-        num_rows, num_columns = self._instrument_geom_params.detector_size
-        pixel_size_x, pixel_size_y = self._instrument_geom_params.pixel_dimension
-        # arm_length = self._instrument_geom_params.arm_length
-
-        # instrument is a N x M matrix, each element has
-        pixel_matrix = np.ndarray(shape=(num_rows, num_columns, 3), dtype="float")
-
-        # set Y as different from each row
-        start_y_pos = -(num_rows * 0.5 - 0.5) * pixel_size_y
-        start_x_pos = (num_columns * 0.5 - 0.5) * pixel_size_x
-
-        for row_index in range(num_rows):
-            pixel_matrix[row_index, :, 1] = start_y_pos + float(row_index) * pixel_size_y
-        # set X as different from each column
-        for col_index in range(num_columns):
-            pixel_matrix[:, col_index, 0] = start_x_pos - float(col_index) * pixel_size_x
-        # set Z: zero at origin
-        pixel_matrix[:, :, 2] = 0.0
-
-        # Transpose is required to match instrument pixel ID arrangement:
-        # This is the only pixel positions to be transposed in the instrument setup
-        # Causing Error?  FIXME -
-        pixel_matrix = pixel_matrix.transpose((1, 0, 2))
-
-        return pixel_matrix
-
     def build_instrument(self, two_theta: float, l2: Optional[float] = None, instrument_calibration=None):
         """
-        Build instrument considering calibration
-        step 1: rotate instrument according to the calibration
-        step 2: rotate instrument about 2theta
+        Build instrument considering calibration: pixel positions come from
+        :meth:`pyrs.core.detector_model.DetectorModel.lab_positions` (see it for the order of operations,
+        #1011), then each pixel's 2theta and eta are computed.
 
         :param float two_theta: 2theta position of the detector arm
-        :param float l2: distance of detector from the center of rotation
+        :param float l2: distance of detector from the center of rotation; None for the arm length
         :param DENEXDetectorShift instrument_calibration: DENEXDetectorShift or None (no calibration)
-        :return:
+        :return: numpy.ndarray of pixel positions; shape = (num_columns) x (num_rows) x 3
         """
-        # Check input
         two_theta = to_float("2theta", two_theta)
-        # Check or set L2
-        if l2 is None:
-            l2 = self._instrument_geom_params.arm_length
-        else:
+        if l2 is not None:
             l2 = to_float("L2", l2, 1e-2)
 
-        # print('[DB...L101] Build instrument: 2theta = {}, arm = {} (diff to default = {})'
-        #       ''.format(two_theta, l2, l2 - self._instrument_geom_params.arm_length))
-
-        # make a copy from raw (constant position)
-        self._pixel_matrix = self._raw_pixel_matrix.copy()
-
-        # Check and set instrument calibration
+        # kept although lab_positions re-validates: a wrong type has always raised AssertionError here
         if instrument_calibration is not None:
-            # check type
             checkdatatypes.check_type(
                 "Instrument calibration", instrument_calibration, instrument_geometry.DENEXDetectorShift
             )
 
-            # shift center
-            self._pixel_matrix[:, :, 0] += instrument_calibration.center_shift_x
-            self._pixel_matrix[:, :, 1] += instrument_calibration.center_shift_y
+        num_rows, num_columns = self._instrument_geom_params.detector_size
+        self._pixel_matrix = DetectorModel(self._instrument_geom_params).lab_positions(
+            np.arange(num_columns)[:, np.newaxis],
+            np.arange(num_rows)[np.newaxis, :],
+            two_theta,
+            l2,
+            instrument_calibration,
+        )
 
-            # rotation around instrument center
-            # get rotation matrix at origin (for flip, spin and vertical): all data from calibration value
-            rot_x_flip = instrument_calibration.rotation_x * np.pi / 180.0
-            rot_y_flip = instrument_calibration.rotation_y * np.pi / 180.0
-            rot_z_spin = instrument_calibration.rotation_z * np.pi / 180.0
-            calib_matrix = self.generate_rotation_matrix(rot_x_flip, rot_y_flip, rot_z_spin)
-            # print ('[DB...BAT] Calibration rotation matrix:\n{}'.format(calib_matrix))
-            # and rotate at origin
-            self._pixel_matrix = self._rotate_detector(self._pixel_matrix, calib_matrix)
-
-            # shift two_theta by offset
-            two_theta += instrument_calibration.two_theta_0
-
-        # END-IF-ELSE
-
-        # push to +Z at length of detector arm
-        arm_l2 = l2
-        if instrument_calibration is not None:
-            # Apply the shift on Z (arm length)
-            arm_l2 += instrument_calibration.center_shift_z
-        # END-IF
-        self._pixel_matrix[:, :, 2] += arm_l2
-
-        # rotate detector (2theta) if it is not zero
-        self.rotate_detector_2theta(two_theta)
-
-        return self._pixel_matrix
-
-    def rotate_detector_2theta(self, det_2theta):
-        """Rotate detector, i.e., change 2theta value of the detector
-
-        :param float det_2theta: detector's 2theta (motor) position in degree
-
-        :return: multiple dimensional array for detector positions
-        """
-        det_2theta = float(det_2theta)
-        if abs(det_2theta) > 1.0e-7:
-            two_theta_rad = np.deg2rad(det_2theta)
-            two_theta_rot_matrix = self._cal_rotation_matrix_y(two_theta_rad)
-            self._pixel_matrix = self._rotate_detector(self._pixel_matrix, two_theta_rot_matrix)
-
-        # get 2theta and eta
         self._calculate_pixel_2theta()
         self._calculate_pixel_eta()
 
@@ -250,80 +145,6 @@ class ResidualStressInstrument:
         self._pixel_eta_matrix = return_value
 
         return
-
-    def generate_rotation_matrix(self, rot_x_rad, rot_y_rad, rot_z_rad):
-        """
-        Build a ration matrix with 3 orthogonal directions
-
-        :param float rot_x_rad: rotation about X-axis in rad (flip forward/backward)
-        :param float rot_y_rad: rotation about Y-axis in rad (vertical rotation)
-        :param float rot_z_rad: rotation about Z-axis in rad (spin)
-        :return:
-        """
-        rot_x_matrix = self._cal_rotation_matrix_x(rot_x_rad)
-        rot_y_matrix = self._cal_rotation_matrix_y(rot_y_rad)
-        rot_z_matrix = self._cal_rotation_matrix_z(rot_z_rad)
-
-        rotation_matrix = rot_x_matrix @ rot_y_matrix @ rot_z_matrix
-
-        return rotation_matrix
-
-    @staticmethod
-    def _cal_rotation_matrix_x(angle_rad):
-        """
-        build rotation matrix around X-axis
-
-        :param float angle_rad: roation angle
-        :return:
-        """
-        rotate_matrix = np.array(
-            [
-                [1.0, 0.0, 0.0],
-                [0.0, np.cos(angle_rad), -np.sin(angle_rad)],
-                [0.0, np.sin(angle_rad), np.cos(angle_rad)],
-            ],
-            dtype=np.float64,
-        )
-
-        return rotate_matrix
-
-    @staticmethod
-    def _cal_rotation_matrix_y(angle_rad):
-        """
-        build rotation matrix around Y-axis
-
-        :param float angle_rad: roation angle
-        :return:
-        """
-        rotate_matrix = np.array(
-            [
-                [np.cos(angle_rad), 0.0, np.sin(angle_rad)],
-                [0.0, 1.0, 0.0],
-                [-np.sin(angle_rad), 0.0, np.cos(angle_rad)],
-            ],
-            dtype=np.float64,
-        )
-
-        return rotate_matrix
-
-    @staticmethod
-    def _cal_rotation_matrix_z(angle_rad):
-        """
-        build rotation matrix around Z-axis
-
-        :param float angle_rad: roation angle
-        :return:
-        """
-        rotate_matrix = np.array(
-            [
-                [np.cos(angle_rad), -np.sin(angle_rad), 0.0],
-                [np.sin(angle_rad), np.cos(angle_rad), 0.0],
-                [0.0, 0.0, 1.0],
-            ],
-            dtype=np.float64,
-        )
-
-        return rotate_matrix
 
     def get_pixel_matrix(self):
         """
@@ -458,57 +279,6 @@ class PyHB2BReduction:
             )
 
         self._instrument.build_instrument(self._detector_2theta, self._detector_l2, instrument_calibration=calibration)
-
-        return
-
-    def build_instrument_prototype(
-        self,
-        two_theta,
-        arm_length,
-        arm_length_shift,
-        center_shift_x,
-        center_shift_y,
-        rot_x_flip,
-        rot_y_flip,
-        rot_z_spin,
-        two_theta_shift,
-    ):
-        """
-        build an instrument definition from calibration inputs
-
-        :param float two_theta: 2theta position of the detector panel.  It shall be negative to sample log value
-        :param float arm_length: Distance of detector from center of rotation
-        :param float arm_length_shift: shift along Z-direction (arm length)
-        :param float center_shift_x: shift along X-direction
-        :param float center_shift_y: shift along Y-direction
-        :param float rot_x_flip: rotation of the detector panel about the X-direction
-        :param float rot_y_flip: rotation of the detector panel about the Y-direction
-        :param float rot_z_spin: rotation of the detector panel about the Z-direction
-        :param float two_theta_shift: 2theta offset
-
-        :return: 2D numpy array
-        """
-        print("[INFO] Building instrument: 2theta @ {}".format(two_theta + two_theta_shift))
-
-        calibration = instrument_geometry.DENEXDetectorShift(
-            arm_length_shift, center_shift_x, center_shift_y, rot_x_flip, rot_y_flip, rot_z_spin
-        )
-
-        self._instrument.build_instrument(
-            two_theta=(two_theta + two_theta_shift), l2=arm_length, instrument_calibration=calibration
-        )
-
-        return
-
-    def rotate_two_theta(self, two_theta_0, two_theta_1):
-        """
-        Rotate instrument about Y
-
-        :param two_theta_0: inital 2theta position of the detector panel.
-        :param two_theta_1: final 2theta position of the detector panel.
-        """
-        print("[INFO] Rotating: 2theta from {} to {}".format(two_theta_0, two_theta_1))
-        self._instrument.rotate_detector(two_theta_1 - two_theta_0)
 
         return
 
