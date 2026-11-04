@@ -276,3 +276,26 @@ def test_block_is_strict_json(calibration):
     # Assert
     assert "error" not in block and block["inputs"]["reduction"]["two_theta_bins"] == 512
     json.dumps(block, allow_nan=False)
+
+
+def test_new_start_resets_errors_and_status(calibration, tmp_path):
+    """#1060: values set as a new start must not be written with the previous fit's errors and status"""
+    # Arrange
+    from pyrs.utilities.calibration_file_io import check_calibration_status, read_calibration_json_file
+
+    _with_inputs(calibration)
+    calibration.CalibrateShift()
+    assert calibration._calibstatus == 2 and np.all(calibration.calibration_error_array[:3] >= 0)
+    new_start = np.array([0.002, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.53])
+
+    # Act
+    calibration.set_calibration_array(new_start)
+    path = tmp_path / "start.json"
+    calibration.write_calibration(str(path))
+
+    # Assert - not refined: reduction refuses the file
+    np.testing.assert_array_equal(calibration.calibration_array, new_start)
+    np.testing.assert_array_equal(calibration.calibration_error_array, np.full(8, -1.0))
+    status = read_calibration_json_file(str(path))[4]
+    with pytest.raises(RuntimeError, match="never successfully refined"):
+        check_calibration_status(status)
