@@ -2317,4 +2317,53 @@ calibrated value, but the "never block" promise was not fully kept and some reco
 - Found, not fixed (outside provenance): `FitCalibration.set_calibration_array` keeps the previous
   `_caliberr`, so values set as a new start are exported with the errors of the earlier fit.
 
-Next (#1053 part B): reduced project files record the calibration applied and this block.
+Part B (reduced project files record the calibration applied) is the next entry.
+
+## Reduced project files record the calibration applied (2026-11, #1053 part B)
+
+`ReductionApp.reduce_data` records what it applied and `save_diffraction_data` writes it into the
+project file's `instrument/calibration` group (`HidraProjectFile.write_reduction_provenance(...,
+applied_calibration=)`; `read_reduction_provenance()` returns everything in the group as a dict).
+User-approved production change; **the reduced data are bit-identical** (every dataset outside the
+calibration group compared with the pre-change files for HB2B_3510, uncalibrated, calibrated and with
+η slicing). Nothing in PyRS read this group before, so older readers are unaffected.
+
+Recorded, beside the existing `calibration_file`, `calibration_file_sha256`, `vanadium_run`:
+- `calibration_source` attribute: `file` (a calibration JSON), `workspace` (the detector shift already in
+  the workspace, e.g. from an NXstress file — previously nothing was recorded for it) or `none`;
+- datasets `values` and `errors` (8 float64: Shift_x/y/z, Rot_x/y/z, TTH_0, Lambda; a `names`
+  attribute lists them) and `status`; for a workspace shift only `values` — its errors, status and
+  provenance are unknown and are left out, not invented (λ is NaN if the workspace has no single
+  calibrated wavelength);
+- `calibration_created` with `calibration_created_source`: the calibration's own `provenance.created`
+  (`"calibration provenance"`), or for an older file its **modification time**, labelled
+  `"file modification time"` because a copy (or a git checkout) resets it — it is not a creation time;
+- `provenance_json`: the calibration's whole provenance block (#1053 part A) as JSON text in a **string
+  dataset**, not an attribute (user-approved change from the first plan: HDF5 attributes are limited
+  to ~64 kB, and a peak-fit block with many sub-runs can exceed that).
+
+A reduction's record **replaces the earlier one entirely** (append-mode re-reduction), including an
+old `calibration_file`, `calibration_file_sha256` and `vanadium_run`, so a re-reduced file never mixes
+two. `read_reduction_provenance()` returns the record with the same keys `ReductionApp` passes
+(`source`, `created`, `created_source`, `lambda_source`, `error`, `values`, `errors`, `status`,
+`provenance`, plus `calibration_file`, `calibration_file_sha256`, `vanadium_run`); in the file the
+attributes are prefixed `calibration_`. The `errors` dataset carries a `codes` attribute (−1 not
+refined or held, −2 undetermined).
+
+**Never stops a reduction or the save** (review fixes, user-approved): the `instrument/calibration`
+group is created if an older or externally written file lacks it; the record is validated and
+converted (numpy types, NaN → null via part A's `jsonable`) before anything is written; if preparing or
+writing fails, nothing half-written is left — the record is `source = "unknown"` with every reason
+kept in `error` — and the failure is warned about **and logged with its traceback** (a warning alone
+is shown once and never in the GUI). Integration tests assert no `error` and no `unknown` source, so a
+regression fails a test.
+
+**λ for a workspace shift:** recorded only if the workspace marks it **calibrated** and every sub-run
+has the same value (`lambda_source = "workspace calibrated wavelength"`); otherwise NaN with
+`lambda_source` saying why. A workspace's plain wavelength may be the monochromator's nominal value,
+and 2θ₀ and λ are never inferred from the monochromator, so it is not recorded as applied. From a file,
+`lambda_source = "calibration file"`.
+
+Not covered (reported, not changed): "Combine runs" (`combine_runs_model`) writes a merged project
+file without its source files' calibration records; `HB2BReductionManager.save_reduced_diffraction`
+has no callers.
