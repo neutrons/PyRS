@@ -1,3 +1,4 @@
+from pyrs.interface.combine_runs import combine_runs_viewer
 from pyrs.interface.combine_runs.combine_runs_viewer import CombineRunsViewer
 from pyrs.interface.combine_runs.combine_runs_model import CombineRunsModel
 from pyrs.interface.combine_runs.combine_runs_crtl import CombineRunsCrtl
@@ -25,9 +26,17 @@ def combine_projects_window(my_qtbot):
     return window, my_qtbot
 
 
-def test_merged_projectfile_viewer(combine_projects_window):
+def test_merged_projectfile_viewer(combine_projects_window, monkeypatch):
     window, qtbot = combine_projects_window
     export_file = "test_export.h5"
+    # the test files are historic (no calibration record): combining them flags it in a modal dialog
+    # (#1063), which would block the test; record the messages instead
+    messages = []
+    monkeypatch.setattr(
+        combine_runs_viewer,
+        "pop_message",
+        lambda parent, message, detail="", kind="info": messages.append((message, kind)),
+    )
 
     try:
         window.show()
@@ -56,6 +65,7 @@ def test_merged_projectfile_viewer(combine_projects_window):
 
         qtbot.wait(wait)
         assert window.model._hidra_ws.get_sub_runs().size == 362
+        assert messages == [("Calibration not checked", "warning")]
         qtbot.wait(wait)
 
         QtCore.QTimer.singleShot(300, functools.partial(handle_dialog, export_file))
