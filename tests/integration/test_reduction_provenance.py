@@ -38,22 +38,15 @@ def _reduce(tmp_path, calibration_file=None, workspace_shift=None, workspace_wav
     return record
 
 
-def _values(calibration_file):
-    shift, error, wavelength, wavelength_error, status = read_calibration_json_file(calibration_file)
+RUN_GEOMETRY = {"detector_size": [1024, 1024], "pixel_dimension": [0.3 / 1024, 0.3 / 1024], "arm_length": 0.985}
 
-    def vector(s, last):
-        return [
-            s.center_shift_x,
-            s.center_shift_y,
-            s.center_shift_z,
-            s.rotation_x,
-            s.rotation_y,
-            s.rotation_z,
-            s.two_theta_0,
-            last,
-        ]
 
-    return vector(shift, wavelength), vector(error, wavelength_error), status
+def _calibration(calibration_file):
+    """The calibration JSON's dictionary of a calibration file, as the project file must record it: its
+    values, and the geometry within the calibration (here the run's: the test files carry none)."""
+    from pyrs.utilities.calibration_file_io import calibration_to_dict
+
+    return dict(calibration_to_dict(*read_calibration_json_file(calibration_file)), geometry=RUN_GEOMETRY)
 
 
 def test_calibration_with_provenance_is_recorded(tmp_path):
@@ -69,9 +62,8 @@ def test_calibration_with_provenance_is_recorded(tmp_path):
     record = _reduce(tmp_path, str(calibration))
 
     # Assert
-    values, errors, _ = _values(str(calibration))
     assert record["source"] == "file" and record["calibration_file"] == str(calibration)
-    assert record["values"] == values and record["errors"] == errors and record["status"] == status
+    assert record["calibration"] == _calibration(str(calibration)) and record["calibration"]["Status"] == status
     assert record["created"] == "2026-11-03T11:40:37-05:00"
     assert record["created_source"] == "calibration provenance"
     assert record["provenance"] == provenance
@@ -84,7 +76,7 @@ def test_old_calibration_uses_its_labelled_modification_time(tmp_path):
     # Assert - no provenance in the file: the time is the file's modification time, and says so
     assert record["source"] == "file" and "provenance" not in record
     assert record["created_source"] == "file modification time"
-    assert record["values"] == _values(REFERENCE)[0]
+    assert record["calibration"] == _calibration(REFERENCE)
 
 
 def test_workspace_shift_is_recorded_without_invented_errors(tmp_path):
@@ -96,10 +88,13 @@ def test_workspace_shift_is_recorded_without_invented_errors(tmp_path):
 
     # Assert - the nominal (mono) wavelength is not recorded as applied
     assert record["source"] == "workspace"
-    assert record["values"][:7] == [0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.25]
-    assert record["values"][7] != record["values"][7]  # NaN
+    shift = {
+        k: record["calibration"][k] for k in ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0")
+    }
+    assert list(shift.values()) == [0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.25]
+    assert record["calibration"]["Lambda"] is None  # the nominal (mono) wavelength is not recorded as applied
     assert record["lambda_source"] == "workspace has no calibrated wavelength: not recorded"
-    assert not {"errors", "status", "provenance"} & set(record)
+    assert "Status" not in record["calibration"] and "provenance" not in record
 
 
 def test_workspace_calibrated_wavelength_is_recorded(tmp_path):
@@ -110,7 +105,8 @@ def test_workspace_calibrated_wavelength_is_recorded(tmp_path):
     record = _reduce(tmp_path, workspace_shift=shift, workspace_wavelength=1.5306)
 
     # Assert
-    assert record["values"][7] == 1.5306 and record["lambda_source"] == "workspace calibrated wavelength"
+    assert record["calibration"]["Lambda"] == 1.5306 and record["lambda_source"] == "workspace calibrated wavelength"
+    assert record["calibration"]["geometry"] == RUN_GEOMETRY and record["geometry_source"] == "run"
 
 
 def test_no_calibration_is_recorded_as_none(tmp_path):
@@ -119,4 +115,22 @@ def test_no_calibration_is_recorded_as_none(tmp_path):
 
     # Assert
     assert record == {"source": "none"}
+
+
+def test_recorded_calibration_rebuilds_the_instrument(tmp_path):
+    """The point of the instrument object: re-reduce with exactly the calibration that was applied"""
+    # Arrange
+    record = _reduce(tmp_path, REFERENCE)
+    project = HidraProjectFile(str(tmp_path / "reduced.h5"), HidraProjectFileMode.READONLY)
+    geometry = NeXusConvertingApp(RUN, MASK).convert().get_instrument_setup()
+
+    # Act
+    instrument = project.read_reduction_instrument(geometry)
+
+    # Assert
+    shift, error, wavelength, _, status = read_calibration_json_file(REFERENCE)
+    assert instrument.geometry_shift.convert_to_dict() == shift.convert_to_dict()
+    assert instrument.geometry_shift_error.convert_error_to_dict() == error.convert_error_to_dict()
+    assert instrument.get_wavelength(None) == wavelength and instrument.calibration_status == status
+    assert record["calibration"] == instrument.calibration_dict()
     json.dumps(record)

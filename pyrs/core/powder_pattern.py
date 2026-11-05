@@ -1,12 +1,6 @@
-import datetime
-import os
-import traceback
-import warnings
-
-from mantid.kernel import Logger
-
 from pyrs.core import reduction_manager
 from pyrs.core import mask_util
+from pyrs.core.instrument_geometry import HidraSetup
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities import calibration_file_io
 from matplotlib import pyplot as plt
@@ -41,9 +35,8 @@ class ReductionApp:
         self._sub_runs = None
 
         # provenance of the most recent reduce_data() call, written out by save_diffraction_data()
-        self._calibration_file = None
         self._van_file = None
-        self._applied_calibration = None  # what reduce_data applied, for the project file (#1053)
+        self._instrument = None  # HidraSetup: the instrument and the calibration reduce_data applied (#1053)
 
         return
 
@@ -172,7 +165,6 @@ class ReductionApp:
             self._sub_runs = sorted(sub_runs)
 
         # Record provenance for save_diffraction_data() to write out
-        self._calibration_file = calibration_file
         self._van_file = van_file
 
         # instrument file
@@ -187,21 +179,20 @@ class ReductionApp:
         else:
             geometry_calibration = False
 
-        calib_values = None
+        if calibration_file is not None and not calibration_file.lower().endswith(".json"):
+            # the ASCII geometry format was never readable and nothing writes it (#1051)
+            raise ValueError(f"Calibration file must be a .json file, got {calibration_file!r}")
+
+        # the instrument holds the calibration it applies; the project file is written from it (#1053)
+        self._instrument = HidraSetup(self._hydra_ws.get_instrument_setup())
         if calibration_file is not None:
-            if calibration_file.lower().endswith(".json"):
-                calib_values = calibration_file_io.read_calibration_json_file(calibration_file_name=calibration_file)
-                calibration_file_io.check_calibration_status(calib_values[4])
-                geometry_calibration = calib_values[0]
-                wave_length = calib_values[2]
-                self._hydra_ws.set_wavelength(wave_length, True)
-            else:
-                # the ASCII geometry format was never readable and nothing writes it (#1051)
-                raise ValueError(f"Calibration file must be a .json file, got {calibration_file!r}")
+            self._instrument.load_calibration_file(calibration_file)
+            calibration_file_io.check_calibration_status(self._instrument.calibration_status)
+            geometry_calibration = self._instrument.geometry_shift
+            self._hydra_ws.set_wavelength(self._instrument.get_wavelength(None), True)
+        elif geometry_calibration is True:
+            self._instrument.use_workspace_calibration(self._hydra_ws, self._sub_runs)
         # END-IF
-        self._applied_calibration = self._record_applied_calibration(
-            calibration_file, calib_values, geometry_calibration
-        )
 
         # Vanadium
         if van_file is not None:
@@ -227,69 +218,6 @@ class ReductionApp:
             eta_min=eta_min,
             eta_max=eta_max,
         )
-
-    def _record_applied_calibration(self, calibration_file, calib_values, geometry_calibration):
-        """What reduce_data applied, for the project file (#1053): source, values, errors, status, the
-        calibration's creation time and provenance. Never raises: the record must not stop a reduction.
-
-        ``source`` is ``"file"`` (a calibration JSON), ``"workspace"`` (the detector shift already in the
-        workspace, e.g. read from an NXstress file; its errors, status and provenance are unknown) or
-        ``"none"``.
-        """
-        try:
-            if calib_values is not None:
-                shift, shift_error, wavelength, wavelength_error, status = calib_values
-                provenance = calibration_file_io.read_calibration_provenance(calibration_file)
-                created, created_source = None, None
-                if provenance is not None and provenance.get("created"):
-                    created, created_source = provenance["created"], "calibration provenance"
-                else:
-                    modified = datetime.datetime.fromtimestamp(os.path.getmtime(calibration_file)).astimezone()
-                    # a copy resets it, so it is labelled: it is not a creation time
-                    created, created_source = modified.isoformat(timespec="seconds"), "file modification time"
-                return {
-                    "source": "file",
-                    "values": _shift_values(shift) + [float(wavelength)],
-                    "errors": _shift_values(shift_error) + [float(wavelength_error)],
-                    "status": int(status),
-                    "created": created,
-                    "created_source": created_source,
-                    "lambda_source": "calibration file",
-                    "provenance": provenance,
-                }
-            if geometry_calibration is True:
-                wavelength, lambda_source = self._calibrated_workspace_wavelength()
-                return {
-                    "source": "workspace",
-                    "values": _shift_values(self._hydra_ws.get_detector_shift()) + [wavelength],
-                    "errors": None,
-                    "status": None,
-                    "created": None,
-                    "created_source": None,
-                    "lambda_source": lambda_source,
-                    "provenance": None,
-                }
-            return {"source": "none"}
-        except Exception as record_err:  # noqa: BLE001 - recorded in the file, never stops the reduction
-            message = f"applied calibration could not be recorded: {type(record_err).__name__}: {record_err}"
-            warnings.warn(message, stacklevel=2)
-            Logger("ReductionApp").error(f"{message}\n{traceback.format_exc()}")
-            return {"source": "unknown", "error": message}
-
-    def _calibrated_workspace_wavelength(self):
-        """The workspace's calibrated wavelength if every sub-run has the same one, and where it came from.
-
-        A wavelength the workspace does not mark as calibrated (e.g. the monochromator's nominal value) is
-        not recorded as applied: 2theta_0 and the wavelength are never inferred from the monochromator.
-        """
-        sub_runs = list(self._sub_runs) if self._sub_runs is not None else list(self._hydra_ws.get_sub_runs())
-        try:
-            values = {float(self._hydra_ws.get_wavelength(True, True, sub_run=int(s))) for s in sub_runs}
-        except (KeyError, RuntimeError, TypeError, ValueError):
-            return float("nan"), "workspace has no calibrated wavelength: not recorded"
-        if len(values) != 1:
-            return float("nan"), "workspace calibrated wavelength differs between sub-runs: not recorded"
-        return values.pop(), "workspace calibrated wavelength"
 
     def plot_reduced_data(self, sub_run_number=None):
         if sub_run_number is None:
@@ -346,27 +274,7 @@ class ReductionApp:
         self._hydra_ws.save_wavelength(out_file)
 
         # Record which calibration and vanadium run (if any) produced this reduction
-        out_file.write_reduction_provenance(
-            calibration_file=self._calibration_file,
-            vanadium_run=self._van_file,
-            applied_calibration=self._applied_calibration,
-        )
+        out_file.write_reduction_provenance(vanadium_run=self._van_file, instrument=self._instrument)
 
         # Write & close
         self._hydra_ws.save_reduced_diffraction_data(out_file, sub_runs=self._sub_runs)
-
-
-def _shift_values(shift):
-    """Shift_x/y/z, Rot_x/y/z and TTH_0 of a DENEXDetectorShift, as floats."""
-    return [
-        float(value)
-        for value in (
-            shift.center_shift_x,
-            shift.center_shift_y,
-            shift.center_shift_z,
-            shift.rotation_x,
-            shift.rotation_y,
-            shift.rotation_z,
-            shift.two_theta_0,
-        )
-    ]

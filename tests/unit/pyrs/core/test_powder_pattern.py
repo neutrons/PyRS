@@ -17,23 +17,3 @@ def test_non_json_calibration_file_raises(file_name):
     # Act / Assert
     with pytest.raises(ValueError, match="must be a .json file"):
         reducer.reduce_data([1], None, file_name, None)
-
-
-def test_failed_calibration_record_does_not_stop_reduction(monkeypatch):
-    """#1053 part B: recording what was applied must never stop a reduction"""
-    # Arrange
-    from pyrs.core import powder_pattern
-
-    def broken(path):
-        raise OSError("calibration file vanished")
-
-    monkeypatch.setattr(powder_pattern.calibration_file_io, "read_calibration_provenance", broken)
-    reducer = ReductionApp()
-    values = (SimpleNamespace(center_shift_x=0.0), None, 1.54, 1e-4, 1)
-
-    # Act
-    with pytest.warns(UserWarning, match="could not be recorded"):
-        record = reducer._record_applied_calibration("calibration.json", values, None)
-
-    # Assert
-    assert record["source"] == "unknown" and "calibration file vanished" in record["error"]

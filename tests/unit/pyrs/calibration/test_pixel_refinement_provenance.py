@@ -8,7 +8,11 @@ import pytest
 
 from pyrs.calibration.pixel_pos_calibration import PixelCalibration
 from pyrs.calibration.pixel_refinement import AT_BOUND, PARAMETER_NAMES, RANK_DEFICIENT
-from pyrs.utilities.calibration_file_io import read_calibration_json_file, read_calibration_provenance
+from pyrs.utilities.calibration_file_io import (
+    read_calibration_geometry,
+    read_calibration_json_file,
+    read_calibration_provenance,
+)
 from tests.util.instrument_helpers import default_hb2b_geometry
 from tests.util.ring_calibration_helpers import synthetic_ring_points
 
@@ -139,6 +143,8 @@ def test_write_carries_provenance_and_values(refined, tmp_path):
     assert wavelength == refined.calibration_array[7] and status == refined.calibration_status
     assert shift_error.center_shift_x == refined.calibration_error_array[0]
     assert "NaN" not in path.read_text()
+    geometry = read_calibration_geometry(str(path))  # the calibration carries its detector geometry
+    assert geometry.detector_size == refined._model.instrument_setup.detector_size
     json.loads(path.read_text())
 
 

@@ -261,3 +261,30 @@ def test_unknown_provenance_schema_warns(tmp_path):
     # Act / Assert - returned as stored, with a warning
     with pytest.warns(UserWarning, match="provenance schema 99"):
         assert calibration_file_io.read_calibration_provenance(target) == {"schema": 99}
+
+
+def test_geometry_round_trips_with_the_calibration(tmp_path):
+    # Arrange
+    from pyrs.core.instrument_geometry import DENEXDetectorGeometry
+
+    shift, error = _shift_and_errors()
+    geometry = DENEXDetectorGeometry(1024, 512, 3e-4, 6e-4, 0.985, False)
+    target = str(tmp_path / "cal.json")
+
+    # Act
+    calibration_file_io.write_calibration_to_json(shift, error, 1.54, 1e-4, 1, target, geometry=geometry)
+    read = calibration_file_io.read_calibration_geometry(target)
+
+    # Assert - and the values still read as before
+    assert (read.detector_size, read.pixel_dimension, read.arm_length) == ((1024, 512), (3e-4, 6e-4), 0.985)
+    assert calibration_file_io.read_calibration_json_file(target)[2] == 1.54
+
+
+def test_calibration_without_geometry_reads_none(tmp_path):
+    # Arrange
+    shift, error = _shift_and_errors()
+    target = str(tmp_path / "cal.json")
+    calibration_file_io.write_calibration_to_json(shift, error, 1.54, 1e-4, 1, target)
+
+    # Act / Assert
+    assert calibration_file_io.read_calibration_geometry(target) is None

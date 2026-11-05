@@ -23,7 +23,7 @@ __all__ = ["HidraProjectFile"]
 
 # the record of the calibration a reduction applied, in the CALIBRATION group (#1053); a reduction
 # writing a record replaces every entry of the previous one, so a re-reduced file never mixes two
-_APPLIED_DATASETS = ("values", "errors", "status", "provenance_json")
+_APPLIED_DATASETS = ("calibration_json", "provenance_json")
 # file attribute -> key of the record dict (the dict ReductionApp passes, and read_reduction_provenance returns)
 _RECORD_ATTRIBUTES = {
     "calibration_file": "calibration_file",
@@ -34,9 +34,12 @@ _RECORD_ATTRIBUTES = {
     "calibration_created_source": "created_source",
     "calibration_lambda_source": "lambda_source",
     "calibration_record_error": "error",
+    "calibration_geometry_source": "geometry_source",
+    "calibration_geometry_note": "geometry_note",
+    "calibration_run_geometry": "run_geometry",
 }
-_CALIBRATION_NAMES = ["Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda"]
-_ERROR_CODES = "-1: not refined (or held), -2: refined but undetermined"
+# on calibration_json: what an error of -1 or -2 means
+_ERROR_CODES = "error_*: -1 not refined (or held), -2 refined but undetermined"
 
 
 def _plain(value):
@@ -66,23 +69,41 @@ def _clear_record(group):
             del group.attrs[name]
 
 
+def _instrument_record(instrument):
+    """The calibration record of a HidraSetup; never raises (the save must go ahead, #1053)."""
+    try:
+        return instrument.calibration_record()
+    except Exception as record_err:  # noqa: BLE001 - recorded in the file, never stops the save
+        message = f"applied calibration could not be recorded: {type(record_err).__name__}: {record_err}"
+        _report_record_failure(message)
+        return {"source": "unknown", "error": message}
+
+
 def _prepare_record(applied):
     """Validate and convert the record before anything is written, so a bad record writes nothing of itself."""
     # imported here: pyrs.calibration imports the project file module
     from pyrs.calibration.provenance import jsonable
 
     prepared = {"source": str(applied.get("source", "unknown"))}
-    for key in ("created", "created_source", "lambda_source", "error"):
+    for key in (
+        "calibration_file",
+        "calibration_file_sha256",
+        "created",
+        "created_source",
+        "lambda_source",
+        "error",
+        "geometry_source",
+        "geometry_note",
+    ):
         if applied.get(key) is not None:
             prepared[key] = str(applied[key])
-    for name in ("values", "errors"):
-        if applied.get(name) is not None:
-            vector = numpy.asarray(applied[name], dtype=numpy.float64)
-            if vector.shape != (len(_CALIBRATION_NAMES),):
-                raise ValueError(f"{name} must have {len(_CALIBRATION_NAMES)} entries, got shape {vector.shape}")
-            prepared[name] = vector
-    if applied.get("status") is not None:
-        prepared["status"] = numpy.int64(applied["status"])
+    if applied.get("run_geometry") is not None:
+        prepared["run_geometry"] = json.dumps(jsonable(applied["run_geometry"]), allow_nan=False)
+    if applied.get("calibration") is not None:
+        calibration = applied["calibration"]
+        if not isinstance(calibration, dict) or "Shift_x" not in calibration:
+            raise ValueError(f"calibration must be the calibration JSON's dictionary, got {calibration!r}")
+        prepared["calibration_json"] = json.dumps(jsonable(calibration), allow_nan=False)
     if applied.get("provenance") is not None:
         prepared["provenance_json"] = json.dumps(jsonable(applied["provenance"]), allow_nan=False)
     return prepared
@@ -103,16 +124,13 @@ def _write_applied_calibration(group, applied):
         prepared = {"source": "unknown", "error": "; ".join(filter(None, [applied.get("error"), message]))}
     try:
         for attribute, key in _RECORD_ATTRIBUTES.items():
-            if key in prepared and attribute not in ("calibration_file", "calibration_file_sha256", "vanadium_run"):
+            if key in prepared and attribute != "vanadium_run":  # vanadium_run: the caller's argument
                 group.attrs[attribute] = prepared[key]
-        for name in ("values", "errors"):
-            if name in prepared:
-                dataset = group.create_dataset(name, data=prepared[name])
-                dataset.attrs["names"] = _CALIBRATION_NAMES
-                if name == "errors":
-                    dataset.attrs["codes"] = _ERROR_CODES
-        if "status" in prepared:
-            group.create_dataset("status", data=prepared["status"])
+        if "calibration_json" in prepared:
+            dataset = group.create_dataset(
+                "calibration_json", data=prepared["calibration_json"], dtype=h5py.string_dtype(encoding="utf-8")
+            )
+            dataset.attrs["codes"] = _ERROR_CODES
         if "provenance_json" in prepared:
             group.create_dataset(
                 "provenance_json", data=prepared["provenance_json"], dtype=h5py.string_dtype(encoding="utf-8")
@@ -843,7 +861,9 @@ class HidraProjectFile:
         if wl is not None:
             wavelength_group.create_dataset("Calibrated", data=numpy.array([wl]))
 
-    def write_reduction_provenance(self, calibration_file=None, vanadium_run=None, applied_calibration=None):
+    def write_reduction_provenance(
+        self, calibration_file=None, vanadium_run=None, applied_calibration=None, instrument=None
+    ):
         """Record which calibration and vanadium run (if any) produced this file's reduced data
 
         Populates the CALIBRATION group (previously created but never populated) with enough
@@ -858,18 +878,21 @@ class HidraProjectFile:
         vanadium_run : str or None
             path or run identifier of the vanadium project/NeXus file used for normalization,
             if any
+        instrument : HidraSetup or None
+            the instrument the reduction used: the calibration record is read from it
+            (``HidraSetup.calibration_record()``, #1053) — the usual way to call this
         applied_calibration : dict or None
-            what the reduction applied (``ReductionApp``, #1053): ``source`` (``file``, ``workspace``,
-            ``none``), ``values`` and ``errors`` (Shift_x/y/z, Rot_x/y/z, TTH_0, Lambda), ``status``,
-            ``created`` and ``created_source``, and the calibration's ``provenance``. Written as datasets
-            ``values``, ``errors``, ``status``, ``provenance_json`` (JSON text, no size limit) and
-            attributes; a re-reduction replaces them. A failure to write it is recorded and warned
+            a calibration record without an instrument (keys as ``HidraSetup.calibration_record()``).
+            Written as datasets ``calibration_json`` (the calibration JSON's dictionary) and
+            ``provenance_json`` (JSON text, no size limit) and attributes; a re-reduction replaces them. A failure to write it is recorded and warned
             about, never raised: the reduced data are saved regardless.
         """
         self._validate_write_operation()
 
         self._project_h5.attrs["pyrs_version"] = __version__
 
+        if instrument is not None:
+            applied_calibration = _instrument_record(instrument)
         if calibration_file is None and vanadium_run is None and applied_calibration is None:
             return
 
@@ -899,10 +922,10 @@ class HidraProjectFile:
         Returns
         -------
         dict
-            with the keys of the record ReductionApp passes: ``calibration_file``,
-            ``calibration_file_sha256``, ``vanadium_run``, ``source``, ``created``, ``created_source``,
-            ``lambda_source``, ``error``, ``values``, ``errors``, ``status``, ``provenance`` — each where
-            present (file attributes are prefixed ``calibration_``); empty for a file without the group
+            with the keys of ``HidraSetup.calibration_record()``: ``source``, ``calibration`` (the
+            calibration JSON's dictionary), ``calibration_file``, ``calibration_file_sha256``, ``created``,
+            ``created_source``, ``lambda_source``, ``provenance``, ``error``, and ``vanadium_run`` — each
+            where present (file attributes are prefixed ``calibration_``); empty without the group
         """
         try:
             group = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.CALIBRATION]
@@ -911,13 +934,51 @@ class HidraProjectFile:
         record = {}
         for attribute, value in group.attrs.items():
             record[_RECORD_ATTRIBUTES.get(attribute, attribute)] = _plain(value)
-        for name in ("values", "errors", "status"):
+        if "run_geometry" in record:
+            record["run_geometry"] = json.loads(record["run_geometry"])
+        for name, key in (("calibration_json", "calibration"), ("provenance_json", "provenance")):
             if name in group:
-                record[name] = _plain(group[name][()])
-        if "provenance_json" in group:
-            text = _plain(group["provenance_json"][()])
-            record["provenance"] = json.loads(text)
+                record[key] = json.loads(_plain(group[name][()]))
         return record
+
+    def read_reduction_instrument(self, geometry=None):
+        """The instrument (HidraSetup) a reduction recorded, with the calibration it applied, so the data
+        can be reduced again with exactly that calibration (#1053)
+
+        Parameters
+        ----------
+        geometry : DENEXDetectorGeometry or None
+            the detector geometry; None: the one the reduction used, as recorded with the calibration
+            (it lives within the calibration, #1053), else the file's own ``geometry setup``.
+
+        Returns
+        -------
+        HidraSetup
+            with ``calibration_source`` ``"none"`` if nothing was recorded
+
+        Raises
+        ------
+        RuntimeError
+            if no geometry is given and the file has none
+        """
+        from pyrs.utilities.calibration_file_io import geometry_from_dict
+
+        record = self.read_reduction_provenance()
+        if geometry is None:
+            recorded = record.get("run_geometry") or (record.get("calibration") or {}).get("geometry")
+            if recorded is not None:
+                geometry = geometry_from_dict(recorded)
+        if geometry is None:
+            try:
+                geometry = self.read_instrument_geometry()
+            except KeyError as missing:
+                raise RuntimeError(
+                    f"{self._project_h5.filename} stores no detector geometry ({missing}); pass the run's geometry"
+                ) from None
+        instrument = HidraSetup(geometry)
+        if "source" in record:
+            instrument.set_calibration_record(record)
+        return instrument
 
     def read_peak_tags(self):
         """Get all the tags of peaks with parameters stored in HiDRA project

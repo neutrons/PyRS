@@ -735,6 +735,7 @@ class PixelCalibration:
             int(self._status),
             str(file_name),
             provenance=_provenance.safe_build(lambda: self.provenance(inputs)),
+            geometry=self._model.instrument_setup,  # the calibration carries its detector geometry (#1053)
         )
 
     def iterate(
