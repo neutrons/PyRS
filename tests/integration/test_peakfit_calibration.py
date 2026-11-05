@@ -44,8 +44,8 @@ def are_equivalent_jsons(test_json_name, gold_json_name, atol):
     # Compare
     diff = False
     for key in gold_json_dict.keys():
-        if key == "provenance":  # how the calibration was obtained (#1053), not a calibration value
-            continue
+        if key in ("provenance", "geometry"):  # how it was obtained, and the detector it is for (#1053):
+            continue  # not calibration values
         # expect a file with same key
         if key not in test_json_dict:
             print(key)
@@ -335,6 +335,11 @@ def test_written_calibration_carries_provenance(tmp_path):
         g["sub_run"] == int(calibrator.sub_runs[0]) and g["reflection"].startswith(powder + " ") for g in groups
     )
     assert {g["eta_mask"] for g in groups} == {str(m) for m in calibrator._hidra_ws.reduction_masks}
+    # the calibration carries the run's detector geometry
+    from pyrs.utilities.calibration_file_io import read_calibration_geometry
+
+    geometry = read_calibration_geometry(str(path))
+    assert geometry.detector_size == calibrator._hidra_ws.get_instrument_setup().detector_size
     # the values are those of the calibration, as before
     wavelength = read_calibration_json_file(str(path))[2]
     assert wavelength == calibrator.calibration_array[7]

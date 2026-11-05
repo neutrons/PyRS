@@ -2315,9 +2315,9 @@ calibrated value, but the "never block" promise was not fully kept and some reco
   calibration set in the GUI" or "nominal geometry, monochromator wavelength"), found when the GUI/driver
   test was strengthened to compare the whole block except time, user, host and inputs.
 - Found, not fixed (outside provenance): `FitCalibration.set_calibration_array` keeps the previous
-  `_caliberr`, so values set as a new start are exported with the errors of the earlier fit.
+  `_caliberr`, so values set as a new start are exported with the errors of the earlier fit. *Fixed in #1060 (entry below).*
 
-Next (#1053 part B): reduced project files record the calibration applied and this block.
+Part B (reduced project files record the calibration applied) has its own entry below.
 
 ## `FitCalibration.set_calibration_array` resets errors and status (2026-11, #1060)
 
@@ -2337,3 +2337,62 @@ point); `test_new_start_resets_errors_and_status` fails without the fix, and
 Note on staged recipes (by design, unchanged): each FitCalibration routine updates the errors of the
 parameters it refined only (`set_shift` writes `_caliberr[0:3]`), so a file's errors can come from
 different routines of one recipe; parameters no routine refined stay −1.
+
+## Reduced project files record the calibration applied (2026-11, #1053 part B)
+
+**The instrument object owns the calibration** (user design, 2026-11-05). `HidraSetup`
+(`pyrs/core/instrument_geometry.py`, "anything to do with HB2B ... including geometry, wavelength and
+calibration") now stores the calibration a reduction applies: the shift (`DENEXDetectorShift`) and its
+errors, λ and its error, the status, and where it came from — `source` (`file` / `workspace` / `none`),
+the calibration file and its SHA-256, `created` with `created_source`, `lambda_source`, and the
+provenance block (#1053 part A). `load_calibration_file()` and `use_workspace_calibration()` fill it;
+`calibration_dict()` gives it in the calibration JSON's own keys (`calibration_file_io.calibration_to_dict`,
+the same builder `write_calibration_to_json` uses) and `calibration_record()` everything.
+`ReductionApp.reduce_data` holds a `HidraSetup` and passes its shift to reduction exactly as before;
+`save_diffraction_data` passes the instrument to `HidraProjectFile.write_reduction_provenance(instrument=)`,
+which **reads the record from it**. No parameter names or values are copied in `powder_pattern.py` or the
+writer. User-approved production change; **the reduced data are bit-identical** (every dataset outside
+the calibration group, HB2B_3510 uncalibrated, calibrated and η-sliced).
+
+In the project file's `instrument/calibration`: attributes `calibration_source`, `calibration_file`,
+`calibration_file_sha256`, `calibration_created`, `calibration_created_source`,
+`calibration_lambda_source` (and `calibration_record_error`), plus two string datasets (no ~64 kB
+attribute limit): `calibration_json` — the calibration JSON's dictionary (`Shift_x` ... `Lambda`, `error_*`,
+`Status`; a `codes` attribute: −1 not refined, −2 undetermined) — and `provenance_json`.
+`read_reduction_provenance()` returns the record with `calibration_record()`'s keys;
+`read_reduction_instrument()` rebuilds the `HidraSetup`, so a run can be **reduced again with exactly
+the recorded calibration** (verified: shift, errors, λ and status identical to the calibration file).
+
+**The geometry lives within the calibration** (user decision, 2026-11-05: the detector pixel size and
+spatial distortion are to be calibrated later, so the geometry is part of the calibration, not separate).
+Every calibration JSON carries a `geometry` block — `detector_size` [rows, columns], `pixel_dimension`
+[x, y] (m), `arm_length` (m) — written by `FitCalibration` (its run's geometry), the ring calibration (its
+detector model's), its driver and the GUI Export (`write_calibration_to_json(..., geometry=)`;
+`read_calibration_geometry()` returns it, or None for older files). `HidraSetup` holds it
+(`calibration_geometry`, `geometry_source`): from the calibration file, or labelled
+`"run (the calibration file has no geometry)"` for an older file, or `"run"` for a workspace shift. **If the
+calibration's geometry differs from the run's, the record flags it** (`geometry_note`) and keeps the
+run's geometry (`run_geometry`), because **reduction still uses the run's geometry exactly as before** —
+applying a calibrated geometry is the future step. In the project file the geometry travels inside
+`calibration_json` (attributes `calibration_geometry_source`, `calibration_geometry_note`,
+`calibration_run_geometry`), so `read_reduction_instrument()` rebuilds the whole `HidraSetup` — geometry
+and calibration — from the file alone, with the geometry the reduction used. Reduction does **not**
+write the separate `instrument/geometry setup` group (user decision: one source of truth); that group
+keeps what the NeXus conversion writes. Like `provenance`, `geometry` is an extra key that PyRS's own
+reader ignores; check the deployed release's reader before the shared `HB2B_Latest.json` gains either.
+
+For a workspace shift only the values are recorded (`calibration_json` without `error_*` or `Status`);
+λ only if the workspace marks it **calibrated** and every sub-run agrees, else null with
+`lambda_source` saying why — a workspace's plain wavelength may be the monochromator's nominal value, and
+2θ₀ and λ are never inferred from the monochromator. A reduction's record **replaces the earlier one
+entirely** (append mode), including an old calibration file name, SHA-256 and vanadium run.
+
+**Never stops a reduction or the save:** the calibration group is created if a file lacks it; building
+the record (`calibration_record()`) and writing it are guarded — on failure nothing is half-written, the
+record is `source = "unknown"` with every reason, and the failure is warned about and logged with its
+traceback; a provenance that cannot be read is noted in the record, not raised. Integration tests assert
+no `error` and no `unknown` source, so a regression fails a test.
+
+Not covered (reported, not changed): "Combine runs" (`combine_runs_model`) writes a merged project
+file without its source files' calibration records; `HB2BReductionManager.save_reduced_diffraction`
+has no callers.

@@ -16,7 +16,7 @@ from pyrs.calibration.pixel_refinement import (
 from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
-from pyrs.core.instrument_geometry import DENEXDetectorShift
+from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
@@ -994,6 +994,12 @@ class FitCalibration:
 
         return
 
+    def _calibration_geometry(self):
+        """The run's detector geometry, written with the calibration; None if it is not known."""
+        workspace = getattr(self, "_hidra_ws", None)
+        geometry = None if workspace is None else workspace.get_instrument_setup()
+        return geometry if isinstance(geometry, DENEXDetectorGeometry) else None
+
     def provenance(self, inputs=None):
         """How this calibration was obtained, for the calibration JSON (#1053, :mod:`pyrs.calibration.provenance`)
 
@@ -1075,6 +1081,7 @@ class FitCalibration:
         None
         """
         provenance = _provenance.safe_build(lambda: self.provenance(inputs))
+        geometry = self._calibration_geometry()  # the calibration carries its detector geometry (#1053)
 
         # Form DENEXDetectorShift objects
         cal_shift = DENEXDetectorShift(
@@ -1108,7 +1115,14 @@ class FitCalibration:
                     self.monosetting.name, time.strftime("%Y-%m-%dT%H:%M", time.localtime())
                 )
                 write_calibration_to_json(
-                    cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name, provenance=provenance
+                    cal_shift,
+                    cal_shift_error,
+                    wl,
+                    wl_error,
+                    self._calibstatus,
+                    file_name,
+                    provenance=provenance,
+                    geometry=geometry,
                 )
 
             else:
@@ -1116,7 +1130,14 @@ class FitCalibration:
 
         else:
             write_calibration_to_json(
-                cal_shift, cal_shift_error, wl, wl_error, self._calibstatus, file_name, provenance=provenance
+                cal_shift,
+                cal_shift_error,
+                wl,
+                wl_error,
+                self._calibstatus,
+                file_name,
+                provenance=provenance,
+                geometry=geometry,
             )
 
         if write_latest:
@@ -1129,6 +1150,7 @@ class FitCalibration:
                     self._calibstatus,
                     "/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json",
                     provenance=provenance,
+                    geometry=geometry,
                 )
             else:
                 print("User does not privilege to write /HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json")

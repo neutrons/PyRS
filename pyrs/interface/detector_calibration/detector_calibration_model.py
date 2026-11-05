@@ -21,7 +21,7 @@ from pyrs.calibration.provenance import file_record, safe_build
 from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
 from pyrs.calibration.ring_extraction import column_at_two_theta
 from pyrs.core.detector_model import DetectorModel
-from pyrs.core.instrument_geometry import DENEXDetectorShift
+from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 from pyrs.utilities.calibration_file_io import read_calibration_json_file, write_calibration_to_json
 
 # calibration methods (#1045): FitCalibration re-reduces and re-fits for every trial geometry; the
@@ -130,7 +130,12 @@ def _make_folder(folder: str) -> None:
 
 
 def _write_atomically(
-    values: np.ndarray, errors: np.ndarray, status: int, file_name: str, provenance: Optional[Dict[str, Any]] = None
+    values: np.ndarray,
+    errors: np.ndarray,
+    status: int,
+    file_name: str,
+    provenance: Optional[Dict[str, Any]] = None,
+    geometry: Optional[DENEXDetectorGeometry] = None,
 ) -> None:
     """Write a calibration JSON to a temporary file next to ``file_name``, then rename it into place.
 
@@ -151,6 +156,7 @@ def _write_atomically(
             int(status),
             temporary,
             provenance=provenance,
+            geometry=geometry,
         )
         _share_with_folder_group(temporary, CALIBRATION_FILE_MODE)
         os.replace(temporary, file_name)
@@ -366,6 +372,7 @@ class DetectorCalibrationModel(QObject):
         if not os.path.isdir(folder):
             raise FileNotFoundError(f"folder {folder} does not exist")
         provenance = self.export_provenance()
+        geometry = self._run_geometry()  # the calibration carries its detector geometry (#1053)
         stamp = time.strftime(CALIBRATION_TIME_FORMAT, time.localtime())
         mono = self.monochromator
         user_copy = os.path.join(folder, f"HB2B_CAL_{stamp}.json")
@@ -379,7 +386,7 @@ class DetectorCalibrationModel(QObject):
             ]
             blocked = [target for target in shared if not _writable(target)]
             if blocked:
-                _write_atomically(values, errors, status, user_copy, provenance)
+                _write_atomically(values, errors, status, user_copy, provenance, geometry)
                 raise PermissionError(
                     f"cannot write {', '.join(blocked)}; the calibration was written to {user_copy} only"
                 )
@@ -387,12 +394,18 @@ class DetectorCalibrationModel(QObject):
         for target in [user_copy] + shared:
             try:
                 _make_folder(os.path.dirname(os.path.abspath(target)))
-                _write_atomically(values, errors, status, target, provenance)
+                _write_atomically(values, errors, status, target, provenance, geometry)
             except (OSError, RuntimeError) as write_err:
                 done = ", ".join(written) if written else "nothing"
                 raise OSError(f"writing {target} failed ({write_err}); written so far: {done}") from write_err
             written.append(target)
         return written
+
+    def _run_geometry(self) -> Optional[DENEXDetectorGeometry]:
+        """The loaded run's detector geometry, or None if no run is loaded."""
+        workspace = getattr(self._calibration_obj, "_hidra_ws", None)
+        geometry = None if workspace is None else workspace.get_instrument_setup()
+        return geometry if isinstance(geometry, DENEXDetectorGeometry) else None
 
     def export_provenance(self) -> Dict[str, Any]:
         """The chosen method's provenance block (#1053), with what the GUI knows: run, mask, recipes, settings.

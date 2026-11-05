@@ -132,8 +132,27 @@ def read_calibration_json_file(calibration_file_name):
     if calib_dict is None:
         raise RuntimeError("Failed to load JSON calibration file {}".format(calibration_file_name))
 
+    return calibration_from_dict(calib_dict, calibration_file_name)
+
+
+def calibration_from_dict(calib_dict, calibration_file_name=""):
+    """A calibration as read from its dictionary (the calibration JSON's keys)
+
+    Parameters
+    ----------
+    calib_dict : dict
+        ``Shift_x`` ... ``TTH_0``, ``Lambda``, their ``error_`` keys and ``Status``; the legacy
+        ``two_theta_0`` is accepted (:func:`check_calibration_dictionary`)
+    calibration_file_name : str
+        where the dictionary came from, for the shift and for error messages
+
+    Returns
+    -------
+    ~tuple
+        (DENEXDetectorShift, DENEXDetectorShift, float, float, int) as :func:`read_calibration_json_file`
+    """
     # check for properly formated dictionary
-    calib_dict = check_calibration_dictionary(calib_dict)
+    calib_dict = check_calibration_dictionary(dict(calib_dict))
 
     # Convert dictionary to DENEXDetectorShift
     try:
@@ -253,8 +272,68 @@ def import_instrument_setup(instrument_ascii_file):
     return instrument
 
 
+def geometry_to_dict(geometry):
+    """A detector geometry as the calibration's ``"geometry"`` block: ``detector_size`` [rows, columns],
+    ``pixel_dimension`` [x, y] (m) and ``arm_length`` (m)."""
+    assert isinstance(geometry, DENEXDetectorGeometry)
+    rows, columns = geometry.detector_size
+    pixel_x, pixel_y = geometry.pixel_dimension
+    return {
+        "detector_size": [int(rows), int(columns)],
+        "pixel_dimension": [float(pixel_x), float(pixel_y)],
+        "arm_length": float(geometry.arm_length),
+    }
+
+
+def geometry_from_dict(geometry_dict):
+    """The DENEXDetectorGeometry of a calibration's ``"geometry"`` block (:func:`geometry_to_dict`)."""
+    rows, columns = geometry_dict["detector_size"]
+    pixel_x, pixel_y = geometry_dict["pixel_dimension"]
+    return DENEXDetectorGeometry(
+        int(rows), int(columns), float(pixel_x), float(pixel_y), float(geometry_dict["arm_length"]), False
+    )
+
+
+def read_calibration_geometry(calibration_file_name):
+    """The detector geometry a calibration JSON file is valid for, or None if it has none (written before
+    calibrations carried their geometry, #1053)."""
+    checkdatatypes.check_file_name(calibration_file_name, True, False, False, "Calibration JSON file")
+    with open(calibration_file_name, "r") as calib_file:
+        calib_dict = json.load(calib_file)
+    geometry = calib_dict.get("geometry") if isinstance(calib_dict, dict) else None
+    return geometry_from_dict(geometry) if isinstance(geometry, dict) else None
+
+
+def calibration_to_dict(shifts, shifts_error, wave_length, wave_length_error, calibration_status):
+    """The calibration JSON's dictionary of a calibration: ``Shift_x`` ... ``TTH_0`` and ``Lambda``, their
+    ``error_`` keys and ``Status``, every value a float — what :func:`write_calibration_to_json` writes
+    and :func:`calibration_from_dict` reads.
+    """
+    assert isinstance(shifts, DENEXDetectorShift)
+    assert isinstance(shifts_error, DENEXDetectorShift)
+
+    calibration_dict = shifts.convert_to_dict()
+    calibration_dict["Lambda"] = wave_length
+
+    calibration_dict.update(shifts_error.convert_error_to_dict())
+    calibration_dict["error_Lambda"] = wave_length_error
+
+    calibration_dict.update({"Status": calibration_status})
+
+    for item in list(calibration_dict.keys()):
+        calibration_dict[item] = float(calibration_dict[item])
+    return calibration_dict
+
+
 def write_calibration_to_json(
-    shifts, shifts_error, wave_length, wave_lenngth_error, calibration_status, file_name=None, provenance=None
+    shifts,
+    shifts_error,
+    wave_length,
+    wave_lenngth_error,
+    calibration_status,
+    file_name=None,
+    provenance=None,
+    geometry=None,
 ):
     """Write geometry and wave length calibration to a JSON file
 
@@ -263,6 +342,9 @@ def write_calibration_to_json(
     provenance : dict or None
         How the calibration was obtained (``pyrs.calibration.provenance``, #1053), written under the
         key ``"provenance"`` beside the values; None writes none. Readers of the values ignore it.
+    geometry : DENEXDetectorGeometry or None
+        The detector geometry the calibration is valid for (detector size, pixel size, L2), written
+        under ``"geometry"`` (:func:`geometry_to_dict`); the calibration carries its geometry (#1053).
 
     Returns
     -------
@@ -275,22 +357,12 @@ def write_calibration_to_json(
     """
     # Check inputs
     checkdatatypes.check_file_name(file_name, False, True, False, "Output JSON calibration file")
-    assert isinstance(shifts, DENEXDetectorShift)
-    assert isinstance(shifts_error, DENEXDetectorShift)
 
-    # Create calibration dictionary
-    calibration_dict = shifts.convert_to_dict()
-    calibration_dict["Lambda"] = wave_length
-
-    calibration_dict.update(shifts_error.convert_error_to_dict())
-    calibration_dict["error_Lambda"] = wave_lenngth_error
-
-    calibration_dict.update({"Status": calibration_status})
-
-    for item in list(calibration_dict.keys()):
-        calibration_dict[item] = float(calibration_dict[item])
+    calibration_dict = calibration_to_dict(shifts, shifts_error, wave_length, wave_lenngth_error, calibration_status)
     print("DICTIONARY:\n{}".format(calibration_dict))
 
+    if geometry is not None:
+        calibration_dict["geometry"] = geometry_to_dict(geometry)
     if provenance is not None:
         if not isinstance(provenance, dict):
             raise TypeError(f"provenance must be a dict, got {type(provenance).__name__}")

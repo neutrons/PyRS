@@ -1,5 +1,6 @@
 from pyrs.core import reduction_manager
 from pyrs.core import mask_util
+from pyrs.core.instrument_geometry import HidraSetup
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities import calibration_file_io
 from matplotlib import pyplot as plt
@@ -34,8 +35,8 @@ class ReductionApp:
         self._sub_runs = None
 
         # provenance of the most recent reduce_data() call, written out by save_diffraction_data()
-        self._calibration_file = None
         self._van_file = None
+        self._instrument = None  # HidraSetup: the instrument and the calibration reduce_data applied (#1053)
 
         return
 
@@ -164,7 +165,6 @@ class ReductionApp:
             self._sub_runs = sorted(sub_runs)
 
         # Record provenance for save_diffraction_data() to write out
-        self._calibration_file = calibration_file
         self._van_file = van_file
 
         # instrument file
@@ -179,16 +179,19 @@ class ReductionApp:
         else:
             geometry_calibration = False
 
+        if calibration_file is not None and not calibration_file.lower().endswith(".json"):
+            # the ASCII geometry format was never readable and nothing writes it (#1051)
+            raise ValueError(f"Calibration file must be a .json file, got {calibration_file!r}")
+
+        # the instrument holds the calibration it applies; the project file is written from it (#1053)
+        self._instrument = HidraSetup(self._hydra_ws.get_instrument_setup())
         if calibration_file is not None:
-            if calibration_file.lower().endswith(".json"):
-                calib_values = calibration_file_io.read_calibration_json_file(calibration_file_name=calibration_file)
-                calibration_file_io.check_calibration_status(calib_values[4])
-                geometry_calibration = calib_values[0]
-                wave_length = calib_values[2]
-                self._hydra_ws.set_wavelength(wave_length, True)
-            else:
-                # the ASCII geometry format was never readable and nothing writes it (#1051)
-                raise ValueError(f"Calibration file must be a .json file, got {calibration_file!r}")
+            self._instrument.load_calibration_file(calibration_file)
+            calibration_file_io.check_calibration_status(self._instrument.calibration_status)
+            geometry_calibration = self._instrument.geometry_shift
+            self._hydra_ws.set_wavelength(self._instrument.get_wavelength(None), True)
+        elif geometry_calibration is True:
+            self._instrument.use_workspace_calibration(self._hydra_ws, self._sub_runs)
         # END-IF
 
         # Vanadium
@@ -271,7 +274,7 @@ class ReductionApp:
         self._hydra_ws.save_wavelength(out_file)
 
         # Record which calibration and vanadium run (if any) produced this reduction
-        out_file.write_reduction_provenance(calibration_file=self._calibration_file, vanadium_run=self._van_file)
+        out_file.write_reduction_provenance(vanadium_run=self._van_file, instrument=self._instrument)
 
         # Write & close
         self._hydra_ws.save_reduced_diffraction_data(out_file, sub_runs=self._sub_runs)

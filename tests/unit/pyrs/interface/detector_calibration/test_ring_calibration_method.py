@@ -642,6 +642,11 @@ def test_export_writes_the_same_provenance_to_every_file(refined, tmp_path, shar
 
     blocks = [read_calibration_provenance(path) for path in written]
     assert len(written) == 4 and all(block == blocks[0] for block in blocks)
+    from pyrs.utilities.calibration_file_io import geometry_to_dict, read_calibration_geometry
+
+    expected = geometry_to_dict(workspace_geometry := gui_model._calibration_obj._hidra_ws.get_instrument_setup())
+    assert all(geometry_to_dict(read_calibration_geometry(path)) == expected for path in written)
+    assert workspace_geometry.detector_size == (1024, 1024)
     block = blocks[0]
     assert block["method"] == "ring" and block["inputs"]["interface"] == "PyRS detector calibration GUI"
     assert block["inputs"]["recipes"] == [["iterate"]]
