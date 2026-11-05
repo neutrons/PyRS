@@ -132,7 +132,14 @@ class FitCalibration:
         return self._residual_rmse[-1]
 
     def set_calibration_array(self, params):
+        """Set the starting calibration vector (8 values: Shift_x/y/z, Rot_x/y/z, TTH_0, Lambda).
+
+        The errors and the status are reset to -1 (not refined), as in the ring calibration: they described
+        the previous values, so new values must not be written with them (#1060).
+        """
         self._calib = np.array(params)
+        self._caliberr = np.full(8, -1.0)
+        self._calibstatus = -1
         # steps before this start belong to an earlier attempt: the provenance lists only later ones
         self._start = {
             "source": "set_calibration_array",

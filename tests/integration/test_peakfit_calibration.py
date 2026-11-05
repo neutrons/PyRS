@@ -338,3 +338,25 @@ def test_written_calibration_carries_provenance(tmp_path):
     # the values are those of the calibration, as before
     wavelength = read_calibration_json_file(str(path))[2]
     assert wavelength == calibrator.calibration_array[7]
+
+
+def test_archived_start_then_refinement_is_unchanged(tmp_path):
+    """#1060: the script's flow (archived start, then refine) keeps the routine's status and errors"""
+    from pyrs.utilities.calibration_file_io import read_calibration_json_file
+
+    # Arrange
+    calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file="tests/data/calibration_tests/HB2B_3510.nxs.h5")
+    calibrator._keep_subrun_list = [False] * calibrator.sy.size
+    calibrator._keep_subrun_list[0] = True
+    calibrator.set_max_nfev(3)
+    calibrator.get_archived_calibration("tests/data/calibration_tests/HB2B_mantid_calib_lambda.json")
+
+    # Act
+    calibrator.calibrate_wave_length()
+    path = tmp_path / "refined.json"
+    calibrator.write_calibration(str(path))
+
+    # Assert - refined: a real status and a real error for the wavelength, -1 for what was not refined
+    _, shift_error, _, wavelength_error, status = read_calibration_json_file(str(path))
+    assert status == calibrator._calibstatus and status >= 0
+    assert wavelength_error > 0 and shift_error.center_shift_x == -1.0

@@ -2315,9 +2315,28 @@ calibrated value, but the "never block" promise was not fully kept and some reco
   calibration set in the GUI" or "nominal geometry, monochromator wavelength"), found when the GUI/driver
   test was strengthened to compare the whole block except time, user, host and inputs.
 - Found, not fixed (outside provenance): `FitCalibration.set_calibration_array` keeps the previous
-  `_caliberr`, so values set as a new start are exported with the errors of the earlier fit.
+  `_caliberr`, so values set as a new start are exported with the errors of the earlier fit. *Fixed in #1060 (entry below).*
 
-Part B (reduced project files record the calibration applied) is the next entry.
+Part B (reduced project files record the calibration applied) has its own entry below.
+
+## `FitCalibration.set_calibration_array` resets errors and status (2026-11, #1060)
+
+`set_calibration_array` replaced the values but kept `_caliberr` and `_calibstatus` from the previous
+refinement, unlike the ring calibration's, which resets both "so a calibration is not written with
+errors of values it no longer has". Investigation showed it was **not reachable** from PyRS: the GUI's
+Fit Peaks and Calibrate (FitCalibration method) call `set_reduction_param()` first, which builds a new
+`FitCalibration` (errors −1, status −1), and only then set the start; `scripts/pyrs_calibration.py`
+loads an archived start into a fresh object before refining. Only code calling it on an already refined
+object and then `write_calibration` got new values with old errors and status.
+
+Fixed anyway (user decision): `set_calibration_array` resets errors and status to −1, as the ring
+calibration does. No change to the GUI's or the script's output (their objects are at −1/−1 at that
+point); `test_new_start_resets_errors_and_status` fails without the fix, and
+`test_archived_start_then_refinement_is_unchanged` pins the script's flow on HB2B_3510.
+
+Note on staged recipes (by design, unchanged): each FitCalibration routine updates the errors of the
+parameters it refined only (`set_shift` writes `_caliberr[0:3]`), so a file's errors can come from
+different routines of one recipe; parameters no routine refined stay −1.
 
 ## Reduced project files record the calibration applied (2026-11, #1053 part B)
 
