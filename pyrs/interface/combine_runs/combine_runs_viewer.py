@@ -1,12 +1,13 @@
 from qtpy.QtWidgets import QHBoxLayout, QLabel, QWidget  # type:ignore
 from qtpy.QtWidgets import QLineEdit, QPushButton  # type:ignore
-from qtpy.QtWidgets import QFileDialog, QGroupBox  # type:ignore
+from qtpy.QtWidgets import QFileDialog, QGroupBox, QMessageBox  # type:ignore
 
 from qtpy.QtWidgets import QGridLayout  # type:ignore
 from qtpy.QtWidgets import QMainWindow  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 
 from pyrs.interface.gui_helper import pop_message
+from pyrs.projectfile.file_object import CalibrationMismatchError, VanadiumMismatchError
 # from pyrs.interface.gui_helper import browse_file
 
 
@@ -59,19 +60,37 @@ class FileLoad(QWidget):
 
     def loadRunNumbers(self):
         self._parent._project_files = self._parent.controller.parse_entry_list(self.lineEdit.text())
-        combined_files = self._parent.controller.load_combine_projects(self._parent._project_files)
-        self.saveFileDialog(combined_files)
+        # the same checks and messages as the file dialog (this used to call saveFileDialog with an
+        # argument it does not take, so a failure was never shown)
+        self.load_project_files()
 
     def load_project_files(self):
+        """Combine the chosen files: different calibrations are refused, different vanadium runs need the
+        user's approval, and historic files without a calibration record are flagged (#1063)."""
+        files = self._parent._project_files
         try:
-            self._parent.controller.load_combine_projects(self._parent._project_files)
-            if self._auto_prompt_export:
-                self.saveFileDialog()
-
-        except (FileNotFoundError, RuntimeError, ValueError) as run_err:
-            pop_message(self, f"Failed to find run {self._parent._project_files}", str(run_err), "error")
-
+            try:
+                self._parent.controller.load_combine_projects(files)
+            except VanadiumMismatchError as vanadium:
+                answer = QMessageBox.question(
+                    self, "Different vanadium runs", str(vanadium), QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+                )
+                if answer != QMessageBox.Yes:
+                    self._parent._project_files = None
+                    return
+                self._parent.controller.load_combine_projects(files, accept_vanadium_differences=True)
+        except CalibrationMismatchError as mismatch:
+            pop_message(self, "Runs reduced with different calibrations", str(mismatch), "error")
             self._parent._project_files = None
+            return
+        except (FileNotFoundError, RuntimeError, ValueError) as run_err:
+            pop_message(self, f"Failed to find run {files}", str(run_err), "error")
+            self._parent._project_files = None
+            return
+        for warning in self._parent.model.warnings:
+            pop_message(self, "Calibration not checked", warning, "warning")
+        if self._auto_prompt_export:
+            self.saveFileDialog()
 
     def setFilenamesText(self, filenames):
         self.lineEdit.setText(filenames)

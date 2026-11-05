@@ -3,6 +3,7 @@ from enum import Enum
 import h5py
 import hashlib
 import json
+import os
 import traceback
 from mantid.kernel import Logger
 import numpy
@@ -23,7 +24,7 @@ __all__ = ["HidraProjectFile"]
 
 # the record of the calibration a reduction applied, in the CALIBRATION group (#1053); a reduction
 # writing a record replaces every entry of the previous one, so a re-reduced file never mixes two
-_APPLIED_DATASETS = ("calibration_json", "provenance_json")
+_APPLIED_DATASETS = ("calibration_json", "provenance_json", "sources_json")
 # file attribute -> key of the record dict (the dict ReductionApp passes, and read_reduction_provenance returns)
 _RECORD_ATTRIBUTES = {
     "calibration_file": "calibration_file",
@@ -37,6 +38,7 @@ _RECORD_ATTRIBUTES = {
     "calibration_geometry_source": "geometry_source",
     "calibration_geometry_note": "geometry_note",
     "calibration_run_geometry": "run_geometry",
+    "calibration_record_warning": "warning",
 }
 # on calibration_json: what an error of -1 or -2 means
 _ERROR_CODES = "error_*: -1 not refined (or held), -2 refined but undetermined"
@@ -94,6 +96,8 @@ def _prepare_record(applied):
         "error",
         "geometry_source",
         "geometry_note",
+        "warning",
+        "vanadium_run",
     ):
         if applied.get(key) is not None:
             prepared[key] = str(applied[key])
@@ -106,6 +110,8 @@ def _prepare_record(applied):
         prepared["calibration_json"] = json.dumps(jsonable(calibration), allow_nan=False)
     if applied.get("provenance") is not None:
         prepared["provenance_json"] = json.dumps(jsonable(applied["provenance"]), allow_nan=False)
+    if applied.get("sources") is not None:  # a combined file's sources (#1063)
+        prepared["sources_json"] = json.dumps(jsonable(applied["sources"]), allow_nan=False)
     return prepared
 
 
@@ -124,17 +130,16 @@ def _write_applied_calibration(group, applied):
         prepared = {"source": "unknown", "error": "; ".join(filter(None, [applied.get("error"), message]))}
     try:
         for attribute, key in _RECORD_ATTRIBUTES.items():
-            if key in prepared and attribute != "vanadium_run":  # vanadium_run: the caller's argument
+            if key in prepared:
                 group.attrs[attribute] = prepared[key]
         if "calibration_json" in prepared:
             dataset = group.create_dataset(
                 "calibration_json", data=prepared["calibration_json"], dtype=h5py.string_dtype(encoding="utf-8")
             )
             dataset.attrs["codes"] = _ERROR_CODES
-        if "provenance_json" in prepared:
-            group.create_dataset(
-                "provenance_json", data=prepared["provenance_json"], dtype=h5py.string_dtype(encoding="utf-8")
-            )
+        for name in ("provenance_json", "sources_json"):
+            if name in prepared:
+                group.create_dataset(name, data=prepared[name], dtype=h5py.string_dtype(encoding="utf-8"))
     except Exception as write_err:  # noqa: BLE001 - recorded in the file, never stops the save
         message = f"applied calibration could not be written: {type(write_err).__name__}: {write_err}"
         _report_record_failure(message)
@@ -146,6 +151,122 @@ def _write_applied_calibration(group, applied):
             group.attrs["calibration_record_error"] = "; ".join(filter(None, [prepared.get("error"), message]))
         except Exception:  # noqa: BLE001 - the file itself is failing; the reduced data are still saved
             Logger("HidraProjectFile").error(f"could not record the failure either:\n{traceback.format_exc()}")
+
+
+class CalibrationMismatchError(ValueError):
+    """Project files reduced with different calibrations cannot be combined (#1063)."""
+
+
+class VanadiumMismatchError(ValueError):
+    """Project files reduced with the same calibration but different vanadium runs: combining them needs
+    the user's approval (#1063); pass ``accept_vanadium_differences=True`` once given."""
+
+
+def _calibration_identity(record):
+    """What makes two reductions' calibrations the same: the applied calibration (its values, errors,
+    status and geometry: ``calibration``) and the calibration file's fingerprint (#1063, user decision)."""
+    return json.dumps([record.get("calibration"), record.get("calibration_file_sha256")], sort_keys=True)
+
+
+def _describe_calibration(record):
+    """A short description of a record's calibration for the user, e.g. "HB2B_CAL_x.json, λ 1.53061 Å"."""
+    parts = []
+    if record.get("calibration_file"):
+        parts.append(os.path.basename(str(record["calibration_file"])))
+    elif record.get("source"):
+        parts.append(f"{record['source']} calibration")
+    calibration = record.get("calibration") or {}
+    if calibration.get("Lambda") is not None:
+        parts.append(f"λ {calibration['Lambda']:.5f} Å")
+    if all(calibration.get(key) is not None for key in ("Shift_x", "Shift_y", "Shift_z")):
+        shift = ", ".join(f"{calibration[key] * 1e3:.2f}" for key in ("Shift_x", "Shift_y", "Shift_z"))
+        parts.append(f"shift ({shift}) mm")
+    return ", ".join(parts) or "no calibration"
+
+
+def combine_reduction_records(sources, accept_vanadium_differences=False):
+    """The calibration record of a file combined from several reduced project files (#1063)
+
+    Runs reduced with different calibrations must not be combined (user decision): if two source files
+    have records that differ (:func:`_calibration_identity`), :class:`CalibrationMismatchError` is
+    raised, naming the files of each calibration. The same calibration with different vanadium runs
+    needs the user's approval: :class:`VanadiumMismatchError` lists them unless
+    ``accept_vanadium_differences``. Historic files (reduced before #1053, so without a record) may be
+    combined, but cannot be checked: the result carries a ``warning`` naming them.
+
+    Parameters
+    ----------
+    sources : list of dict
+        one per source file: ``file``, ``sha256`` and ``record`` (``read_reduction_provenance()`` of it)
+    accept_vanadium_differences : bool
+        the user approved combining files normalized with different vanadium runs
+
+    Returns
+    -------
+    dict
+        the shared record of the recorded sources (``source = "not recorded"`` if none has one), with
+        ``sources`` listing every source file and its record, and ``warning`` naming files without a
+        record and any accepted vanadium differences
+
+    Raises
+    ------
+    CalibrationMismatchError
+        if the recorded sources were reduced with different calibrations
+    VanadiumMismatchError
+        if they share a calibration but not a vanadium run, and the differences were not accepted
+    """
+    listed = [
+        {"file": str(entry["file"]), "sha256": entry.get("sha256"), "record": dict(entry.get("record") or {})}
+        for entry in sources
+    ]
+    recorded = [entry for entry in listed if entry["record"].get("source") not in (None, "not recorded")]
+    historic = [entry["file"] for entry in listed if entry not in recorded]
+
+    groups = {}
+    for entry in recorded:
+        groups.setdefault(_calibration_identity(entry["record"]), []).append(entry)
+    if len(groups) > 1:
+        lines = [
+            f"  {', '.join(os.path.basename(e['file']) for e in group)}: {_describe_calibration(group[0]['record'])}"
+            for group in groups.values()
+        ]
+        raise CalibrationMismatchError(
+            "These project files were reduced with different calibrations and cannot be combined:\n"
+            + "\n".join(lines)
+            + "\nReduce them again with one calibration, or combine each group separately."
+        )
+
+    vanadium = {}
+    for entry in recorded:
+        vanadium.setdefault(entry["record"].get("vanadium_run"), []).append(os.path.basename(entry["file"]))
+    vanadium_note = None
+    if len(vanadium) > 1:
+        listing = "; ".join(f"{run or 'no vanadium'}: {', '.join(files)}" for run, files in vanadium.items())
+        if not accept_vanadium_differences:
+            raise VanadiumMismatchError(
+                f"These project files share a calibration but were normalized with different vanadium runs: "
+                f"{listing}. Combine them anyway?"
+            )
+        vanadium_note = f"combined with different vanadium runs, approved by the user: {listing}"
+
+    combined = dict(recorded[0]["record"]) if recorded else {"source": "not recorded"}
+    for key in ("sources", "warning", "error"):
+        combined.pop(key, None)
+    if vanadium_note is not None:
+        combined.pop("vanadium_run", None)  # no single vanadium run: each source's is under sources
+    combined["sources"] = listed
+    notes = []
+    if historic:
+        notes.append(
+            f"{len(historic)} of {len(listed)} files have no calibration record (reduced before calibration "
+            f"records were kept), so their calibration could not be checked: "
+            + ", ".join(os.path.basename(name) for name in historic)
+        )
+    if vanadium_note is not None:
+        notes.append(vanadium_note)
+    if notes:
+        combined["warning"] = "; ".join(notes)
+    return combined
 
 
 def _compute_file_sha256(file_path):
@@ -936,7 +1057,11 @@ class HidraProjectFile:
             record[_RECORD_ATTRIBUTES.get(attribute, attribute)] = _plain(value)
         if "run_geometry" in record:
             record["run_geometry"] = json.loads(record["run_geometry"])
-        for name, key in (("calibration_json", "calibration"), ("provenance_json", "provenance")):
+        for name, key in (
+            ("calibration_json", "calibration"),
+            ("provenance_json", "provenance"),
+            ("sources_json", "sources"),
+        ):
             if name in group:
                 record[key] = json.loads(_plain(group[name][()]))
         return record

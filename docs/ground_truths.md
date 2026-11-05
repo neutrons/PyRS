@@ -2396,3 +2396,33 @@ no `error` and no `unknown` source, so a regression fails a test.
 Not covered (reported, not changed): "Combine runs" (`combine_runs_model`) writes a merged project
 file without its source files' calibration records; `HB2BReductionManager.save_reduced_diffraction`
 has no callers.
+
+## Combine runs refuses different calibrations and flags historic files (2026-11, #1063)
+
+"Combine runs" (`CombineRunsModel`) merged reduced project files and wrote no calibration record at
+all. It now **checks the sources' records (#1053 part B) before anything is loaded**, by
+`file_object.combine_reduction_records` (user decisions, 2026-11-05):
+
+- **Different calibrations are refused** (`CalibrationMismatchError`): "the same calibration" means
+  the same applied calibration — its values, errors, status and **geometry** (the record's
+  `calibration`, i.e. `HidraSetup.calibration_dict()`) — and the same calibration-file fingerprint. The message
+  groups the files by calibration (file name, λ, shift); the GUI shows it as "Runs reduced with
+  different calibrations" and nothing is combined.
+- **The same calibration with different vanadium runs asks the user** (`VanadiumMismatchError`, a
+  Yes/No dialog listing which run normalized which files). If approved, the files are combined, the
+  merged record carries no single `vanadium_run` (each source keeps its own) and its `warning` says the
+  difference was approved by the user.
+- **Historic files (reduced before #1053, no record) are allowed but flagged**, whether all files are
+  historic or only some: a warning dialog ("Calibration not checked") names them, and the merged
+  record's `warning` says so. With no recorded source the merged file records `source = "not recorded"`.
+
+The merged file's `instrument/calibration` carries the shared record (the sources' calibration file
+and SHA-256 written verbatim, not recomputed), the PyRS version, `warning`, and `sources_json`: every
+source file with its SHA-256 and its own record. Merged data are bit-identical to before (the four
+test project files, 362 sub-runs, every dataset outside the calibration group).
+
+Also fixed in this path: the GUI's "Run Numbers" entry called `saveFileDialog` with an argument it
+does not take (a `TypeError`, so no failure was ever shown); it now goes through the same checks and
+messages as the file dialog. `tests/ui/test_merge_projectfiles.py` combines historic files, so the
+"Calibration not checked" warning is a modal dialog there: the test records the message instead (and
+asserts it), otherwise it blocks until the 300 s timeout.
