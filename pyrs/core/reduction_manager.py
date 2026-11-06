@@ -735,27 +735,3 @@ class HB2BReductionManager:
         )
 
         return vec_2theta
-
-    def save_reduced_diffraction(self, session_name, output_name):
-        """Save the reduced diffraction data to file
-
-        :param str session_name: name of the session for locating workspace
-        :param str output_name: output filename
-        :return:
-        """
-        checkdatatypes.check_file_name(output_name, False, True, False, "Output reduced file")
-
-        workspace = self._session_dict[session_name]
-
-        # Open
-        if os.path.exists(output_name):
-            io_mode = HidraProjectFileMode.READWRITE
-        else:
-            io_mode = HidraProjectFileMode.OVERWRITE
-        project_file = HidraProjectFile(output_name, io_mode)
-
-        # Save
-        workspace.save_reduced_diffraction_data(project_file)
-
-        # Close
-        project_file.save()

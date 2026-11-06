@@ -2394,8 +2394,8 @@ traceback; a provenance that cannot be read is noted in the record, not raised. 
 no `error` and no `unknown` source, so a regression fails a test.
 
 Not covered (reported, not changed): "Combine runs" (`combine_runs_model`) writes a merged project
-file without its source files' calibration records; `HB2BReductionManager.save_reduced_diffraction`
-has no callers.
+file without its source files' calibration records (fixed by #1063, below);
+`HB2BReductionManager.save_reduced_diffraction` had no callers (removed by #1064, below).
 
 ## Combine runs refuses different calibrations and flags historic files (2026-11, #1063)
 
@@ -2468,3 +2468,13 @@ Before this, a reduced project file stored the applied mask only as a per-pixel 
 - **Effect on data:** none. HB2B_3510 reduced with and without a mask, calibrated, and η-sliced (3°) is
   bit-identical to `next` in every dataset outside `instrument/calibration` and `instrument/reduction`, and
   the calibration record's attributes are unchanged. The record adds about 0.4 kB.
+## `HB2BReductionManager.save_reduced_diffraction` removed (2026-11, #1064)
+
+The method wrote a project file through `HidraWorkspace.save_reduced_diffraction_data` without the
+reduction record that `ReductionApp.save_diffraction_data` writes (`write_reduction_provenance`), so any
+caller would have produced a file with no calibration or vanadium record. `grep -rn
+"save_reduced_diffraction(" pyrs scripts tests docs` found no caller in the package, scripts or tests
+(its last caller, `PyRsCore.save_diffraction_data`, was removed earlier; see "Second gap" above), so it was
+deleted rather than wired into provenance. `HidraWorkspace.save_reduced_diffraction_data` stays: it is
+the writer `ReductionApp` and "Combine runs" call. Save reduced data through
+`ReductionApp.save_diffraction_data`, which writes the record.
