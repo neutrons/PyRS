@@ -6,7 +6,7 @@ import pytest
 
 from pyrs.interface.combine_runs.combine_runs_model import CombineRunsModel
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
-from pyrs.projectfile.file_object import CalibrationMismatchError, VanadiumMismatchError
+from pyrs.projectfile.file_object import CalibrationMismatchError, ReductionMismatchError
 
 pytestmark = pytest.mark.integration
 
@@ -22,7 +22,8 @@ CALIBRATION = {
     "Lambda": 1.5306,
     "Status": 1.0,
 }
-RECORD = {"source": "file", "calibration": CALIBRATION, "provenance": {"schema": 1}}
+REDUCTION = {"mask": {"source": "none"}, "settings": {"num_bins": 720, "eta_step": None}}
+RECORD = {"source": "file", "calibration": CALIBRATION, "provenance": {"schema": 1}, "reduction": REDUCTION}
 
 
 def _copies(tmp_path, records):
@@ -63,6 +64,7 @@ def test_same_calibration_is_combined_with_its_record(tmp_path):
     assert model.warnings == []
     assert record["source"] == "file" and record["calibration"] == CALIBRATION
     assert record["calibration_file"] == "HB2B_CAL.json"
+    assert record["reduction"] == REDUCTION
     assert [source["file"] for source in record["sources"]] == paths
 
 
@@ -83,9 +85,9 @@ def test_vanadium_difference_needs_approval(tmp_path):
     model = CombineRunsModel()
 
     # Act / Assert
-    with pytest.raises(VanadiumMismatchError):
+    with pytest.raises(ReductionMismatchError):
         model.combine_project_files(paths)
-    model.combine_project_files(paths, accept_vanadium_differences=True)
+    model.combine_project_files(paths, accept_reduction_differences=True)
     record = _exported(model, tmp_path)
     assert "vanadium_run" not in record and "approved by the user" in record["warning"]
 
@@ -101,3 +103,20 @@ def test_historic_files_are_combined_and_flagged(tmp_path):
     # Assert
     assert len(model.warnings) == 1 and "2 of 2 files have no calibration record" in model.warnings[0]
     assert record["source"] == "not recorded" and len(record["sources"]) == 2
+
+
+def test_mask_difference_needs_approval(tmp_path):
+    """#1068: the same calibration with different masks is combined only once the user approves"""
+    # Arrange
+    masked = dict(REDUCTION, mask={"source": "file", "file": "/masks/HB2B_Mask.xml", "sha256": "ab" * 32})
+    paths = _copies(tmp_path, [dict(RECORD), dict(RECORD, reduction=masked)])
+    model = CombineRunsModel()
+
+    # Act / Assert
+    with pytest.raises(ReductionMismatchError, match="masks — no mask: HB2B_1327.h5; HB2B_Mask.xml"):
+        model.combine_project_files(paths)
+    assert model._hidra_ws is None
+    model.combine_project_files(paths, accept_reduction_differences=True)
+    record = _exported(model, tmp_path)
+    assert "reduction" not in record and "different masks, approved by the user" in record["warning"]
+    assert [source["record"]["reduction"] for source in record["sources"]] == [REDUCTION, masked]

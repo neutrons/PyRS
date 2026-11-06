@@ -2408,8 +2408,8 @@ all. It now **checks the sources' records (#1053 part B) before anything is load
   `calibration`, i.e. `HidraSetup.calibration_dict()`) — and the same calibration-file fingerprint. The message
   groups the files by calibration (file name, λ, shift); the GUI shows it as "Runs reduced with
   different calibrations" and nothing is combined.
-- **The same calibration with different vanadium runs asks the user** (`VanadiumMismatchError`, a
-  Yes/No dialog listing which run normalized which files). If approved, the files are combined, the
+- **The same calibration with different vanadium runs asks the user** (`VanadiumMismatchError`, now
+  `ReductionMismatchError`, which also covers masks and binning: #1068, below; a Yes/No dialog listing which run normalized which files). If approved, the files are combined, the
   merged record carries no single `vanadium_run` (each source keeps its own) and its `warning` says the
   difference was approved by the user.
 - **Historic files (reduced before #1053, no record) are allowed but flagged**, whether all files are
@@ -2426,3 +2426,45 @@ does not take (a `TypeError`, so no failure was ever shown); it now goes through
 messages as the file dialog. `tests/ui/test_merge_projectfiles.py` combines historic files, so the
 "Calibration not checked" warning is a modal dialog there: the test records the message instead (and
 asserts it), otherwise it blocks until the 300 s timeout.
+
+## A reduced file records its mask and binning (2026-11, #1068)
+
+Before this, a reduced project file stored the applied mask only as a per-pixel array
+(`mask/detector/_DEFAULT_`) and its binning only implicitly (dataset names such as `eta_-3.0` and the
+2θ vectors). The mask file's name was known only to `NeXusConvertingApp`, and production masks
+(`/HFIR/HB2B/shared/CALIBRATION/HB2B_Mask_Latest.xml`) are replaced over time, as `HB2B_Latest.json` is.
+
+- **Where it comes from.** `NeXusConvertingApp.convert()` records the mask's source on the workspace
+  (`HidraWorkspace.set_detector_mask_source`): `{"source": "file", "file": <absolute path>, "sha256": ...}`
+  from `provenance.file_record`, or `{"source": "none"}`. `ReductionApp.reduce_data` hands it to its
+  `HidraSetup` (`mask_record`): the instrument owns the data and the writer reads from it (#1053's design).
+  `NeXusConvertingApp.save()` writes it too (`HidraProjectFile.write_mask_source`), so converting to a
+  file now and reducing it later keeps it. A workspace loaded from a project file reads it back, so
+  re-reducing a saved file keeps it; a file converted or reduced before #1068 gives
+  `{"source": "not recorded"}`, as does a record that cannot be read (it never stops a file loading).
+- **Settings.** `ReductionApp.reduce_data` records `num_bins`, `min_2theta`, `max_2theta`,
+  `delta_2theta`, `eta_step`, `eta_min`, `eta_max`, `mask_id` and `extra_mask` (the mask passed to
+  `reduce_data` on top of the default: its name if named, `pixels_masked`, and the SHA-256 of which pixels
+  it keeps, so two masks with the same name or size but different pixels differ; never the array). They
+  are recorded once the reduction succeeded, as asked: `None` for a 2θ limit or step means computed for each sub-run, and
+  the bins themselves are saved with the data.
+- **Where it is stored.** `instrument/reduction/reduction_json` (JSON text: `mask`, `settings`), a sibling
+  of `instrument/calibration` (user decision: mask and binning are not calibration, and the calibration
+  record stays unchanged). A re-reduction replaces it; a write failure is warned about and leaves
+  `reduction_record_error`, never stopping the save. `read_reduction_provenance()["reduction"]` returns
+  it; `read_reduction_instrument()` restores `mask_record`.
+- **No vanadium mask is recorded:** `reduce_to_2theta_histogram` applies the reduction's mask to the
+  vanadium pixels as well (`reduce_hb2b_pyrs.py`, the `vanadium_counts_array[mask == 1]` line), so the
+  vanadium's own conversion (always unmasked, `load_vanadium`) does not change which pixels count.
+- **Combine runs** (user decision): the same calibration with a different mask (file SHA-256, none, or
+  extra mask) or binning is asked about, Yes/No, together with different vanadium runs in one question
+  (`ReductionMismatchError`, `accept_reduction_differences`; renamed from #1063's
+  `VanadiumMismatchError`/`accept_vanadium_differences`). An approved difference leaves the shared
+  `reduction` (or `vanadium_run`) out of the combined record; each source keeps its own under `sources`.
+  Files whose mask is unknown (no record, `"not recorded"`, or a record that failed to write, named as
+  such) are combined and named in the warning (dialog "Reduction not fully checked"): nothing is known to
+  differ, so nothing is asked. What the sources agree on is kept separately (an approved binning
+  difference keeps the shared mask), and binning compares numbers as floats (`3` equals `3.0`).
+- **Effect on data:** none. HB2B_3510 reduced with and without a mask, calibrated, and η-sliced (3°) is
+  bit-identical to `next` in every dataset outside `instrument/calibration` and `instrument/reduction`, and
+  the calibration record's attributes are unchanged. The record adds about 0.4 kB.

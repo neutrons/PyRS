@@ -15,13 +15,13 @@ class CombineRunsModel(QObject):
         self._record = None  # the combined files' calibration record, for the exported file (#1063)
         self.warnings = []  # e.g. files whose calibration could not be checked
 
-    def combine_project_files(self, project_files, accept_vanadium_differences=False):
+    def combine_project_files(self, project_files, accept_reduction_differences=False):
         """Combine reduced project files, refusing files reduced with different calibrations (#1063).
 
         The files' calibration records are checked before anything is loaded: different calibrations
-        raise :class:`CalibrationMismatchError`, and different vanadium runs raise
-        :class:`VanadiumMismatchError` unless ``accept_vanadium_differences`` (the user approved them);
-        either way nothing is combined. Historic files without a record are combined, and
+        raise :class:`CalibrationMismatchError`, and different vanadium runs, masks or binning (#1068)
+        raise :class:`ReductionMismatchError` unless ``accept_reduction_differences`` (the user approved
+        them); either way nothing is combined. Historic files without a record are combined, and
         :attr:`warnings` names them.
         """
         sources = []
@@ -32,7 +32,7 @@ class CombineRunsModel(QObject):
             project.close()
             sources.append(source)
         # raises before anything is combined
-        record = combine_reduction_records(sources, accept_vanadium_differences=accept_vanadium_differences)
+        record = combine_reduction_records(sources, accept_reduction_differences=accept_reduction_differences)
 
         self._hidra_ws = HidraWorkspace("Combined Project Files")
         _project = HidraProjectFile(project_files[0])

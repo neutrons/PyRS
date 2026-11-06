@@ -7,7 +7,7 @@ from qtpy.QtWidgets import QMainWindow  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 
 from pyrs.interface.gui_helper import pop_message
-from pyrs.projectfile.file_object import CalibrationMismatchError, VanadiumMismatchError
+from pyrs.projectfile.file_object import CalibrationMismatchError, ReductionMismatchError
 # from pyrs.interface.gui_helper import browse_file
 
 
@@ -65,20 +65,20 @@ class FileLoad(QWidget):
         self.load_project_files()
 
     def load_project_files(self):
-        """Combine the chosen files: different calibrations are refused, different vanadium runs need the
-        user's approval, and historic files without a calibration record are flagged (#1063)."""
+        """Combine the chosen files: different calibrations are refused, different vanadium runs, masks or
+        binning need the user's approval, and historic files without a record are flagged (#1063, #1068)."""
         files = self._parent._project_files
         try:
             try:
                 self._parent.controller.load_combine_projects(files)
-            except VanadiumMismatchError as vanadium:
+            except ReductionMismatchError as differences:
                 answer = QMessageBox.question(
-                    self, "Different vanadium runs", str(vanadium), QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+                    self, "Different reductions", str(differences), QMessageBox.Yes | QMessageBox.No, QMessageBox.No
                 )
                 if answer != QMessageBox.Yes:
                     self._parent._project_files = None
                     return
-                self._parent.controller.load_combine_projects(files, accept_vanadium_differences=True)
+                self._parent.controller.load_combine_projects(files, accept_reduction_differences=True)
         except CalibrationMismatchError as mismatch:
             pop_message(self, "Runs reduced with different calibrations", str(mismatch), "error")
             self._parent._project_files = None
@@ -88,7 +88,7 @@ class FileLoad(QWidget):
             self._parent._project_files = None
             return
         for warning in self._parent.model.warnings:
-            pop_message(self, "Calibration not checked", warning, "warning")
+            pop_message(self, "Reduction not fully checked", warning, "warning")
         if self._auto_prompt_export:
             self.saveFileDialog()
 

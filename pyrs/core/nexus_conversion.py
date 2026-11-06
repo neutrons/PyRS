@@ -12,6 +12,7 @@ from mantid.simpleapi import CopyLogs, CreateSampleWorkspace
 
 import numpy as np
 import os
+from pyrs.calibration.provenance import file_record
 from pyrs.core import workspaces
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, HidraSetup
 from pyrs.core import MonoSetting  # type: ignore
@@ -720,6 +721,11 @@ class NeXusConvertingApp:
         # set mask
         if self.mask_array is not None:
             self._hidra_workspace.set_detector_mask(self.mask_array, is_default=True)
+        # where it came from, for the reduced file's record (#1068)
+        if self._mask_file_name is None:
+            self._hidra_workspace.set_detector_mask_source({"source": "none"})
+        else:
+            self._hidra_workspace.set_detector_mask_source(dict(file_record(self._mask_file_name), source="file"))
 
         self.split_sample_logs(sub_runs)
 
@@ -760,5 +766,7 @@ class NeXusConvertingApp:
 
         # Set geometry
         hydra_file.write_instrument_geometry(HidraSetup(self._hidra_workspace.get_instrument_setup()))
+        # where the mask came from, so a later reduction of this file can record it (#1068)
+        hydra_file.write_mask_source(self._hidra_workspace.get_detector_mask_source())
         # save experimental data/detector counts
         self._hidra_workspace.save_experimental_data(hydra_file)

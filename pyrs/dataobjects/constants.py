@@ -17,6 +17,7 @@ class HidraConstants:
     REDUCED_MAIN = "main"  # default reduced data
     SUB_RUNS = "sub-runs"
     CALIBRATION = "calibration"
+    REDUCTION = "reduction"  # the mask and binning a reduction used (#1068)
     SAMPLE_LOGS = "logs"
     INSTRUMENT = "instrument"
     GEOMETRY_SETUP = "geometry setup"
