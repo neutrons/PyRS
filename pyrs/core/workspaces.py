@@ -54,6 +54,7 @@ class HidraWorkspace:
         # Masks
         self._default_mask = None
         self._mask_dict = dict()
+        self._mask_source = None  # where the default mask came from (#1068)
 
     @property
     def name(self):
@@ -280,6 +281,17 @@ class HidraWorkspace:
         hidra_file.read_user_masks(mask_dict)
         for mask_name in mask_dict:
             self.set_detector_mask(mask_dict[mask_name], False, mask_name)
+
+        # where the default mask came from, as the file recorded it (#1068); a record that cannot be read
+        # leaves it "not recorded" rather than stopping the file from loading
+        self._mask_source = None
+        try:
+            mask_source = (hidra_file.read_reduction_provenance().get("reduction") or {}).get("mask")
+        except Exception as read_err:  # noqa: BLE001 - the record is optional; the data must load
+            self._log.warning(f"mask source could not be read: {type(read_err).__name__}: {read_err}")
+            return
+        if isinstance(mask_source, dict) and "source" in mask_source:
+            self._mask_source = mask_source
 
     def _load_sample_logs(self, hidra_file):
         """Load sample logs.
@@ -842,6 +854,24 @@ class HidraWorkspace:
         else:
             checkdatatypes.check_string_variable("Mask ID", mask_id, allow_empty=False)
             self._mask_dict[mask_id] = mask_array
+
+    def set_detector_mask_source(self, source):
+        """Record where the default mask came from (#1068)
+
+        Parameters
+        ----------
+        source : dict
+            ``{"source": "file", "file": ..., "sha256": ...}`` for a mask file, ``{"source": "none"}`` for
+            no mask
+        """
+        if not isinstance(source, dict) or "source" not in source:
+            raise ValueError(f"mask source must be a dict with a 'source' key, got {source!r}")
+        self._mask_source = dict(source)
+
+    def get_detector_mask_source(self):
+        """Where the default mask came from (#1068); ``{"source": "not recorded"}`` if unknown, e.g. for a
+        project file reduced before this was recorded."""
+        return dict(self._mask_source) if self._mask_source is not None else {"source": "not recorded"}
 
     def set_raw_counts(self, sub_run_number, counts):
         """

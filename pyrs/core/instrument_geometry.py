@@ -57,6 +57,20 @@ class HidraSetup:
         self._calibration_geometry = None
         self._geometry_source = None
         self._geometry_note = None
+        # where the detector mask came from (#1068): set by ReductionApp from the workspace
+        self._mask_record = {"source": "not recorded"}
+
+    @property
+    def mask_record(self):
+        """Where the applied detector mask came from (#1068): ``{"source": "file", "file": ...,
+        "sha256": ...}``, ``{"source": "none"}``, or ``{"source": "not recorded"}``."""
+        return dict(self._mask_record)
+
+    def set_mask_record(self, record):
+        """Record where the applied detector mask came from (see :attr:`mask_record`)."""
+        if not isinstance(record, dict) or "source" not in record:
+            raise ValueError(f"mask record must be a dict with a 'source' key, got {record!r}")
+        self._mask_record = dict(record)
 
     def get_instrument_geometry(self, calibrated):
         """Get instrument geometry parameters

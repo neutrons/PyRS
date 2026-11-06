@@ -65,7 +65,7 @@ def test_merged_projectfile_viewer(combine_projects_window, monkeypatch):
 
         qtbot.wait(wait)
         assert window.model._hidra_ws.get_sub_runs().size == 362
-        assert messages == [("Calibration not checked", "warning")]
+        assert messages == [("Reduction not fully checked", "warning")]
         qtbot.wait(wait)
 
         QtCore.QTimer.singleShot(300, functools.partial(handle_dialog, export_file))

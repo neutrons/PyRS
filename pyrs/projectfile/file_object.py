@@ -40,6 +40,9 @@ _RECORD_ATTRIBUTES = {
     "calibration_run_geometry": "run_geometry",
     "calibration_record_warning": "warning",
 }
+# the mask and binning a reduction used (#1068), as JSON text in the REDUCTION group beside CALIBRATION
+_REDUCTION_DATASET = "reduction_json"
+_REDUCTION_ERROR = "reduction_record_error"
 # on calibration_json: what an error of -1 or -2 means
 _ERROR_CODES = "error_*: -1 not refined (or held), -2 refined but undetermined"
 
@@ -79,6 +82,34 @@ def _instrument_record(instrument):
         message = f"applied calibration could not be recorded: {type(record_err).__name__}: {record_err}"
         _report_record_failure(message)
         return {"source": "unknown", "error": message}
+
+
+def _reduction_record(instrument, reduction_settings):
+    """The mask (from the instrument) and binning a reduction used, for the REDUCTION group (#1068)."""
+    record = {"mask": instrument.mask_record}
+    if reduction_settings is not None:
+        record["settings"] = dict(reduction_settings)
+    return record
+
+
+def _write_reduction_record(instrument_group, reduction):
+    """Write the REDUCTION group (the caller removed the old one). Never raises, as the calibration record."""
+    # imported here: pyrs.calibration imports the project file module
+    from pyrs.calibration.provenance import jsonable
+
+    try:
+        text = json.dumps(jsonable(reduction), allow_nan=False)
+        group = instrument_group.create_group(HidraConstants.REDUCTION)
+        group.create_dataset(_REDUCTION_DATASET, data=text, dtype=h5py.string_dtype(encoding="utf-8"))
+    except Exception as write_err:  # noqa: BLE001 - recorded in the file, never stops the save
+        message = f"mask and binning could not be recorded: {type(write_err).__name__}: {write_err}"
+        _report_record_failure(message)
+        try:
+            if HidraConstants.REDUCTION in instrument_group:
+                del instrument_group[HidraConstants.REDUCTION]
+            instrument_group.create_group(HidraConstants.REDUCTION).attrs[_REDUCTION_ERROR] = message
+        except Exception:  # noqa: BLE001 - the file itself is failing; the reduced data are still saved
+            Logger("HidraProjectFile").error(f"could not record the failure either:\n{traceback.format_exc()}")
 
 
 def _prepare_record(applied):
@@ -157,9 +188,10 @@ class CalibrationMismatchError(ValueError):
     """Project files reduced with different calibrations cannot be combined (#1063)."""
 
 
-class VanadiumMismatchError(ValueError):
-    """Project files reduced with the same calibration but different vanadium runs: combining them needs
-    the user's approval (#1063); pass ``accept_vanadium_differences=True`` once given."""
+class ReductionMismatchError(ValueError):
+    """Project files reduced with the same calibration but different vanadium runs, masks or binning:
+    combining them needs the user's approval (#1063, #1068); pass ``accept_reduction_differences=True``
+    once given."""
 
 
 def _calibration_identity(record):
@@ -184,36 +216,85 @@ def _describe_calibration(record):
     return ", ".join(parts) or "no calibration"
 
 
-def combine_reduction_records(sources, accept_vanadium_differences=False):
-    """The calibration record of a file combined from several reduced project files (#1063)
+def _describe_mask(reduction):
+    """The mask a reduction applied, for the user: the file and its SHA-256 prefix, or "no mask" (#1068)."""
+    mask = reduction.get("mask") or {}
+    if mask.get("source") == "file":
+        described = f"{os.path.basename(str(mask.get('file')))} (SHA-256 {str(mask.get('sha256'))[:12]})"
+    elif mask.get("source") == "none":
+        described = "no mask"
+    else:
+        described = f"mask {mask.get('source', 'not recorded')}"
+    extra = (reduction.get("settings") or {}).get("extra_mask")
+    if extra is not None:
+        described += f" + extra mask {json.dumps(extra, sort_keys=True)}"
+    return described
+
+
+def _describe_binning(reduction):
+    """The binning a reduction used, for the user, e.g. "num_bins=720.0, eta_step=3.0, ..." (#1068); numbers
+    as floats, so that 3 and 3.0 are the same binning."""
+
+    def number(value):
+        return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else value
+
+    settings = {key: number(value) for key, value in (reduction.get("settings") or {}).items() if key != "extra_mask"}
+    return ", ".join(f"{key}={value}" for key, value in sorted(settings.items())) or "not recorded"
+
+
+def _reduction(record):
+    """A record's mask and binning record (#1068), or {}."""
+    reduction = record.get("reduction")
+    return reduction if isinstance(reduction, dict) else {}
+
+
+def _mask_known(record):
+    """Whether a record names its mask: a mask file, or none (not "not recorded", e.g. a re-reduced older file)."""
+    return (_reduction(record).get("mask") or {}).get("source") not in (None, "not recorded")
+
+
+# what must match, beyond the calibration, for files to be combined without asking: the label shown to the
+# user, and how a record describes it (None: not recorded, so it cannot be compared)
+_REDUCTION_CHOICES = (
+    ("vanadium runs", lambda record: record.get("vanadium_run") or "no vanadium"),
+    ("masks", lambda record: _describe_mask(_reduction(record)) if _mask_known(record) else None),
+    ("binning", lambda record: _describe_binning(_reduction(record)) if _reduction(record).get("settings") else None),
+)
+
+
+def combine_reduction_records(sources, accept_reduction_differences=False):
+    """The calibration record of a file combined from several reduced project files (#1063, #1068)
 
     Runs reduced with different calibrations must not be combined (user decision): if two source files
     have records that differ (:func:`_calibration_identity`), :class:`CalibrationMismatchError` is
-    raised, naming the files of each calibration. The same calibration with different vanadium runs
-    needs the user's approval: :class:`VanadiumMismatchError` lists them unless
-    ``accept_vanadium_differences``. Historic files (reduced before #1053, so without a record) may be
-    combined, but cannot be checked: the result carries a ``warning`` naming them.
+    raised, naming the files of each calibration. The same calibration with different vanadium runs,
+    masks or binning needs the user's approval: :class:`ReductionMismatchError` lists them unless
+    ``accept_reduction_differences``. Historic files (reduced before #1053, so without a record) may be
+    combined, but cannot be checked: the result carries a ``warning`` naming them; so are files whose
+    mask and binning were not recorded (reduced before #1068).
 
     Parameters
     ----------
     sources : list of dict
         one per source file: ``file``, ``sha256`` and ``record`` (``read_reduction_provenance()`` of it)
-    accept_vanadium_differences : bool
-        the user approved combining files normalized with different vanadium runs
+    accept_reduction_differences : bool
+        the user approved combining files with different vanadium runs, masks or binning
 
     Returns
     -------
     dict
         the shared record of the recorded sources (``source = "not recorded"`` if none has one), with
         ``sources`` listing every source file and its record, and ``warning`` naming files without a
-        record and any accepted vanadium differences
+        record and any accepted differences; an accepted difference leaves out the shared value
+        (``vanadium_run``, or ``reduction`` for masks or binning): each source keeps its own
 
     Raises
     ------
     CalibrationMismatchError
         if the recorded sources were reduced with different calibrations
-    VanadiumMismatchError
-        if they share a calibration but not a vanadium run, and the differences were not accepted
+    ReductionMismatchError
+        if they share a calibration but not a vanadium run, mask or binning, and the differences were
+        not accepted
     """
     listed = [
         {"file": str(entry["file"]), "sha256": entry.get("sha256"), "record": dict(entry.get("record") or {})}
@@ -236,23 +317,43 @@ def combine_reduction_records(sources, accept_vanadium_differences=False):
             + "\nReduce them again with one calibration, or combine each group separately."
         )
 
-    vanadium = {}
-    for entry in recorded:
-        vanadium.setdefault(entry["record"].get("vanadium_run"), []).append(os.path.basename(entry["file"]))
-    vanadium_note = None
-    if len(vanadium) > 1:
-        listing = "; ".join(f"{run or 'no vanadium'}: {', '.join(files)}" for run, files in vanadium.items())
-        if not accept_vanadium_differences:
-            raise VanadiumMismatchError(
-                f"These project files share a calibration but were normalized with different vanadium runs: "
-                f"{listing}. Combine them anyway?"
+    differences = {}  # label -> {description: [file names]}, for each choice that differs
+    for label, describe in _REDUCTION_CHOICES:
+        by_choice = {}
+        for entry in recorded:
+            described = describe(entry["record"])
+            if described is not None:
+                by_choice.setdefault(described, []).append(os.path.basename(entry["file"]))
+        if len(by_choice) > 1:
+            differences[label] = by_choice
+    difference_note = None
+    if differences:
+        lines = [
+            f"{label} — " + "; ".join(f"{choice}: {', '.join(files)}" for choice, files in by_choice.items())
+            for label, by_choice in differences.items()
+        ]
+        if not accept_reduction_differences:
+            raise ReductionMismatchError(
+                f"These project files share a calibration but were reduced with different "
+                f"{', '.join(differences)}:\n" + "\n".join(f"  {line}" for line in lines) + "\nCombine them anyway?"
             )
-        vanadium_note = f"combined with different vanadium runs, approved by the user: {listing}"
+        difference_note = f"combined with different {', '.join(differences)}, approved by the user: " + "; ".join(
+            lines
+        )
 
     combined = dict(recorded[0]["record"]) if recorded else {"source": "not recorded"}
-    for key in ("sources", "warning", "error"):
+    for key in ("sources", "warning", "error", "reduction"):
         combined.pop(key, None)
-    if vanadium_note is not None:
+    shared = {}  # the mask and binning the sources agree on, where recorded
+    known_mask = [entry for entry in recorded if _mask_known(entry["record"])]
+    if known_mask and "masks" not in differences:
+        shared["mask"] = _reduction(known_mask[0]["record"])["mask"]
+    with_settings = [entry for entry in recorded if _reduction(entry["record"]).get("settings")]
+    if with_settings and "masks" not in differences and "binning" not in differences:
+        shared["settings"] = _reduction(with_settings[0]["record"])["settings"]  # it carries the extra mask
+    if shared:
+        combined["reduction"] = shared
+    if "vanadium runs" in differences:
         combined.pop("vanadium_run", None)  # no single vanadium run: each source's is under sources
     combined["sources"] = listed
     notes = []
@@ -262,8 +363,24 @@ def combine_reduction_records(sources, accept_vanadium_differences=False):
             f"records were kept), so their calibration could not be checked: "
             + ", ".join(os.path.basename(name) for name in historic)
         )
-    if vanadium_note is not None:
-        notes.append(vanadium_note)
+    failed = [entry["file"] for entry in recorded if _reduction(entry["record"]).get("error")]
+    if failed:
+        notes.append(
+            f"{len(failed)} of {len(listed)} files' mask and binning record could not be written when they were "
+            f"reduced, so their mask and binning could not be checked: "
+            + ", ".join(os.path.basename(name) for name in failed)
+        )
+    unrecorded = [
+        entry["file"] for entry in recorded if entry["file"] not in failed and not _mask_known(entry["record"])
+    ]
+    if unrecorded:
+        notes.append(
+            f"{len(unrecorded)} of {len(listed)} files do not record which mask they were reduced with (reduced, or "
+            f"converted, before masks were recorded), so their mask could not be checked: "
+            + ", ".join(os.path.basename(name) for name in unrecorded)
+        )
+    if difference_note is not None:
+        notes.append(difference_note)
     if notes:
         combined["warning"] = "; ".join(notes)
     return combined
@@ -983,7 +1100,12 @@ class HidraProjectFile:
             wavelength_group.create_dataset("Calibrated", data=numpy.array([wl]))
 
     def write_reduction_provenance(
-        self, calibration_file=None, vanadium_run=None, applied_calibration=None, instrument=None
+        self,
+        calibration_file=None,
+        vanadium_run=None,
+        applied_calibration=None,
+        instrument=None,
+        reduction_settings=None,
     ):
         """Record which calibration and vanadium run (if any) produced this file's reduced data
 
@@ -1006,24 +1128,31 @@ class HidraProjectFile:
             a calibration record without an instrument (keys as ``HidraSetup.calibration_record()``).
             Written as datasets ``calibration_json`` (the calibration JSON's dictionary) and
             ``provenance_json`` (JSON text, no size limit) and attributes; a re-reduction replaces them. A failure to write it is recorded and warned
-            about, never raised: the reduced data are saved regardless.
+            about, never raised: the reduced data are saved regardless. Its ``reduction`` entry, if any, is
+            written to the REDUCTION group (as a combined file's, #1068).
+        reduction_settings : dict or None
+            with ``instrument``: the binning and extra mask the reduction used (``ReductionApp``). Written,
+            with the instrument's ``mask_record``, as ``reduction_json`` in the REDUCTION group beside
+            CALIBRATION (#1068); replaced by a re-reduction, and never raised on, as the calibration record.
         """
         self._validate_write_operation()
 
         self._project_h5.attrs["pyrs_version"] = __version__
 
         if instrument is not None:
-            applied_calibration = _instrument_record(instrument)
+            applied_calibration = dict(_instrument_record(instrument))
+            applied_calibration["reduction"] = _reduction_record(instrument, reduction_settings)
         if calibration_file is None and vanadium_run is None and applied_calibration is None:
             return
 
         # created if missing: an older or externally written file may lack it, and recording the
         # provenance must not stop the reduced data from being saved (#1053)
-        calibration_group = self._project_h5.require_group(HidraConstants.INSTRUMENT).require_group(
-            HidraConstants.CALIBRATION
-        )
+        instrument_group = self._project_h5.require_group(HidraConstants.INSTRUMENT)
+        calibration_group = instrument_group.require_group(HidraConstants.CALIBRATION)
         if applied_calibration is not None:
             _clear_record(calibration_group)  # a reduction's record replaces the previous one entirely
+            if HidraConstants.REDUCTION in instrument_group:
+                del instrument_group[HidraConstants.REDUCTION]
 
         if calibration_file is not None:
             calibration_group.attrs["calibration_file"] = str(calibration_file)
@@ -1036,6 +1165,23 @@ class HidraProjectFile:
 
         if applied_calibration is not None:
             _write_applied_calibration(calibration_group, applied_calibration)
+            if applied_calibration.get("reduction") is not None:
+                _write_reduction_record(instrument_group, applied_calibration["reduction"])
+
+    def write_mask_source(self, mask_source):
+        """Record where the default mask came from in a converted (not yet reduced) file, as the REDUCTION
+        group's ``mask`` (#1068); a reduction of the file replaces the group. Never raises.
+
+        Parameters
+        ----------
+        mask_source : dict
+            ``HidraWorkspace.get_detector_mask_source()``
+        """
+        self._validate_write_operation()
+        instrument_group = self._project_h5.require_group(HidraConstants.INSTRUMENT)
+        if HidraConstants.REDUCTION in instrument_group:
+            del instrument_group[HidraConstants.REDUCTION]
+        _write_reduction_record(instrument_group, {"mask": mask_source})
 
     def read_reduction_provenance(self):
         """What the reduction recorded about its calibration and vanadium (#1053), as a dict
@@ -1046,24 +1192,35 @@ class HidraProjectFile:
             with the keys of ``HidraSetup.calibration_record()``: ``source``, ``calibration`` (the
             calibration JSON's dictionary), ``calibration_file``, ``calibration_file_sha256``, ``created``,
             ``created_source``, ``lambda_source``, ``provenance``, ``error``, and ``vanadium_run`` — each
-            where present (file attributes are prefixed ``calibration_``); empty without the group
+            where present (file attributes are prefixed ``calibration_``); ``reduction``: the mask and
+            binning the reduction used (``mask``, ``settings``; ``error`` if they could not be recorded),
+            where recorded (#1068); empty without either group
         """
-        try:
-            group = self._project_h5[HidraConstants.INSTRUMENT][HidraConstants.CALIBRATION]
-        except KeyError:
+        instrument_group = self._project_h5.get(HidraConstants.INSTRUMENT)
+        if instrument_group is None:
             return {}
         record = {}
-        for attribute, value in group.attrs.items():
-            record[_RECORD_ATTRIBUTES.get(attribute, attribute)] = _plain(value)
-        if "run_geometry" in record:
-            record["run_geometry"] = json.loads(record["run_geometry"])
-        for name, key in (
-            ("calibration_json", "calibration"),
-            ("provenance_json", "provenance"),
-            ("sources_json", "sources"),
-        ):
-            if name in group:
-                record[key] = json.loads(_plain(group[name][()]))
+        group = instrument_group.get(HidraConstants.CALIBRATION)
+        if group is not None:
+            for attribute, value in group.attrs.items():
+                record[_RECORD_ATTRIBUTES.get(attribute, attribute)] = _plain(value)
+            if "run_geometry" in record:
+                record["run_geometry"] = json.loads(record["run_geometry"])
+            for name, key in (
+                ("calibration_json", "calibration"),
+                ("provenance_json", "provenance"),
+                ("sources_json", "sources"),
+            ):
+                if name in group:
+                    record[key] = json.loads(_plain(group[name][()]))
+        reduction_group = instrument_group.get(HidraConstants.REDUCTION)
+        if reduction_group is not None:
+            reduction = {}
+            if _REDUCTION_DATASET in reduction_group:
+                reduction = json.loads(_plain(reduction_group[_REDUCTION_DATASET][()]))
+            if _REDUCTION_ERROR in reduction_group.attrs:
+                reduction["error"] = _plain(reduction_group.attrs[_REDUCTION_ERROR])
+            record["reduction"] = reduction
         return record
 
     def read_reduction_instrument(self, geometry=None):
@@ -1103,6 +1260,9 @@ class HidraProjectFile:
         instrument = HidraSetup(geometry)
         if "source" in record:
             instrument.set_calibration_record(record)
+        mask = (record.get("reduction") or {}).get("mask")
+        if mask is not None:
+            instrument.set_mask_record(mask)
         return instrument
 
     def read_peak_tags(self):

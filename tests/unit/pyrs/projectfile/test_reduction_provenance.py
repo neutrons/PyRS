@@ -118,8 +118,8 @@ def test_rereduction_replaces_the_earlier_record(tmp_path, calibrated):
     # Act - reduced again into the same file, this time without a calibration
     write(path, HidraProjectFileMode.READWRITE, instrument=HidraSetup(GEOMETRY))
 
-    # Assert
-    assert read(path) == {"source": "none"}
+    # Assert - the instrument here has no mask record either
+    assert read(path) == {"source": "none", "reduction": {"mask": {"source": "not recorded"}}}
 
 
 def test_unbuildable_record_does_not_stop_the_save(tmp_path, monkeypatch, calibrated):
@@ -138,6 +138,7 @@ def test_unbuildable_record_does_not_stop_the_save(tmp_path, monkeypatch, calibr
     assert read(path) == {
         "source": "unknown",
         "error": "applied calibration could not be recorded: AttributeError: no shift",
+        "reduction": {"mask": {"source": "not recorded"}},
     }
 
 
@@ -277,3 +278,88 @@ def test_file_without_a_record_reads_as_before(tmp_path):
 
     # Act / Assert
     assert read(path) == {"calibration_file": "calibration.json"}
+
+
+MASK = {"source": "file", "file": "/HFIR/HB2B/shared/CALIBRATION/HB2B_Mask_Latest.xml", "sha256": "f00d" * 16}
+SETTINGS = {"num_bins": 720, "min_2theta": None, "eta_step": 3.0, "eta_min": -8.2, "eta_max": 8.2, "extra_mask": None}
+
+
+@pytest.fixture
+def masked(calibrated):
+    calibrated.set_mask_record(MASK)
+    return calibrated
+
+
+def test_mask_and_settings_are_recorded_beside_calibration(tmp_path, masked):
+    """#1068: a sibling REDUCTION group, read back under "reduction"; the calibration record is unchanged"""
+    # Arrange
+    path = tmp_path / "reduced.h5"
+
+    # Act
+    write(path, instrument=masked, reduction_settings=SETTINGS)
+
+    # Assert
+    record = read(path)
+    assert record["reduction"] == {"mask": MASK, "settings": SETTINGS}
+    assert record["source"] == "file"
+    with h5py.File(path, "r") as h5:
+        assert sorted(h5[HidraConstants.INSTRUMENT][HidraConstants.REDUCTION]) == ["reduction_json"]
+        assert "reduction_json" not in h5[HidraConstants.INSTRUMENT][HidraConstants.CALIBRATION]
+
+
+def test_rereduction_replaces_the_mask_record(tmp_path, masked):
+    # Arrange
+    path = tmp_path / "reduced.h5"
+    write(path, instrument=masked, reduction_settings=SETTINGS)
+    unmasked = HidraSetup(GEOMETRY)
+    unmasked.set_mask_record({"source": "none"})
+
+    # Act - reduced again without a mask and without settings
+    write(path, HidraProjectFileMode.READWRITE, instrument=unmasked)
+
+    # Assert - nothing of the earlier record survives
+    assert read(path)["reduction"] == {"mask": {"source": "none"}}
+
+
+def test_failed_reduction_write_is_recorded(tmp_path, monkeypatch, masked):
+    # Arrange
+    real = h5py.Group.create_dataset
+
+    def failing(self, name, *args, **kwargs):
+        if name == "reduction_json":
+            raise OSError("disk full")
+        return real(self, name, *args, **kwargs)
+
+    monkeypatch.setattr(h5py.Group, "create_dataset", failing)
+    path = tmp_path / "reduced.h5"
+
+    # Act
+    with pytest.warns(UserWarning, match="mask and binning could not be recorded"):
+        write(path, instrument=masked, reduction_settings=SETTINGS)
+
+    # Assert - the reason, and the calibration record is still complete
+    record = read(path)
+    assert record["reduction"] == {"error": "mask and binning could not be recorded: OSError: disk full"}
+    assert record["calibration"]["TTH_0"] == 0.25
+
+
+def test_recorded_mask_rebuilds_on_the_instrument(tmp_path, masked):
+    # Arrange
+    path = tmp_path / "reduced.h5"
+    write(path, instrument=masked, reduction_settings=SETTINGS)
+
+    # Act
+    instrument = HidraProjectFile(str(path), HidraProjectFileMode.READONLY).read_reduction_instrument(GEOMETRY)
+
+    # Assert
+    assert instrument.mask_record == MASK
+
+
+def test_file_without_reduction_group_has_no_reduction_entry(tmp_path, calibrated):
+    """Files reduced before #1068 keep reading as before"""
+    # Arrange
+    path = tmp_path / "reduced.h5"
+    write(path, applied_calibration=calibrated.calibration_record())
+
+    # Act / Assert
+    assert "reduction" not in read(path)
