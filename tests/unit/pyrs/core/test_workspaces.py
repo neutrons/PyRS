@@ -68,3 +68,54 @@ class TestHidraWorkspace:
         # Assert
         _, intensity, _ = workspace.get_reduced_diffraction_data(2, mask_id="wedge")
         np.testing.assert_array_equal(intensity, [0.5, 1.25, 2.75])
+
+
+def test_mask_source_defaults_to_not_recorded():
+    """#1068: a workspace not made by NeXus conversion does not know where its mask came from"""
+    # Act / Assert
+    assert HidraWorkspace().get_detector_mask_source() == {"source": "not recorded"}
+
+
+def test_mask_source_round_trips_as_a_copy():
+    # Arrange
+    workspace = HidraWorkspace()
+    source = {"source": "file", "file": "/masks/HB2B_Mask.xml", "sha256": "ab" * 32}
+
+    # Act
+    workspace.set_detector_mask_source(source)
+    source["file"] = "changed"
+
+    # Assert
+    assert workspace.get_detector_mask_source()["file"] == "/masks/HB2B_Mask.xml"
+
+
+@pytest.mark.parametrize("source", [None, "HB2B_Mask.xml", {"file": "HB2B_Mask.xml"}])
+def test_mask_source_without_source_key_raises(source):
+    # Act / Assert
+    with pytest.raises(ValueError, match="'source' key"):
+        HidraWorkspace().set_detector_mask_source(source)
+
+
+@pytest.mark.parametrize("stored", ["[1, 2]", '{"mask": "HB2B_Mask.xml"}', "not json"], ids=["list", "string", "text"])
+def test_unreadable_mask_source_still_loads(tmp_path, stored):
+    """A bad record leaves the mask source "not recorded"; it never stops a project file loading (review)"""
+    # Arrange
+    import h5py
+
+    from pyrs.projectfile import HidraProjectFileMode  # type: ignore
+
+    path = tmp_path / "bad.h5"
+    HidraProjectFile(str(path), HidraProjectFileMode.OVERWRITE).save(verbose=False)
+    with h5py.File(path, "a") as h5:
+        h5.require_group("instrument").create_group("reduction").create_dataset(
+            "reduction_json", data=stored, dtype=h5py.string_dtype(encoding="utf-8")
+        )
+    workspace = HidraWorkspace()
+    project = HidraProjectFile(str(path), HidraProjectFileMode.READONLY)
+
+    # Act
+    workspace._load_masks(project)
+    project.close()
+
+    # Assert
+    assert workspace.get_detector_mask_source() == {"source": "not recorded"}

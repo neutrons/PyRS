@@ -4,6 +4,26 @@ from pyrs.core.instrument_geometry import HidraSetup
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities import calibration_file_io
 from matplotlib import pyplot as plt
+import hashlib
+import numpy as np
+
+
+def _describe_extra_mask(mask, named_vector=None):
+    """The mask reduce_data applies on top of the default one, for the reduced file's record (#1068): its
+    name (if named), how many pixels it masks, and the SHA-256 of which pixels it keeps, so that two masks
+    of the same name or size but different pixels differ; never the array itself.
+
+    Args:
+        mask: ``reduce_data``'s ``mask``: None, a mask name, or a mask array (1 keep, 0 mask).
+        named_vector: the array a mask name refers to.
+    """
+    if mask is None:
+        return None
+    vector = np.asarray(named_vector if isinstance(mask, str) else mask)
+    described = {"name": mask} if isinstance(mask, str) else {"array": "supplied by the caller"}
+    described["pixels_masked"] = int(np.count_nonzero(vector == 0))
+    described["sha256"] = hashlib.sha256((vector != 0).astype(np.uint8).tobytes()).hexdigest()
+    return described
 
 
 def _mask_detectors(counts_vec, mask_file=None):
@@ -37,6 +57,7 @@ class ReductionApp:
         # provenance of the most recent reduce_data() call, written out by save_diffraction_data()
         self._van_file = None
         self._instrument = None  # HidraSetup: the instrument and the calibration reduce_data applied (#1053)
+        self._reduction_settings = None  # the binning and extra mask reduce_data used (#1068)
 
         return
 
@@ -193,6 +214,7 @@ class ReductionApp:
         elif geometry_calibration is True:
             self._instrument.use_workspace_calibration(self._hydra_ws, self._sub_runs)
         # END-IF
+        self._instrument.set_mask_record(self._hydra_ws.get_detector_mask_source())
 
         # Vanadium
         if van_file is not None:
@@ -218,6 +240,23 @@ class ReductionApp:
             eta_min=eta_min,
             eta_max=eta_max,
         )
+
+        # recorded once the reduction succeeded; None for a 2theta limit or step: computed for each
+        # sub-run (the bins are saved with the data)
+        extra_mask = (
+            None if mask is None or not isinstance(mask, str) else self._reduction_manager.get_mask_vector(mask)
+        )
+        self._reduction_settings = {
+            "num_bins": num_bins,
+            "min_2theta": min_2theta,
+            "max_2theta": max_2theta,
+            "delta_2theta": delta_2theta,
+            "eta_step": eta_step,
+            "eta_min": eta_min,
+            "eta_max": eta_max,
+            "mask_id": mask_id,
+            "extra_mask": _describe_extra_mask(mask, extra_mask),
+        }
 
     def plot_reduced_data(self, sub_run_number=None):
         if sub_run_number is None:
@@ -274,7 +313,9 @@ class ReductionApp:
         self._hydra_ws.save_wavelength(out_file)
 
         # Record which calibration and vanadium run (if any) produced this reduction
-        out_file.write_reduction_provenance(vanadium_run=self._van_file, instrument=self._instrument)
+        out_file.write_reduction_provenance(
+            vanadium_run=self._van_file, instrument=self._instrument, reduction_settings=self._reduction_settings
+        )
 
         # Write & close
         self._hydra_ws.save_reduced_diffraction_data(out_file, sub_runs=self._sub_runs)

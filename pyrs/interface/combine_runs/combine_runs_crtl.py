@@ -36,9 +36,9 @@ class CombineRunsCrtl:
 
         return self.parse_file_path(runs)
 
-    def load_combine_projects(self, project_files, accept_vanadium_differences=False):
+    def load_combine_projects(self, project_files, accept_reduction_differences=False):
         if len(project_files) > 1:
-            self._model.combine_project_files(project_files, accept_vanadium_differences=accept_vanadium_differences)
+            self._model.combine_project_files(project_files, accept_reduction_differences=accept_reduction_differences)
             return 1
         else:
             return 0

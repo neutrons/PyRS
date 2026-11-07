@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from pyrs.core.instrument_geometry import DENEXDetectorShift
+from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift, HidraSetup
 
 FIELDS = ["center_shift_x", "center_shift_y", "center_shift_z", "rotation_x", "rotation_y", "rotation_z"]
 FIELDS += ["two_theta_0"]
@@ -67,3 +67,20 @@ def test_set_from_dict_stores_python_floats():
     # Assert
     assert type(shift.center_shift_x) is float and shift.center_shift_x == 0.5
     assert type(shift.rotation_z) is float and shift.rotation_z == 1.5
+
+
+def test_mask_record_defaults_to_not_recorded():
+    # Arrange
+    instrument = HidraSetup(DENEXDetectorGeometry(1024, 1024, 0.3 / 1024, 0.3 / 1024, 0.985, False))
+
+    # Act / Assert
+    assert instrument.mask_record == {"source": "not recorded"}
+
+
+def test_mask_record_without_source_key_raises():
+    # Arrange
+    instrument = HidraSetup(DENEXDetectorGeometry(1024, 1024, 0.3 / 1024, 0.3 / 1024, 0.985, False))
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="'source' key"):
+        instrument.set_mask_record({"file": "HB2B_Mask.xml"})

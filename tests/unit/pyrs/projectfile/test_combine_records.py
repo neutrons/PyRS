@@ -9,7 +9,7 @@ import pytest
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.projectfile.file_object import (
     CalibrationMismatchError,
-    VanadiumMismatchError,
+    ReductionMismatchError,
     combine_reduction_records,
 )
 
@@ -34,12 +34,26 @@ CALIBRATION = {
     "Status": 1.0,
     "geometry": GEOMETRY,
 }
+SETTINGS = {
+    "num_bins": 720,
+    "min_2theta": None,
+    "max_2theta": None,
+    "delta_2theta": None,
+    "eta_step": 3.0,
+    "eta_min": -8.2,
+    "eta_max": 8.2,
+    "mask_id": None,
+    "extra_mask": None,
+}
+MASK = {"source": "file", "file": "/HFIR/HB2B/shared/CALIBRATION/HB2B_Mask_Latest.xml", "sha256": "f00d" * 16}
+REDUCTION = {"mask": MASK, "settings": SETTINGS}
 RECORD = {
     "source": "file",
     "calibration_file": "/HFIR/HB2B/shared/CALIBRATION/Si422/HB2B_CAL_2026-11-03T11:40:37.json",
     "calibration_file_sha256": "abc",
     "calibration": CALIBRATION,
     "vanadium_run": "HB2B_931.h5",
+    "reduction": REDUCTION,
 }
 
 
@@ -86,7 +100,7 @@ def test_different_vanadium_needs_approval():
     sources = [source("HB2B_1327", RECORD), source("HB2B_1328", dict(RECORD, vanadium_run="HB2B_932.h5"))]
 
     # Act / Assert
-    with pytest.raises(VanadiumMismatchError, match="different vanadium runs") as asked:
+    with pytest.raises(ReductionMismatchError, match="different vanadium runs") as asked:
         combine_reduction_records(sources)
     assert "HB2B_931.h5: HB2B_1327.h5" in str(asked.value) and "HB2B_932.h5: HB2B_1328.h5" in str(asked.value)
 
@@ -96,7 +110,7 @@ def test_approved_vanadium_difference_is_recorded():
     sources = [source("HB2B_1327", RECORD), source("HB2B_1328", dict(RECORD, vanadium_run="HB2B_932.h5"))]
 
     # Act
-    combined = combine_reduction_records(sources, accept_vanadium_differences=True)
+    combined = combine_reduction_records(sources, accept_reduction_differences=True)
 
     # Assert - no single vanadium run claimed; each source keeps its own; the approval is noted
     assert "vanadium_run" not in combined and combined["calibration"] == CALIBRATION
@@ -137,3 +151,136 @@ def test_combined_record_round_trips_with_its_sources(tmp_path):
     assert record["calibration_file"] == RECORD["calibration_file"]
     assert record["calibration_file_sha256"] == "abc"
     assert record["sources"] == combined["sources"] and record["warning"] == combined["warning"]
+
+
+@pytest.mark.parametrize(
+    "reduction, label",
+    [
+        (dict(REDUCTION, mask=dict(MASK, sha256="beef" * 16)), "masks"),  # the same file name, edited
+        (dict(REDUCTION, mask={"source": "none"}), "masks"),
+        (dict(REDUCTION, settings=dict(SETTINGS, extra_mask={"name": "upper"})), "masks"),
+        (dict(REDUCTION, settings=dict(SETTINGS, num_bins=512)), "binning"),
+        (dict(REDUCTION, settings=dict(SETTINGS, eta_step=None)), "binning"),
+    ],
+    ids=["mask-edited", "no-mask", "extra-mask", "num-bins", "no-eta-slices"],
+)
+def test_different_mask_or_binning_needs_approval(reduction, label):
+    """#1068 (user decision): asked like a vanadium difference, not refused like a calibration one"""
+    # Arrange
+    sources = [source("HB2B_1327", RECORD), source("HB2B_1328", dict(RECORD, reduction=reduction))]
+
+    # Act / Assert
+    with pytest.raises(ReductionMismatchError, match=f"different {label}:"):
+        combine_reduction_records(sources)
+
+
+def test_approved_mask_difference_keeps_each_sources_record():
+    # Arrange
+    other = dict(REDUCTION, mask={"source": "none"})
+    sources = [source("HB2B_1327", RECORD), source("HB2B_1328", dict(RECORD, reduction=other))]
+
+    # Act
+    combined = combine_reduction_records(sources, accept_reduction_differences=True)
+
+    # Assert - no single mask claimed; the vanadium run, the same for both, is kept
+    assert "reduction" not in combined and combined["vanadium_run"] == "HB2B_931.h5"
+    assert [s["record"]["reduction"] for s in combined["sources"]] == [REDUCTION, other]
+    assert "different masks, approved by the user" in combined["warning"]
+
+
+def test_differences_are_listed_together():
+    """One question for the user, naming every difference"""
+    # Arrange
+    other = dict(RECORD, vanadium_run="HB2B_932.h5", reduction=dict(REDUCTION, mask={"source": "none"}))
+
+    # Act / Assert
+    with pytest.raises(ReductionMismatchError, match="different vanadium runs, masks:"):
+        combine_reduction_records([source("HB2B_1327", RECORD), source("HB2B_1328", other)])
+
+
+def test_file_without_mask_record_is_flagged():
+    """A file reduced after #1053 but before #1068: its calibration is checked, its mask cannot be"""
+    # Arrange
+    older = {key: value for key, value in RECORD.items() if key != "reduction"}
+
+    # Act
+    combined = combine_reduction_records([source("HB2B_1327", RECORD), source("HB2B_1328", older)])
+
+    # Assert - the recorded mask and binning are kept; the older file is named
+    assert combined["reduction"] == REDUCTION
+    assert "1 of 2 files do not record which mask" in combined["warning"]
+    assert "HB2B_1328.h5" in combined["warning"]
+
+
+def test_unknown_masks_are_flagged_not_shared():
+    """Re-reduced older files record their mask as "not recorded": not a mask the files share (review)"""
+    # Arrange
+    unknown = dict(RECORD, reduction=dict(REDUCTION, mask={"source": "not recorded"}))
+
+    # Act
+    combined = combine_reduction_records([source("HB2B_1327", unknown), source("HB2B_1328", unknown)])
+
+    # Assert - the binning, recorded, is still shared
+    assert combined["reduction"] == {"settings": SETTINGS}
+    assert "2 of 2 files do not record which mask" in combined["warning"]
+
+
+def test_unknown_mask_beside_a_known_one_is_not_asked():
+    """Nothing is known to differ, so nothing to approve: the file is flagged instead"""
+    # Arrange
+    unknown = dict(RECORD, reduction=dict(REDUCTION, mask={"source": "not recorded"}))
+
+    # Act
+    combined = combine_reduction_records([source("HB2B_1327", RECORD), source("HB2B_1328", unknown)])
+
+    # Assert
+    assert combined["reduction"] == REDUCTION
+    assert "HB2B_1328.h5" in combined["warning"]
+
+
+def test_failed_reduction_record_is_named_as_failed():
+    # Arrange
+    failed = dict(RECORD, reduction={"error": "mask and binning could not be recorded: OSError: disk full"})
+
+    # Act
+    combined = combine_reduction_records([source("HB2B_1327", RECORD), source("HB2B_1328", failed)])
+
+    # Assert
+    assert "1 of 2 files' mask and binning record could not be written" in combined["warning"]
+    assert "do not record which mask" not in combined["warning"]
+
+
+def test_null_reduction_entry_is_not_recorded():
+    """e.g. in an older combined file's sources"""
+    # Act
+    combined = combine_reduction_records(
+        [source("HB2B_1327", RECORD), source("HB2B_1328", dict(RECORD, reduction=None))]
+    )
+
+    # Assert
+    assert "HB2B_1328.h5" in combined["warning"]
+
+
+def test_approved_binning_difference_keeps_the_shared_mask():
+    # Arrange
+    other = dict(REDUCTION, settings=dict(SETTINGS, num_bins=512))
+    sources = [source("HB2B_1327", RECORD), source("HB2B_1328", dict(RECORD, reduction=other))]
+
+    # Act
+    combined = combine_reduction_records(sources, accept_reduction_differences=True)
+
+    # Assert
+    assert combined["reduction"] == {"mask": MASK}
+
+
+def test_integer_and_float_settings_are_the_same_binning():
+    # Arrange
+    other = dict(REDUCTION, settings=dict(SETTINGS, eta_step=3))
+
+    # Act
+    combined = combine_reduction_records(
+        [source("HB2B_1327", RECORD), source("HB2B_1328", dict(RECORD, reduction=other))]
+    )
+
+    # Assert
+    assert "warning" not in combined

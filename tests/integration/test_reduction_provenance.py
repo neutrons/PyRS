@@ -4,9 +4,11 @@ import json
 
 import pytest
 
+from pyrs.calibration.provenance import file_record
 from pyrs.core.instrument_geometry import DENEXDetectorShift
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
+from pyrs.core.workspaces import HidraWorkspace
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities.calibration_file_io import read_calibration_json_file, write_calibration_to_json
 
@@ -17,8 +19,12 @@ MASK = "tests/data/HB2B_Mask_12-18-19.xml"
 REFERENCE = "tests/data/calibration_tests/HB2B_3510_ring_reference.json"  # written before #1053: no provenance
 
 
-def _reduce(tmp_path, calibration_file=None, workspace_shift=None, workspace_wavelength=None, name="reduced.h5"):
-    workspace = NeXusConvertingApp(RUN, MASK).convert()
+def _reduce(
+    tmp_path, calibration_file=None, workspace_shift=None, workspace_wavelength=None, name="reduced.h5", mask=MASK
+):
+    """Reduce sub-runs 1-2 and return the calibration record; the mask and binning record (#1068) is
+    checked to be present and then left out, so each test compares only the calibration."""
+    workspace = NeXusConvertingApp(RUN, mask).convert()
     if workspace_shift is not None:
         workspace.set_detector_shift(workspace_shift)
     if workspace_wavelength is not None:
@@ -35,6 +41,7 @@ def _reduce(tmp_path, calibration_file=None, workspace_shift=None, workspace_wav
     project.close()
     # a regression in recording must fail a test, not only warn (#1053 part B review)
     assert "error" not in record and record.get("source") != "unknown", record
+    assert "error" not in record.pop("reduction", {"error": "no mask and binning record"})
     return record
 
 
@@ -134,3 +141,106 @@ def test_recorded_calibration_rebuilds_the_instrument(tmp_path):
     assert instrument.get_wavelength(None) == wavelength and instrument.calibration_status == status
     assert record["calibration"] == instrument.calibration_dict()
     json.dumps(record)
+
+
+def _reduction_record(path):
+    project = HidraProjectFile(str(path), HidraProjectFileMode.READONLY)
+    record = project.read_reduction_provenance()["reduction"]
+    project.close()
+    return record
+
+
+def test_mask_file_and_settings_are_recorded(tmp_path):
+    """#1068: the mask file named in the record is the one applied, with its SHA-256; the settings as asked"""
+    # Act
+    _reduce(tmp_path)
+    record = _reduction_record(tmp_path / "reduced.h5")
+
+    # Assert
+    assert record["mask"] == dict(file_record(MASK), source="file")
+    assert record["settings"] == {
+        "num_bins": 256,
+        "min_2theta": None,
+        "max_2theta": None,
+        "delta_2theta": None,
+        "eta_step": None,
+        "eta_min": -8.2,
+        "eta_max": 8.2,
+        "mask_id": None,
+        "extra_mask": None,
+    }
+
+
+def test_no_mask_file_is_recorded_as_none(tmp_path):
+    # Act
+    _reduce(tmp_path, mask=None)
+
+    # Assert
+    assert _reduction_record(tmp_path / "reduced.h5")["mask"] == {"source": "none"}
+
+
+def test_reloaded_project_file_keeps_its_mask_source(tmp_path):
+    """Re-reducing a saved project file records the mask the file was reduced with, not "not recorded" """
+    # Arrange
+    _reduce(tmp_path)
+    workspace = HidraWorkspace()
+    project = HidraProjectFile(str(tmp_path / "reduced.h5"), HidraProjectFileMode.READONLY)
+
+    # Act
+    workspace.load_hidra_project(project, load_raw_counts=False, load_reduced_diffraction=False)
+    project.close()
+
+    # Assert
+    assert workspace.get_detector_mask_source() == dict(file_record(MASK), source="file")
+
+
+def test_older_project_file_mask_source_is_not_recorded():
+    """A file reduced before #1068 loads, its mask source unknown"""
+    # Arrange
+    workspace = HidraWorkspace()
+    project = HidraProjectFile("tests/data/HB2B_1327.h5", HidraProjectFileMode.READONLY)
+
+    # Act
+    workspace.load_hidra_project(project, load_raw_counts=False, load_reduced_diffraction=True)
+    project.close()
+
+    # Assert
+    assert workspace.get_detector_mask_source() == {"source": "not recorded"}
+
+
+def test_mask_source_survives_converting_to_a_file_first(tmp_path):
+    """Convert and save now, reduce the saved file later: the mask is still recorded (review)"""
+    # Arrange
+    converted = tmp_path / "HB2B_3510.h5"
+    converter = NeXusConvertingApp(RUN, MASK)
+    converter.convert()
+    converter.save(str(converted))
+    reducer = ReductionApp()
+    reducer.load_project_file(str(converted))
+
+    # Act
+    reducer.reduce_data(sub_runs=[1], instrument_file=None, calibration_file=None, mask=None, num_bins=256)
+    reducer.save_diffraction_data(str(tmp_path / "reduced.h5"))
+
+    # Assert
+    assert _reduction_record(tmp_path / "reduced.h5")["mask"] == dict(file_record(MASK), source="file")
+
+
+def test_rereduction_into_the_input_file_replaces_the_record(tmp_path):
+    """save_diffraction_data(None) writes into the file it read (READWRITE): one record, the newest"""
+    # Arrange - a converted file, reduced in place once
+    converted = tmp_path / "HB2B_3510.h5"
+    converter = NeXusConvertingApp(RUN, MASK)
+    converter.convert()
+    converter.save(str(converted))
+    for num_bins in (256, 128):
+        reducer = ReductionApp()
+        reducer.load_project_file(str(converted))
+
+        # Act - the second pass reduces it again, in place
+        reducer.reduce_data(sub_runs=[1], instrument_file=None, calibration_file=None, mask=None, num_bins=num_bins)
+        reducer.save_diffraction_data()
+
+    # Assert - the mask is kept, the binning is the newest
+    record = _reduction_record(converted)
+    assert record["mask"] == dict(file_record(MASK), source="file") and record["settings"]["num_bins"] == 128
