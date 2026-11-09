@@ -64,3 +64,39 @@ def test_parse_working_files_single_run_unchanged(model):
 
     # Assert
     assert working_file == "/HFIR/HB2B/IPTS-1234/shared/HB2B_1423.h5"
+
+
+@pytest.mark.parametrize(
+    "project_files, expected",
+    [
+        (["/d/HB2B_1423_v2.h5"], "HB2B_1423_v2"),
+        (["/d/HB2B_1423_v2.h5", "/d/HB2B_1424_v2.h5"], "HB2B_1423_1424"),
+        (["/d/HB2B_1423_1424.h5"], "HB2B_1423_1424"),
+        (["/d/Test_a.h5", "/d/Test_b.h5"], "HB2B_Test_a_Test_b"),
+    ],
+    ids=["one-suffixed-run", "two-suffixed-runs", "one-combined-file", "no-run-number"],
+)
+def test_project_name_of_suffixed_files(model, project_files, expected):
+    """One file keeps its whole stem; several use the number after ``HB2B_`` (#1080)."""
+    # Act
+    model._set_up_project_name(project_files)
+
+    # Assert
+    assert model.project_name == expected
+
+
+@pytest.mark.parametrize(
+    "project_files, expected",
+    [
+        (["/d/HB2B_1423_v2.h5", "/d/HB2B_1424_v2.h5"], "/d/HB2B_1423HB2B_1424.h5"),
+        (["/d/Test_a.h5", "/d/Test_b.h5"], "/d/Test_aTest_b.h5"),
+    ],
+    ids=["suffixed-runs", "no-run-number"],
+)
+def test_parse_working_files_suffixed_runs(model, project_files, expected):
+    """Several runs are named by their ``HB2B_`` numbers, else their whole stems (#1080)."""
+    # Act
+    working_file = model._parse_working_files(project_files)
+
+    # Assert
+    assert working_file == expected

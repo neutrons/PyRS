@@ -2662,3 +2662,20 @@ User-approved, after the C1-C5 evaluation and step 1 (repeated ring extraction) 
   from the nominal geometry (260-2100 µε across the detector) on the three runs studied. Existing calibration
   files, including `HB2B_Latest.json`, are untouched until someone calibrates again; reduction never chooses a
   method. Every calibration file records its method in its provenance (`method`: "ring" or "peak-fit").
+
+## Peak-fitting project names: whole stem for one file, `HB2B_` numbers for several (2026-11-09, #1080)
+
+The run number used to be the **last `_`-separated part** of the file stem. So `HB2B_1423_v2.h5`
+became run `v2`, and a combined `HB2B_1423_1424.h5` became run `1424`. CSV export is named
+`<project name>.csv`, so two different suffixed files exported to the same folder overwrote each
+other without warning.
+
+The rule now (`PeakFittingModel._run_label` / `_file_stem`):
+- **One file:** the project name is the whole file stem (`HB2B_1423_v2`). This matches what loading
+  a single file by path already did.
+- **Several files:** `HB2B_<n>_<n>…` from the number right after `HB2B_` (`^HB2B_(\d+)` followed by
+  `_` or the end). A file without such a number contributes its whole stem.
+
+Standard `HB2B_<run>.h5` names give exactly the names they gave before.
+
+Tests: `tests/unit/pyrs/interface/peak_fitting/test_project_file_names.py`.

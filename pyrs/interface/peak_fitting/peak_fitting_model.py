@@ -16,6 +16,7 @@ unify them without also rewriting the peak-fitting data path.
 
 import json
 import os
+import re
 import traceback
 from shutil import copyfile
 
@@ -104,14 +105,28 @@ class PeakFittingModel(QObject):
 
         return hidra_ws
 
+    @staticmethod
+    def _file_stem(path):
+        """Return the file name without directory or extensions (``.nxs.h5`` included)."""
+        return os.path.basename(path).split(".")[0]
+
+    @staticmethod
+    def _run_label(path):
+        """Return the run number after ``HB2B_``, or the whole file stem if there is none.
+
+        Suffixes such as ``HB2B_1423_v2`` are not run numbers (#1080).
+        """
+        stem = PeakFittingModel._file_stem(path)
+        match = re.match(r"HB2B_(\d+)(?:_|$)", stem)
+        return match.group(1) if match else stem
+
     def _set_up_project_name(self, project_file):
-        """Keep the basename and remove the nxs/h5 extensions."""
-        if type(project_file) is list:
-            self._project_name = "HB2B" + "".join(
-                ["_{}".format(os.path.basename(run).split(".")[0].split("_")[-1]) for run in project_file]
-            )
+        """Name the project after the file stem, or after the run numbers of several files."""
+        if type(project_file) is list and len(project_file) > 1:
+            self._project_name = "HB2B" + "".join(["_{}".format(self._run_label(run)) for run in project_file])
         else:
-            self._project_name = os.path.basename(project_file).split(".")[0]
+            single_file = project_file[0] if type(project_file) is list else project_file
+            self._project_name = self._file_stem(single_file)
 
     def _parse_working_files(self, project_file):
         """Keep the file path and append the runs being fitted."""
@@ -122,7 +137,10 @@ class PeakFittingModel(QObject):
                 project_file = os.path.join(
                     os.path.dirname(project_file[0]),
                     "".join(
-                        ["HB2B_{}".format(os.path.basename(run).split(".")[0].split("_")[-1]) for run in project_file]
+                        [
+                            "HB2B_{}".format(label) if label.isdigit() else label
+                            for label in map(self._run_label, project_file)
+                        ]
                     ),
                 )
                 if project_file[-3:] != ".h5":
