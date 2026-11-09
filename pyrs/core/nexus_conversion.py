@@ -446,7 +446,7 @@ class NeXusConvertingApp:
             raise RuntimeError("Meta data only workspace {} does not exist".format(self._event_ws_name))
 
         # Load mask XML to workspace
-        mask_ws_name = os.path.basename(mask_file_name.split(".")[0])
+        mask_ws_name = os.path.basename(mask_file_name).split(".")[0]
 
         try:
             mask_ws = LoadMask(Instrument="hb2b", InputFile=mask_file_name, OutputWorkspace=mask_ws_name)

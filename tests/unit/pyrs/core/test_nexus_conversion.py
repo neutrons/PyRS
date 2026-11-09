@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 from mantid.kernel import Int32TimeSeriesProperty as IntLog
 import numpy as np
 import pytest
@@ -86,3 +88,36 @@ class TestSplitter:
         assert splitter.size == 2
         np.testing.assert_equal(splitter.durations, [60, ONE_DAY])
         np.testing.assert_equal(splitter.subruns, [1, 2])
+
+
+@pytest.mark.parametrize(
+    "mask_dir_name",
+    # ".masks" used to give an empty workspace name, which LoadMask rejects with a ValueError
+    [".masks", "masks.v1.2"],
+    ids=["hidden-directory", "dotted-directory"],
+)
+def test_mask_workspace_named_from_file_name(tmp_path, monkeypatch, mask_dir_name):
+    """A dot in the mask's directory does not truncate the mask workspace name."""
+    # Arrange
+    mask_dir = tmp_path / mask_dir_name
+    mask_dir.mkdir()
+    mask_file = mask_dir / "HB2B_Mask_12-18-19.xml"
+    mask_file.write_text("<mask/>")
+    load_mask_calls = []
+
+    def fake_load_mask(**kwargs):
+        load_mask_calls.append(kwargs)
+        mask_ws = MagicMock()
+        mask_ws.extractY.return_value = np.zeros((4, 1))
+        return mask_ws
+
+    monkeypatch.setattr("pyrs.core.nexus_conversion.LoadMask", fake_load_mask)
+    monkeypatch.setattr("pyrs.core.nexus_conversion.DeleteWorkspace", lambda **kwargs: None)
+    converter = NeXusConvertingApp.__new__(NeXusConvertingApp)
+    converter._event_wksp = MagicMock()
+
+    # Act
+    converter._NeXusConvertingApp__load_mask(str(mask_file))
+
+    # Assert
+    assert load_mask_calls[0]["OutputWorkspace"] == "HB2B_Mask_12-18-19"
