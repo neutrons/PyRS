@@ -6,6 +6,7 @@ import functools
 import json
 import pytest
 import os
+from unittest.mock import MagicMock
 
 pytestmark = [pytest.mark.gui, pytest.mark.integration]
 
@@ -257,3 +258,29 @@ def test_save_load_peak_range_keeps_table_d0(tmp_path, monkeypatch, fit_peaks_wi
     assert [saved[key]["d0"] for key in ("0", "1")] == [1.1, 1.2]
     assert fit_setup.list_fit_peak_d0 == [1.1, 1.2]
     assert window.ui.peak_range_table.item(1, 3).text() == "1.200000"
+
+
+def test_remove_peak_range_row_drops_its_d0(monkeypatch, fit_peaks_window):
+    """Removing a peak-range row removes that row's d0, so later peaks keep their own (#925)."""
+    # Arrange
+    window, _ = fit_peaks_window
+    fit_setup = window._ui_graphicsView_fitSetup
+    fit_setup.list_peak_ranges = [[78.0, 85.0], [90.0, 95.0]]
+    fit_setup.list_fit_peak_labels = ["Peak0", "Peak1"]
+    fit_setup.list_fit_peak_d0 = [1.1, 1.2]
+    fit_setup.list_peak_labels_matplotlib_id = [MagicMock(), MagicMock()]
+    monkeypatch.setattr(fit_setup, "plot_data_with_fitting_ranges", lambda: None)
+    window.update_peak_ranges_table(
+        list_fit_peak_ranges=fit_setup.list_peak_ranges,
+        list_fit_peak_labels=fit_setup.list_fit_peak_labels,
+        list_fit_peak_d0=fit_setup.list_fit_peak_d0,
+    )
+    table = window.ui.peak_range_table
+    table.setRangeSelected(QtWidgets.QTableWidgetSelectionRange(0, 0, 0, table.columnCount() - 1), True)
+
+    # Act
+    window.remove_peak_range_table_row()
+
+    # Assert
+    assert fit_setup.list_fit_peak_labels == ["Peak1"]
+    assert fit_setup.list_fit_peak_d0 == [1.2]

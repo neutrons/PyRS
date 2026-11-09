@@ -2496,6 +2496,19 @@ does not). `load_peak_range_json` still reads files written before the fix. A d0
 per peak resolves to that peak's value, which is exact. Any other list (in practice `[]`) falls back
 to 1.0, the d0 the UI gives a newly drawn range.
 
+**Keep the widget's three per-peak lists in step.** `list_peak_ranges`, `list_fit_peak_labels` and
+`list_fit_peak_d0` are parallel lists. Any code that adds or removes a peak must update all three.
+`remove_peak_range_table_row` used to skip d0. Removing row 0 then paired Peak1 with Peak0's d0.
+Before #925 nothing read that list, so the mismatch was harmless. Once save started using it, the
+wrong d0 was saved without any warning. Found in review and fixed in the same PR.
+`QTableWidget.removeRow` emits no `cellChanged`, so the table-to-list sync in
+`_update_fit_peak_ranges_plot` does not run after a removal.
+
+**A `QObject` alone does not make a test GUI-tier.** `PeakFittingModel` is a `QObject` with signals.
+It constructs, connects and emits with no `QApplication` and no display (verified with `DISPLAY`,
+`QT_QPA_PLATFORM` and `WAYLAND_DISPLAY` unset). Only widgets need one. Its tests therefore live in
+`tests/unit/pyrs/interface/peak_fitting/`.
+
 Also found: the texture-fitting save/load dialogs, and still the calibration GUI's export/recipe
 dialogs (`detector_calibration_viewer.py`), pass the file filter as `QFileDialog`'s *directory*
 argument, so the filter never applies. The texture ones are fixed. The calibration ones are not.
@@ -2503,7 +2516,13 @@ argument, so the filter never applies. The texture ones are fixed. The calibrati
 `tests/ui/test_peak_fitting.py::test_peak_fitting` and
 `tests/ui/test_texture_fitting.py::test_texture_fitting_viewer` fail on `main` (04102098) in a
 workstation run, independent of this fix. CSV export builds a name like `HB2B_<path>.csv` that does
-not exist. Not investigated further.
+not exist. Not investigated further. The `FileNotFoundError` is raised inside the Qt event loop. The
+session-scoped `my_qtbot` fixture (`tests/conftest.py`) reports it when it is torn down, so pytest
+shows it as an ERROR on whichever GUI test runs **last**. That test is not at fault. In
+`tests/ui/test_peak_fitting.py` that is now `test_remove_peak_range_row_drops_its_d0`.
 
-Tests: `tests/ui/test_peak_fitting_model.py` (round trip, extension, legacy files) and
-`tests/ui/test_peak_fitting.py::test_save_load_peak_range_keeps_table_d0`.
+Tests:
+- `tests/unit/pyrs/interface/peak_fitting/test_peak_fitting_model.py`: round trip (in memory and on
+  disk), file extension, int and `np.float64` d0, legacy files.
+- `tests/ui/test_peak_fitting.py::test_save_load_peak_range_keeps_table_d0`.
+- `tests/ui/test_peak_fitting.py::test_remove_peak_range_row_drops_its_d0`.

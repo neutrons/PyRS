@@ -1,27 +1,21 @@
-"""GUI-tier tests for `PeakFittingModel`.
+"""Unit tests for `PeakFittingModel`.
 
-No `QWidget` is constructed here, but these tests still need a display and so
-carry `gui`: `PeakFittingModel` is a `QObject`, and the `qapp` fixture builds a
-real `QApplication`, which aborts when no display or offscreen platform is
-available.
-
-Both markers are required -- `test-gui` selects `-m gui` while
-`test-integration` selects `-m 'integration and not gui'`, so `gui` alone would
-drop these from the integration tier.
+`PeakFittingModel` is a `QObject`, but a `QObject` with signals needs no
+`QApplication` and no display -- only widgets do -- so these run in the unit
+tier. See docs/ground_truths.md.
 """
 
 import json
 from unittest.mock import MagicMock
 
+import numpy as np
 import pytest
 
 from pyrs.interface.peak_fitting.peak_fitting_model import PeakFittingModel
 
-pytestmark = [pytest.mark.gui, pytest.mark.integration]
-
 
 @pytest.fixture
-def model(qapp):  # noqa: ARG001 (qapp needed for QObject/Signal machinery)
+def model():
     peak_fit_model = PeakFittingModel(peak_fit_core=MagicMock())
     peak_fit_model.hidra_workspace = MagicMock()
     return peak_fit_model
@@ -84,22 +78,44 @@ def test_peak_range_json_round_trip_keeps_per_peak_d0(model, tmp_path):
     loaded_ranges, loaded_labels, loaded_d0 = model.load_peak_range_json(str(filename))
 
     # Assert
+    saved = json.loads(filename.read_text())
+    assert [entry["d0"] for entry in saved.values()] == d0
     assert loaded_ranges == ranges
     assert loaded_labels == labels
     assert loaded_d0 == d0
 
 
-def test_save_peak_range_json_appends_missing_extension(model, tmp_path):
-    """A file name typed without an extension is saved as ``.json`` (#925)."""
+@pytest.mark.parametrize(
+    "typed_name, written_name",
+    [("peak_range", "peak_range.json"), ("peak_range.txt", "peak_range.txt")],
+    ids=["no-extension", "other-extension"],
+)
+def test_save_peak_range_json_file_extension(model, tmp_path, typed_name, written_name):
+    """``.json`` is appended only when the typed name has no extension (#925)."""
     # Arrange
-    filename = tmp_path / "peak_range"
+    filename = tmp_path / typed_name
 
     # Act
     model.save_peak_range_json(str(filename), [[78.0, 85.0]], ["Peak0"], [1.1])
 
     # Assert
-    assert not filename.exists()
-    assert json.loads((tmp_path / "peak_range.json").read_text())["0"]["d0"] == 1.1
+    assert [path.name for path in tmp_path.iterdir()] == [written_name]
+    assert json.loads((tmp_path / written_name).read_text())["0"]["d0"] == 1.1
+
+
+def test_peak_range_json_d0_saved_and_loaded_as_float(model, tmp_path):
+    """The UI's int default d0 and table-parsed np.float64 values round-trip as floats."""
+    # Arrange
+    filename = tmp_path / "peak_range.json"
+
+    # Act
+    model.save_peak_range_json(str(filename), [[78.0, 85.0], [90.0, 95.0]], ["Peak0", "Peak1"], [1, np.float64(1.2)])
+    _, _, loaded_d0 = model.load_peak_range_json(str(filename))
+
+    # Assert
+    assert [entry["d0"] for entry in json.loads(filename.read_text()).values()] == [1.0, 1.2]
+    assert loaded_d0 == [1.0, 1.2]
+    assert all(type(value) is float for value in loaded_d0)
 
 
 @pytest.mark.parametrize(
@@ -107,7 +123,7 @@ def test_save_peak_range_json_appends_missing_extension(model, tmp_path):
     [([1.1, 1.2], [1.1, 1.2]), ([], [1.0, 1.0])],
     ids=["full-list", "empty-list"],
 )
-def test_load_peak_range_json_legacy_list_d0(model, tmp_path, legacy_d0, expected_d0):
+def test_load_peak_range_json_legacy_list_d0_per_peak(model, tmp_path, legacy_d0, expected_d0):
     """Files written before #925 stored the d0 list on every peak; load them as per-peak values."""
     # Arrange
     filename = tmp_path / "peak_range.json"
