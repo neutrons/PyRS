@@ -90,8 +90,10 @@ def test_project_name_of_suffixed_files(model, project_files, expected):
     [
         (["/d/HB2B_1423_v2.h5", "/d/HB2B_1424_v2.h5"], "/d/HB2B_1423HB2B_1424.h5"),
         (["/d/Test_a.h5", "/d/Test_b.h5"], "/d/Test_aTest_b.h5"),
+        # a bare number is a stem, not an HB2B_ run number: no prefix is invented
+        (["/d/1423.h5", "/d/1424.h5"], "/d/14231424.h5"),
     ],
-    ids=["suffixed-runs", "no-run-number"],
+    ids=["suffixed-runs", "no-run-number", "numeric-stems"],
 )
 def test_parse_working_files_suffixed_runs(model, project_files, expected):
     """Several runs are named by their ``HB2B_`` numbers, else their whole stems (#1080)."""

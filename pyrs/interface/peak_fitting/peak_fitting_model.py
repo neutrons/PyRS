@@ -27,7 +27,7 @@ from pyrs.core.summary_generator import SummaryGenerator
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
 from pyrs.calibration.provenance import file_record
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
-from pyrs.projectfile.file_object import combine_reduction_records
+from pyrs.projectfile.file_object import ReductionMismatchError, combine_reduction_records
 
 
 class PeakFittingModel(QObject):
@@ -54,6 +54,7 @@ class PeakFittingModel(QObject):
         self.fit_result = None
         self._curr_file_name = None
         self._project_files = []
+        self.save_warnings = []  # from the last save, for the window to show (#1080)
 
     @property
     def working_dir(self):
@@ -115,14 +116,18 @@ class PeakFittingModel(QObject):
         return os.path.basename(path).split(".")[0]
 
     @staticmethod
-    def _run_label(path):
-        """Return the run number after ``HB2B_``, or the whole file stem if there is none.
+    def _run_number(path):
+        """Return the run number after ``HB2B_`` in the file name, or ``None`` if there is none.
 
         Suffixes such as ``HB2B_1423_v2`` are not run numbers (#1080).
         """
-        stem = PeakFittingModel._file_stem(path)
-        match = re.match(r"HB2B_(\d+)(?:_|$)", stem)
-        return match.group(1) if match else stem
+        match = re.match(r"HB2B_(\d+)(?:_|$)", PeakFittingModel._file_stem(path))
+        return match.group(1) if match else None
+
+    @staticmethod
+    def _run_label(path):
+        """Return the run number after ``HB2B_``, or the whole file stem if there is none."""
+        return PeakFittingModel._run_number(path) or PeakFittingModel._file_stem(path)
 
     def _set_up_project_name(self, project_file):
         """Name the project after the file stem, or after the run numbers of several files."""
@@ -142,8 +147,8 @@ class PeakFittingModel(QObject):
                     os.path.dirname(project_file[0]),
                     "".join(
                         [
-                            "HB2B_{}".format(label) if label.isdigit() else label
-                            for label in map(self._run_label, project_file)
+                            "HB2B_{}".format(self._run_number(run)) if self._run_number(run) else self._file_stem(run)
+                            for run in project_file
                         ]
                     ),
                 )
@@ -200,26 +205,36 @@ class PeakFittingModel(QObject):
         self.fit_result = fit_result
         return fit_result
 
-    def save_fit_result(self, out_file_name=""):
+    def save_fit_result(self, out_file_name="", accept_reduction_differences=False):
         """Write the current fit result to an HDF5 project file.
 
         If ``out_file_name`` differs from the currently loaded file, the loaded
         file is first copied to ``out_file_name`` and the peak parameters are
         written to the copy; otherwise the loaded file is updated in place.
         With several runs loaded, a new combined file is written instead (see
-        :meth:`_save_combined_fit_result`); failures are reported through ``failureMsg``.
+        :meth:`_save_combined_fit_result`); failures are reported through ``failureMsg`` and
+        warnings for the window to show are left in :attr:`save_warnings`.
 
         Args:
             out_file_name: Destination path (or a single-element list).
+            accept_reduction_differences: The user approved combining runs reduced with
+                different vanadium runs, masks or binning.
+
+        Raises:
+            ReductionMismatchError: Several runs differ in vanadium run, mask or binning and
+                ``accept_reduction_differences`` is not set; the window asks the user.
         """
+        self.save_warnings = []
         fit_result = self.fit_result
         if fit_result is None:
             return
 
         if len(self._project_files) > 1:
             try:
-                self._save_combined_fit_result(out_file_name, fit_result)
-            except (ValueError, OSError) as e:
+                self._save_combined_fit_result(out_file_name, fit_result, accept_reduction_differences)
+            except ReductionMismatchError:
+                raise
+            except (ValueError, OSError, RuntimeError) as e:
                 self.failureMsg.emit("Failed to save fit results", str(e), traceback.format_exc())
             return
 
@@ -238,47 +253,60 @@ class PeakFittingModel(QObject):
         project_h5_file.save(False)
         project_h5_file.close()
 
-    def _save_combined_fit_result(self, out_file_name, fit_result):
+    def _save_combined_fit_result(self, out_file_name, fit_result, accept_reduction_differences=False):
         """Write several runs' merged data and fit to a new combined project file (#1080).
 
         The run files themselves are never modified. Like "Combine runs", the runs' calibration
-        records must agree; the combined file records them.
+        records must agree; the combined file records them, and its warning (runs without a
+        record, accepted differences) is added to :attr:`save_warnings`. A file left half-written
+        by a failure is removed.
 
         Args:
             out_file_name: Destination path. Empty, ``None`` or the list of loaded runs (what
                 Save passes) selects the default combined name next to the runs.
             fit_result: The fit result whose peak collections are written.
+            accept_reduction_differences: The user approved different vanadium runs, masks or binning.
 
         Raises:
             ValueError: If the destination is one of the loaded run files, or the runs were
-                reduced with different calibrations, vanadium runs, masks or binning.
+                reduced with different calibrations (or vanadium runs, masks or binning not accepted).
+            RuntimeError: If the destination cannot be written or a run file is missing.
         """
         if not out_file_name or type(out_file_name) is list:
             out_file_name = self._curr_file_name
-        loaded = {os.path.abspath(name) for name in self._project_files}
-        if os.path.abspath(out_file_name) in loaded:
+        # realpath: a run reached through a symbolic link is still the same run file
+        loaded = {os.path.realpath(name) for name in self._project_files}
+        if os.path.realpath(out_file_name) in loaded:
             raise ValueError(f"{out_file_name} is one of the loaded runs; save the combined fit to a new file")
 
         sources = []
         for file_name in self._project_files:
-            project = HidraProjectFile(file_name)
-            source = file_record(file_name)
-            source["record"] = project.read_reduction_provenance()
-            project.close()
+            with HidraProjectFile(file_name) as project:
+                source = file_record(file_name)
+                source["record"] = project.read_reduction_provenance()
             sources.append(source)
-        record = combine_reduction_records(sources)
+        record = combine_reduction_records(sources, accept_reduction_differences=accept_reduction_differences)
 
         workspace = self.hidra_workspace
+        # opening raises before anything is written if the destination cannot be written
         project_h5_file = HidraProjectFile(out_file_name, mode=HidraProjectFileMode.OVERWRITE)
-        workspace.save_experimental_data(
-            project_h5_file, sub_runs=workspace._sample_logs.subruns, ignore_raw_counts=True
-        )
-        workspace.save_reduced_diffraction_data(project_h5_file)
-        project_h5_file.write_reduction_provenance(applied_calibration=record)
-        for peak in fit_result.peakcollections:
-            project_h5_file.write_peak_parameters(peak)
-        project_h5_file.save(False)
-        project_h5_file.close()
+        try:
+            with project_h5_file:
+                workspace.save_experimental_data(
+                    project_h5_file, sub_runs=workspace._sample_logs.subruns, ignore_raw_counts=True
+                )
+                workspace.save_reduced_diffraction_data(project_h5_file)
+                project_h5_file.write_reduction_provenance(applied_calibration=record)
+                for peak in fit_result.peakcollections:
+                    project_h5_file.write_peak_parameters(peak)
+                project_h5_file.save(False)
+        except BaseException:
+            if os.path.exists(out_file_name):
+                os.remove(out_file_name)
+            raise
+
+        if record.get("warning"):
+            self.save_warnings.append(record["warning"])
 
     def export_csv(self, csv_file_name):
         """Write the fit result and sample logs to a CSV summary file.

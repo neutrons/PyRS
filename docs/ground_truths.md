@@ -2734,3 +2734,48 @@ texture GUI test confirms nothing reads it later.
 
 Tests: `tests/integration/test_texture_fitting_save.py` (these work on a copy, never on
 `tests/data`) and the enabled-after-fit check in `tests/ui/test_texture_fitting.py`.
+
+## #1080 review follow-ups: merged-run files read back, safer saves (2026-11-09)
+
+- **`read_run_number` returns -1 for a file that combines several runs.** It used to raise "more
+  than one run number". `read_peak_parameters` calls it, so peaks saved into any merged file could
+  not be read back. That covered the new multi-run save, and also "Combine runs" → fit → Save. The
+  peak-fit engine already gives appended runs `runnumber = -1`, and the strain/stress viewer skips
+  -1 when naming files.
+  - Caveat: `StressFacade` keys a strain cache by `str(runnumber)`, so two merged files in the same
+    direction share the key "-1". This was not changed.
+- **The multi-run save is hardened:**
+  - It also catches `RuntimeError`. `HidraProjectFile` raises it for a folder that can't be written
+    to, e.g. autoreduce, and for a missing run file.
+  - It compares `realpath`s, so a run reached through a symbolic link can't be overwritten.
+  - It writes inside `with`, and removes a file left half-written by a failure. A destination that
+    couldn't be opened at all is never touched.
+  - The texture save uses `realpath` and `with` too. It never deletes anything, because an in-place
+    Save writes into the user's own file.
+- **The combined record's warning** (runs without a calibration record, or accepted differences) is
+  shown as an info pop-up after the save, through `PeakFittingModel.save_warnings`.
+- **Different vanadium runs, masks or binning:** the window asks Yes/No, as "Combine runs" does
+  (`PeakFittingViewer._save_fit_result`). Yes saves with the differences accepted and recorded.
+- **Combined-file names:** a combined working-file name adds `HB2B_` only to a real `HB2B_<n>` run
+  number (`_run_number`). A bare `1423.h5` stays `1423`.
+- **Texture menu:** texture Save / Save As are disabled again when a new file is loaded.
+
+**Found, not fixed (pre-existing):**
+- **Texture Fit crashes on an older unsplit file.** In `TextureFittingController.fit_peaks`, older
+  unsplit files have `reduction_masks == [None]`, but the controller treats a file as unsplit only
+  when it has exactly 2 masks (main + `_var`). It then evaluates `"_var" not in None` → `TypeError`.
+  Examples: `tests/data/HB2B_1327.h5`, `HB2B_1599.h5`.
+- **`write_peak_parameters` mixes old and new values when a peak is re-saved with a different
+  profile or background.** h5py's `ds[...] = arr` accepts a different compound dtype silently. A
+  different shape raises `TypeError` instead.
+- **`append_hidra_project` numbers appended sub-runs from `size + 1`.** They collide when the first
+  file's sub-runs don't start at 1.
+
+Tests:
+- `tests/integration/test_peak_fitting_save.py`: a real fit; read back with `read_peak_parameters`
+  and `StrainField`; Save As; symbolic link; read-only folder; partial-file cleanup; calibration,
+  vanadium and historic cases; single run.
+- `tests/integration/test_texture_fitting_save.py`: saved values compared with the fits; an unsplit
+  file.
+- `tests/unit/pyrs/interface/texture_fitting/test_texture_fitting_model.py`.
+- `tests/ui/test_peak_fitting.py::test_save_asks_before_combining_reduction_differences`.

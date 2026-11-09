@@ -173,20 +173,20 @@ class TextureFittingModel(QObject):
             if self._curr_file_name is None:
                 raise ValueError("No project file is loaded")
 
-            if out_file_name and os.path.abspath(out_file_name) != os.path.abspath(self._curr_file_name):
+            # realpath: the loaded file reached through a symbolic link is still the loaded file
+            if out_file_name and os.path.realpath(out_file_name) != os.path.realpath(self._curr_file_name):
                 copyfile(self._curr_file_name, out_file_name)
                 current_project_file = out_file_name
             else:
                 current_project_file = self._curr_file_name
 
-            project_h5_file = HidraProjectFile(current_project_file, mode=HidraProjectFileMode.READWRITE)
-            for mask_key, fit_result in fits.items():
-                for peak in fit_result.peakcollections:
-                    saved_peak = copy.copy(peak)
-                    saved_peak._tag = self.saved_peak_tag(peak.peak_tag, mask_key)
-                    project_h5_file.write_peak_parameters(saved_peak)
-            project_h5_file.save(False)
-            project_h5_file.close()
+            with HidraProjectFile(current_project_file, mode=HidraProjectFileMode.READWRITE) as project_h5_file:
+                for mask_key, fit_result in fits.items():
+                    for peak in fit_result.peakcollections:
+                        saved_peak = copy.copy(peak)
+                        saved_peak._tag = self.saved_peak_tag(peak.peak_tag, mask_key)
+                        project_h5_file.write_peak_parameters(saved_peak)
+                project_h5_file.save(False)
         except (ValueError, OSError, RuntimeError) as e:
             self.failureMsg.emit("Failed to save fit results", str(e), traceback.format_exc())
 

@@ -85,6 +85,7 @@ class FileLoad(QWidget):
 
     def load_project_plot(self):
         self._reset_fit_data()
+        self._parent.enable_save_actions(False)  # a new file has no fits to save yet
         self._parent.controller.load_projectfile(self._parent._project_file)
         self._parent.update_diffraction_data_plot()
         self._parent.fit_setup.sl.setMaximum(self._parent.model.sub_runs.size - 1)
@@ -1066,10 +1067,10 @@ class TextureFittingViewer(QMainWindow):
     def update_save_peak_range_widget(self):
         self.fit_setup.export_peak_info.setEnabled(True)
 
-    def enable_save_actions(self):
-        """Allow Save / Save as once there are fits to save (#1080)."""
-        self.saveAction.setEnabled(True)
-        self.saveAsAction.setEnabled(True)
+    def enable_save_actions(self, enabled=True):
+        """Allow Save / Save as once there are fits to save, and not before (#1080)."""
+        self.saveAction.setEnabled(enabled)
+        self.saveAsAction.setEnabled(enabled)
 
     def save(self):
         if self._project_file is not None:

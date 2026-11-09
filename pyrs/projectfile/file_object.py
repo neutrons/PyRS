@@ -964,11 +964,16 @@ class HidraProjectFile:
         return samplelogs
 
     def read_run_number(self) -> int:
+        """The file's run number: -1 if it is missing or the file combines several runs.
+
+        -1 for combined runs matches what the peak-fit engine records for appended runs, so peaks
+        saved into a combined file can be read back (#1080).
+        """
         try:
             values = self.read_log_value("run_number")
             values_set = set(values[()].astype(int))
             if len(values_set) > 1:
-                raise RuntimeError("more than one run number: {}".format(values_set))
+                return -1
             return values_set.pop()
         except KeyError:
             # field is missing
