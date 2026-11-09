@@ -5,12 +5,17 @@ Workflow (each step is a function of :mod:`pyrs.calibration.pixel_pos_calibratio
 
 1. Convert the NeXus run with ``NeXusConvertingApp``; the mask file becomes the workspace's default
    mask.
-2. Extract ring points from the detector images (``extract_ring_points``, 5 strips by default).
-3. Refine the geometry and wavelength from the nominal start (``PixelCalibration.iterate``:
+2. Extract ring points from the detector images (``extract_ring_points``, 5 strips by default) and
+   refine the geometry and wavelength from the nominal start (``PixelCalibration.iterate``:
    Shift -> Rotation -> wavelength + 2theta_0 passes, then a joint refinement).
+3. Extract the rings again where the refined geometry predicts them and refine, until a round moves the
+   pixel 2theta and the predicted ring positions by less than half the data's statistical precision (at
+   least 2, at most ``--max-rounds``
+   rounds; ``calibrate_rings``, #1038). A single extraction from a poor start can find part of the rings
+   and give a wrong geometry with a good RMS (docs/ground_truths.md).
 4. Estimate uncertainties with 2theta_0 held (``estimate_errors``): Shift_x, Rot_y and 2theta_0 are
    degenerate at one detector distance, so 2theta_0's error is written as -1.
-5. Write the standard calibration JSON (``write_calibration``).
+5. Write the standard calibration JSON (``write_calibration``), with every round in its provenance.
 
 Usage (through pixi, from the repository)::
 
@@ -43,6 +48,7 @@ def run_calibration(
     polish: bool = True,
     ring_points_file: Optional[str] = None,
     sub_runs: Optional[Sequence[int]] = None,
+    max_rounds: Optional[int] = None,
 ) -> "PixelCalibration":
     """Run the ring-based calibration on one NeXus run and write the calibration JSON.
 
@@ -54,8 +60,9 @@ def run_calibration(
         strips: Strips per sub-run for ring extraction.
         passes: Passes of the staged refinement.
         polish: Finish the passes with a joint refinement of all parameters.
-        ring_points_file: If given, save the extracted ring points (``.npz``) here.
+        ring_points_file: If given, save the last round's ring points (``.npz``) here.
         sub_runs: Sub-runs to use (default: all).
+        max_rounds: Most extraction + refinement rounds (default: ``DEFAULT_MAX_ROUNDS``); 1 extracts once.
 
     Returns:
         The refined ``PixelCalibration``.
@@ -63,7 +70,7 @@ def run_calibration(
     Raises:
         FileNotFoundError: If the NeXus or mask file does not exist.
     """
-    from pyrs.calibration.pixel_pos_calibration import PixelCalibration, extract_ring_points
+    from pyrs.calibration.pixel_pos_calibration import DEFAULT_MAX_ROUNDS, calibrate_rings
     from pyrs.calibration.provenance import file_record
     from pyrs.core import MonoSetting  # type: ignore
     from pyrs.core.nexus_conversion import NeXusConvertingApp
@@ -77,12 +84,13 @@ def run_calibration(
     if wavelength is None:
         wavelength = float(workspace.get_wavelength(False, False))
 
-    ring_points = extract_ring_points(workspace, wavelength, strips=strips, sub_runs=sub_runs)
+    if max_rounds is None:
+        max_rounds = DEFAULT_MAX_ROUNDS
+    calibration = calibrate_rings(
+        workspace, wavelength, strips=strips, sub_runs=sub_runs, passes=passes, polish=polish, max_rounds=max_rounds
+    )
     if ring_points_file is not None:
-        ring_points.save(ring_points_file)
-
-    calibration = PixelCalibration(ring_points, workspace.get_instrument_setup(), wavelength=wavelength)
-    calibration.iterate(passes=passes, polish=polish)
+        calibration.ring_points.save(ring_points_file)
     calibration.estimate_errors()
     monochromator_error = None
     try:
@@ -95,7 +103,11 @@ def run_calibration(
         "monochromator": monochromator,
         "monochromator_error": monochromator_error,
         "wavelength_start_A": wavelength,
-        "extraction": {"strips": strips, "sub_runs": None if sub_runs is None else [int(s) for s in sub_runs]},
+        "extraction": {
+            "strips": strips,
+            "sub_runs": None if sub_runs is None else [int(s) for s in sub_runs],
+            "max_rounds": max_rounds,
+        },
         "iteration": {"passes": passes, "polish": polish, "errors": "estimate_errors, TTH_0 held"},
         "driver": "scripts/pyrs_pixel_calibration.py",
     }
@@ -121,7 +133,32 @@ def _summary(calibration: "PixelCalibration") -> str:
         lines.append(f"  {name:8s} {value * scale:12.5f} {unit:3s} {error_text}")
     if calibration.calibration_status == 0:
         lines.append("WARNING: the last stage stopped at max_nfev before converging (Status 0)")
+    rounds = calibration.extraction_rounds or []
+    if rounds:
+        lines.append(
+            f"ring extraction rounds: {len(rounds)} (step: change from the previous round, the larger of the pixel "
+            "2theta and the ring positions)"
+        )
+        for record in rounds:
+            step = "-" if record["step_deg"] is None else f"{record['step_deg'] * 1e3:.2f}"
+            lines.append(
+                f"  round {record['round']:2d}: {record['ring_points']:4d} points, RMS {record['rmse_deg']:.4f} deg,"
+                f" step {step:>6s} mdeg, precision {record['precision_deg'] * 1e3:.2f} mdeg"
+            )
+    if calibration.extraction_converged is False:
+        lines.append(f"WARNING: the ring extraction did not converge within {len(rounds)} rounds (see the steps)")
     return "\n".join(lines)
+
+
+def _positive_int(text: str) -> int:
+    """An argparse type: a whole number of at least 1."""
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected a whole number, got {text!r}")
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"must be at least 1, got {value}")
+    return value
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -141,6 +178,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-polish", action="store_true", help="skip the final joint refinement")
     parser.add_argument("--ring-points", help="save the extracted ring points to this .npz file")
     parser.add_argument("--sub-runs", type=int, nargs="+", help="sub-runs to use; None: all")
+    parser.add_argument(
+        "--max-rounds",
+        type=_positive_int,
+        default=10,  # pixel_pos_calibration.DEFAULT_MAX_ROUNDS; pyrs is imported lazily so --help stays fast
+        help="most ring extraction + refinement rounds; the rings are extracted again at the refined geometry "
+        "until a round's step (pixel 2theta or ring positions) is less than half the statistical precision "
+        "(1: extract once)",
+    )
     return parser
 
 
@@ -166,6 +211,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             polish=not args.no_polish,
             ring_points_file=args.ring_points,
             sub_runs=args.sub_runs,
+            max_rounds=args.max_rounds,
         )
     except (OSError, ValueError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)

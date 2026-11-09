@@ -98,3 +98,44 @@ After defining the Materials properties and d0, the user can now visualize the d
   .. image:: ../figures/Stress_Final.png
     :width: 800
     :alt: visualize stress strain
+
+Detector Calibration
+====================
+
+The detector calibration refines the HB2B detector's position and orientation (shifts x, y, z and rotations
+x, y, z), the virtual arm offset 2theta_0 and the wavelength from a powder calibration run (Ni, Fe and Mo
+powders). Reduction applies the resulting calibration file (JSON) to every run measured afterwards.
+
+Open the calibration window from the MainWindow menu **Advanced > Calibration**. Two methods are offered:
+
+* **Ring-based** (the default): fits every Debye ring once, in strips of each sub-run's detector image, and
+  refines the geometry from where the rings lie on the detector. It then finds the rings again where the
+  refined geometry predicts them and refines again, until a round moves the result by less than half its
+  statistical precision (at most **Rounds** rounds, 10 by default). On the calibration runs tested it is
+  more accurate than FitCalibration on both methods' own measures, and takes about half a minute.
+* **FitCalibration**: re-reduces the run and re-fits its peaks in eta slices for every trial geometry. It is
+  kept for comparison and for older recipes; started from the nominal geometry it can stop short of the
+  best geometry.
+
+A ring-based calibration in the window:
+
+1. Load the calibration run.
+2. Leave **Method** at *Ring-based*; **Strips** (5) sets how many strips each sub-run's image is cut into, and
+   **Rounds** (10) the most ring-finding rounds.
+3. Click **Fit Peaks** to find the rings, then **Calibrate**: the recipe starts with *iterate* (refine, then
+   find the rings again until converged).
+4. Check the predicted rings on the detector view, then export the calibration.
+
+Recipes saved from the window keep the method, strips and rounds. A recipe saved before the method choice
+existed opens with FitCalibration, its method then.
+
+The same calibrations run from the command line:
+
+.. code-block:: sh
+
+  pixi run pyrs-pixel-calibration HB2B_3510.nxs.h5 --output HB2B_CAL.json     # ring-based (default)
+  pixi run pyrs-calibration recipe.json                                       # FitCalibration
+
+Every calibration file records how it was made (its *provenance*): the method, the run and mask files, each
+refinement step and, for the ring-based method, each round of ring finding. The evaluation behind the
+default is recorded in ``docs/ground_truths.md`` (GitHub issue #1038).

@@ -16,8 +16,10 @@ from pyrs.interface.threading.worker_pool import WorkerPool
 from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
 from pyrs.interface.detector_calibration.detector_calibration_model import (
     CALIBRATION_METHODS,
+    DEFAULT_MAX_ROUNDS,
     DEFAULT_STRIPS,
     ITERATE_ROUTINE,
+    METHOD_FITCALIBRATION,
     METHOD_RING,
     RING_GEOMETRIES,
     RING_GEOMETRY_CURRENT,
@@ -448,8 +450,8 @@ class PeakLinesSetupView(QGroupBox):
         recipe_setup_layout.addWidget(self.fit, 11, 0, 1, 2)
         recipe_setup_layout.addWidget(self.calibrate, 11, 2, 1, 2)
 
-        # calibration method (#1045): FitCalibration (default) or the ring-based calibration, which
-        # fits each ring once in detector strips
+        # calibration method (#1045): the ring-based calibration (default, #1038), which fits each ring once
+        # in detector strips, or FitCalibration
         method_row = QHBoxLayout()
         method_row.addWidget(QLabel("Method"))
         self.method_combo = QComboBox(self)
@@ -462,6 +464,17 @@ class PeakLinesSetupView(QGroupBox):
         self.strips_lineEdit.setFixedWidth(50)
         self.strips_lineEdit.setToolTip("Strips per sub-run for the ring-based calibration's ring extraction")
         method_row.addWidget(self.strips_lineEdit)
+        method_row.addWidget(QLabel("Rounds"))
+        self.rounds_lineEdit = QLineEdit()
+        self.rounds_lineEdit.setText(str(DEFAULT_MAX_ROUNDS))
+        self.rounds_lineEdit.setFixedWidth(50)
+        self.rounds_lineEdit.setToolTip(
+            "Most ring extraction + refinement rounds of 'iterate': the rings are extracted again at the refined "
+            "geometry until a round moves the pixel 2theta and the ring positions by less than half the statistical "
+            "precision "
+            "(1: extract once)"
+        )
+        method_row.addWidget(self.rounds_lineEdit)
         method_row.addStretch()
 
         recipe_outer_layout = QVBoxLayout()
@@ -488,6 +501,7 @@ class PeakLinesSetupView(QGroupBox):
         self._parent.controller.set_method(self.method_combo.currentText())
         ring = self.ring_based
         self.strips_lineEdit.setEnabled(ring)
+        self.rounds_lineEdit.setEnabled(ring)
         self.tthbin_lineEdit.setEnabled(not ring)
         self.etabin_lineEdit.setEnabled(not ring)
         for combo in self.recipe_combos.values():
@@ -498,6 +512,9 @@ class PeakLinesSetupView(QGroupBox):
                 if combo.currentIndex() == index:
                     combo.setCurrentIndex(0)
                 combo.removeItem(index)
+        # the ring-based default in one click (#1038): an empty recipe starts with "iterate"; a recipe is never changed
+        if ring and all(combo.currentText() == "" for combo in self.recipe_combos.values()):
+            self.recipe_combos[0].setCurrentText(ITERATE_ROUTINE)
         if hasattr(self._parent, "compare_diff_data"):  # not yet built while the window is set up
             self._parent.compare_diff_data.valueChanged()  # ring marks belong to the ring-based method
 
@@ -510,6 +527,16 @@ class PeakLinesSetupView(QGroupBox):
         if strips < 1:
             raise ValueError(f"strips must be at least 1, got {strips}")
         return strips
+
+    def rounds(self) -> int:
+        """Most ring extraction + refinement rounds from the Rounds field."""
+        try:
+            rounds = int(self.rounds_lineEdit.text())
+        except ValueError:
+            raise ValueError(f"rounds must be a whole number, got {self.rounds_lineEdit.text()!r}")
+        if rounds < 1:
+            raise ValueError(f"rounds must be at least 1, got {rounds}")
+        return rounds
 
     def set_reduction_param(self):
         self._parent.controller.set_reduction_param(self.tthbin_lineEdit.text(), self.etabin_lineEdit.text())
@@ -579,6 +606,8 @@ class PeakLinesSetupView(QGroupBox):
                 self.set_reduction_param()
             self.set_calibration_params()
             self.set_refinement_params()
+            if self.ring_based:
+                self._parent.controller.set_max_rounds(self.rounds())
             exclude_list = self.get_keep_list()
         except (ValueError, RuntimeError, OSError) as setup_err:
             pop_message(self, "Calibrate failed", str(setup_err), "error")
@@ -597,6 +626,7 @@ class PeakLinesSetupView(QGroupBox):
                 self.calibrate,
                 self.method_combo,
                 self.strips_lineEdit,
+                self.rounds_lineEdit,
                 self.calibrant_table,
                 self._parent.calib_summary.export_calib_bttn,
                 self._parent.fileLoading,
@@ -711,6 +741,7 @@ class PeakLinesSetupView(QGroupBox):
 
         output_dict["calibration_method"] = self.method_combo.currentText()
         output_dict["strips"] = self.strips_lineEdit.text()
+        output_dict["rounds"] = self.rounds_lineEdit.text()
         output_dict["method"] = self._parent.calib_summary.method_combo_box.currentText()
         output_dict["neval"] = self._parent.calib_summary.neval_lineEdit.text()
 
@@ -733,16 +764,21 @@ class PeakLinesSetupView(QGroupBox):
             self._parent._nexus_file = input_dict["nexus_file"]
             self._parent.fileLoading.file_load_dilg.load_nexus()
 
-        # the method first: it decides which routines the recipe combos offer
-        if "calibration_method" in input_dict:
-            self.method_combo.setCurrentText(input_dict["calibration_method"])
+        # the method first: it decides which routines the recipe combos offer. A recipe saved before the method
+        # was (#1045) is FitCalibration's, the only method then, unless it has "iterate", which only the ring-based
+        # method has: it must not run with the ring-based default (#1038)
+        method = input_dict.get("calibration_method")
+        if method is None:
+            routines = str(input_dict.get("recipe", "")).split(",")
+            method = METHOD_RING if ITERATE_ROUTINE in routines else METHOD_FITCALIBRATION
+        self.method_combo.setCurrentText(method)
         if "strips" in input_dict:
             self.strips_lineEdit.setText(str(input_dict["strips"]))
+        if "rounds" in input_dict:
+            self.rounds_lineEdit.setText(str(input_dict["rounds"]))
 
         if "recipe" in input_dict.keys():
             routines = input_dict["recipe"].split(",")
-            if ITERATE_ROUTINE in routines and "calibration_method" not in input_dict:
-                self.method_combo.setCurrentText(METHOD_RING)  # only the ring-based method has "iterate"
             for i_item, item in enumerate(routines):
                 index = self.recipe_combos[i_item].findText(item)
                 if index < 0:

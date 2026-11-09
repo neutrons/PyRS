@@ -527,6 +527,7 @@ class FitSetupView(QGroupBox):
         filename, _ = QFileDialog.getSaveFileName(
             self,
             "Export Peak Fit Information",
+            "",
             "JSON (*.json);;All Files (*)",
             options=QFileDialog.DontUseNativeDialog,
         )
@@ -537,7 +538,8 @@ class FitSetupView(QGroupBox):
     def load_json(self):
         filename, _ = QFileDialog.getOpenFileName(
             self,
-            "Export Peak Fit Information",
+            "Load Peak Fit Information",
+            "",
             "JSON (*.json);;All Files (*)",
             options=QFileDialog.DontUseNativeDialog,
         )
