@@ -288,7 +288,7 @@ class PyRsCore:
         elif isinstance(geometry_calibration, str):
             # the standard calibration file reader: DENEXDetectorShift.from_json expects other keys and
             # would silently give a zero calibration (#1051)
-            calib_values = calibration_file_io.read_calibration_json_file(geometry_calibration)
+            calib_values = calibration_file_io.read_calibration_file(geometry_calibration)
             calibration_file_io.check_calibration_status(calib_values[4])
             apply_calibration = calib_values[0]
         elif isinstance(geometry_calibration, instrument_geometry.DENEXDetectorShift):

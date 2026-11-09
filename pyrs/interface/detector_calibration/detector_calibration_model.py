@@ -28,7 +28,7 @@ from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
 from pyrs.calibration.ring_extraction import column_at_two_theta
 from pyrs.core.detector_model import DetectorModel, to_shift
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
-from pyrs.utilities.calibration_file_io import read_calibration_json_file, write_calibration_to_json
+from pyrs.utilities.calibration_file_io import read_calibration_file, write_calibration_to_json
 
 # calibration methods (#1045): FitCalibration re-reduces and re-fits for every trial geometry; the
 # ring-based calibration fits each ring once in detector strips, then refines from the ring points
@@ -819,7 +819,7 @@ class DetectorCalibrationModel(QObject):
         else:
             if not calibration_file:
                 raise ValueError("choose a calibration file to draw its rings")
-            shift, _, file_wavelength, _, _ = read_calibration_json_file(calibration_file)
+            shift, _, file_wavelength, _, _ = read_calibration_file(calibration_file)
             wavelength = float(file_wavelength)
 
         standard = standard_for_sy(float(workspace.get_sample_log_value("sy", sub_run)))

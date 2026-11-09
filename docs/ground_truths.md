@@ -2662,3 +2662,49 @@ User-approved, after the C1-C5 evaluation and step 1 (repeated ring extraction) 
   from the nominal geometry (260-2100 µε across the detector) on the three runs studied. Existing calibration
   files, including `HB2B_Latest.json`, are untouched until someone calibrates again; reduction never chooses a
   method. Every calibration file records its method in its provenance (`method`: "ring" or "peak-fit").
+
+## NeXus calibration files (2026-11, #1054 phase 1)
+
+Reduction reads a calibration from either a **JSON** (`.json`) or a **NeXus** (`.nxs`) file, through one entry
+point, `calibration_file_io.read_calibration_file`. Its format is chosen by the extension
+(`calibration_format`); anything else raises `ValueError`, including `.h5` (a PyRS project file) and
+`.nxs.h5` (raw event data). `read_calibration_provenance` and `read_calibration_geometry` dispatch the
+same way. Users: `HidraSetup.load_calibration_file`, `ReductionApp.reduce_data` (its #1051 `.json`-only check
+becomes this check), `PyRsCore`, and the calibration GUI's "From file…" overlay. Design and decisions
+(user-approved): the #1054 thread.
+
+- **A complete calibration** (`pyrs/utilities/calibration_nexus.py`): `NXentry/NXinstrument`, the wavelength
+  and its error under `NXmonochromator`, and the detector as an `NXdetector`:
+  - pixel pitch, and the uncalibrated pixel offsets as 1D arrays along `index_0` (`x_pixel_offset`, length =
+    columns) and `index_1` (`y_pixel_offset`, length = rows), as `DetectorModel.local_positions` gives them;
+  - the provenance as JSON and the `status` in an `NXnote`, and `calibration_date` from the provenance;
+  - the placement as an `NXtransformations` chain.
+- **The chain is `DetectorModel`'s order, innermost first** (`detector_model.CALIBRATION_TRANSFORMATIONS`,
+  built by `transformation_chain`): shift_x, shift_y, rotation_z, rotation_y, rotation_x (R = Rx·Ry·Rz, so Rz
+  acts first), arm_length, shift_z, two_theta_0 (about Y), arm_rotation (about Y; stored as 0, because the arm
+  angle belongs to each sub-run). Each value is float64 in m or deg, right-handed, in the PyRS frame (+Z beam,
+  +Y up), with `<name>_errors` beside it (the JSON's -1 / -2 codes). The reader checks every transformation's
+  type, vector, units and `depends_on` against this chain, and refuses (`ValueError`) a file that would be
+  applied differently. It also checks that the detector's `depends_on` starts the chain at `shift_x`, that
+  `arm_rotation` is 0, and that the pixel offsets are PyRS's layout (`DetectorModel.local_positions`:
+  X decreasing with `index_0`, Y increasing with `index_1`). The old NXstress chain, with 2θ₀ about X, would
+  be refused. One-element string arrays and shape-(1,) values, as other tools write them, are read.
+- **A NeXus file's geometry is part of the calibration.** Unlike the JSON's `"geometry"` block, whose problems
+  only add a note to the reduction record, a NeXus file whose pixel layout is missing or not PyRS's is
+  refused when the calibration is read, before any reduction work: the chain is defined on those pixels. A
+  `.nxs` that is not HDF5 raises h5py's `OSError`, as a malformed `.json` raises its JSON error.
+- **GUI:** the predicted-rings "From file…" dialog offers `*.json *.nxs`. The window's **Load Calibration** (a
+  starting calibration for the table) still reads JSON only (`_initalize_calibration` parses it directly);
+  phase 3.
+- **Verified:**
+  - Applying the file's chain with plain 4×4 matrices (Rodrigues rotations), independently of `DetectorModel`,
+    reproduces `DetectorModel.lab_positions` to 1e-12 m and the pixel 2θ to 1e-9°, at arm angles 0, 76, 90
+    and 103°, on HB2B's detector and on a 4-row × 6-column one (catches swapped axes).
+  - The same calibration written as JSON and as NeXus reads back bit for bit (values, errors, λ, status).
+  - HB2B_3510 reduces **bit-identically** with either, whole-detector and in 3° η slices. The reduced file's
+    record names the NeXus file and its SHA-256.
+  - `Status` < 0 reads back and is refused by `check_calibration_status`, as for the JSON.
+- **Decisions (user):** `.nxs` only. The NeXus file is written beside the JSON (GUI default on; on request
+  from the command line, phases 2-3). `HB2B_Latest.json` stays the only shared default: live reduction
+  (v1.8.1) and older tools read JSON only. FitCalibration diagnostics: peaks and residuals, reduced patterns on
+  request (phase 2). The mask is recorded by file and SHA-256 only (no `pixel_mask`).
