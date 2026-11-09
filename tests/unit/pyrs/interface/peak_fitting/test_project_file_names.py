@@ -22,8 +22,9 @@ def model():
         (["/data/v1.2/HB2B_1423.h5"], "HB2B_1423"),
         (["/home/u/.local/HB2B_1423.h5", "/home/u/.local/HB2B_1424.h5"], "HB2B_1423_1424"),
         ("/data/v1.2/HB2B_1423.h5", "HB2B_1423"),
+        (["/data/v1.2/HB2B_1423.nxs.h5", "/data/v1.2/HB2B_1424.nxs.h5"], "HB2B_1423_1424"),
     ],
-    ids=["one-run", "two-runs", "plain-string"],
+    ids=["one-run", "two-runs", "plain-string", "nxs-h5-suffix"],
 )
 def test_project_name_ignores_dotted_directory(model, project_files, expected):
     """Dots in a directory name do not end up in the project name."""
@@ -34,17 +35,26 @@ def test_project_name_ignores_dotted_directory(model, project_files, expected):
     assert model.project_name == expected
 
 
-@pytest.mark.parametrize("directory", ["/HFIR/HB2B/IPTS-1234/shared", "/home/u/v1.2"])
-def test_parse_working_files_keeps_full_directory(model, directory):
+@pytest.mark.parametrize(
+    "directory, expected",
+    [
+        ("/HFIR/HB2B/IPTS-1234/shared/", "/HFIR/HB2B/IPTS-1234/shared/HB2B_1423HB2B_1424.h5"),
+        ("/home/u/v1.2/", "/home/u/v1.2/HB2B_1423HB2B_1424.h5"),
+        # no directory at all: the name must not gain a leading "/"
+        ("", "HB2B_1423HB2B_1424.h5"),
+    ],
+    ids=["hfir-path", "dotted-directory", "bare-file-names"],
+)
+def test_parse_working_files_keeps_full_directory(model, directory, expected):
     """The combined file of several runs sits in the runs' own directory."""
     # Arrange
-    project_files = [f"{directory}/HB2B_1423.h5", f"{directory}/HB2B_1424.h5"]
+    project_files = [f"{directory}HB2B_1423.h5", f"{directory}HB2B_1424.h5"]
 
     # Act
     working_file = model._parse_working_files(project_files)
 
     # Assert
-    assert working_file == f"{directory}/HB2B_1423HB2B_1424.h5"
+    assert working_file == expected
 
 
 def test_parse_working_files_single_run_unchanged(model):

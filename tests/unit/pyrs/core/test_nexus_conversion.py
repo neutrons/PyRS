@@ -90,10 +90,16 @@ class TestSplitter:
         np.testing.assert_equal(splitter.subruns, [1, 2])
 
 
-def test_mask_workspace_named_from_file_name(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    "mask_dir_name",
+    # ".masks" used to give an empty workspace name, which LoadMask rejects with a ValueError
+    [".masks", "masks.v1.2"],
+    ids=["hidden-directory", "dotted-directory"],
+)
+def test_mask_workspace_named_from_file_name(tmp_path, monkeypatch, mask_dir_name):
     """A dot in the mask's directory does not truncate the mask workspace name."""
     # Arrange
-    mask_dir = tmp_path / "masks.v1.2"
+    mask_dir = tmp_path / mask_dir_name
     mask_dir.mkdir()
     mask_file = mask_dir / "HB2B_Mask_12-18-19.xml"
     mask_file.write_text("<mask/>")
