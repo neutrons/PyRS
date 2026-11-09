@@ -2478,3 +2478,45 @@ caller would have produced a file with no calibration or vanadium record. `grep 
 deleted rather than wired into provenance. `HidraWorkspace.save_reduced_diffraction_data` stays: it is
 the writer `ReductionApp` and "Combine runs" call. Save reduced data through
 `ReductionApp.save_diffraction_data`, which writes the record.
+
+## Ring-based calibration vs FitCalibration as the default (2026-11, #1038)
+
+Analysis only (no production change), on the three calibration runs available locally (HB2B_4971, HB2B_3510,
+HB2B_3489), with `tests/data/HB2B_Mask_12-18-19.xml` (the production mask was not reachable) and the 2020
+lattice constants. Script: `tests/scripts/default_calibration_study.py`; results in
+`calib_diagnostics/1038/` (outside the repository). Pixel 2θ is compared over the detector at each run's arm
+angles, never parameter by parameter: **Rot_y, Shift_x and 2θ₀ are exactly degenerate** (the ring cost is
+flat to 1e-5 deg along Rot_y from -1 to +3.2 deg with the others free), so FitCalibration's Rot_y of 3.7 deg on
+HB2B_4971 is not by itself a sign of failure.
+
+- **Both costs have their minimum near the ring geometry.** FitCalibration's own η-wedge residual is lower at
+  the ring calibration than at FitCalibration's own result on every run (HB2B_4971 7.5 vs 9.1 / 12.5 mdeg for
+  the staged / full recipes; HB2B_3510 19.0 vs 23.8 / 21.7; HB2B_3489 28.4 vs 32.0 / 32.9). Started from the
+  ring geometry, FitCalibration lowers its cost further (7.0, 17.4, 27.5 mdeg) and stays within 10-24 mdeg of
+  the ring geometry (≤ 250 µε spread); from nominal it ends 30-200 mdeg away.
+- **FitCalibration stops short because of its start and its rough cost, not its iteration limit.** It reports
+  convergence (status 3) after about 20 evaluations per stage; an `lm` polish moves it by ≤ 3 mdeg; along the
+  line from the ring geometry to its result its cost rises steadily with ±0.3-0.7 mdeg of roughness (peaks
+  re-binned and re-fitted at each evaluation, #1030).
+- **The ring refinement is start-independent; its extraction is not.** From 14 perturbed starts (shifts
+  ±2-5 mm, rotations ±0.5-1 deg, λ ±0.2-0.3%) with the ring points held, every refinement ends at the same
+  geometry (0.00 mdeg). Extracting the rings at a perturbed start does change the result: up to 7 mdeg on
+  HB2B_4971, 42 on HB2B_3510, and on HB2B_3489 one start found 31 of ~60 points and ended 0.53-0.70 deg off
+  with a *better* RMS (0.0127 deg) and no failure status (a silent failure). Extracting again at the refined
+  geometry (3 rounds) removes it: worst / median spread 0.24 / 0.14 mdeg (HB2B_4971), 4.4 / 2.4 (HB2B_3510),
+  22 / 10 (HB2B_3489, consistent with its 0.030 deg RMS over ~60 points: ≈ 11 mdeg).
+- **The mask does not change the ring calibration** (the extraction already skips 40 pixels at each edge).
+- **Strain consequence (C4).** Relative to the 3-round ring geometry, FitCalibration from nominal implies a
+  strain varying across the detector by up to 260-440 µε (HB2B_4971), 1100-1240 µε (HB2B_3510) and
+  1900-2100 µε (HB2B_3489) at one arm angle (95% range), plus a uniform offset of up to -400 µε (which a d0
+  measured with the same calibration cancels; the variation across the detector it does not). The
+  whole-detector 1D peak positions cannot tell the geometries apart (differences within their scatter): the
+  difference is in the ring shape over the detector height (strip drift 20-38 vs 3 mdeg on HB2B_4971).
+- **Cost (C5).** Ring calibration, 3 rounds, HB2B_4971: 36 s wall (22 s of computation, 3.8 GB); FitCalibration:
+  about 40 min. Both write errors and a provenance block (#1053).
+
+Recommendation (a production change would be a separate, approved proposal): make the ring-based calibration
+the default **with the extraction repeated at the refined geometry** (at least 2 rounds; 3 tested), keep
+FitCalibration available (started from the ring geometry it agrees within the data's precision), and flag a
+round whose ring-point count drops or whose geometry moves by more than the data's precision. Limits: three
+runs, one monochromator setting per run as recorded, a test mask.
