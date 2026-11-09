@@ -57,6 +57,21 @@ pyRS package
 :mod:`Instrument Calibration` Module
 ------------------------------------
 
+.. autoclass:: pyrs.calibration.pixel_refinement.PixelCalibration
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. autofunction:: pyrs.calibration.ring_rounds.calibrate_rings
+   :no-index:
+
+.. autofunction:: pyrs.calibration.ring_rounds.continue_rounds
+   :no-index:
+
+.. autofunction:: pyrs.calibration.ring_extraction.extract_ring_points
+   :no-index:
+
 .. autoclass:: pyrs.calibration.mantid_peakfit_calibration.FitCalibration
    :no-index:
    :members:

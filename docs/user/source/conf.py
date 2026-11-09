@@ -36,6 +36,7 @@ print(project_dir)
 # ones.
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",  # Google/NumPy style docstrings, as the developer docs
     "sphinx.ext.todo",
     "sphinxcontrib.programoutput",
     "sphinx.ext.mathjax",

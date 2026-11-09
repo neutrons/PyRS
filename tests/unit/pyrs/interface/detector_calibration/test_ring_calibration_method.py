@@ -858,3 +858,13 @@ def test_controller_passes_the_rounds(workspace):
 
     # Assert
     assert gui_model.max_rounds == 4
+
+
+def test_default_method_is_ring_based():
+    """#1038: the GUI opens on the ring-based calibration, listed first; FitCalibration stays available"""
+    # Act
+    gui_model = DetectorCalibrationModel(None)
+
+    # Assert
+    assert gui_model.method == METHOD_RING == model_module.DEFAULT_METHOD
+    assert model_module.CALIBRATION_METHODS == (METHOD_RING, METHOD_FITCALIBRATION)

@@ -34,7 +34,10 @@ from pyrs.utilities.calibration_file_io import read_calibration_json_file, write
 # ring-based calibration fits each ring once in detector strips, then refines from the ring points
 METHOD_FITCALIBRATION = "FitCalibration"
 METHOD_RING = "Ring-based"
-CALIBRATION_METHODS = (METHOD_FITCALIBRATION, METHOD_RING)
+# the ring-based calibration is the default (#1038): it scores best on both methods' costs, and FitCalibration
+# from the nominal geometry stops 30-200 mdeg short (docs/ground_truths.md); listed first, so the GUI opens on it
+DEFAULT_METHOD = METHOD_RING
+CALIBRATION_METHODS = (METHOD_RING, METHOD_FITCALIBRATION)
 # as the pyrs-pixel-calibration driver: fewer, wider strips than extract_ring_points' 15 keep enough
 # counts per strip on sparse runs (HB2B_3510, ~0.07 counts/pixel; docs/ground_truths.md)
 DEFAULT_STRIPS = 5
@@ -197,7 +200,7 @@ class DetectorCalibrationModel(QObject):
         self._calibration_obj = None
 
         # ring-based calibration (#1045); FitCalibration's object still holds the converted run
-        self.method = METHOD_FITCALIBRATION
+        self.method = DEFAULT_METHOD
         self._ring_refinement = {"method": "trf", "max_nfev": None}
         # most ring extraction + refinement rounds of "iterate" (#1038): the rings are extracted again at the
         # refined geometry until a round moves the pixel 2theta and the predicted ring positions by less than half
