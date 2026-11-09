@@ -229,13 +229,20 @@ class PeakFittingModel(QObject):
         generator.write_csv(sample_logs, peaks)
 
     def save_peak_range_json(self, filename, list_peak_ranges, list_peak_labels, list_peak_d0):
-        """Serialize the peak-range table to a JSON file."""
+        """Serialize the peak-range table to a JSON file.
+
+        A ``.json`` extension is appended when ``filename`` has none, because the
+        non-native Qt save dialog does not add it.
+        """
+        if not os.path.splitext(filename)[1]:
+            filename += ".json"
+
         output = {}
         for _index, peak_range in enumerate(list_peak_ranges):
             output[_index] = {
                 "peak_range": peak_range,
                 "peak_label": list_peak_labels[_index],
-                "d0": list_peak_d0,
+                "d0": float(list_peak_d0[_index]),
             }
 
         with open(filename, "w") as outfile:
@@ -243,6 +250,11 @@ class PeakFittingModel(QObject):
 
     def load_peak_range_json(self, filename):
         """Deserialize a peak-range JSON file.
+
+        Files written before #925 stored the whole d0 list on every peak. A list
+        holding one value per peak is resolved to that peak's own value; any other
+        list (in practice the empty list) falls back to 1.0, the d0 the UI assigns
+        to a newly drawn peak range.
 
         Returns:
             A tuple ``(peak_range, peak_label, peak_d0)`` of parallel lists.
@@ -253,10 +265,13 @@ class PeakFittingModel(QObject):
         peak_range = []
         peak_label = []
         peak_d0 = []
-        for _index in data.keys():
+        for _position, _index in enumerate(data.keys()):
             peak_range.append(data[_index]["peak_range"])
             peak_label.append(data[_index]["peak_label"])
-            peak_d0.append(data[_index]["d0"])
+            d0 = data[_index]["d0"]
+            if isinstance(d0, list):
+                d0 = d0[_position] if len(d0) == len(data) else 1.0
+            peak_d0.append(float(d0))
 
         return peak_range, peak_label, peak_d0
 

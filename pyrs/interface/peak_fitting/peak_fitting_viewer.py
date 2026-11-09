@@ -62,7 +62,6 @@ class PeakFittingViewer(QMainWindow):
         # View-side state
         self.current_hidra_file_name = ""
         self.current_root_statusbar_message = ""
-        self.list_peak_d0 = []
         self._sample_log_names = list()
         self._advanced_fit_dialog = None
 
@@ -559,7 +558,7 @@ class PeakFittingViewer(QMainWindow):
 
         list_peak_ranges = self._ui_graphicsView_fitSetup.list_peak_ranges
         list_peak_labels = self._ui_graphicsView_fitSetup.list_fit_peak_labels
-        list_peak_d0 = self.list_peak_d0
+        list_peak_d0 = self._ui_graphicsView_fitSetup.list_fit_peak_d0
 
         self._model.save_peak_range_json(json_file_name, list_peak_ranges, list_peak_labels, list_peak_d0)
 
@@ -572,7 +571,7 @@ class PeakFittingViewer(QMainWindow):
 
         self._ui_graphicsView_fitSetup.list_peak_ranges = peak_range
         self._ui_graphicsView_fitSetup.list_fit_peak_labels = peak_label
-        self.list_peak_d0 = peak_d0
+        self._ui_graphicsView_fitSetup.list_fit_peak_d0 = peak_d0
 
         self.update_peak_ranges_table(
             release=True,
@@ -605,8 +604,10 @@ class PeakFittingViewer(QMainWindow):
 
         new_list_peak_ranges = []
         new_list_peak_labels = []
+        new_list_peak_d0 = []
         new_list_matplotlib_id = []
         old_list_peak_label = self._ui_graphicsView_fitSetup.list_fit_peak_labels
+        old_list_peak_d0 = self._ui_graphicsView_fitSetup.list_fit_peak_d0
         old_list_matplotlib_id = self._ui_graphicsView_fitSetup.list_peak_labels_matplotlib_id
         for _row, peak_range in enumerate(self._ui_graphicsView_fitSetup.list_peak_ranges):
             if _row == row_to_remove:
@@ -616,9 +617,11 @@ class PeakFittingViewer(QMainWindow):
 
             new_list_peak_ranges.append(peak_range)
             new_list_peak_labels.append(old_list_peak_label[_row])
+            new_list_peak_d0.append(old_list_peak_d0[_row])
             new_list_matplotlib_id.append(old_list_matplotlib_id[_row])
 
         self._ui_graphicsView_fitSetup.list_fit_peak_labels = new_list_peak_labels
+        self._ui_graphicsView_fitSetup.list_fit_peak_d0 = new_list_peak_d0
         self._ui_graphicsView_fitSetup.list_peak_ranges = new_list_peak_ranges
         self._ui_graphicsView_fitSetup.list_peak_labels_matplotlib_id = new_list_matplotlib_id
 

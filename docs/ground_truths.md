@@ -2479,6 +2479,54 @@ deleted rather than wired into provenance. `HidraWorkspace.save_reduced_diffract
 the writer `ReductionApp` and "Combine runs" call. Save reduced data through
 `ReductionApp.save_diffraction_data`, which writes the record.
 
+## Peak-range JSON from the peak-fitting UI lost d0 and could not be loaded (2026-11-09, #925)
+
+Two bugs, both in the peak-fitting UI (the texture-fitting UI has its own, working writer):
+
+- `PeakFittingModel.save_peak_range_json` wrote the **whole** d0 list on every peak instead of that
+  peak's value. Loading then crashed in `GuiUtilities.fill_peak_range_table` (`"{:.6f}".format(list)`).
+- The viewer saved `self.list_peak_d0`, which was set to `[]` when the window opened and changed only
+  when a file was loaded. The table's d0 values actually live in
+  `PeakFitSetupView.list_fit_peak_d0` (kept in sync by `_update_fit_peak_ranges_plot`). So a normal
+  save wrote `"d0": []` for every peak. The stale attribute is gone, and save/load use the widget's
+  list.
+
+`save_peak_range_json` now appends `.json` when the name has no extension (the non-native Qt dialog
+does not). `load_peak_range_json` still reads files written before the fix. A d0 list with one entry
+per peak resolves to that peak's value, which is exact. Any other list (in practice `[]`) falls back
+to 1.0, the d0 the UI gives a newly drawn range.
+
+**Keep the widget's three per-peak lists in step.** `list_peak_ranges`, `list_fit_peak_labels` and
+`list_fit_peak_d0` are parallel lists. Any code that adds or removes a peak must update all three.
+`remove_peak_range_table_row` used to skip d0. Removing row 0 then paired Peak1 with Peak0's d0.
+Before #925 nothing read that list, so the mismatch was harmless. Once save started using it, the
+wrong d0 was saved without any warning. Found in review and fixed in the same PR.
+`QTableWidget.removeRow` emits no `cellChanged`, so the table-to-list sync in
+`_update_fit_peak_ranges_plot` does not run after a removal.
+
+**A `QObject` alone does not make a test GUI-tier.** `PeakFittingModel` is a `QObject` with signals.
+It constructs, connects and emits with no `QApplication` and no display (verified with `DISPLAY`,
+`QT_QPA_PLATFORM` and `WAYLAND_DISPLAY` unset). Only widgets need one. Its tests therefore live in
+`tests/unit/pyrs/interface/peak_fitting/`.
+
+Also found: the texture-fitting save/load dialogs, and still the calibration GUI's export/recipe
+dialogs (`detector_calibration_viewer.py`), pass the file filter as `QFileDialog`'s *directory*
+argument, so the filter never applies. The texture ones are fixed. The calibration ones are not.
+
+`tests/ui/test_peak_fitting.py::test_peak_fitting` and
+`tests/ui/test_texture_fitting.py::test_texture_fitting_viewer` fail on `main` (04102098) in a
+workstation run, independent of this fix. CSV export builds a name like `HB2B_<path>.csv` that does
+not exist. Not investigated further. The `FileNotFoundError` is raised inside the Qt event loop. The
+session-scoped `my_qtbot` fixture (`tests/conftest.py`) reports it when it is torn down, so pytest
+shows it as an ERROR on whichever GUI test runs **last**. That test is not at fault. In
+`tests/ui/test_peak_fitting.py` that is now `test_remove_peak_range_row_drops_its_d0`.
+
+Tests:
+- `tests/unit/pyrs/interface/peak_fitting/test_peak_fitting_model.py`: round trip (in memory and on
+  disk), file extension, int and `np.float64` d0, legacy files.
+- `tests/ui/test_peak_fitting.py::test_save_load_peak_range_keeps_table_d0`.
+- `tests/ui/test_peak_fitting.py::test_remove_peak_range_row_drops_its_d0`.
+
 ## Ring-based calibration vs FitCalibration as the default (2026-11, #1038)
 
 Analysis only (no production change), on the three calibration runs available locally (HB2B_4971, HB2B_3510,
