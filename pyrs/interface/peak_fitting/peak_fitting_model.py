@@ -25,7 +25,9 @@ from qtpy.QtCore import QObject, Signal  # type:ignore
 from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.summary_generator import SummaryGenerator
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
+from pyrs.calibration.provenance import file_record
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
+from pyrs.projectfile.file_object import combine_reduction_records
 
 
 class PeakFittingModel(QObject):
@@ -51,6 +53,7 @@ class PeakFittingModel(QObject):
         self.hidra_workspace = None
         self.fit_result = None
         self._curr_file_name = None
+        self._project_files = []
 
     @property
     def working_dir(self):
@@ -83,6 +86,7 @@ class PeakFittingModel(QObject):
         self._set_up_project_name(project_files)
         ws = self._load_multiple_file(project_files)
 
+        self._project_files = list(project_files) if type(project_files) is list else [project_files]
         self._curr_file_name = self._parse_working_files(project_files)
         self.hidra_workspace = ws
         self.fit_result = None
@@ -202,12 +206,21 @@ class PeakFittingModel(QObject):
         If ``out_file_name`` differs from the currently loaded file, the loaded
         file is first copied to ``out_file_name`` and the peak parameters are
         written to the copy; otherwise the loaded file is updated in place.
+        With several runs loaded, a new combined file is written instead (see
+        :meth:`_save_combined_fit_result`); failures are reported through ``failureMsg``.
 
         Args:
             out_file_name: Destination path (or a single-element list).
         """
         fit_result = self.fit_result
         if fit_result is None:
+            return
+
+        if len(self._project_files) > 1:
+            try:
+                self._save_combined_fit_result(out_file_name, fit_result)
+            except (ValueError, OSError) as e:
+                self.failureMsg.emit("Failed to save fit results", str(e), traceback.format_exc())
             return
 
         if type(out_file_name) is list:
@@ -220,6 +233,48 @@ class PeakFittingModel(QObject):
             current_project_file = self._curr_file_name
 
         project_h5_file = HidraProjectFile(current_project_file, mode=HidraProjectFileMode.READWRITE)
+        for peak in fit_result.peakcollections:
+            project_h5_file.write_peak_parameters(peak)
+        project_h5_file.save(False)
+        project_h5_file.close()
+
+    def _save_combined_fit_result(self, out_file_name, fit_result):
+        """Write several runs' merged data and fit to a new combined project file (#1080).
+
+        The run files themselves are never modified. Like "Combine runs", the runs' calibration
+        records must agree; the combined file records them.
+
+        Args:
+            out_file_name: Destination path. Empty, ``None`` or the list of loaded runs (what
+                Save passes) selects the default combined name next to the runs.
+            fit_result: The fit result whose peak collections are written.
+
+        Raises:
+            ValueError: If the destination is one of the loaded run files, or the runs were
+                reduced with different calibrations, vanadium runs, masks or binning.
+        """
+        if not out_file_name or type(out_file_name) is list:
+            out_file_name = self._curr_file_name
+        loaded = {os.path.abspath(name) for name in self._project_files}
+        if os.path.abspath(out_file_name) in loaded:
+            raise ValueError(f"{out_file_name} is one of the loaded runs; save the combined fit to a new file")
+
+        sources = []
+        for file_name in self._project_files:
+            project = HidraProjectFile(file_name)
+            source = file_record(file_name)
+            source["record"] = project.read_reduction_provenance()
+            project.close()
+            sources.append(source)
+        record = combine_reduction_records(sources)
+
+        workspace = self.hidra_workspace
+        project_h5_file = HidraProjectFile(out_file_name, mode=HidraProjectFileMode.OVERWRITE)
+        workspace.save_experimental_data(
+            project_h5_file, sub_runs=workspace._sample_logs.subruns, ignore_raw_counts=True
+        )
+        workspace.save_reduced_diffraction_data(project_h5_file)
+        project_h5_file.write_reduction_provenance(applied_calibration=record)
         for peak in fit_result.peakcollections:
             project_h5_file.write_peak_parameters(peak)
         project_h5_file.save(False)

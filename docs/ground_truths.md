@@ -2679,3 +2679,26 @@ The rule now (`PeakFittingModel._run_label` / `_file_stem`):
 Standard `HB2B_<run>.h5` names give exactly the names they gave before.
 
 Tests: `tests/unit/pyrs/interface/peak_fitting/test_project_file_names.py`.
+
+## Saving a peak fit of several runs writes a new combined project file (2026-11-09, #1080)
+
+With several runs loaded in the peak-fitting UI, Save and Save As used to fail with
+`FileNotFoundError`. They copied from the working-file name `<dir>/HB2B_<a>HB2B_<b>.h5`, which
+nothing ever created. Save would also have targeted run 1's own file.
+
+`PeakFittingModel._save_combined_fit_result` now writes a **new** combined file:
+- the merged data, written as "Combine runs" writes it (`save_experimental_data` with
+  `ignore_raw_counts=True`, then `save_reduced_diffraction_data`);
+- the combined calibration record (`combine_reduction_records`), so runs reduced with different
+  calibrations, vanadium runs, masks or binning are refused, as in "Combine runs" (#1063, #1068);
+- the fitted peaks.
+
+Save uses the default combined name next to the runs, and Save As uses the name chosen. A
+destination that is one of the loaded runs is refused, so run files are never modified. Failures
+reach the user through `failureMsg`. A single run is saved as before: the file is updated in place,
+or copied and then updated.
+
+The combined-file writer is duplicated from `CombineRunsModel.export_project_files`, not shared.
+Sharing it would mean changing the "Combine runs" code path, which was out of scope.
+
+Tests: `tests/integration/test_peak_fitting_save.py`.
