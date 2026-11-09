@@ -2520,3 +2520,27 @@ the default **with the extraction repeated at the refined geometry** (at least 2
 FitCalibration available (started from the ring geometry it agrees within the data's precision), and flag a
 round whose ring-point count drops or whose geometry moves by more than the data's precision. Limits: three
 runs, one monochromator setting per run as recorded, a test mask.
+
+## Run numbers must come from the file name, not the full path (2026-11-09)
+
+The peak-fitting model built the project name (and so the CSV export name) and the combined multi-run
+file name with `run.split(".")[0].split("_")[-1]` on the **full path**. A dot in any directory
+(`~/.local`, `v1.2`, a `.claude/worktrees` checkout) truncated the path at that dot. For example, a
+run in `/home/hcf/ResearchSoftware/PyRS/.claude/...` got the project name
+`HB2B_/home/hcf/ResearchSoftware/PyRS/`, and CSV export crashed with `FileNotFoundError`. The
+combined file's directory came from `split("HB2B")[0]`, which turns the production path
+`/HFIR/HB2B/IPTS-…/HB2B_1423.h5` into `/HFIR/`. Both now take `os.path.basename` for the run number
+and `os.path.dirname` for the directory. The name format is unchanged.
+
+`NeXusConvertingApp.__load_mask` had the same mistake: `basename(path.split(".")[0])` splits before
+taking the basename. A dotted directory gave the mask workspace the wrong name, or an empty one when
+the dot came right after a `/`. It is now `basename(path).split(".")[0]`.
+
+**Testing implication:** CI's checkout path has no dot, so CI never saw this. Locally,
+`tests/ui/test_peak_fitting.py::test_peak_fitting` failed in any checkout under a dotted directory.
+Its error, raised inside the Qt event loop, was then reported by the session-scoped `my_qtbot`
+teardown against whichever GUI test ran last. That is why `test_texture_fitting_viewer` also seemed
+to fail.
+
+Tests: `tests/unit/pyrs/interface/peak_fitting/test_project_file_names.py` and
+`tests/unit/pyrs/core/test_nexus_conversion.py::test_mask_workspace_named_from_file_name`.
