@@ -32,7 +32,8 @@ _options += '"IPTS" for the proposal with powder or pin data (default is 22731)\
 _options += '"powder scan": run number for measurment with powder line data\n'
 _options += '"mask": default detector mask\n'
 _options += '"old calibration": override default settings with an old calibration file\n'
-_options += '"method": method that will be used to refine instrument geometry (default is shifts+rotations)\n'
+_options += '"method": method that will be used to refine instrument geometry (default is "full": x, y, z shifts'
+_options += "+rotations and wavelength)\n"
 _options += '"cycle": HFIR run cycle\n'
 
 M_options = "Options for Method inputs:\n"
