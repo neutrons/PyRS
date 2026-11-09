@@ -16,11 +16,17 @@ from pyrs.calibration.pixel_calibration_plots import (
     hkl_label,
     predicted_rings,
 )
-from pyrs.calibration.pixel_pos_calibration import PixelCalibration, StripFit, extract_ring_points
+from pyrs.calibration.pixel_pos_calibration import (
+    DEFAULT_MAX_ROUNDS,
+    PixelCalibration,
+    StripFit,
+    continue_rounds,
+    extract_ring_points,
+)
 from pyrs.calibration.provenance import file_record, safe_build
 from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
 from pyrs.calibration.ring_extraction import column_at_two_theta
-from pyrs.core.detector_model import DetectorModel
+from pyrs.core.detector_model import DetectorModel, to_shift
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 from pyrs.utilities.calibration_file_io import read_calibration_json_file, write_calibration_to_json
 
@@ -193,6 +199,10 @@ class DetectorCalibrationModel(QObject):
         # ring-based calibration (#1045); FitCalibration's object still holds the converted run
         self.method = METHOD_FITCALIBRATION
         self._ring_refinement = {"method": "trf", "max_nfev": None}
+        # most ring extraction + refinement rounds of "iterate" (#1038): the rings are extracted again at the
+        # refined geometry until a round moves the pixel 2theta and the predicted ring positions by less than half
+        # the statistical precision (pyrs.calibration.ring_rounds)
+        self.max_rounds = DEFAULT_MAX_ROUNDS
         self._reset_ring_state()
         self._reset_fit_state()
         self._fit_recipes: List[List[str]] = []  # recipes run since the start, for the provenance (#1053)
@@ -221,6 +231,13 @@ class DetectorCalibrationModel(QObject):
     def monochromator(self) -> str:
         """The loaded run's monochromator setting, e.g. ``"Si422"`` ("SiXXX" before a run is loaded)."""
         return "SiXXX" if self._calibration_obj is None else self._calibration_obj.monosetting.name
+
+    def set_max_rounds(self, max_rounds: int) -> None:
+        """Most ring extraction + refinement rounds of the ring-based "iterate" (1: extract once)."""
+        max_rounds = int(max_rounds)
+        if max_rounds < 1:
+            raise ValueError(f"rounds must be at least 1, got {max_rounds}")
+        self.max_rounds = max_rounds
 
     def set_method(self, method: str) -> None:
         """Choose the calibration method, one of :data:`CALIBRATION_METHODS`."""
@@ -645,7 +662,9 @@ class DetectorCalibrationModel(QObject):
     ) -> Tuple[List[np.ndarray], List[np.ndarray], Optional[float], Optional[float]]:
         """Run the recipe with the ring-based calibration, then its error estimate.
 
-        Each routine is the stage of the same name (:data:`RECIPE_STAGES`), or "iterate". If the
+        Each routine is the stage of the same name (:data:`RECIPE_STAGES`), or "iterate", which extracts the
+        rings again at the refined geometry until converged, at most :attr:`max_rounds` rounds
+        (:func:`~pyrs.calibration.ring_rounds.continue_rounds`, #1038). If the
         recipe ends with a joint refinement (:data:`JOINT_ROUTINES`) the errors come from
         ``estimate_errors`` with 2theta_0 held, as the driver's; otherwise from
         ``errors_at_current``, which moves no value. Warnings (a parameter stopped at a bound, a
@@ -667,12 +686,21 @@ class DetectorCalibrationModel(QObject):
         if unknown:
             raise ValueError(f"unknown recipe routines {unknown}")
         checkpoint, history_length = calibration.checkpoint(), len(self._ring_history)
+        # a new round of extraction replaces the ring points and what the plots show of them
+        extraction_state = (
+            calibration,
+            self._ring_diagnostics,
+            self._ring_extraction_shift,
+            dict(self._ring_extraction),
+            self.ring_summary,
+        )
+        rounds_state = (calibration.extraction_rounds, calibration.extraction_converged)
         first_warning = len(calibration.warning_log)
         values, errors = [], []
         try:
             for routine in routines:
                 if routine == ITERATE_ROUTINE:
-                    calibration.iterate(passes=ITERATE_PASSES)
+                    calibration = self._iterate_with_rounds(calibration)
                 else:
                     getattr(calibration, RECIPE_STAGES[routine])()
                 values.append(calibration.calibration_array)
@@ -687,7 +715,16 @@ class DetectorCalibrationModel(QObject):
                 self._ring_history[-1] = calibration.calibration_array
         except Exception:
             self.calibration_warnings = calibration.warning_log[first_warning:]  # this run's, not the last's
-            calibration.restore(checkpoint)
+            original = extraction_state[0]
+            original.restore(checkpoint)
+            original.extraction_rounds, original.extraction_converged = rounds_state
+            (
+                self._ring_calibration,
+                self._ring_diagnostics,
+                self._ring_extraction_shift,
+                self._ring_extraction,
+                self.ring_summary,
+            ) = extraction_state
             del self._ring_history[history_length:]
             raise
         self.calibration_warnings = calibration.warning_log[first_warning:]
@@ -695,6 +732,37 @@ class DetectorCalibrationModel(QObject):
         rmse = calibration.stages[-1].rmse if calibration.stages else None
         r_sum = _signed_residual_sum(calibration) if calibration.stages else None
         return values, errors, r_sum, rmse
+
+    def _iterate_with_rounds(self, calibration: PixelCalibration) -> PixelCalibration:
+        """The ring-based "iterate": refine, then extract the rings again at the refined geometry and refine,
+        until converged (#1038). Returns the last round's calibration, which becomes the current one."""
+        diagnostics = list(self._ring_diagnostics)
+        result = continue_rounds(
+            calibration,
+            self._calibration_obj._hidra_ws,
+            strips=self._ring_extraction.get("strips", DEFAULT_STRIPS),
+            sub_runs=self._ring_extraction.get("sub_runs"),
+            passes=ITERATE_PASSES,
+            max_rounds=self.max_rounds,
+            diagnostics=diagnostics,
+        )
+        rounds = result.extraction_rounds or []
+        if len(rounds) > 1:  # the plots show the last round's ring points, sought at the previous geometry
+            self._ring_diagnostics = diagnostics
+            self._ring_extraction_shift = to_shift(np.asarray(rounds[-2]["values"])[:7])
+            self._ring_extraction["strip_fits"] = len(diagnostics)
+            self._ring_extraction["strip_fits_rejected"] = dict(
+                Counter(fit.reason or "unspecified" for fit in diagnostics if not fit.accepted)
+            )
+        self._ring_extraction["rounds"] = len(rounds)
+        self._ring_extraction["max_rounds"] = self.max_rounds
+        points = result.ring_points
+        self.ring_summary = (
+            f"{len(points)} ring points on {points.num_rings} rings "
+            f"({self._ring_extraction.get('strips', DEFAULT_STRIPS)} strips per sub-run), extracted {len(rounds)} times"
+        )
+        self._ring_calibration = result
+        return result
 
     def set_keep_subrun_list(self, keep_list):
         self._keep_list = None if keep_list is None else np.asarray(keep_list, dtype=bool)

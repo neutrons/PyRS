@@ -255,6 +255,11 @@ class PixelCalibration:
         # every warning a stage issued (stopped at a bound, not converged), also sent to ``warnings``;
         # callers read it instead of capturing warnings, which is not thread-safe
         self.warning_log: List[str] = []
+        # each round of repeated ring extraction that produced this calibration (pyrs.calibration.ring_rounds,
+        # #1038); None if its ring points were extracted once
+        self.extraction_rounds: Optional[List[Dict[str, Any]]] = None
+        # whether those rounds converged: None for a single extraction (nothing to judge)
+        self.extraction_converged: Optional[bool] = None
 
         # 2theta is evaluated once per detector position (arm angle, L2), taken from the points
         # themselves rather than their sub-run number, which can repeat when runs are combined
@@ -263,6 +268,31 @@ class PixelCalibration:
         for arm_two_theta, l2 in np.unique(positions, axis=0):
             index = np.flatnonzero((positions[:, 0] == arm_two_theta) & (positions[:, 1] == l2))
             self._groups.append((index, -float(arm_two_theta), float(l2)))
+
+    @property
+    def start(self) -> Dict[str, Any]:
+        """Where the refinement since the last start began: ``source`` and ``values`` (8 values)."""
+        return {"source": self._start["source"], "values": [float(value) for value in self._start["values"]]}
+
+    @property
+    def model(self) -> DetectorModel:
+        """The detector model the ring points are refined with."""
+        return self._model
+
+    @property
+    def max_nfev(self) -> Optional[int]:
+        """Maximum residual evaluations per stage (None: scipy's default)."""
+        return self._max_nfev
+
+    @property
+    def method(self) -> str:
+        """The ``least_squares`` method."""
+        return self._method
+
+    @property
+    def diff_step(self) -> Optional[float]:
+        """Relative finite-difference step for the Jacobian (None: scipy's default)."""
+        return self._diff_step
 
     @property
     def calibration_array(self) -> np.ndarray:
@@ -695,6 +725,9 @@ class PixelCalibration:
                 "refinement": {"method": self._method, "max_nfev": self._max_nfev, "diff_step": self._diff_step},
             }
         )
+        extra: Dict[str, Any] = {"held_parameters": list(held)}
+        if self.extraction_rounds is not None:
+            extra["extraction_rounds"] = self.extraction_rounds
         return _provenance.assemble(
             "ring",
             known_inputs,
@@ -706,7 +739,7 @@ class PixelCalibration:
             "-2 where the scaled Jacobian is rank-deficient or a parameter stopped at a bound",
             PARAMETER_NAMES,
             self._caliberr,
-            extra={"held_parameters": list(held)},
+            extra=extra,
         )
 
     def write_calibration(self, file_name: Union[str, Path], inputs: Optional[Mapping[str, Any]] = None) -> None:

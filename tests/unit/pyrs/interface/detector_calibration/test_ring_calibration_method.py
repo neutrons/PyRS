@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 
 from pyrs.core import MonoSetting  # type: ignore
+from pyrs.core.detector_model import from_shift
 from pyrs.interface.detector_calibration import detector_calibration_model as model_module
 from pyrs.interface.detector_calibration.detector_calibration_crtl import DetectorCalibrationCrtl
 from pyrs.interface.detector_calibration.detector_calibration_model import (
@@ -736,3 +737,124 @@ def test_failed_recipe_is_not_in_the_provenance(workspace, monkeypatch):
 
     # Assert
     assert block["inputs"]["recipes"] == [] and block["steps"] == []
+
+
+def test_iterate_extracts_again_until_converged(refined):
+    """#1038: "iterate" extracts the rings again at the refined geometry; the export records every round"""
+    # Arrange
+    gui_model, _ = refined
+
+    # Act
+    provenance = gui_model.export_provenance()
+
+    # Assert
+    rounds = gui_model._ring_calibration.extraction_rounds
+    assert len(rounds) >= 2 and provenance["extraction_rounds"] == rounds
+    assert provenance["inputs"]["extraction"]["rounds"] == len(rounds)
+    assert provenance["inputs"]["extraction"]["max_rounds"] == gui_model.max_rounds
+    assert f"extracted {len(rounds)} times" in gui_model.ring_summary
+
+
+def test_iterate_marks_show_the_last_rounds_points(refined):
+    # Arrange
+    gui_model, _ = refined
+
+    # Act - the extraction geometry is the previous round's, which found the current points
+    expected = np.asarray(gui_model._ring_calibration.extraction_rounds[-2]["values"])[:7]
+
+    # Assert
+    np.testing.assert_allclose(from_shift(gui_model._ring_extraction_shift), expected)
+
+
+def test_one_round_keeps_the_extracted_points(workspace):
+    """Rounds = 1 is "iterate" before #1038: the points of Fit Peaks are refined, never extracted again"""
+    # Arrange
+    gui_model = _model(workspace)
+    gui_model.set_max_rounds(1)
+    gui_model.extract_rings(DEFAULT_STRIPS)
+    extracted = gui_model._ring_calibration.ring_points
+
+    # Act
+    gui_model.calibrate_detector(["iterate"])
+
+    # Assert
+    assert gui_model._ring_calibration.ring_points is extracted
+    assert len(gui_model._ring_calibration.extraction_rounds) == 1
+
+
+def _ring_state(gui_model):
+    """Everything a ring recipe may change, to compare before and after a failure"""
+    calibration = gui_model._ring_calibration
+    return {
+        "calibration": calibration,
+        "values": calibration.calibration_array.tolist(),
+        "rounds": calibration.extraction_rounds,
+        "converged": calibration.extraction_converged,
+        "diagnostics": gui_model._ring_diagnostics,
+        "shift": gui_model._ring_extraction_shift,
+        "extraction": dict(gui_model._ring_extraction),
+        "summary": gui_model.ring_summary,
+        "history": len(gui_model._ring_history),
+    }
+
+
+@pytest.mark.parametrize("rounds", [1, 10], ids=["one-round", "rounds"])
+def test_failed_recipe_after_iterate_restores_all(workspace, monkeypatch, rounds):
+    """A recipe failing after "iterate" goes back to the calibration, points and records before it"""
+    # Arrange
+    gui_model = _model(workspace)
+    gui_model.set_max_rounds(rounds)
+    gui_model.extract_rings(DEFAULT_STRIPS)
+    before = _ring_state(gui_model)
+
+    def failing(self, *args, **kwargs):
+        raise RuntimeError("error estimate failed")
+
+    monkeypatch.setattr(model_module.PixelCalibration, "estimate_errors", failing)
+
+    # Act
+    with pytest.raises(RuntimeError, match="error estimate failed"):
+        gui_model.calibrate_detector(["iterate"])
+
+    # Assert
+    assert _ring_state(gui_model) == before
+
+
+def test_failed_reextraction_restores_all(workspace, monkeypatch):
+    """An extraction failing in a later round of "iterate" leaves the GUI as before the recipe"""
+    # Arrange
+    from pyrs.calibration import ring_rounds
+
+    gui_model = _model(workspace)
+    gui_model.extract_rings(DEFAULT_STRIPS)
+    before = _ring_state(gui_model)
+
+    def failing(*args, **kwargs):
+        raise ValueError("no ring point found")
+
+    monkeypatch.setattr(ring_rounds, "extract_ring_points", failing)
+
+    # Act
+    with pytest.raises(ValueError, match="no ring point found"):
+        gui_model.calibrate_detector(["iterate"])
+
+    # Assert
+    assert _ring_state(gui_model) == before
+
+
+@pytest.mark.parametrize("rounds", [0, -2])
+def test_rounds_below_one_raises(workspace, rounds):
+    # Act / Assert
+    with pytest.raises(ValueError, match="at least 1"):
+        _model(workspace).set_max_rounds(rounds)
+
+
+def test_controller_passes_the_rounds(workspace):
+    # Arrange
+    gui_model = _model(workspace)
+
+    # Act
+    DetectorCalibrationCrtl(gui_model).set_max_rounds("4")
+
+    # Assert
+    assert gui_model.max_rounds == 4

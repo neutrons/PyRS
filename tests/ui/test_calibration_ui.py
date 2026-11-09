@@ -181,6 +181,7 @@ def test_ring_based_calibration_matches_driver(calibration_window, tmp_path):
     # Act - ring-based, default strips, recipe "iterate", as the driver
     setup.method_combo.setCurrentText("Ring-based")
     assert setup.strips_lineEdit.text() == "5" and setup.strips_lineEdit.isEnabled()
+    assert setup.rounds_lineEdit.text() == "10" and setup.rounds_lineEdit.isEnabled()  # #1038: until converged
     assert not setup.tthbin_lineEdit.isEnabled()
     for i_row in range(8):
         setup.recipe_combos[i_row].setCurrentIndex(0)
@@ -228,11 +229,18 @@ def test_ring_based_calibration_matches_driver(calibration_window, tmp_path):
     assert gui_json == driver_json
     varying = {"created", "user", "host", "inputs", "start"}  # the start: same values, says who set it
     assert gui_provenance["start"]["values"] == driver_provenance["start"]["values"]
+    # so does the first extraction round's start (#1038): compared without who set it
+    for provenance in (gui_provenance, driver_provenance):
+        provenance["extraction_rounds"][0]["start"].pop("source")
     assert {k: v for k, v in gui_provenance.items() if k not in varying} == {
         k: v for k, v in driver_provenance.items() if k not in varying
     }
 
+    # the rings were extracted again until converged, as the driver does (compared above with the provenance)
+    assert len(gui_provenance["extraction_rounds"]) >= 2
+
     setup.method_combo.setCurrentText("FitCalibration")
+    assert not setup.rounds_lineEdit.isEnabled()
     assert "iterate" not in [setup.recipe_combos[0].itemText(i) for i in range(setup.recipe_combos[0].count())]
     # ring marks belong to the ring-based method: switching away disables and clears them
     diffraction.show_points.setChecked(True)
@@ -243,7 +251,7 @@ def test_ring_based_calibration_matches_driver(calibration_window, tmp_path):
 
 
 def test_recipe_keeps_method_and_strips(calibration_window, tmp_path, monkeypatch):
-    """#1045: a saved recipe brings back the method, the strips and an "iterate" step"""
+    """#1045: a saved recipe brings back the method, the strips, the rounds (#1038) and an "iterate" step"""
     from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
 
     window, qtbot = calibration_window
@@ -255,6 +263,7 @@ def test_recipe_keeps_method_and_strips(calibration_window, tmp_path, monkeypatc
     # Arrange - Ring-based, 3 strips, two steps (saving kept only the last step before)
     setup.method_combo.setCurrentText("Ring-based")
     setup.strips_lineEdit.setText("3")
+    setup.rounds_lineEdit.setText("4")
     for i_row in range(8):
         setup.recipe_combos[i_row].setCurrentIndex(0)
     setup.recipe_combos[0].setCurrentText("shifts")
@@ -264,11 +273,13 @@ def test_recipe_keeps_method_and_strips(calibration_window, tmp_path, monkeypatc
     setup.save_json()
     setup.method_combo.setCurrentText("FitCalibration")
     setup.strips_lineEdit.setText("5")
+    setup.rounds_lineEdit.setText("10")
     setup.load_json()
     qtbot.wait(wait)
 
     # Assert
     assert (setup.method_combo.currentText(), setup.strips_lineEdit.text()) == ("Ring-based", "3")
+    assert setup.rounds_lineEdit.text() == "4"
     assert [setup.recipe_combos[i].currentText() for i in range(3)] == ["shifts", "iterate", ""]
     assert json.load(open(recipe))["recipe"] == "shifts,iterate"
 
@@ -281,6 +292,7 @@ def test_recipe_keeps_method_and_strips(calibration_window, tmp_path, monkeypatc
     qtbot.wait(wait)
     assert setup.method_combo.currentText() == "Ring-based" and setup.recipe_combos[1].currentText() == "iterate"
     setup.method_combo.setCurrentText("FitCalibration")
+    setup.rounds_lineEdit.setText("10")  # the session's window is shared with later tests
 
 
 def test_export_failure_is_reported(calibration_window, tmp_path, monkeypatch):

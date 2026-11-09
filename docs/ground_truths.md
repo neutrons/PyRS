@@ -2520,3 +2520,51 @@ the default **with the extraction repeated at the refined geometry** (at least 2
 FitCalibration available (started from the ring geometry it agrees within the data's precision), and flag a
 round whose ring-point count drops or whose geometry moves by more than the data's precision. Limits: three
 runs, one monochromator setting per run as recorded, a test mask.
+
+## The ring calibration extracts the rings again until converged (2026-11, #1038 step 1)
+
+Refining fixed ring points ends at the same geometry from any start (0.00 mdeg from 14 starts on three runs),
+but where `extract_ring_points` looks for the rings depends on its starting geometry. From a poor start one
+extraction can find only part of the rings: on HB2B_3489, from shifts of 5 mm, rotations of 1 deg and λ +0.3%,
+it found 31 of about 60 points and the result was 0.53-0.70 deg off with a *better* RMS and a converged status.
+`pyrs.calibration.ring_rounds` (re-exported from `pixel_pos_calibration`) therefore repeats the extraction where
+the refined geometry predicts the rings:
+
+- **Rule (user-approved, from the settling study below):** round 1 extracts at the start and refines
+  (`PixelCalibration.iterate`); each further round extracts at the previous round's geometry and refines; stop
+  after round k ≥ 2 once that round's **step** is less than **half the statistical precision** σ = RMS·√(8/N)
+  (8 parameters, N ring points); **at most 10 rounds** (user decision), reaching which warns (`warning_log`,
+  `warnings`, `extraction_converged = False`); nothing is corrected.
+- **Step (user decision, after review):** the larger of the change of the detector's pixel 2θ over the whole
+  detector (`pixel_two_theta_change`: geometry only) and the change of the predicted ring positions at the
+  ring points (`ring_position_change`, the change of their 2θ residuals: geometry *and* wavelength). The next
+  extraction looks for each ring at its Bragg angle, so a round that mainly moves λ moves the search windows
+  too: in the settling study λ alone moved the rings by up to 1.6σ / 4.2σ / 2.7σ between rounds (HB2B_4971 /
+  3510 / 3489), which the geometry-only step does not see. The ring-position step alone would stop about one
+  round earlier (2-3 / 2-4 / 2-9 rounds) with the same spread between starts (0.4 / 4.1 / 17.9 mdeg).
+- **Why relative to σ:** on sparse runs one or two ring points drop in and out between rounds (60-63 on
+  HB2B_3489), so the geometry keeps stepping by about σ instead of settling. A fixed tolerance (1 mdeg) was
+  reached by only 6 of 15 starts on HB2B_3510 and 2 of 15 on HB2B_3489 within 10 rounds.
+- **Settling study** (10 rounds from nominal and 14 perturbed starts per run; step = largest pixel-2θ change
+  between consecutive rounds over the detector at the run's arm angles):
+  HB2B_4971, σ 2.3 mdeg: steps fall to ~0.1 mdeg (converges), spread between starts 0.19 mdeg, 3 rounds;
+  HB2B_3510, σ 6.2 mdeg: steps jitter at 1-3 mdeg, spread 3.5 mdeg, 3-5 rounds by the rule;
+  HB2B_3489, σ 10.6 mdeg: steps jitter at 1-22 mdeg, spread 17.8 mdeg, 3-9 rounds (median 4).
+  The spread between starts matches σ: it is the calibration's precision on that run, not a failure.
+- **Where it applies:** `calibrate_rings` (what `pyrs-pixel-calibration` runs; `--max-rounds`, default 10; `1`
+  is the single extraction from before) and `continue_rounds` (the GUI's ring-based "iterate"; "Rounds" field,
+  saved with a recipe). Comparisons are by pixel 2θ (`pixel_two_theta_change`), never parameter by parameter
+  (Rot_y, Shift_x and 2θ₀ are degenerate).
+- **Record:** `PixelCalibration.extraction_rounds` (per round: ring points, RMS, σ, both steps and the deciding
+  one, values; the first round of each call also its `start`, because later rounds start where the previous
+  one ended) goes into the calibration's provenance as `extraction_rounds`; a calibration from a single extraction carries no such key,
+  so earlier provenance is unchanged. The GUI's provenance also records `inputs.extraction.rounds` and
+  `max_rounds`, and its ring-point marks show the last round's points.
+- **Effect (from nominal, against one extraction, final rule):** HB2B_4971 converges in 3 rounds (steps 2.2,
+  0.5 mdeg; σ 2.3), HB2B_3510 in 4 (9.6, 5.5, 2.9; σ 6.3), HB2B_3489 in 5 (19.4, 12.1, 12.0, 4.1; σ 10.6); the
+  calibration moves by 1.7 / 9.3 / 12.4 mdeg of pixel 2θ from the single extraction's. A round takes about 7-10 s
+  (HB2B_3510, 4 rounds: 28 s unloaded).
+- **Reference file:** `tests/data/calibration_tests/HB2B_3510_ring_reference.json` was made with one extraction.
+  `test_driver_calibrates_hb2b_3510` therefore pins it with `--max-rounds 1` (2e-5 A, 2 mdeg), and
+  `test_driver_rounds_agree_with_the_reference` checks the default (repeated) result against it within its
+  errors: λ moves by 4e-5 A (its error 2e-4 A) and the pixel 2θ by about 9 mdeg (3σ ≈ 19 mdeg).

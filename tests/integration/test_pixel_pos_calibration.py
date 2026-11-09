@@ -33,12 +33,23 @@ def driver():
 
 
 def test_driver_calibrates_hb2b_3510(tmp_path, driver, capsys):
+    """One extraction (--max-rounds 1) reproduces the reference, which was made with one extraction"""
     # Arrange
     output, rings = tmp_path / "HB2B_3510_cal.json", tmp_path / "rings.npz"
 
     # Act
     status = driver.main(
-        [str(NEXUS_FILE), "--output", str(output), "--mask", str(MASK_FILE), "--ring-points", str(rings)]
+        [
+            str(NEXUS_FILE),
+            "--output",
+            str(output),
+            "--mask",
+            str(MASK_FILE),
+            "--ring-points",
+            str(rings),
+            "--max-rounds",
+            "1",
+        ]
     )
 
     # Assert - a file reduction's own reader and status check accept
@@ -62,6 +73,27 @@ def test_driver_calibrates_hb2b_3510(tmp_path, driver, capsys):
         assert np.max(np.abs(difference)) < 2e-3  # deg
     assert rings.is_file()
     assert "12 rings" in capsys.readouterr().out
+
+
+def test_driver_rounds_agree_with_the_reference(tmp_path, driver):
+    """#1038: extracting again until converged moves the HB2B_3510 calibration within its precision"""
+    # Arrange
+    output = tmp_path / "HB2B_3510_cal.json"
+
+    # Act
+    status = driver.main([str(NEXUS_FILE), "--output", str(output), "--mask", str(MASK_FILE)])
+
+    # Assert - wavelength within its error, pixel 2theta within 3 x the statistical precision
+    assert status == 0
+    shift, _, wavelength, wavelength_error, _ = read_calibration_json_file(str(output))
+    reference_shift, _, reference_wavelength = read_calibration_json_file(str(REFERENCE_FILE))[:3]
+    assert abs(wavelength - reference_wavelength) < wavelength_error
+    precision = json.loads(output.read_text())["provenance"]["extraction_rounds"][-1]["precision_deg"]
+    model = DetectorModel(default_hb2b_geometry())
+    grid = np.meshgrid(np.arange(40, 984, 8), np.arange(40, 984, 8), indexing="ij")
+    for arm in (76.0, 90.0, 103.0):
+        difference = model.two_theta(*grid, -arm, None, shift) - model.two_theta(*grid, -arm, None, reference_shift)
+        assert np.max(np.abs(difference)) < 3 * precision
 
 
 def test_driver_missing_mask_fails_cleanly(tmp_path, driver, capsys):
