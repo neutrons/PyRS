@@ -45,6 +45,10 @@ def test_detector_calibration(calibration_window, tmp_path):
     qtbot.wait(wait)
 
     assert window.isVisible()
+    # the ring-based calibration is the default (#1038), its recipe one click away
+    setup = window.peak_lines_setup
+    assert setup.method_combo.currentText() == "Ring-based" and window.model.method == "Ring-based"
+    assert setup.recipe_combos[0].currentText() == "iterate"
 
     # This is to handle modal dialogs
     def handle_dialog(filename):
@@ -76,6 +80,8 @@ def test_detector_calibration(calibration_window, tmp_path):
 
     qtbot.wait(wait)
     assert window._model.nexus_file.split("/")[-1] == "HB2B_3510.nxs.h5"
+    # a recipe saved before the method choice (#1045) is FitCalibration's, despite the ring-based default
+    assert setup.method_combo.currentText() == "FitCalibration" and window.model.method == "FitCalibration"
     qtbot.wait(wait)
 
     qtbot.mouseClick(window.peak_lines_setup.fit, QtCore.Qt.LeftButton)
@@ -291,6 +297,24 @@ def test_recipe_keeps_method_and_strips(calibration_window, tmp_path, monkeypatc
     setup.load_json()
     qtbot.wait(wait)
     assert setup.method_combo.currentText() == "Ring-based" and setup.recipe_combos[1].currentText() == "iterate"
+
+    # ... and without "iterate" it is FitCalibration's, even with the ring-based method selected (#1038)
+    saved["recipe"] = "shifts,rotations"
+    json.dump(saved, open(recipe, "w"))
+    setup.load_json()
+    qtbot.wait(wait)
+    assert setup.method_combo.currentText() == "FitCalibration"
+    assert [setup.recipe_combos[i].currentText() for i in range(2)] == ["shifts", "rotations"]
+
+    # an empty ring-based recipe starts with "iterate"; a recipe is never changed by switching method
+    for i_row in range(8):
+        setup.recipe_combos[i_row].setCurrentIndex(0)
+    setup.method_combo.setCurrentText("Ring-based")
+    assert setup.recipe_combos[0].currentText() == "iterate"
+    setup.method_combo.setCurrentText("FitCalibration")
+    setup.recipe_combos[0].setCurrentText("shifts")
+    setup.method_combo.setCurrentText("Ring-based")
+    assert [setup.recipe_combos[i].currentText() for i in range(2)] == ["shifts", ""]
     setup.method_combo.setCurrentText("FitCalibration")
     setup.rounds_lineEdit.setText("10")  # the session's window is shared with later tests
 

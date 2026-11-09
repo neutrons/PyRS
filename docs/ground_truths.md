@@ -2616,3 +2616,25 @@ the refined geometry predicts the rings:
   `test_driver_calibrates_hb2b_3510` therefore pins it with `--max-rounds 1` (2e-5 A, 2 mdeg), and
   `test_driver_rounds_agree_with_the_reference` checks the default (repeated) result against it within its
   errors: λ moves by 4e-5 A (its error 2e-4 A) and the pixel 2θ by about 9 mdeg (3σ ≈ 19 mdeg).
+
+## The ring-based calibration is the GUI's default (2026-11, #1038 step 2)
+
+User-approved, after the C1-C5 evaluation and step 1 (repeated ring extraction) above:
+
+- **GUI:** the calibration window opens on "Ring-based" (`DEFAULT_METHOD`, listed first in
+  `CALIBRATION_METHODS`); FitCalibration stays one click away. With the ring-based method selected and an empty
+  recipe, the first recipe row is "iterate" (Fit Peaks, then Calibrate); a recipe is never changed by this.
+- **Old recipes keep their method.** A recipe saved before the method choice existed (#1045) has no
+  `calibration_method`: it is FitCalibration's, the only method then, unless it contains "iterate", which only
+  the ring-based method has. It must not run with the new default, so `load_json` sets the method explicitly
+  (`tests/data/calibration_tests/test_ui_recipe_load.json` is such a recipe).
+- **Command line unchanged:** `pyrs-calibration` (FitCalibration, JSON input) behaves as before; its docstring
+  and usage text point to `pyrs-pixel-calibration` as the default. (Reported, not changed: its usage text says
+  the default `"method"` is shifts+rotations, but `REFINE_METHOD` defaults to "full".)
+- **Docs:** a "Detector Calibration" section in the user guide (`basics.rst`) and the ring calibration in the API
+  pages; the user docs now load `sphinx.ext.napoleon`, as the developer docs do, so Google-style docstrings
+  render (user-docs build warnings 38 -> 3).
+- **Effect:** a calibration made with the GUI's defaults moves by 30-200 mdeg of pixel 2θ from FitCalibration's
+  from the nominal geometry (260-2100 µε across the detector) on the three runs studied. Existing calibration
+  files, including `HB2B_Latest.json`, are untouched until someone calibrates again; reduction never chooses a
+  method. Every calibration file records its method in its provenance (`method`: "ring" or "peak-fit").

@@ -1,4 +1,13 @@
 #!/usr/bin/python
+"""
+FitCalibration of the HB2B detector from a JSON input (``pyrs-calibration``): re-reduces the run and re-fits
+its peaks for every trial geometry.
+
+The default HB2B calibration is the ring-based one, ``pyrs-pixel-calibration`` (and the calibration GUI's
+default method): it scores better on both methods' costs, and FitCalibration from the nominal geometry stops
+short of its own minimum (#1038, docs/ground_truths.md). This tool is unchanged and stays available.
+"""
+
 import time
 import os
 from pyrs.calibration import mantid_peakfit_calibration
@@ -14,7 +23,8 @@ _Materials["ge"] = 5.657568976977
 _Materials["si"] = 5.4307
 
 # Define strings to help the user define the json input
-_options = "Required and optional entry for json input:\n"
+_options = "FitCalibration; the default HB2B calibration is ring-based: pyrs-pixel-calibration (#1038)\n"
+_options += "Required and optional entry for json input:\n"
 _options += "REQUIRED\n"
 _options += 'must define "powder scan"\n'
 _options += "Optional\n"

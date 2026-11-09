@@ -19,6 +19,7 @@ from pyrs.interface.detector_calibration.detector_calibration_model import (
     DEFAULT_MAX_ROUNDS,
     DEFAULT_STRIPS,
     ITERATE_ROUTINE,
+    METHOD_FITCALIBRATION,
     METHOD_RING,
     RING_GEOMETRIES,
     RING_GEOMETRY_CURRENT,
@@ -449,8 +450,8 @@ class PeakLinesSetupView(QGroupBox):
         recipe_setup_layout.addWidget(self.fit, 11, 0, 1, 2)
         recipe_setup_layout.addWidget(self.calibrate, 11, 2, 1, 2)
 
-        # calibration method (#1045): FitCalibration (default) or the ring-based calibration, which
-        # fits each ring once in detector strips
+        # calibration method (#1045): the ring-based calibration (default, #1038), which fits each ring once
+        # in detector strips, or FitCalibration
         method_row = QHBoxLayout()
         method_row.addWidget(QLabel("Method"))
         self.method_combo = QComboBox(self)
@@ -511,6 +512,9 @@ class PeakLinesSetupView(QGroupBox):
                 if combo.currentIndex() == index:
                     combo.setCurrentIndex(0)
                 combo.removeItem(index)
+        # the ring-based default in one click (#1038): an empty recipe starts with "iterate"; a recipe is never changed
+        if ring and all(combo.currentText() == "" for combo in self.recipe_combos.values()):
+            self.recipe_combos[0].setCurrentText(ITERATE_ROUTINE)
         if hasattr(self._parent, "compare_diff_data"):  # not yet built while the window is set up
             self._parent.compare_diff_data.valueChanged()  # ring marks belong to the ring-based method
 
@@ -760,9 +764,14 @@ class PeakLinesSetupView(QGroupBox):
             self._parent._nexus_file = input_dict["nexus_file"]
             self._parent.fileLoading.file_load_dilg.load_nexus()
 
-        # the method first: it decides which routines the recipe combos offer
-        if "calibration_method" in input_dict:
-            self.method_combo.setCurrentText(input_dict["calibration_method"])
+        # the method first: it decides which routines the recipe combos offer. A recipe saved before the method
+        # was (#1045) is FitCalibration's, the only method then, unless it has "iterate", which only the ring-based
+        # method has: it must not run with the ring-based default (#1038)
+        method = input_dict.get("calibration_method")
+        if method is None:
+            routines = str(input_dict.get("recipe", "")).split(",")
+            method = METHOD_RING if ITERATE_ROUTINE in routines else METHOD_FITCALIBRATION
+        self.method_combo.setCurrentText(method)
         if "strips" in input_dict:
             self.strips_lineEdit.setText(str(input_dict["strips"]))
         if "rounds" in input_dict:
@@ -770,8 +779,6 @@ class PeakLinesSetupView(QGroupBox):
 
         if "recipe" in input_dict.keys():
             routines = input_dict["recipe"].split(",")
-            if ITERATE_ROUTINE in routines and "calibration_method" not in input_dict:
-                self.method_combo.setCurrentText(METHOD_RING)  # only the ring-based method has "iterate"
             for i_item, item in enumerate(routines):
                 index = self.recipe_combos[i_item].findText(item)
                 if index < 0:
