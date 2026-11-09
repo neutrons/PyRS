@@ -3,6 +3,7 @@ from pyrs.core import pyrscore
 from qtpy import QtCore, QtWidgets
 import numpy as np
 import functools
+import json
 import pytest
 import os
 
@@ -225,3 +226,34 @@ def test_peak_selection(tmpdir, fit_peaks_window):
     qtbot.wait(wait)
 
     window.hide()
+
+
+def test_save_load_peak_range_keeps_table_d0(tmp_path, monkeypatch, fit_peaks_window):
+    """The d0 values shown in the peak-range table survive save -> load (#925)."""
+    # Arrange
+    window, _ = fit_peaks_window
+    fit_setup = window._ui_graphicsView_fitSetup
+    fit_setup.list_peak_ranges = [[78.0, 85.0], [90.0, 95.0]]
+    fit_setup.list_fit_peak_labels = ["Peak0", "Peak1"]
+    fit_setup.list_fit_peak_d0 = [1.1, 1.2]
+    # No diffraction data is loaded, so the redraw after loading has nothing to plot over.
+    monkeypatch.setattr(fit_setup, "plot_data_with_fitting_ranges", lambda: None)
+    saved_name = tmp_path / "peak_range"
+    monkeypatch.setattr(
+        "pyrs.interface.peak_fitting.peak_fitting_viewer.browse_file", lambda *args, **kwargs: str(saved_name)
+    )
+
+    # Act
+    window.clicked_save_peak_range()
+    fit_setup.list_fit_peak_d0 = []
+    monkeypatch.setattr(
+        "pyrs.interface.peak_fitting.peak_fitting_viewer.browse_file",
+        lambda *args, **kwargs: str(tmp_path / "peak_range.json"),
+    )
+    window.clicked_load_peak_range()
+
+    # Assert
+    saved = json.loads((tmp_path / "peak_range.json").read_text())
+    assert [saved[key]["d0"] for key in ("0", "1")] == [1.1, 1.2]
+    assert fit_setup.list_fit_peak_d0 == [1.1, 1.2]
+    assert window.ui.peak_range_table.item(1, 3).text() == "1.200000"

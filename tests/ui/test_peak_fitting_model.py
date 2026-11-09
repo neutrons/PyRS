@@ -10,6 +10,7 @@ Both markers are required -- `test-gui` selects `-m gui` while
 drop these from the integration tier.
 """
 
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -68,3 +69,56 @@ def test_fit_diff_peaks_error_case_emits_failure_and_returns_none(model, monkeyp
     title, message, detail = emitted[0]
     assert "fit did not converge" in message
     assert "RuntimeError" in detail
+
+
+def test_peak_range_json_round_trip_keeps_per_peak_d0(model, tmp_path):
+    """Each peak's own d0 survives save -> load (#925: the whole d0 list was saved per peak)."""
+    # Arrange
+    filename = tmp_path / "peak_range.json"
+    ranges = [[78.0, 85.0], [90.0, 95.0]]
+    labels = ["Peak0", "Peak1"]
+    d0 = [1.1, 1.2]
+
+    # Act
+    model.save_peak_range_json(str(filename), ranges, labels, d0)
+    loaded_ranges, loaded_labels, loaded_d0 = model.load_peak_range_json(str(filename))
+
+    # Assert
+    assert loaded_ranges == ranges
+    assert loaded_labels == labels
+    assert loaded_d0 == d0
+
+
+def test_save_peak_range_json_appends_missing_extension(model, tmp_path):
+    """A file name typed without an extension is saved as ``.json`` (#925)."""
+    # Arrange
+    filename = tmp_path / "peak_range"
+
+    # Act
+    model.save_peak_range_json(str(filename), [[78.0, 85.0]], ["Peak0"], [1.1])
+
+    # Assert
+    assert not filename.exists()
+    assert json.loads((tmp_path / "peak_range.json").read_text())["0"]["d0"] == 1.1
+
+
+@pytest.mark.parametrize(
+    "legacy_d0, expected_d0",
+    [([1.1, 1.2], [1.1, 1.2]), ([], [1.0, 1.0])],
+    ids=["full-list", "empty-list"],
+)
+def test_load_peak_range_json_legacy_list_d0(model, tmp_path, legacy_d0, expected_d0):
+    """Files written before #925 stored the d0 list on every peak; load them as per-peak values."""
+    # Arrange
+    filename = tmp_path / "peak_range.json"
+    legacy = {
+        str(i): {"peak_range": peak_range, "peak_label": f"Peak{i}", "d0": legacy_d0}
+        for i, peak_range in enumerate([[78.0, 85.0], [90.0, 95.0]])
+    }
+    filename.write_text(json.dumps(legacy))
+
+    # Act
+    _, _, loaded_d0 = model.load_peak_range_json(str(filename))
+
+    # Assert
+    assert loaded_d0 == expected_d0

@@ -2478,3 +2478,32 @@ caller would have produced a file with no calibration or vanadium record. `grep 
 deleted rather than wired into provenance. `HidraWorkspace.save_reduced_diffraction_data` stays: it is
 the writer `ReductionApp` and "Combine runs" call. Save reduced data through
 `ReductionApp.save_diffraction_data`, which writes the record.
+
+## Peak-range JSON from the peak-fitting UI lost d0 and could not be loaded (2026-11-09, #925)
+
+Two bugs, both in the peak-fitting UI (the texture-fitting UI has its own, working writer):
+
+- `PeakFittingModel.save_peak_range_json` wrote the **whole** d0 list on every peak instead of that
+  peak's value. Loading then crashed in `GuiUtilities.fill_peak_range_table` (`"{:.6f}".format(list)`).
+- The viewer saved `self.list_peak_d0`, which was set to `[]` when the window opened and changed only
+  when a file was loaded. The table's d0 values actually live in
+  `PeakFitSetupView.list_fit_peak_d0` (kept in sync by `_update_fit_peak_ranges_plot`). So a normal
+  save wrote `"d0": []` for every peak. The stale attribute is gone, and save/load use the widget's
+  list.
+
+`save_peak_range_json` now appends `.json` when the name has no extension (the non-native Qt dialog
+does not). `load_peak_range_json` still reads files written before the fix. A d0 list with one entry
+per peak resolves to that peak's value, which is exact. Any other list (in practice `[]`) falls back
+to 1.0, the d0 the UI gives a newly drawn range.
+
+Also found: the texture-fitting save/load dialogs, and still the calibration GUI's export/recipe
+dialogs (`detector_calibration_viewer.py`), pass the file filter as `QFileDialog`'s *directory*
+argument, so the filter never applies. The texture ones are fixed. The calibration ones are not.
+
+`tests/ui/test_peak_fitting.py::test_peak_fitting` and
+`tests/ui/test_texture_fitting.py::test_texture_fitting_viewer` fail on `main` (04102098) in a
+workstation run, independent of this fix. CSV export builds a name like `HB2B_<path>.csv` that does
+not exist. Not investigated further.
+
+Tests: `tests/ui/test_peak_fitting_model.py` (round trip, extension, legacy files) and
+`tests/ui/test_peak_fitting.py::test_save_load_peak_range_keeps_table_d0`.
