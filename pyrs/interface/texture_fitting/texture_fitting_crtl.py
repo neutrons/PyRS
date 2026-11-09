@@ -183,14 +183,14 @@ class TextureFittingCrtl:
 
         return x, y
 
-    def saveas(self, filename, fit_result):
-        self._model.save_fit_result(filename, fit_result)
+    def saveas(self, filename):
+        self._model.save_fit_result(filename, self._fits)
 
     def load(self, filename):
         self._model.from_json(filename)
 
-    def save(self, filename, fit_result):
-        self._model.save_fit_result(filename, fit_result)
+    def save(self, filename):
+        self._model.save_fit_result(filename, self._fits)
 
     def save_fit_range(self, filename, fit_range_table):
         self._model.to_json(filename, fit_range_table)

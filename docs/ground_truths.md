@@ -2702,3 +2702,35 @@ The combined-file writer is duplicated from `CombineRunsModel.export_project_fil
 Sharing it would mean changing the "Combine runs" code path, which was out of scope.
 
 Tests: `tests/integration/test_peak_fitting_save.py`.
+
+## Texture fitting saves every η-wedge's fit into the project file (2026-11-09, #1080)
+
+Save and Save As in the texture-fitting window had never worked since they were added (2022).
+- Both menu items were created disabled and never enabled. The second item also reused the first
+  one's attribute name.
+- The handlers used `self._parent`, which doesn't exist on the main window.
+- `TextureFittingModel.save_fit_result` read `self.parent._curr_file_name`. That is Qt's
+  `QObject.parent` *method*, so it raised `AttributeError`.
+
+Now:
+- **Every wedge is saved.** The controller holds every wedge's fit (`_fits`, keyed by reduction mask:
+  `eta_<centre>` or `""` when not split). The model writes every wedge, not just the one on screen.
+- **Peak names:** every wedge is fitted with the same peak labels, so each wedge's peaks are saved as
+  `<label>_<wedge>` (e.g. `peak0_eta_-5.0`, `TextureFittingModel.saved_peak_tag`). An unsplit fit
+  keeps the plain label. Saving again overwrites those entries (`write_peak_parameters` reuses an
+  existing tag group).
+- **Where:** Save updates the loaded file in place. Save As copies the loaded file to the new name
+  and then writes the peaks.
+- **When:** both menu items are enabled after a fit.
+- **Errors:** the model's `failureMsg` is now connected to the window's `show_failure_msg`. It had
+  never been connected, so the model's existing load and JSON errors were silently dropped before.
+  They now show as pop-ups too.
+- **The strain/stress viewer** lists every peak tag in a file, so it shows the per-wedge peaks.
+
+**`load_hidra_project_file` must close the project file.** It used to keep a read-only handle open,
+and h5py then refused to reopen the file for writing ("file is already open for read-only"). The data
+is fully loaded into the `HidraWorkspace`, so the handle is closed straight after loading. The
+texture GUI test confirms nothing reads it later.
+
+Tests: `tests/integration/test_texture_fitting_save.py` (these work on a copy, never on
+`tests/data`) and the enabled-after-fit check in `tests/ui/test_texture_fitting.py`.

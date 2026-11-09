@@ -137,8 +137,11 @@ def test_texture_fitting_viewer(texture_fitting_window):
 
     # Test fitting data
     qtbot.wait(wait)
+    assert not window.saveAction.isEnabled() and not window.saveAsAction.isEnabled()
     qtbot.mouseClick(window.fit_setup.fit_peaks, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
+    # Save / Save as become available once there are fits (#1080)
+    assert window.saveAction.isEnabled() and window.saveAsAction.isEnabled()
 
     # Test data fit visualization
     window.VizSetup.plot_paramX.setCurrentIndex(7)
