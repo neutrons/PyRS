@@ -20,7 +20,9 @@ The implementation is split by step, and each step's public names are re-exporte
 - :mod:`pyrs.calibration.ring_points`: :class:`RingPoints`;
 - :mod:`pyrs.calibration.ring_extraction`: :func:`extract_ring_points`, :class:`StripFit`;
 - :mod:`pyrs.calibration.pixel_refinement`: :class:`PixelCalibration`, :class:`StageResult` and the
-  parameter names, units, error codes and recipe defaults.
+  parameter names, units, error codes and recipe defaults;
+- :mod:`pyrs.calibration.ring_rounds`: :func:`calibrate_rings` and :func:`continue_rounds`, the extraction
+  repeated at the refined geometry until converged (#1038).
 
 Typical workflow:
 
@@ -56,6 +58,16 @@ from pyrs.calibration.pixel_refinement import (
 )
 from pyrs.calibration.ring_extraction import StripFit, column_at_two_theta, extract_ring_points
 from pyrs.calibration.ring_points import RingPoints
+from pyrs.calibration.ring_rounds import (
+    CONVERGENCE_FRACTION,
+    DEFAULT_MAX_ROUNDS,
+    MIN_ROUNDS,
+    calibrate_rings,
+    continue_rounds,
+    pixel_two_theta_change,
+    ring_position_change,
+    statistical_precision,
+)
 
 __all__ = [
     "DetectorModel",
@@ -71,4 +83,12 @@ __all__ = [
     "StripFit",
     "extract_ring_points",
     "column_at_two_theta",
+    "calibrate_rings",
+    "continue_rounds",
+    "statistical_precision",
+    "pixel_two_theta_change",
+    "ring_position_change",
+    "DEFAULT_MAX_ROUNDS",
+    "MIN_ROUNDS",
+    "CONVERGENCE_FRACTION",
 ]

@@ -16,6 +16,7 @@ from pyrs.interface.threading.worker_pool import WorkerPool
 from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
 from pyrs.interface.detector_calibration.detector_calibration_model import (
     CALIBRATION_METHODS,
+    DEFAULT_MAX_ROUNDS,
     DEFAULT_STRIPS,
     ITERATE_ROUTINE,
     METHOD_RING,
@@ -462,6 +463,17 @@ class PeakLinesSetupView(QGroupBox):
         self.strips_lineEdit.setFixedWidth(50)
         self.strips_lineEdit.setToolTip("Strips per sub-run for the ring-based calibration's ring extraction")
         method_row.addWidget(self.strips_lineEdit)
+        method_row.addWidget(QLabel("Rounds"))
+        self.rounds_lineEdit = QLineEdit()
+        self.rounds_lineEdit.setText(str(DEFAULT_MAX_ROUNDS))
+        self.rounds_lineEdit.setFixedWidth(50)
+        self.rounds_lineEdit.setToolTip(
+            "Most ring extraction + refinement rounds of 'iterate': the rings are extracted again at the refined "
+            "geometry until a round moves the pixel 2theta and the ring positions by less than half the statistical "
+            "precision "
+            "(1: extract once)"
+        )
+        method_row.addWidget(self.rounds_lineEdit)
         method_row.addStretch()
 
         recipe_outer_layout = QVBoxLayout()
@@ -488,6 +500,7 @@ class PeakLinesSetupView(QGroupBox):
         self._parent.controller.set_method(self.method_combo.currentText())
         ring = self.ring_based
         self.strips_lineEdit.setEnabled(ring)
+        self.rounds_lineEdit.setEnabled(ring)
         self.tthbin_lineEdit.setEnabled(not ring)
         self.etabin_lineEdit.setEnabled(not ring)
         for combo in self.recipe_combos.values():
@@ -510,6 +523,16 @@ class PeakLinesSetupView(QGroupBox):
         if strips < 1:
             raise ValueError(f"strips must be at least 1, got {strips}")
         return strips
+
+    def rounds(self) -> int:
+        """Most ring extraction + refinement rounds from the Rounds field."""
+        try:
+            rounds = int(self.rounds_lineEdit.text())
+        except ValueError:
+            raise ValueError(f"rounds must be a whole number, got {self.rounds_lineEdit.text()!r}")
+        if rounds < 1:
+            raise ValueError(f"rounds must be at least 1, got {rounds}")
+        return rounds
 
     def set_reduction_param(self):
         self._parent.controller.set_reduction_param(self.tthbin_lineEdit.text(), self.etabin_lineEdit.text())
@@ -579,6 +602,8 @@ class PeakLinesSetupView(QGroupBox):
                 self.set_reduction_param()
             self.set_calibration_params()
             self.set_refinement_params()
+            if self.ring_based:
+                self._parent.controller.set_max_rounds(self.rounds())
             exclude_list = self.get_keep_list()
         except (ValueError, RuntimeError, OSError) as setup_err:
             pop_message(self, "Calibrate failed", str(setup_err), "error")
@@ -597,6 +622,7 @@ class PeakLinesSetupView(QGroupBox):
                 self.calibrate,
                 self.method_combo,
                 self.strips_lineEdit,
+                self.rounds_lineEdit,
                 self.calibrant_table,
                 self._parent.calib_summary.export_calib_bttn,
                 self._parent.fileLoading,
@@ -711,6 +737,7 @@ class PeakLinesSetupView(QGroupBox):
 
         output_dict["calibration_method"] = self.method_combo.currentText()
         output_dict["strips"] = self.strips_lineEdit.text()
+        output_dict["rounds"] = self.rounds_lineEdit.text()
         output_dict["method"] = self._parent.calib_summary.method_combo_box.currentText()
         output_dict["neval"] = self._parent.calib_summary.neval_lineEdit.text()
 
@@ -738,6 +765,8 @@ class PeakLinesSetupView(QGroupBox):
             self.method_combo.setCurrentText(input_dict["calibration_method"])
         if "strips" in input_dict:
             self.strips_lineEdit.setText(str(input_dict["strips"]))
+        if "rounds" in input_dict:
+            self.rounds_lineEdit.setText(str(input_dict["rounds"]))
 
         if "recipe" in input_dict.keys():
             routines = input_dict["recipe"].split(",")

@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from pyrs.calibration.pixel_pos_calibration import DEFAULT_MAX_ROUNDS
 from pyrs.calibration.powder_standards import HB2B_STANDARDS
 from pyrs.utilities.calibration_file_io import read_calibration_json_file
 from tests.util.instrument_helpers import default_hb2b_geometry
@@ -79,6 +80,10 @@ def test_main_writes_calibration(driver, monkeypatch, synthetic_run, nexus_file,
     assert rings.is_file()
     out = capsys.readouterr().out
     assert "TTH_0" in out and "held" in out and f"written to {output}" in out
+    # the rings were extracted again until converged (#1038), and every round is reported and recorded
+    rounds = raw["provenance"]["extraction_rounds"]
+    assert len(rounds) >= 2 and f"ring extraction rounds: {len(rounds)}" in out
+    assert raw["provenance"]["inputs"]["extraction"]["max_rounds"] == DEFAULT_MAX_ROUNDS
 
 
 def test_main_sub_runs_and_no_polish(driver, monkeypatch, synthetic_run, nexus_file, tmp_path):
@@ -135,6 +140,7 @@ def test_parser_defaults(driver):
     # Assert
     assert args.mask == driver.DEFAULT_MASK and not args.no_mask
     assert (args.strips, args.passes, args.no_polish, args.wavelength) == (5, 3, False, None)
+    assert args.max_rounds == DEFAULT_MAX_ROUNDS
 
 
 @pytest.mark.parametrize(
@@ -161,6 +167,9 @@ def test_summary_labels_error_codes(driver, monkeypatch, error, name, text):
         calibration_array=TRUE_PARAMS,
         calibration_error_array=errors,
         calibration_status=1,
+        extraction_rounds=None,
+        extraction_converged=None,
+        warning_log=[],
     )
 
     # Act
@@ -184,7 +193,64 @@ def test_summary_flags_unconverged_result(driver):
         calibration_array=TRUE_PARAMS,
         calibration_error_array=np.full(8, 1e-4),
         calibration_status=0,
+        extraction_rounds=None,
+        extraction_converged=None,
+        warning_log=[],
     )
 
     # Act / Assert
     assert "WARNING: the last stage stopped at max_nfev before converging" in driver._summary(calibration)
+
+
+def test_main_one_round_extracts_once(driver, monkeypatch, synthetic_run, nexus_file, tmp_path, capsys):
+    """--max-rounds 1 is the workflow before #1038"""
+    # Arrange
+    _stub_conversion(monkeypatch, synthetic_run)
+    output = tmp_path / "cal.json"
+
+    # Act
+    status = driver.main(
+        [str(nexus_file), "-o", str(output), "--no-mask", "--wavelength", "1.54", "--max-rounds", "1"]
+    )
+
+    # Assert
+    assert status == 0
+    assert len(json.loads(output.read_text())["provenance"]["extraction_rounds"]) == 1
+    assert "ring extraction rounds: 1" in capsys.readouterr().out
+
+
+def test_summary_flags_unconverged_rounds(driver):
+    """P4 (#1038): a calibration whose rounds reached the limit says so"""
+    # Arrange
+    from types import SimpleNamespace
+
+    from tests.util.ring_calibration_helpers import synthetic_ring_points
+
+    calibration = SimpleNamespace(
+        ring_points=synthetic_ring_points(default_hb2b_geometry(), TRUE_PARAMS),
+        stages=[SimpleNamespace(rmse=0.03)],
+        calibration_array=TRUE_PARAMS,
+        calibration_error_array=np.full(8, 1e-4),
+        calibration_status=1,
+        extraction_rounds=[
+            {"round": 1, "ring_points": 60, "rmse_deg": 0.03, "step_deg": None, "precision_deg": 0.011},
+            {"round": 2, "ring_points": 61, "rmse_deg": 0.03, "step_deg": 0.02, "precision_deg": 0.011},
+        ],
+        warning_log=[],
+        extraction_converged=False,
+    )
+
+    # Act
+    text = driver._summary(calibration)
+
+    # Assert
+    assert "round  2:   61 points" in text and "step  20.00 mdeg" in text
+    assert "WARNING: the ring extraction did not converge within 2 rounds" in text
+
+
+@pytest.mark.parametrize("rounds", ["0", "-1", "two"])
+def test_bad_max_rounds_is_refused(driver, rounds):
+    """Refused before the conversion and the extraction, which take most of the time"""
+    # Act / Assert
+    with pytest.raises(SystemExit):
+        driver.build_parser().parse_args(["run.nxs.h5", "-o", "cal.json", "--max-rounds", rounds])

@@ -59,6 +59,10 @@ class DetectorCalibrationCrtl:
     def set_refinement_params(self, method, max_nfev):
         self._model.set_refinement_params(method, max_nfev)
 
+    def set_max_rounds(self, max_rounds):
+        """Most ring extraction + refinement rounds of the ring-based "iterate" (#1038)."""
+        self._model.set_max_rounds(max_rounds)
+
     def get_wavelength(self):
         return self._model.get_wavelength
 
