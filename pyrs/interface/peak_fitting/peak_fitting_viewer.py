@@ -18,7 +18,7 @@ import numpy as np
 from qtpy import QtGui  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 from qtpy.QtGui import QCursor  # type:ignore
-from qtpy.QtWidgets import QApplication, QMainWindow, QMenu, QTableWidgetItem, QVBoxLayout  # type:ignore
+from qtpy.QtWidgets import QApplication, QMainWindow, QMenu, QMessageBox, QTableWidgetItem, QVBoxLayout  # type:ignore
 
 import pyrs.icons
 import pyrs.interface.gui_helper
@@ -28,6 +28,7 @@ from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView, PeakFitSetupView
 from pyrs.interface.ui.rstables import FitResultTable
+from pyrs.projectfile.file_object import ReductionMismatchError
 from pyrs.utilities import get_input_project_file  # type: ignore
 from pyrs.utilities import load_ui  # type: ignore
 
@@ -185,8 +186,23 @@ class PeakFittingViewer(QMainWindow):
     # ------------------------------------------------------------------
     # Save / load files
     # ------------------------------------------------------------------
+    def _save_fit_result(self, out_file_name):
+        """Save the fit, asking before combining runs with different vanadium runs, masks or
+        binning, and showing any warnings (e.g. runs without a calibration record) (#1080)."""
+        try:
+            self._model.save_fit_result(out_file_name)
+        except ReductionMismatchError as differences:
+            answer = QMessageBox.question(
+                self, "Different reductions", str(differences), QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            )
+            if answer != QMessageBox.Yes:
+                return
+            self._model.save_fit_result(out_file_name, accept_reduction_differences=True)
+        for warning in self._model.save_warnings:
+            pop_message(self, "Reduction not fully checked", warning, "info")
+
     def save(self):
-        self._model.save_fit_result(self.current_hidra_file_name)
+        self._save_fit_result(self.current_hidra_file_name)
 
     def save_as(self):
         out_file_name = browse_file(
@@ -200,7 +216,7 @@ class PeakFittingViewer(QMainWindow):
         try:
             if not (out_file_name.endswith(".hdf5") or out_file_name.endswith(".h5")):
                 out_file_name += ".h5"
-            self._model.save_fit_result(out_file_name)
+            self._save_fit_result(out_file_name)
         except AttributeError:
             pass
 
@@ -694,7 +710,7 @@ class PeakFittingViewer(QMainWindow):
         )
 
         if file_name.lower().endswith("hdf5") or file_name.lower().endswith("hdf") or file_name.lower().endswith("h5"):
-            self._model.save_fit_result(out_file_name=file_name)
+            self._save_fit_result(file_name)
         elif file_name.lower().endswith("csv") or file_name.endswith("dat"):
             self.export_fit_result(file_name)
         else:

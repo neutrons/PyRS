@@ -2663,6 +2663,148 @@ User-approved, after the C1-C5 evaluation and step 1 (repeated ring extraction) 
   files, including `HB2B_Latest.json`, are untouched until someone calibrates again; reduction never chooses a
   method. Every calibration file records its method in its provenance (`method`: "ring" or "peak-fit").
 
+## Peak-fitting project names: whole stem for one file, `HB2B_` numbers for several (2026-11-09, #1080)
+
+The run number used to be the **last `_`-separated part** of the file stem. So `HB2B_1423_v2.h5`
+became run `v2`, and a combined `HB2B_1423_1424.h5` became run `1424`. CSV export is named
+`<project name>.csv`, so two different suffixed files exported to the same folder overwrote each
+other without warning.
+
+The rule now (`PeakFittingModel._run_label` / `_file_stem`):
+- **One file:** the project name is the whole file stem (`HB2B_1423_v2`). This matches what loading
+  a single file by path already did.
+- **Several files:** `HB2B_<n>_<n>…` from the number right after `HB2B_` (`^HB2B_(\d+)` followed by
+  `_` or the end). A file without such a number contributes its whole stem.
+
+Standard `HB2B_<run>.h5` names give exactly the names they gave before.
+
+Tests: `tests/unit/pyrs/interface/peak_fitting/test_project_file_names.py`.
+
+## Saving a peak fit of several runs writes a new combined project file (2026-11-09, #1080)
+
+With several runs loaded in the peak-fitting UI, Save and Save As used to fail with
+`FileNotFoundError`. They copied from the working-file name `<dir>/HB2B_<a>HB2B_<b>.h5`, which
+nothing ever created. Save would also have targeted run 1's own file.
+
+`PeakFittingModel._save_combined_fit_result` now writes a **new** combined file:
+- the merged data, written as "Combine runs" writes it (`save_experimental_data` with
+  `ignore_raw_counts=True`, then `save_reduced_diffraction_data`);
+- the combined calibration record (`combine_reduction_records`), so runs reduced with different
+  calibrations, vanadium runs, masks or binning are refused, as in "Combine runs" (#1063, #1068);
+- the fitted peaks.
+
+Save uses the default combined name next to the runs, and Save As uses the name chosen. A
+destination that is one of the loaded runs is refused, so run files are never modified. Failures
+reach the user through `failureMsg`. A single run is saved as before: the file is updated in place,
+or copied and then updated.
+
+The combined-file writer is duplicated from `CombineRunsModel.export_project_files`, not shared.
+Sharing it would mean changing the "Combine runs" code path, which was out of scope.
+
+Tests: `tests/integration/test_peak_fitting_save.py`.
+
+## Texture fitting saves every η-wedge's fit into the project file (2026-11-09, #1080)
+
+Save and Save As in the texture-fitting window had never worked since they were added (2022).
+- Both menu items were created disabled and never enabled. The second item also reused the first
+  one's attribute name.
+- The handlers used `self._parent`, which doesn't exist on the main window.
+- `TextureFittingModel.save_fit_result` read `self.parent._curr_file_name`. That is Qt's
+  `QObject.parent` *method*, so it raised `AttributeError`.
+
+Now:
+- **Every wedge is saved.** The controller holds every wedge's fit (`_fits`, keyed by reduction mask:
+  `eta_<centre>` or `""` when not split). The model writes every wedge, not just the one on screen.
+- **Peak names:** every wedge is fitted with the same peak labels, so each wedge's peaks are saved as
+  `<label>_<wedge>` (e.g. `peak0_eta_-5.0`, `TextureFittingModel.saved_peak_tag`). An unsplit fit
+  keeps the plain label. Saving again overwrites those entries (`write_peak_parameters` reuses an
+  existing tag group).
+- **Where:** Save updates the loaded file in place. Save As copies the loaded file to the new name
+  and then writes the peaks.
+- **When:** both menu items are enabled after a fit.
+- **Errors:** the model's `failureMsg` is now connected to the window's `show_failure_msg`. It had
+  never been connected, so the model's existing load and JSON errors were silently dropped before.
+  They now show as pop-ups too.
+- **The strain/stress viewer** lists every peak tag in a file, so it shows the per-wedge peaks.
+
+**`load_hidra_project_file` must close the project file.** It used to keep a read-only handle open,
+and h5py then refused to reopen the file for writing ("file is already open for read-only"). The data
+is fully loaded into the `HidraWorkspace`, so the handle is closed straight after loading. The
+texture GUI test confirms nothing reads it later.
+
+Tests: `tests/integration/test_texture_fitting_save.py` (these work on a copy, never on
+`tests/data`) and the enabled-after-fit check in `tests/ui/test_texture_fitting.py`.
+
+## #1080 review follow-ups: merged-run files read back, safer saves (2026-11-09)
+
+- **`read_run_number` returns -1 for a file that combines several runs.** It used to raise "more
+  than one run number". `read_peak_parameters` calls it, so peaks saved into any merged file could
+  not be read back. That covered the new multi-run save, and also "Combine runs" → fit → Save. The
+  peak-fit engine already gives appended runs `runnumber = -1`, and the strain/stress viewer skips
+  -1 when naming files.
+  - Caveat: `StressFacade` keys a strain cache by `str(runnumber)`, so two merged files in the same
+    direction share the key "-1". This was not changed.
+- **The multi-run save is hardened:**
+  - It also catches `RuntimeError`. `HidraProjectFile` raises it for a folder that can't be written
+    to, e.g. autoreduce, and for a missing run file.
+  - It compares `realpath`s, so a run reached through a symbolic link can't be overwritten.
+  - It writes inside `with`, and removes a file left half-written by a failure. A destination that
+    couldn't be opened at all is never touched.
+  - The texture save uses `realpath` and `with` too. It never deletes anything, because an in-place
+    Save writes into the user's own file.
+- **The combined record's warning** (runs without a calibration record, or accepted differences) is
+  shown as an info pop-up after the save, through `PeakFittingModel.save_warnings`.
+- **Different vanadium runs, masks or binning:** the window asks Yes/No, as "Combine runs" does
+  (`PeakFittingViewer._save_fit_result`). Yes saves with the differences accepted and recorded.
+- **Combined-file names:** a combined working-file name adds `HB2B_` only to a real `HB2B_<n>` run
+  number (`_run_number`). A bare `1423.h5` stays `1423`.
+- **Texture menu:** texture Save / Save As are disabled again when a new file is loaded.
+
+**Pre-existing bugs found in review, fixed afterwards (each change approved separately):**
+- **Texture Fit crashed on every unsplit file.** This was a regression from `4cab5d91` (March 2026).
+  - Since that commit, the reader no longer lists `_var` variance entries as masks, so an unsplit
+    file lists `[None]` (or `[]` without reduced data). The texture controller still treated a file
+    as unsplit only when it had exactly 2 masks (main + `_var`), so it went on to evaluate
+    `"_var" not in None` → `TypeError`.
+  - `TextureFittingCrtl.fit_peaks` now treats a file with no named wedge masks as unsplit (one fit,
+    keyed `""`). Wedge files are fitted exactly as before.
+  - Across `tests/data`, split files list only `eta_*` masks. No file has the old 2-mask form.
+- **`write_peak_parameters` re-wrote peaks badly when the model changed.** It assigned in place
+  (`ds[...] = arr`):
+  - A different compound dtype (a new profile or background) left the file **unreadable** ("Did
+    not find Height parameter"). A different number of sub-runs raised `TypeError`.
+  - `HidraProjectFile._write_peak_dataset` now recreates a dataset whose dtype or shape differs, and
+    otherwise writes in place exactly as before.
+  - Edge case: a same-shape dataset whose numeric dtype differs (e.g. float32 → float64) is now
+    stored at the new dtype instead of being cast down.
+- **`append_hidra_project` could give appended sub-runs duplicate numbers.** It numbered them from
+  `count + 1`, so a workspace with sub-runs 2..24 gave the first appended sub-run the existing
+  number 24.
+  - It now numbers from `max(count, largest existing) + 1`.
+  - Every `tests/data` project file is numbered 1..N, or 0..N-1 for `Hidra_16-1`, and those numbers
+    are unchanged.
+
+**The texture window's wedge drop-down follows the controller.** The window used to decide
+whether a file is split with `len(masks) > 2` (`FitSummaryView` / `PlotSelect`
+`.setup_out_of_plane_angle`, `enable_polar_plot`). That is the same stale assumption from before
+`_var` stopped being listed.
+- A file with exactly one or two η-wedges hid its drop-down, while the controller fitted each wedge
+  under its own key. The hidden drop-down's selection `""` then named no fit.
+- Controller and window now share one rule, `TextureFittingModel.eta_wedges`: the named masks,
+  excluding `None` and `_var`. So the selection always names a fit.
+- Files with three or more wedges, and unsplit files, behave as before.
+- No computed value changes.
+
+Tests:
+- `tests/integration/test_peak_fitting_save.py`: a real fit; read back with `read_peak_parameters`
+  and `StrainField`; Save As; symbolic link; read-only folder; partial-file cleanup; calibration,
+  vanadium and historic cases; single run.
+- `tests/integration/test_texture_fitting_save.py`: saved values compared with the fits; an unsplit
+  file.
+- `tests/unit/pyrs/interface/texture_fitting/test_texture_fitting_model.py`.
+- `tests/ui/test_peak_fitting.py::test_save_asks_before_combining_reduction_differences`.
+- `tests/integration/test_texture_fitting_unsplit.py`, `test_rewrite_peak_parameters.py` and
+  `test_append_sub_runs.py` (the pre-existing bugs).
 ## A FitCalibration clean-up after the ring calibration does not help on unseen data (2026-11, #1074)
 
 Started from the ring geometry, a FitCalibration `FullCalibration` moves the geometry by 10-24 mdeg, lowering
