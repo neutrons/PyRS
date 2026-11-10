@@ -338,3 +338,17 @@ def test_file_is_written_with_nexusformat(tmp_path):
 
     # Assert
     assert _text(creator) == "nexusformat"
+
+
+def test_detector_stored_as_a_dataset_is_refused(tmp_path):
+    """A dataset where a group belongs gives the documented errors, not AttributeError (review)"""
+    # Arrange
+    path = tmp_path / "bad.nxs"
+    with h5py.File(path, "w") as nexus:
+        nexus.create_group("entry").create_group("instrument").create_dataset("detector", data=1.0)
+
+    # Act / Assert - ValueError for the geometry (HidraSetup notes it), RuntimeError for the calibration
+    with pytest.raises(ValueError, match="missing"):
+        read_calibration_nexus_geometry(str(path))
+    with pytest.raises(RuntimeError, match="not a PyRS NeXus calibration file"):
+        read_calibration_nexus(str(path))
