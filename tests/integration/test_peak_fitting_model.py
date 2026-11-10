@@ -21,6 +21,7 @@ from pyrs.core.workspaces import HidraWorkspace
 from pyrs.interface.peak_fitting.peak_fitting_model import PeakFittingModel
 from pyrs.peaks.peak_collection import PeakCollection
 from pyrs.peaks.peak_fit_engine import FitResult
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 
 pytestmark = pytest.mark.integration
 
@@ -71,6 +72,47 @@ class TestPeakFittingModelNXstressRoundtrip:
     ) -> None:
         with pytest.raises(ValueError):
             peak_model.load_hidra_project([str(tmp_path / "a.nxs"), str(tmp_path / "b.nxs")])
+
+    @pytest.mark.parametrize("names", [["a.nxs", "b.h5"], ["a.h5", "b.nxs"]], ids=["nxs-first", "nxs-last"])
+    def test_load_hidra_project_mixed_selection_raises(
+        self, peak_model: PeakFittingModel, tmp_path: Path, names: list
+    ) -> None:
+        """A `.nxs` anywhere in a multi-file selection is refused before anything
+        is loaded or changed -- it used to be checked only in first place."""
+        # Act
+        with pytest.raises(
+            ValueError, match=r"must be loaded on its own: this selection of 2 files includes [ab]\.nxs"
+        ):
+            peak_model.load_hidra_project([str(tmp_path / name) for name in names])
+
+        # Assert
+        assert peak_model.hidra_workspace is None
+        assert peak_model._curr_file_name is None
+
+    def test_save_fit_result_legacy_after_nxstress_load_raises(
+        self,
+        peak_model: PeakFittingModel,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_PeakCollection: Callable[..., PeakCollection],
+        tmp_path: Path,
+    ) -> None:
+        """A legacy save copies the loaded file and patches it, which cannot work
+        for an NXstress file: refused, and nothing is written."""
+        # Arrange
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        peak_model.hidra_workspace = ws
+        peak_model.fit_result = FitResult(
+            peakcollections=[minimal_PeakCollection(N_subrun=len(ws.get_sub_runs()))], fitted=None, difference=None
+        )
+        nxs_path = tmp_path / "source.nxs"
+        peak_model.save_fit_result(str(nxs_path))
+        peak_model.load_hidra_project(str(nxs_path))
+        out_path = tmp_path / "saved.h5"
+
+        # Act / Assert
+        with pytest.raises(ValueError, match="loaded from an NXstress file"):
+            peak_model.save_fit_result(str(out_path))
+        assert not out_path.exists()
 
     def test_load_hidra_project_nxstress_get_diffraction_data_succeeds(
         self,
@@ -146,3 +188,28 @@ class TestPeakFittingModelSuffixRouting:
         # Assert
         assert len(loaded.get_sub_runs()) == len(ws.get_sub_runs())
         assert peak_model._curr_file_name == project_path
+
+    def test_save_fit_result_empty_name_updates_in_place(
+        self,
+        peak_model: PeakFittingModel,
+        write_minimal_h5_project: Callable[..., Path],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_PeakCollection: Callable[..., PeakCollection],
+    ) -> None:
+        """An empty name updates the loaded file, as documented; it used to try to copy the file to ""."""
+        # Arrange
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        project_path = write_minimal_h5_project(ws, filename="source.h5")
+        peak_model.load_hidra_project([str(project_path)])
+        peak = minimal_PeakCollection(N_subrun=len(ws.get_sub_runs()))
+        peak_model.fit_result = FitResult(peakcollections=[peak], fitted=None, difference=None)
+
+        # Act
+        peak_model.save_fit_result("")
+
+        # Assert
+        project = HidraProjectFile(str(project_path), mode=HidraProjectFileMode.READONLY)
+        try:
+            assert project.read_peak_tags() == [peak.peak_tag]
+        finally:
+            project.close()

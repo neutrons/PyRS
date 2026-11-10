@@ -9,6 +9,7 @@ import functools
 import os
 import json
 import pytest
+from types import SimpleNamespace
 
 from pyrs.interface import gui_helper
 from pyrs.interface.texture_fitting import texture_fitting_viewer
@@ -257,6 +258,7 @@ def nxstress_ready_window(
     fit_table = window.fit_summary.fit_table_operator
     monkeypatch.setattr(window._model, "ws", ws)
     monkeypatch.setattr(fit_table, "fit_result", None)
+    monkeypatch.setattr(fit_table, "fits", None)
     window.update_nxstress_action()
 
     out_path = tmp_path / "saved.nxs"
@@ -273,9 +275,11 @@ def nxstress_ready_window(
     monkeypatch.setattr(texture_fitting_viewer, "pop_message", record)
     monkeypatch.setattr(gui_helper, "pop_message", record)
 
-    def set_peak_tag(peak_tag: str) -> None:
+    def set_peak_tag(peak_tag: str, mask_key: str = "") -> None:
+        """As a fit leaves it: `fits` keyed by mask ("" for the default pattern), one shown."""
         peak = minimal_PeakCollection(N_subrun=len(ws.get_sub_runs()), peak_tag=peak_tag)
-        fit_table.fit_result = FitResult(peakcollections=[peak], fitted=None, difference=None)
+        fit_table.fits = {mask_key: FitResult(peakcollections=[peak], fitted=None, difference=None)}
+        fit_table.fit_result = fit_table.fits[mask_key]
 
     yield window, out_path, messages, set_peak_tag
     monkeypatch.undo()
@@ -309,7 +313,22 @@ def test_save_as_nxstress_failure_reports_and_cleans_up(nxstress_ready_window) -
 
     # Assert
     assert not out_path.exists()
-    assert messages == ["Failed to save NXstress file"]
+    assert messages == ["Failed to save 'saved.nxs'"]
+
+
+def test_save_as_nxstress_eta_fits_refused(nxstress_ready_window) -> None:
+    """Fits of an out-of-plane mask would be filed under the default mask, so
+    saving them is refused before anything is written."""
+    # Arrange
+    window, out_path, messages, set_peak_tag = nxstress_ready_window
+    set_peak_tag("Fe 110", mask_key="eta_0.0")
+
+    # Act
+    window.save_as_nxstress()
+
+    # Assert
+    assert not out_path.exists()
+    assert messages == ["Unable to save as NXstress"]
 
 
 def test_save_as_nxstress_cancel_writes_nothing(nxstress_ready_window, monkeypatch) -> None:
@@ -324,3 +343,81 @@ def test_save_as_nxstress_cancel_writes_nothing(nxstress_ready_window, monkeypat
     # Assert
     assert not out_path.exists()
     assert messages == []
+
+
+def test_fit_unsupported_layout_reported(texture_fitting_window, monkeypatch) -> None:
+    """A reduced-data layout `fit_peaks` refuses is reported by the *Fit* slot
+    rather than escaping it (an uncaught slot exception aborts PyRS)."""
+    # Arrange
+    window, _qtbot = texture_fitting_window
+    messages = []
+    monkeypatch.setattr(
+        texture_fitting_viewer, "pop_message", lambda parent, message, *a, **k: messages.append(message)
+    )
+
+    def refuse(*args, **kwargs):
+        raise NotImplementedError("Texture fitting does not yet support this file's reduced data")
+
+    monkeypatch.setattr(window.controller, "fit_peaks", refuse)
+
+    # Act
+    window.fit_setup.fit()
+
+    # Assert
+    assert messages == ["Unable to fit these data"]
+
+
+class _RangeTable:
+    """The peak-range table's interface as `fit_peaks` reads it: x_left, x_right, label."""
+
+    def __init__(self, rows: list) -> None:
+        self._rows = rows
+
+    def rowCount(self) -> int:
+        return len(self._rows)
+
+    def item(self, row: int, col: int):
+        value = self._rows[row][col]
+        return SimpleNamespace(text=lambda: str(value))
+
+
+def test_save_as_nxstress_real_eta_fits_refused(texture_fitting_window, monkeypatch, tmp_path) -> None:
+    """End to end on real texture data with geometry
+    (`HB2B_1599_texture_with_instrument.h5`, built by
+    `tests/scripts/make_texture_fixture_with_instrument.py`): *Save as NXstress...*
+    is offered, the eta patterns fit, and saving those fits is refused."""
+    # Arrange
+    window, _qtbot = texture_fitting_window
+    out_path = tmp_path / "saved.nxs"
+    messages = []
+    monkeypatch.setattr(
+        texture_fitting_viewer, "pop_message", lambda parent, message, *a, **k: messages.append(message)
+    )
+    monkeypatch.setattr(
+        texture_fitting_viewer.QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (str(out_path), ""))
+    )
+    fit_table = window.fit_summary.fit_table_operator
+    monkeypatch.setattr(fit_table, "fits", None)
+    monkeypatch.setattr(fit_table, "fit_result", None)
+    # The window is shared: whatever the load replaces is restored on exit.
+    for name in ("ws", "sub_runs", "fit_result", "_curr_file_name", "_run_number"):
+        monkeypatch.setattr(window._model, name, getattr(window._model, name, None))
+    window.controller.load_projectfile("tests/data/HB2B_1599_texture_with_instrument.h5")
+    window.update_nxstress_action()
+    fits = window.controller.fit_peaks(_RangeTable([(62.864, 66.9115, "Fe 110")]), "PseudoVoigt", "Linear")
+    fit_table.fits = fits
+    fit_table.fit_result = fits["eta_0.0"]
+
+    try:
+        # Act
+        enabled = window.saveAsNXstressAction.isEnabled()
+        window.save_as_nxstress()
+
+        # Assert
+        assert sorted(fits) == ["eta_-5.0", "eta_0.0", "eta_5.0"]
+        assert enabled == Config["nxstress.enable"]
+        assert not out_path.exists()
+        assert messages == (["Unable to save as NXstress"] if enabled else [])
+    finally:
+        monkeypatch.undo()
+        window.update_nxstress_action()

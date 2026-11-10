@@ -84,15 +84,22 @@ class PeakFittingModel(QObject):
         Raises:
             RuntimeError, TypeError: If the files cannot be loaded.
             ValueError: If an NXstress (``.nxs``) file is given together with
-                additional files -- multi-file append is not supported for
-                NXstress in Phase 1.
+                any other file -- multi-file append is not supported for
+                NXstress in Phase 1. Raised before anything is loaded or changed.
         """
         project_files_list: List[str] = project_files if isinstance(project_files, list) else [project_files]
 
-        if Path(project_files_list[0]).suffix == ".nxs":
-            if len(project_files_list) != 1:
-                raise ValueError("Loading multiple project files is not supported for NXstress (.nxs) format")
+        # Checked across the whole selection, not just its first file: a `.nxs`
+        # anywhere in it would otherwise reach the legacy multi-file loader.
+        nxs_files = [name for name in project_files_list if Path(name).suffix == ".nxs"]
+        if nxs_files and len(project_files_list) > 1:
+            raise ValueError(
+                f"An NXstress (.nxs) file must be loaded on its own: this selection of {len(project_files_list)} "
+                f"files includes {', '.join(Path(name).name for name in nxs_files)}.\n"
+                "  Select a single .nxs file, or only .h5 files."
+            )
 
+        if nxs_files:
             nxs_file = project_files_list[0]
             with NXstress(Path(nxs_file), "r") as nx:
                 ws, peaks = nx.read()
@@ -216,10 +223,16 @@ class PeakFittingModel(QObject):
 
         If ``out_file_name`` differs from the currently loaded file, the loaded
         file is first copied to ``out_file_name`` and the peak parameters are
-        written to the copy; otherwise the loaded file is updated in place.
+        written to the copy; otherwise (including an empty ``out_file_name``) the
+        loaded file is updated in place. A ``.nxs`` destination is written fresh
+        as NXstress.
 
         Args:
             out_file_name: Destination path (or a single-element list).
+
+        Raises:
+            ValueError: If a legacy destination is asked for a project loaded from
+                an NXstress file.
         """
         fit_result = self.fit_result
         if fit_result is None:
@@ -236,7 +249,17 @@ class PeakFittingModel(QObject):
                 nx.write(self.hidra_workspace, fit_result.peakcollections)
             return
 
-        if out_file_name is not None and self._curr_file_name != out_file_name:
+        # A legacy save copies the loaded file and patches the copy, which only
+        # works when the loaded file is itself a legacy project file: refused for
+        # now, rather than writing a broken file.
+        if Path(self._curr_file_name).suffix == ".nxs":
+            raise ValueError(
+                "This project was loaded from an NXstress file and cannot be saved in the legacy .h5 format.\n"
+                "  Use File > Save as NXstress... instead."
+            )
+
+        # An empty name means "update the loaded file in place", as documented.
+        if out_file_name and self._curr_file_name != out_file_name:
             copyfile(self._curr_file_name, out_file_name)
             current_project_file = out_file_name
         else:

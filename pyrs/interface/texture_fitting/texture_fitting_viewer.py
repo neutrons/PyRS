@@ -10,7 +10,12 @@ from qtpy.QtGui import QColor  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView, GeneralDiffDataView
-from pyrs.interface.gui_helper import impose_extension, nxstress_save_available, pop_message, write_nxstress_or_report
+from pyrs.interface.gui_helper import (
+    nxstress_save_available,
+    pop_message,
+    resolve_save_target,
+    write_nxstress_or_report,
+)
 from pyrs.interface.texture_fitting.texture_fitting_crtl import TextureFittingCrtl
 from pyrs.interface.texture_fitting.texture_fitting_model import TextureFittingModel
 from pyrs.utilities import get_input_project_file  # type: ignore
@@ -593,9 +598,14 @@ class FitSetupView(QGroupBox):
         self._parent.VizSetup.plot_paramZ.addItems(plot_3d_params)
 
     def fit(self):
-        fit_results = self._parent.controller.fit_peaks(
-            self.fit_range_table, self.peak_model.currentText(), self.peak_back.currentText()
-        )
+        # Reported rather than raised: an exception escaping a Qt slot aborts PyRS.
+        try:
+            fit_results = self._parent.controller.fit_peaks(
+                self.fit_range_table, self.peak_model.currentText(), self.peak_back.currentText()
+            )
+        except NotImplementedError as layout_err:
+            pop_message(self, "Unable to fit these data", str(layout_err), "error")
+            return
 
         self._parent.fit_summary.fit_table_operator.set_fit_dict(fit_results)
         self._parent.fit_summary.fit_table_operator.initialize_fit_result_widgets()
@@ -1101,8 +1111,11 @@ class TextureFittingViewer(QMainWindow):
     def saveas(self) -> None:
         filename, _ = QFileDialog.getSaveFileName(self, "Save HidraWorkspace", "", "HDF5 (*.h5);;All Files (*)")
         if filename:
-            filename = impose_extension(filename, Config["legacy_io.extension"])
-            self.controller.save(filename, self._parent.fit_summary.fit_table_operator.fit_result)
+            target = resolve_save_target(
+                self, filename, extension=Config["legacy_io.extension"], format_name="HidraProjectFile"
+            )
+            if target is not None:
+                self.controller.save(target, self._parent.fit_summary.fit_table_operator.fit_result)
 
     def update_nxstress_action(self) -> None:
         """Enable *Save as NXstress...* only when NXstress output is enabled in the
@@ -1121,6 +1134,18 @@ class TextureFittingViewer(QMainWindow):
         fit_result = self.fit_summary.fit_table_operator.fit_result
         if fit_result is None:
             pop_message(self, "No fitted peaks to save", "Fit peaks before saving as NXstress.", "error")
+            return
+        # Fits keyed by an out-of-plane mask cannot be written correctly yet: their
+        # peak collections do not record which mask they were fitted against, and
+        # only the one shown would be saved.
+        if set(self.fit_summary.fit_table_operator.fits or {}) != {""}:
+            pop_message(
+                self,
+                "Unable to save as NXstress",
+                "Saving out-of-plane (eta) texture fits as NXstress is not supported yet: the fitted peaks do "
+                "not record which eta mask they belong to.",
+                "error",
+            )
             return
 
         filename, _ = QFileDialog.getSaveFileName(self, "Save HidraWorkspace (NXstress)", "", "NXstress (*.nxs)")

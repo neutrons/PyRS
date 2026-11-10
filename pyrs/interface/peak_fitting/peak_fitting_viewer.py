@@ -13,9 +13,11 @@ view-side collaborators, instantiated with this window as their ``parent``.
 """
 
 import os
+from pathlib import Path
 from typing import List, Optional
 
 import numpy as np
+from nexusformat.nexus import NeXusError
 from qtpy import QtGui  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 from qtpy.QtGui import QCursor  # type:ignore
@@ -29,6 +31,8 @@ from pyrs.interface.gui_helper import (
     nxstress_save_available,
     parse_integers,
     pop_message,
+    report_save_failure,
+    resolve_save_target,
     write_nxstress_or_report,
 )
 from pyrs.interface.peak_fitting.fit_table import FitTable
@@ -200,10 +204,34 @@ class PeakFittingViewer(QMainWindow):
     # ------------------------------------------------------------------
     # Save / load files
     # ------------------------------------------------------------------
-    def save(self):
-        self._model.save_fit_result(self.current_hidra_file_name)
+    def save(self) -> None:
+        """File > Save: write the fit result back to the loaded project file."""
+        target = self.current_hidra_file_name
+        if isinstance(target, list):
+            target = target[0]
+        if Path(target).suffix == Config["nxstress.extension"]:
+            # The same conditions as *Save as NXstress...*.
+            if not nxstress_save_available(self._model.hidra_workspace):
+                pop_message(
+                    self,
+                    "Unable to save as NXstress",
+                    "NXstress output is switched off ('nxstress.enable'), or the workspace has no instrument geometry.",
+                    "error",
+                )
+                return
+            if self._model.fit_result is None:
+                pop_message(self, "No fitted peaks to save", "Fit peaks before saving as NXstress.", "error")
+                return
+            # Never in place: an NXstress write truncates its target on open, so a
+            # failed save would destroy the file that was loaded.
+            write_nxstress_or_report(self, target, self._model.save_fit_result)
+            return
+        try:
+            self._model.save_fit_result(target)
+        except (OSError, RuntimeError, ValueError) as save_err:
+            report_save_failure(self, target, save_err)
 
-    def save_as(self):
+    def save_as(self) -> None:
         out_file_name = browse_file(
             self,
             caption="Choose a file to save fitted peaks to",
@@ -211,13 +239,25 @@ class PeakFittingViewer(QMainWindow):
             file_filter="H5 (*.h5);;HDF (*.hdf5)",
             save_file=True,
         )
+        if not out_file_name:
+            return  # user clicked cancel
 
+        target = resolve_save_target(
+            self,
+            out_file_name,
+            extension=Config["legacy_io.extension"],
+            format_name="HidraProjectFile",
+            also_accepted=(".hdf5",),
+        )
+        if target is None:
+            return
+        # Reported rather than raised: an exception escaping a Qt slot aborts PyRS
+        # (see docs/ground_truths.md). `ValueError` includes the refusal to save a
+        # project loaded from NXstress in the legacy format.
         try:
-            if not (out_file_name.endswith(".hdf5") or out_file_name.endswith(".h5")):
-                out_file_name += ".h5"
-            self._model.save_fit_result(out_file_name)
-        except AttributeError:
-            pass
+            self._model.save_fit_result(target)
+        except (OSError, RuntimeError, ValueError) as save_err:
+            report_save_failure(self, target, save_err)
 
     def save_as_nxstress(self) -> None:
         # Backstop only: the action is disabled whenever this would fail for want
@@ -253,7 +293,6 @@ class PeakFittingViewer(QMainWindow):
 
         hidra_file_name = [os.path.join(project_dir[i_run], f"HB2B_{runs[i_run]}.h5") for i_run in range(len(runs))]
 
-        self.current_hidra_file_name = hidra_file_name
         self.load_and_plot(hidra_file_name)
         try:
             self._do_plot_1d()
@@ -270,7 +309,6 @@ class PeakFittingViewer(QMainWindow):
         if hidra_file_name is None:
             return  # user clicked cancel
 
-        self.current_hidra_file_name = hidra_file_name
         self.load_and_plot(hidra_file_name)
         try:
             self._do_plot_1d()
@@ -284,10 +322,22 @@ class PeakFittingViewer(QMainWindow):
         # --- load the data into the model ---
         try:
             self._model.load_hidra_project(hidra_file_name)
-        except (RuntimeError, TypeError) as run_err:
+        # Every error a bad file is known to raise. An uncaught one aborts the
+        # application under PyQt6 (see docs/ground_truths.md): `OSError` is a
+        # non-HDF5 `.h5`, `NeXusError` a non-HDF5 or malformed `.nxs`, and
+        # `ValueError` a multi-file selection that includes a `.nxs`.
+        except (RuntimeError, TypeError, ValueError, KeyError, OSError, NeXusError) as run_err:
             pop_message(
                 self, "Unable to load {}".format(hidra_file_name), detailed_message=str(run_err), message_type="error"
             )
+            # Return rather than fall through: everything below assumes a loaded
+            # workspace, so continuing turns a reported failure into a second,
+            # unreported one against whatever was loaded previously.
+            return
+        # Recorded only once the load has succeeded: *Save* writes to this name, and
+        # after a failed load it would otherwise write the previous project over
+        # the file that failed to load.
+        self.current_hidra_file_name = hidra_file_name
 
         self._update_nxstress_action()
 
@@ -681,7 +731,11 @@ class PeakFittingViewer(QMainWindow):
         o_table.populate_fit_result_table()
         o_table.select_first_row()
 
-    def fit_table_radio_buttons(self):
+    def fit_table_radio_buttons(self) -> None:
+        # Connected to controls that are enabled before any fit: with nothing
+        # fitted there is no table to redraw, and FitTable would raise on it.
+        if self._model.fit_result is None:
+            return
         o_table = FitTable(parent=self, fit_result=self._model.fit_result)
         o_table.initialize_table()
         o_table.initialize_table_column_size()

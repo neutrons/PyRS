@@ -494,6 +494,8 @@ class HidraWorkspace:
         if load_raw_counts:
             self._load_raw_counts(hidra_file)
 
+        # PRODUCTION BEHAVIOUR CHANGE: every caller loading with
+        # load_raw_counts=False now gets instrument geometry it did not get before.
         # Load instrument geometry independently of load_raw_counts -- these were
         # previously (and apparently unintentionally) coupled: any project file
         # loaded with load_raw_counts=False (e.g.
@@ -507,6 +509,11 @@ class HidraWorkspace:
         try:
             self._load_instrument(hidra_file)
         except KeyError:
+            # PRODUCTION BEHAVIOUR CHANGE: a workspace can be loaded more than once
+            # (`HB2BReductionManager` reloads its session workspace), and keeping the
+            # previous project's geometry here would attribute it to this project --
+            # NXstress would then write it. Absent geometry is recorded as absent.
+            self._instrument_setup = None
             _logger.warning(
                 "No instrument geometry found in HiDRA project file '%s' -- features that require it "
                 "(e.g. NXstress export) will not be available for this workspace.",

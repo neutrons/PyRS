@@ -5,7 +5,10 @@ Kept free of Qt so the tag rules can be unit-tested without a display.
 """
 
 import re
-from typing import List, Optional
+from collections import defaultdict
+from typing import Dict, List, Optional, Tuple
+
+from pyrs.utilities.NXstress.peak_tag import peak_tag_key
 
 # The label `mplfitplottingwidget` gives each newly drawn peak range.
 _DEFAULT_PEAK_LABEL = re.compile(r"Peak\d+")
@@ -28,8 +31,9 @@ def peak_tags_from_labels(labels: List[Optional[str]], n_peaks: int) -> List[str
         One tag per peak range.
 
     Raises:
-        ValueError: If two peak ranges would get the same tag; tags are keys
-            both for NXstress and for matching peaks across files.
+        ValueError: If two peak ranges would get the same tag, or tags that
+            NXstress files under the same peak (``Fe 211`` and ``Fe211``); tags
+            are keys both for NXstress and for matching peaks across files.
 
     Example:
         >>> peak_tags_from_labels(["Fe 211", "Peak1"], 2)
@@ -43,4 +47,17 @@ def peak_tags_from_labels(labels: List[Optional[str]], n_peaks: int) -> List[str
     duplicates = sorted({tag for tag in tags if tags.count(tag) > 1})
     if duplicates:
         raise ValueError(f"Each peak needs a distinct label; duplicated: {', '.join(duplicates)}")
+
+    by_key: Dict[Tuple[str, Tuple[int, int, int]], List[str]] = defaultdict(list)
+    for tag in tags:
+        by_key[peak_tag_key(tag)].append(tag)
+    collisions = [
+        f"{' and '.join(repr(tag) for tag in same)} (phase '{phase}', hkl {h} {k} {l_})"
+        for (phase, (h, k, l_)), same in by_key.items()
+        if len(same) > 1
+    ]
+    if collisions:
+        raise ValueError(
+            "Each peak needs a distinct label, and these labels name the same peak: " + "; ".join(collisions)
+        )
     return tags

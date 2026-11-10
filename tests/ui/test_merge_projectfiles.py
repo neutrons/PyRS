@@ -1,6 +1,8 @@
+from pathlib import Path
 from typing import Callable, List
 
 from pyrs.core.workspaces import HidraWorkspace
+from pyrs.interface import gui_helper
 from pyrs.interface.combine_runs import combine_runs_viewer
 from pyrs.interface.combine_runs.combine_runs_viewer import CombineRunsViewer
 from pyrs.interface.combine_runs.combine_runs_model import CombineRunsModel
@@ -162,38 +164,72 @@ def test_load_project_files_auto_prompt_calls_both_save_dialogs_in_order(
     assert call_order == ["h5", "nxstress"]
 
 
-def test_load_project_files_reports_a_refused_export(
-    combine_projects_window: tuple, minimal_HidraWorkspace: Callable[..., HidraWorkspace], monkeypatch
+def _refused_export_setup(window, *, minimal_HidraWorkspace, monkeypatch, chosen: Path) -> List[tuple]:
+    """The shared window holding a workspace with geometry, its save dialogs
+    answering `chosen`, and message boxes recorded instead of shown."""
+    messages: List[tuple] = []
+
+    def record(parent, message, detail="", kind="info"):
+        messages.append((message, kind))
+
+    monkeypatch.setattr(combine_runs_viewer, "pop_message", record)
+    monkeypatch.setattr(gui_helper, "pop_message", record)
+    monkeypatch.setattr(
+        combine_runs_viewer.QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (str(chosen), ""))
+    )
+    monkeypatch.setattr(window.model, "_hidra_ws", minimal_HidraWorkspace(with_instrument=True, with_masks=True))
+    monkeypatch.setattr(window, "_project_files", ["placeholder"])
+    return messages
+
+
+def test_save_file_dialog_reports_a_failed_legacy_export(
+    combine_projects_window: tuple, minimal_HidraWorkspace: Callable[..., HidraWorkspace], monkeypatch, tmp_path
 ) -> None:
     r"""
-    An export the writer refuses is reported as "Export failed" and does not escape
-    load_project_files(), a Qt slot, where an uncaught exception aborts PyRS.
+    A legacy export that cannot be written -- here, into a directory that does
+    not exist -- is reported, and does not escape the Qt slot, where an uncaught
+    exception aborts PyRS. Before this PR, every legacy export failure did.
     """
     # Arrange
-    window, qtbot = combine_projects_window
-    file_load = window.fileLoading.file_load_dilg
-    messages: List[tuple] = []
-    monkeypatch.setattr(
-        combine_runs_viewer,
-        "pop_message",
-        lambda parent, message, detail="", kind="info": messages.append((message, kind)),
+    window, _qtbot = combine_projects_window
+    chosen = tmp_path / "missing" / "out.h5"
+    messages = _refused_export_setup(
+        window, minimal_HidraWorkspace=minimal_HidraWorkspace, monkeypatch=monkeypatch, chosen=chosen
     )
 
-    def fake_load_combine_projects(project_files: List[str]) -> None:
-        window.model._hidra_ws = minimal_HidraWorkspace(with_instrument=True)
-        window.model.warnings = []
-
-    def refuse() -> None:
-        raise ValueError("refused by the writer")
-
-    monkeypatch.setattr(window.controller, "load_combine_projects", fake_load_combine_projects)
-    monkeypatch.setattr(file_load, "saveFileDialog", lambda: None)
-    monkeypatch.setattr(file_load, "saveFileDialogNXstress", refuse)
-    monkeypatch.setattr(file_load, "_auto_prompt_export", True)
-    window._project_files = ["placeholder"]
-
     # Act
-    file_load.load_project_files()
+    window.fileLoading.file_load_dilg.saveFileDialog()
 
     # Assert
-    assert messages == [("Export failed", "error")]
+    assert messages == [("Failed to save 'out.h5'", "error")]
+    assert not chosen.exists()
+
+
+def test_save_file_dialog_nxstress_failure_keeps_existing_file(
+    combine_projects_window: tuple, minimal_HidraWorkspace: Callable[..., HidraWorkspace], monkeypatch, tmp_path
+) -> None:
+    r"""
+    An NXstress export goes through `write_nxstress_or_report`: a failed write is
+    reported, and an existing file at the destination is left untouched.
+    """
+    # Arrange
+    window, _qtbot = combine_projects_window
+    chosen = tmp_path / "out.nxs"
+    chosen.write_text("keep")
+    messages = _refused_export_setup(
+        window, minimal_HidraWorkspace=minimal_HidraWorkspace, monkeypatch=monkeypatch, chosen=chosen
+    )
+
+    def refuse(fileout: str) -> None:
+        Path(fileout).write_text("trunc")
+        raise ValueError("refused by the writer")
+
+    monkeypatch.setattr(window.controller, "export_combined_projectfile", refuse)
+
+    # Act
+    window.fileLoading.file_load_dilg.saveFileDialogNXstress()
+
+    # Assert
+    assert messages == [("Failed to save 'out.nxs'", "error")]
+    assert chosen.read_text() == "keep"
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["out.nxs"]

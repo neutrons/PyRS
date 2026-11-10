@@ -6,7 +6,7 @@ from qtpy.QtWidgets import QGridLayout  # type:ignore
 from qtpy.QtWidgets import QMainWindow  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 
-from pyrs.interface.gui_helper import impose_extension, pop_message
+from pyrs.interface.gui_helper import pop_message, report_save_failure, resolve_save_target, write_nxstress_or_report
 from pyrs.projectfile.file_object import CalibrationMismatchError, ReductionMismatchError
 from pyrs.utilities.config import Config
 # from pyrs.interface.gui_helper import browse_file
@@ -57,11 +57,21 @@ class FileLoad(QWidget):
                 self, "Save Combined Proeject File", "", self.fileType, options=QFileDialog.DontUseNativeDialog
             )
 
-            # Guard against an empty string (dialog cancelled) and impose the
-            # configured extension regardless of what the user typed.
-            if _export_project:
-                _export_project = impose_extension(_export_project, Config["legacy_io.extension"])
-                self._parent.controller.export_combined_projectfile(_export_project)
+            # An empty string means the dialog was cancelled.
+            if not _export_project:
+                return
+            target = resolve_save_target(
+                self, _export_project, extension=Config["legacy_io.extension"], format_name="HidraProjectFile"
+            )
+            if target is None:
+                return
+            # Reported rather than raised: an exception escaping a Qt slot aborts
+            # PyRS (see docs/ground_truths.md). `OSError` is what `h5py` raises for
+            # a destination it cannot create.
+            try:
+                self._parent.controller.export_combined_projectfile(target)
+            except (OSError, RuntimeError, ValueError) as export_err:
+                report_save_failure(self, target, export_err)
 
     def saveFileDialogNXstress(self) -> None:
         if self._parent._project_files is not None:
@@ -73,9 +83,10 @@ class FileLoad(QWidget):
                 options=QFileDialog.DontUseNativeDialog,
             )
 
+            # Resolves the extension, writes to a temporary file that replaces the
+            # destination only on success, and reports any failure.
             if _export_project:
-                _export_project = impose_extension(_export_project, Config["nxstress.extension"])
-                self._parent.controller.export_combined_projectfile(_export_project)
+                write_nxstress_or_report(self, _export_project, self._parent.controller.export_combined_projectfile)
 
     def loadRunNumbers(self) -> None:
         self._parent._project_files = self._parent.controller.parse_entry_list(self.lineEdit.text())
@@ -110,26 +121,22 @@ class FileLoad(QWidget):
             pop_message(self, "Reduction not fully checked", warning, "warning")
         if not self._auto_prompt_export:
             return
-        # The exports have their own handler: an exception escaping a Qt slot aborts PyRS (see
-        # docs/ground_truths.md), and a refused write is not a failure to find the runs.
-        try:
-            # Two sequential auto-prompts, each gated by its own format's config
-            # flag -- one dialog completes, then (if enabled) the other pops up.
-            # No persistent Export button exists in this viewer to grey out, so
-            # "enablement" is realized as "does this dialog get offered at all".
-            if Config["legacy_io.enable"]:
-                self.saveFileDialog()
-            # NXstress additionally requires the merged workspace to have
-            # instrument geometry -- combine_project_files loads with
-            # load_raw_counts=False, and (see HidraWorkspace.load_hidra_project)
-            # geometry may genuinely be absent from an older/legacy source file;
-            # in that case NXstress export is silently skipped here (analogous to
-            # a disabled/greyed-out action -- HidraWorkspace.load_hidra_project
-            # already logs a warning at load time explaining why).
-            if Config["nxstress.enable"] and self._parent.model._hidra_ws.get_instrument_setup() is not None:
-                self.saveFileDialogNXstress()
-        except (FileNotFoundError, RuntimeError, ValueError) as export_err:
-            pop_message(self, "Export failed", str(export_err), "error")
+        # Two sequential auto-prompts, each gated by its own format's config
+        # flag -- one dialog completes, then (if enabled) the other pops up.
+        # No persistent Export button exists in this viewer to grey out, so
+        # "enablement" is realized as "does this dialog get offered at all".
+        # Each export reports its own failure, so neither raises here.
+        if Config["legacy_io.enable"]:
+            self.saveFileDialog()
+        # NXstress additionally requires the merged workspace to have
+        # instrument geometry -- combine_project_files loads with
+        # load_raw_counts=False, and (see HidraWorkspace.load_hidra_project)
+        # geometry may genuinely be absent from an older/legacy source file;
+        # in that case NXstress export is silently skipped here (analogous to
+        # a disabled/greyed-out action -- HidraWorkspace.load_hidra_project
+        # already logs a warning at load time explaining why).
+        if Config["nxstress.enable"] and self._parent.model._hidra_ws.get_instrument_setup() is not None:
+            self.saveFileDialogNXstress()
 
     def setFilenamesText(self, filenames):
         self.lineEdit.setText(filenames)

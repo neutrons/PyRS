@@ -6,7 +6,10 @@ import functools
 import json
 import pytest
 import os
+import shutil
 from unittest.mock import MagicMock
+
+import h5py
 
 from pyrs.interface import gui_helper
 from pyrs.interface.peak_fitting import peak_fitting_viewer
@@ -392,7 +395,7 @@ def test_save_as_nxstress_failure_reports_and_cleans_up(nxstress_ready_window) -
 
     # Assert
     assert not out_path.exists()
-    assert messages == ["Failed to save NXstress file"]
+    assert messages == ["Failed to save 'saved.nxs'"]
 
 
 def test_save_as_nxstress_cancel_writes_nothing(nxstress_ready_window, monkeypatch) -> None:
@@ -407,3 +410,159 @@ def test_save_as_nxstress_cancel_writes_nothing(nxstress_ready_window, monkeypat
     # Assert
     assert not out_path.exists()
     assert messages == []
+
+
+def test_save_after_nxstress_load_keeps_file_on_failure(nxstress_ready_window, monkeypatch, tmp_path) -> None:
+    """*Save* of a project loaded from `.nxs` goes through the temporary-file
+    helper: a failed write is reported and the loaded file is left intact (it was
+    written in place, truncating the file and aborting PyRS on any error)."""
+    # Arrange
+    window, _out_path, messages, set_peak_tag = nxstress_ready_window
+    loaded = tmp_path / "loaded.nxs"
+    loaded.write_text("keep")
+    monkeypatch.setattr(window, "current_hidra_file_name", [str(loaded)])
+    set_peak_tag("peak0")
+
+    # Act
+    window.save()
+
+    # Assert
+    assert loaded.read_text() == "keep"
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["loaded.nxs"]
+    assert messages == ["Failed to save 'loaded.nxs'"]
+
+
+def test_save_after_nxstress_load_replaces_file(nxstress_ready_window, monkeypatch, tmp_path) -> None:
+    # Arrange
+    window, _out_path, messages, set_peak_tag = nxstress_ready_window
+    loaded = tmp_path / "loaded.nxs"
+    loaded.write_text("old")
+    monkeypatch.setattr(window, "current_hidra_file_name", [str(loaded)])
+    set_peak_tag("Fe 110")
+
+    # Act
+    window.save()
+
+    # Assert
+    assert h5py.is_hdf5(loaded)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["loaded.nxs"]
+    assert messages == []
+
+
+def test_save_as_legacy_after_nxstress_load_refused(nxstress_ready_window, monkeypatch, tmp_path) -> None:
+    """A legacy save would copy the NXstress file and patch it as a project file;
+    it is refused, reported, and writes nothing."""
+    # Arrange
+    window, _out_path, messages, set_peak_tag = nxstress_ready_window
+    out_h5 = tmp_path / "out.h5"
+    monkeypatch.setattr(window._model, "_curr_file_name", str(tmp_path / "loaded.nxs"))
+    monkeypatch.setattr(peak_fitting_viewer, "browse_file", lambda *args, **kwargs: str(out_h5))
+    set_peak_tag("Fe 110")
+
+    # Act
+    window.save_as()
+
+    # Assert
+    assert not out_h5.exists()
+    assert messages == ["Failed to save 'out.h5'"]
+
+
+def test_fit_table_radio_buttons_before_any_fit(fit_peaks_window, monkeypatch) -> None:
+    """The Value/Error buttons are enabled before any fit; clicking one must not
+    raise (an uncaught slot exception aborts PyRS)."""
+    # Arrange
+    window, _qtbot = fit_peaks_window
+    monkeypatch.setattr(window._model, "fit_result", None)
+
+    # Act / Assert: no exception
+    window.fit_table_radio_buttons()
+
+
+def test_fit_table_radio_buttons_keeps_loaded_d0(nxstress_ready_window, monkeypatch) -> None:
+    """Peaks loaded from NXstress have no peak-range rows, so no d0 cell: they
+    keep the d0 they were saved with instead of raising."""
+    # Arrange
+    window, _out_path, _messages, set_peak_tag = nxstress_ready_window
+    set_peak_tag("Fe 110")
+    monkeypatch.setattr(window.ui.peak_range_table, "item", lambda row, col: None)
+    peak = window._model.fit_result.peakcollections[0]
+    d0_before = np.copy(peak.get_d_reference()[0])
+
+    # Act
+    window.fit_table_radio_buttons()
+
+    # Assert
+    np.testing.assert_array_equal(peak.get_d_reference()[0], d0_before)
+
+
+@pytest.fixture
+def loaded_copy_window(fit_peaks_window, minimal_PeakCollection, monkeypatch, tmp_path):
+    """The shared window with a copy of `HB2B_1017.h5` loaded and a fit result
+    set, so that *Save* has something to write -- into the copy, never into
+    `tests/data`. Message boxes are recorded."""
+    window, _qtbot = fit_peaks_window
+    loaded = tmp_path / "loaded.h5"
+    shutil.copyfile("tests/data/HB2B_1017.h5", loaded)
+    messages = []
+    monkeypatch.setattr(peak_fitting_viewer, "pop_message", lambda parent, message, *a, **k: messages.append(message))
+    window.load_and_plot([str(loaded)])
+    ws = window._model.hidra_workspace
+    monkeypatch.setattr(
+        window._model,
+        "fit_result",
+        FitResult(
+            peakcollections=[minimal_PeakCollection(N_subrun=len(ws.get_sub_runs()))], fitted=None, difference=None
+        ),
+    )
+    return window, loaded, messages
+
+
+def test_load_and_plot_mixed_selection_reported(loaded_copy_window, tmp_path) -> None:
+    """A selection mixing `.h5` and `.nxs` is refused and reported, and the
+    previously loaded project stays loaded."""
+    # Arrange
+    window, loaded, messages = loaded_copy_window
+    before = window._model.hidra_workspace
+    selection = [str(tmp_path / "a.h5"), str(tmp_path / "b.nxs")]
+
+    # Act
+    window.load_and_plot(selection)
+
+    # Assert
+    assert messages == [f"Unable to load {selection}"]
+    assert window._model.hidra_workspace is before
+    assert window._model.curr_file_name == str(loaded)
+
+
+def test_save_after_failed_load_leaves_failed_file(loaded_copy_window, tmp_path) -> None:
+    """*Save* after a refused load writes to the project that is loaded, not over
+    the file that failed to load."""
+    # Arrange
+    window, loaded, messages = loaded_copy_window
+    other = tmp_path / "other.h5"
+    other.write_text("keep")
+    window.load_and_plot([str(other), str(tmp_path / "b.nxs")])
+
+    # Act
+    window.save()
+
+    # Assert
+    assert other.read_text() == "keep"
+    assert h5py.is_hdf5(loaded)
+    assert len(messages) == 1  # only the refused load
+
+
+def test_save_nxstress_without_fit_refused(nxstress_ready_window, monkeypatch, tmp_path) -> None:
+    """*Save* of a `.nxs` project with nothing fitted says so, and writes nothing."""
+    # Arrange
+    window, _out_path, messages, _set_peak_tag = nxstress_ready_window
+    loaded = tmp_path / "loaded.nxs"
+    loaded.write_text("keep")
+    monkeypatch.setattr(window, "current_hidra_file_name", [str(loaded)])
+
+    # Act
+    window.save()
+
+    # Assert
+    assert loaded.read_text() == "keep"
+    assert messages == ["No fitted peaks to save"]

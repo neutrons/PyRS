@@ -204,7 +204,8 @@ class TextureFittingModel(QObject):
         # `PeakFittingModel`'s already-working equivalent. Pre-existing bug, found
         # and fixed as a prerequisite for the NXstress hookup above, since this is
         # the exact method that hookup needed to extend.
-        if out_file_name is not None and self._curr_file_name != out_file_name:
+        # An empty name means "update the loaded file in place", as documented.
+        if out_file_name and self._curr_file_name != out_file_name:
             assert self._curr_file_name is not None, "save_fit_result called before a project was loaded"
             copyfile(self._curr_file_name, out_file_name)
             current_project_file = out_file_name

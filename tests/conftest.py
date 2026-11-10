@@ -2,7 +2,6 @@ from copy import deepcopy
 import atexit
 import numpy as np
 import os
-import tempfile
 import pytest
 import shutil
 import tempfile
@@ -63,16 +62,21 @@ def _presandbox_neutrons_standard_config_home() -> None:
     still uses the existing `default_config` fixture
     (`tests/unit/pyrs/utilities/conftest.py`), unaffected by this.
     """
-    real_home = os.environ.get("HOME")
+    # `env` selects a `neutrons_standard` overlay configuration (and a value
+    # containing "test" changes where the configuration is looked for), so it is
+    # cleared too: the ambient singleton must hold the shipped defaults.
+    saved = {name: os.environ.get(name) for name in ("HOME", "env")}
     with tempfile.TemporaryDirectory(prefix="pyrs-conftest-presandbox-home-") as sandbox_home:
         os.environ["HOME"] = sandbox_home
+        os.environ.pop("env", None)
         try:
             import pyrs.utilities.config  # noqa: F401  (import side effect is the point)
         finally:
-            if real_home is not None:
-                os.environ["HOME"] = real_home
-            else:
-                os.environ.pop("HOME", None)
+            for name, value in saved.items():
+                if value is not None:
+                    os.environ[name] = value
+                else:
+                    os.environ.pop(name, None)
 
 
 _presandbox_neutrons_standard_config_home()

@@ -19,6 +19,7 @@ from pyrs.core.workspaces import HidraWorkspace
 from pyrs.interface.texture_fitting.texture_fitting_model import TextureFittingModel
 from pyrs.peaks.peak_collection import PeakCollection
 from pyrs.peaks.peak_fit_engine import FitResult
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 
 pytestmark = pytest.mark.integration
 
@@ -81,6 +82,31 @@ class TestTextureFittingModelH5SaveRegression:
         # out_file_name == currently loaded file -> update in place, no copy.
         texture_model.save_fit_result(str(project_path), fit_result=fit_result)
         assert project_path.exists()
+
+    def test_save_fit_result_empty_name_updates_in_place(
+        self,
+        texture_model: TextureFittingModel,
+        write_minimal_h5_project: Callable[..., Path],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_PeakCollection: Callable[..., PeakCollection],
+    ) -> None:
+        """An empty name updates the loaded file, as documented; it used to try to copy the file to ""."""
+        # Arrange
+        ws = minimal_HidraWorkspace(with_instrument=True)
+        project_path = write_minimal_h5_project(ws, filename="source.h5")
+        texture_model.load_hidra_project_file(str(project_path))
+        peak = minimal_PeakCollection(N_subrun=len(ws.get_sub_runs()))
+        fit_result = FitResult(peakcollections=[peak], fitted=None, difference=None)
+
+        # Act
+        texture_model.save_fit_result("", fit_result=fit_result)
+
+        # Assert
+        project = HidraProjectFile(str(project_path), mode=HidraProjectFileMode.READONLY)
+        try:
+            assert project.read_peak_tags() == [peak.peak_tag]
+        finally:
+            project.close()
 
 
 class TestTextureFittingModelNXstressRoundtrip:

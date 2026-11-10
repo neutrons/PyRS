@@ -2,7 +2,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional, Tuple
 
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.config import Config
@@ -15,14 +15,94 @@ _logger = logging.getLogger(__name__)
 
 
 def impose_extension(filename: str, extension: str) -> str:
-    """Force filename's suffix to extension (e.g. '.nxs'), regardless of what a
-    user typed into a save dialog.
+    """Append ``extension`` (e.g. '.nxs') to ``filename`` if it has no extension.
 
-    Never lets a user pick a different extension than the format actually being
-    written -- each save action imposes its own output format's configured
-    extension unconditionally.
+    A name that already has an extension is returned unchanged: replacing it
+    would cut a dotted name short (``HB2B_1327.v2`` would become
+    ``HB2B_1327.nxs``). Whether an existing extension is acceptable is
+    `resolve_save_target`'s decision, not this function's.
     """
-    return str(Path(filename).with_suffix(extension))
+    path = Path(filename)
+    return filename if path.suffix else str(path.with_name(path.name + extension))
+
+
+def confirm_replace(parent, filename: str) -> bool:
+    """Ask whether to replace an existing file.
+
+    Args:
+        parent: Parent widget for the question box.
+        filename: The existing file that would be replaced.
+
+    Returns:
+        True if the user chose to replace it.
+    """
+    answer = QMessageBox.question(
+        parent,
+        "Replace existing file?",
+        f"'{Path(filename).name}' already exists. Replace it?",
+        QMessageBox.Yes | QMessageBox.No,
+        QMessageBox.No,
+    )
+    return answer == QMessageBox.Yes
+
+
+def resolve_save_target(
+    parent, filename: str, *, extension: str, format_name: str, also_accepted: Tuple[str, ...] = ()
+) -> Optional[str]:
+    """The file a save dialog's choice should actually be written to, or None if
+    nothing should be written.
+
+    A save dialog asks about overwriting the name as typed, so a target that
+    differs from it must be checked here:
+
+    - a name ending in ``extension`` (or one of ``also_accepted``) is used as typed;
+    - a name with no extension gets ``extension`` appended, and if that file
+      already exists the user is asked before it is replaced;
+    - a name with any other extension is refused: writing one format under
+      another format's extension would mislabel the file.
+
+    Refusals and declined replacements are reported to the user here.
+
+    Args:
+        parent: Parent widget for any message or question box.
+        filename: The name chosen in the save dialog.
+        extension: The format's configured extension, e.g. '.nxs'.
+        format_name: The format's name as the user knows it, e.g. 'NXstress'.
+        also_accepted: Further extensions accepted as typed, e.g. ('.hdf5',).
+
+    Returns:
+        The path to write, or None if the save should not go ahead.
+    """
+    suffix = Path(filename).suffix
+    if suffix == extension or suffix in also_accepted:
+        return filename
+    if suffix:
+        pop_message(
+            parent,
+            f"Unable to save {format_name} format as '*{suffix}'",
+            f"Use a file name ending in '{extension}'; nothing was saved to '{Path(filename).name}'.",
+            "error",
+        )
+        return None
+    target = impose_extension(filename, extension)
+    if Path(target).exists() and not confirm_replace(parent, target):
+        return None
+    return target
+
+
+def report_save_failure(parent, target: str, save_err: Exception) -> None:
+    """Log a failed save with its traceback and report it in an error box.
+
+    Every save action reports a failure through this, whatever the format, so
+    that a failed save looks the same to the user wherever it happens.
+
+    Args:
+        parent: Parent widget for the error message box.
+        target: The file that was being written.
+        save_err: The exception the write raised.
+    """
+    _logger.exception("Failed to save '%s'", target, exc_info=save_err)
+    pop_message(parent, f"Failed to save '{Path(target).name}'", str(save_err), "error")
 
 
 def nxstress_save_available(ws: Optional["HidraWorkspace"]) -> bool:
@@ -43,11 +123,15 @@ def write_nxstress_or_report(parent, filename: str, write: Callable[[str], None]
     """Write an NXstress file, reporting any failure in a message box instead of
     raising.
 
-    Imposes the configured NXstress extension, then writes to a sibling
-    ``<stem>.partial<ext>`` file that replaces ``filename`` only on success: an
-    NXstress write truncates its target on open, so writing in place would
-    destroy an existing file on any failure. Raising is avoided because an
-    uncaught exception in a Qt slot aborts the application under PyQt6.
+    The destination is resolved by `resolve_save_target` (configured NXstress
+    extension, overwrite confirmation, refusal of another format's extension).
+    The file is then written to a sibling ``<stem>.partial<ext>`` that replaces
+    the destination only on success: an NXstress write truncates its target on
+    open, so writing in place would destroy an existing file on any failure. If
+    that sibling already exists -- for example, left by an interrupted save --
+    the save is refused rather than overwriting it, and the destination is left
+    untouched. Raising is avoided because an uncaught exception in a Qt slot
+    aborts the application under PyQt6.
 
     Args:
         parent: Parent widget for the error message box.
@@ -55,21 +139,33 @@ def write_nxstress_or_report(parent, filename: str, write: Callable[[str], None]
         write: Writes the NXstress file to the path it is given.
 
     Returns:
-        True if the file was written; False if the failure was reported.
+        True if the file was written; False if nothing was written, the reason
+        having been reported (or the user having declined to replace a file).
     """
-    target = Path(impose_extension(filename, Config["nxstress.extension"]))
+    resolved = resolve_save_target(parent, filename, extension=Config["nxstress.extension"], format_name="NXstress")
+    if resolved is None:
+        return False
+    target = Path(resolved)
     partial = target.with_name(f"{target.stem}.partial{target.suffix}")
+    if partial.exists():
+        pop_message(
+            parent,
+            f"Not saved: '{partial.name}' already exists",
+            f"Saving writes '{partial.name}' first, and a file of that name is already there -- possibly left "
+            "by an interrupted save. Remove or rename it, then save again.",
+            "error",
+        )
+        return False
     try:
         write(str(partial))
         os.replace(partial, target)
         return True
     except Exception as save_err:  # noqa: BLE001 -- see docstring
-        _logger.exception("Failed to save NXstress file '%s'", target)
         try:
             partial.unlink(missing_ok=True)
         except OSError:
             _logger.exception("Failed to remove partial NXstress file '%s'", partial)
-        pop_message(parent, "Failed to save NXstress file", str(save_err), "error")
+        report_save_failure(parent, str(target), save_err)
         return False
 
 
