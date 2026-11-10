@@ -240,9 +240,18 @@ def _open(file_name: str):
         raise OSError(f"{file_name} cannot be read as a NeXus (HDF5) file: {error}") from None
 
 
-def _child(group: NXgroup, path: str) -> Any:
-    """``group[path]``, or None if it is missing (nexusformat raises NeXusError for a missing path)."""
-    return group[path] if path in group else None
+def _child(group: Any, path: str) -> Any:
+    """``group[path]``, or None if it is missing or ``group`` is not a group (nexusformat raises NeXusError for a
+    missing path, and a field's ``in`` tests its data: a dataset where a group belongs would raise or match)."""
+    if not isinstance(group, NXgroup) or path not in group:
+        return None
+    return group[path]
+
+
+def _group(root: NXgroup, path: str) -> Optional[NXgroup]:
+    """The group at ``path``, or None if it is missing or is not a group."""
+    child = _child(root, path)
+    return child if isinstance(child, NXgroup) else None
 
 
 def _text(value: Any) -> Any:
@@ -264,11 +273,12 @@ def _check_chain(root: NXgroup, file_name: str) -> NXgroup:
     """The transformations group, after checking it is exactly the chain this PyRS applies (else ValueError):
     every transformation's type, vector, units and ``depends_on``, the detector's ``depends_on``, and the
     per-sub-run ``arm_rotation`` stored as 0."""
-    detector, transformations = _child(root, _DETECTOR), _child(root, _TRANSFORMATIONS)
+    detector, transformations = _group(root, _DETECTOR), _group(root, _TRANSFORMATIONS)
     if detector is None or transformations is None:
-        raise RuntimeError(f"{file_name}: no {_TRANSFORMATIONS}; not a PyRS NeXus calibration file")
+        raise RuntimeError(f"{file_name}: no {_TRANSFORMATIONS} group; not a PyRS NeXus calibration file")
     first = "transformations/" + CALIBRATION_TRANSFORMATIONS[0][0]
-    depends_on = _text(detector["depends_on"].nxdata) if "depends_on" in detector else None
+    field = _child(detector, "depends_on")
+    depends_on = _text(field.nxdata) if field is not None else None
     if depends_on != first:
         raise ValueError(f"{file_name}: the detector depends_on {depends_on!r}, expected {first!r}")
     for index, (name, transformation_type, vector, units, _) in enumerate(CALIBRATION_TRANSFORMATIONS):
@@ -298,7 +308,7 @@ def _check_chain(root: NXgroup, file_name: str) -> NXgroup:
 
 def _read_geometry(root: NXgroup, file_name: str) -> DENEXDetectorGeometry:
     """The detector geometry, after checking its pixel offsets are DetectorModel's layout (else ValueError)."""
-    detector, transformations = _child(root, _DETECTOR), _child(root, _TRANSFORMATIONS)
+    detector, transformations = _group(root, _DETECTOR), _group(root, _TRANSFORMATIONS)
     fields = {}
     for name, group in (
         ("x_pixel_offset", detector),
