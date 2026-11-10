@@ -22,6 +22,10 @@ Layout (``.nxs``)::
                                             (pyrs.core.detector_model.CALIBRATION_TRANSFORMATIONS); each a
                                             value with <name>_errors beside it, @transformation_type,
                                             @vector, @units and @depends_on
+      /calibration                          NXprocess (optional, #1054 phase 2): program, version, date, method,
+                                            the final covariance and its parameter names, one NXdata table
+                                            per diagnostic (e.g. ring_points, strip_fits, peaks) and, on
+                                            request, the reduced patterns under /patterns
 
 Written and read with ``nexusformat``, as PyRS's NXstress output is. The frame is PyRS's: +Z along the incident
 beam, +Y up. ``arm_rotation`` is stored as 0: the arm angle
@@ -29,12 +33,15 @@ belongs to each sub-run (``-get_detector_2theta()``), not to the calibration. Er
 -1 not refined (or held), -2 refined but undetermined.
 """
 
+import datetime
 import json
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 from nexusformat.nexus import (
     NeXusError,
+    NXcollection,
+    NXdata,
     NXdetector,
     NXentry,
     NXfield,
@@ -42,9 +49,12 @@ from nexusformat.nexus import (
     NXinstrument,
     NXmonochromator,
     NXnote,
+    NXprocess,
     NXtransformations,
     nxopen,
 )
+
+from pyrs import __version__
 
 from pyrs.core.detector_model import CALIBRATION_TRANSFORMATIONS, DetectorModel, transformation_chain
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
@@ -55,12 +65,15 @@ __all__ = [
     "read_calibration_nexus",
     "read_calibration_nexus_provenance",
     "read_calibration_nexus_geometry",
+    "read_calibration_nexus_diagnostics",
+    "table_columns",
 ]
 
 _DETECTOR = "entry/instrument/detector"
 _TRANSFORMATIONS = _DETECTOR + "/transformations"
 _NOTE = _DETECTOR + "/calibration_method"
 _MONOCHROMATOR = "entry/instrument/monochromator"
+_PROCESS = "entry/calibration"
 
 
 def _value(value: float, units: Optional[str] = None) -> NXfield:
@@ -80,6 +93,7 @@ def write_calibration_nexus(
     calibration_status: int,
     geometry: DENEXDetectorGeometry,
     provenance: Optional[Dict[str, Any]] = None,
+    diagnostics: Optional[Mapping[str, Any]] = None,
 ) -> None:
     """Write a calibration as a NeXus file (see the module docstring for the layout).
 
@@ -93,6 +107,11 @@ def write_calibration_nexus(
         geometry: The detector geometry the calibration is valid for. Unlike the JSON's, it is required:
             the transformation chain and pixel offsets are built from it.
         provenance: How the calibration was obtained (``pyrs.calibration.provenance``, #1053), or None.
+        diagnostics: What the calibration was fitted to (#1054 phase 2), written to ``/entry/calibration``,
+            or None: ``method`` (str); ``covariance``, None or ``(parameter names, matrix)``; ``tables``,
+            ``{name: {column: 1D array}}`` with columns of one length per table (strings allowed); and
+            ``patterns``, ``{name: {"two_theta", "intensity", "errors"}}`` (optional). Built by the
+            calibrations' ``diagnostics()``.
 
     Raises:
         TypeError: If an argument has the wrong type, or the provenance cannot be written as JSON (nothing
@@ -158,8 +177,59 @@ def write_calibration_nexus(
     entry = NXentry()
     entry["program_name"] = NXfield("pyrs")
     entry["instrument"] = instrument
+    if diagnostics is not None:
+        entry["calibration"] = _diagnostics_group(diagnostics)
     with nxopen(file_name, "w") as root:
         root["entry"] = entry
+
+
+def _column(values: Any) -> NXfield:
+    """A table column: numbers as given, strings as UTF-8 bytes (HDF5 has no numpy unicode type)."""
+    array = np.asarray(values)
+    if array.dtype.kind in ("U", "O"):
+        array = np.array([str(value).encode("utf-8") for value in array.reshape(-1)], dtype="S").reshape(array.shape)
+    return NXfield(array)
+
+
+def _diagnostics_group(diagnostics: Mapping[str, Any]) -> NXprocess:
+    """The ``/entry/calibration`` NXprocess of a calibration's diagnostics (see write_calibration_nexus)."""
+    process = NXprocess()
+    process["program"] = NXfield("pyrs")
+    process["version"] = NXfield(str(__version__))
+    process["date"] = NXfield(datetime.datetime.now().astimezone().isoformat(timespec="seconds"))
+    process["method"] = NXfield(str(diagnostics.get("method", "")))
+    covariance = diagnostics.get("covariance")
+    if covariance is not None:
+        names, matrix = covariance
+        matrix = np.asarray(matrix, dtype=np.float64)
+        if matrix.shape != (len(names), len(names)):
+            raise TypeError(f"covariance of shape {matrix.shape} for {len(names)} parameters")
+        process["covariance"] = NXfield(matrix, dtype="float64")
+        process["covariance"].attrs["units"] = "products of the parameters' units (m, deg, angstrom)"
+        process["covariance_parameters"] = _column(list(names))
+    for name, columns in (diagnostics.get("tables") or {}).items():
+        lengths = {column: np.size(values) for column, values in columns.items()}
+        if len(set(lengths.values())) > 1:
+            raise TypeError(f"diagnostics table {name!r} has columns of different lengths: {lengths}")
+        table = NXdata()
+        for column, values in columns.items():
+            table[column] = _column(values)
+        if "residual" in columns:
+            table.attrs["signal"] = "residual"
+        process[name] = table
+    patterns = diagnostics.get("patterns")
+    if patterns:
+        collection = NXcollection()
+        for name, pattern in patterns.items():
+            data = NXdata()
+            data["two_theta"] = NXfield(np.asarray(pattern["two_theta"], dtype=np.float64), units="deg")
+            data["intensity"] = NXfield(np.asarray(pattern["intensity"], dtype=np.float64))
+            data["intensity_errors"] = NXfield(np.asarray(pattern["errors"], dtype=np.float64))
+            data.attrs["signal"] = "intensity"
+            data.attrs["axes"] = "two_theta"
+            collection[name] = data
+        process["patterns"] = collection
+    return process
 
 
 def _open(file_name: str):
@@ -343,3 +413,55 @@ def read_calibration_nexus_geometry(calibration_file_name: str) -> DENEXDetector
     checkdatatypes.check_file_name(calibration_file_name, True, False, False, "NeXus calibration file")
     with _open(calibration_file_name) as root:
         return _read_geometry(root, calibration_file_name)
+
+
+def _plain(field: NXfield) -> Any:
+    """A stored column as numbers, or as a list of str for byte strings."""
+    value = np.asarray(field.nxdata)
+    if value.dtype.kind == "S":
+        return [item.decode("utf-8") for item in value.reshape(-1)]
+    return value
+
+
+def read_calibration_nexus_diagnostics(calibration_file_name: str) -> Optional[Dict[str, Any]]:
+    """The diagnostics of a NeXus calibration file (#1054 phase 2), or None if it has none.
+
+    Returns:
+        ``method``, ``version``, ``date``; ``covariance``, None or ``(parameter names, matrix)``; ``tables``,
+        ``{name: {column: array or list of str}}``; ``patterns``, ``{name: {"two_theta", "intensity",
+        "errors"}}``, as :func:`write_calibration_nexus` takes them.
+    """
+    checkdatatypes.check_file_name(calibration_file_name, True, False, False, "NeXus calibration file")
+    with _open(calibration_file_name) as root:
+        process = _child(root, _PROCESS)
+        if process is None:
+            return None
+        diagnostics: Dict[str, Any] = {
+            key: _text(process[key].nxdata) if key in process else None for key in ("method", "version", "date")
+        }
+        diagnostics["covariance"] = None
+        if "covariance" in process:
+            names: Sequence[str] = _plain(process["covariance_parameters"])
+            diagnostics["covariance"] = (tuple(names), np.asarray(process["covariance"].nxdata, dtype=float))
+        tables: Dict[str, Dict[str, Any]] = {}
+        patterns: Dict[str, Dict[str, Any]] = {}
+        for name in process:
+            group = process[name]
+            if name == "patterns":
+                for pattern_name in group:
+                    pattern = group[pattern_name]
+                    patterns[pattern_name] = {
+                        "two_theta": np.asarray(pattern["two_theta"].nxdata, dtype=float),
+                        "intensity": np.asarray(pattern["intensity"].nxdata, dtype=float),
+                        "errors": np.asarray(pattern["intensity_errors"].nxdata, dtype=float),
+                    }
+            elif group.nxclass == "NXdata":
+                tables[name] = {column: _plain(group[column]) for column in group}
+        diagnostics["tables"] = tables
+        diagnostics["patterns"] = patterns
+    return diagnostics
+
+
+def table_columns(rows: Sequence[Mapping[str, Any]], columns: Sequence[str]) -> Dict[str, List[Any]]:
+    """Rows (dicts) as the columns of a diagnostics table, in the given column order."""
+    return {column: [row[column] for row in rows] for column in columns}

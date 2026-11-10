@@ -26,6 +26,7 @@ The starting geometry is the nominal one; it must not be badly wrong (docs/groun
 """
 
 import argparse
+import warnings
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, List, Optional, Sequence
@@ -49,8 +50,9 @@ def run_calibration(
     ring_points_file: Optional[str] = None,
     sub_runs: Optional[Sequence[int]] = None,
     max_rounds: Optional[int] = None,
+    nexus_output: Optional[str] = None,
 ) -> "PixelCalibration":
-    """Run the ring-based calibration on one NeXus run and write the calibration JSON.
+    """Run the ring-based calibration on one NeXus run and write the calibration JSON (and, if asked, NeXus).
 
     Args:
         nexus_file: Calibration run (NeXus).
@@ -60,17 +62,22 @@ def run_calibration(
         strips: Strips per sub-run for ring extraction.
         passes: Passes of the staged refinement.
         polish: Finish the passes with a joint refinement of all parameters.
-        ring_points_file: If given, save the last round's ring points (``.npz``) here.
+        ring_points_file: If given, save the last round's ring points (``.npz``) here. Deprecated (#1054):
+            the NeXus file (``nexus_output``) holds them, with the strip fits and residuals.
         sub_runs: Sub-runs to use (default: all).
         max_rounds: Most extraction + refinement rounds (default: ``DEFAULT_MAX_ROUNDS``); 1 extracts once.
+        nexus_output: If given, also write the calibration as a NeXus file (``.nxs``) with its diagnostics:
+            ring points, strip fits, residuals and covariance (#1054).
 
     Returns:
         The refined ``PixelCalibration``.
 
     Raises:
         FileNotFoundError: If the NeXus or mask file does not exist.
+        ValueError: If ``nexus_output`` is not a ``.nxs`` file (checked before the calibration runs).
     """
     from pyrs.calibration.pixel_pos_calibration import DEFAULT_MAX_ROUNDS, calibrate_rings
+    from pyrs.utilities.calibration_file_io import calibration_format
     from pyrs.calibration.provenance import file_record
     from pyrs.core import MonoSetting  # type: ignore
     from pyrs.core.nexus_conversion import NeXusConvertingApp
@@ -79,6 +86,15 @@ def run_calibration(
         raise FileNotFoundError(f"NeXus file {nexus_file} does not exist")
     if mask_file is not None and not Path(mask_file).is_file():
         raise FileNotFoundError(f"mask file {mask_file} does not exist; give --mask PATH or --no-mask")
+    if nexus_output is not None and calibration_format(nexus_output) != "nexus":
+        raise ValueError(f"--nexus must name a .nxs file, got {nexus_output!r}")
+    if ring_points_file is not None:
+        warnings.warn(
+            "--ring-points (.npz) is deprecated and will be removed: write the NeXus calibration file with --nexus, "
+            "which holds the ring points under /entry/calibration/ring_points",
+            FutureWarning,
+            stacklevel=2,
+        )
 
     workspace = NeXusConvertingApp(nexus_file, mask_file).convert()
     if wavelength is None:
@@ -86,8 +102,16 @@ def run_calibration(
 
     if max_rounds is None:
         max_rounds = DEFAULT_MAX_ROUNDS
+    strip_fits: list = []  # the last round's, for the NeXus diagnostics
     calibration = calibrate_rings(
-        workspace, wavelength, strips=strips, sub_runs=sub_runs, passes=passes, polish=polish, max_rounds=max_rounds
+        workspace,
+        wavelength,
+        strips=strips,
+        sub_runs=sub_runs,
+        passes=passes,
+        polish=polish,
+        max_rounds=max_rounds,
+        diagnostics=strip_fits,
     )
     if ring_points_file is not None:
         calibration.ring_points.save(ring_points_file)
@@ -112,6 +136,8 @@ def run_calibration(
         "driver": "scripts/pyrs_pixel_calibration.py",
     }
     calibration.write_calibration(output, inputs=inputs)
+    if nexus_output is not None:
+        calibration.write_calibration(nexus_output, inputs=inputs, strip_fits=strip_fits)
     return calibration
 
 
@@ -176,7 +202,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--strips", type=int, default=5, help="strips per sub-run for ring extraction")
     parser.add_argument("--passes", type=int, default=3, help="passes of the staged refinement")
     parser.add_argument("--no-polish", action="store_true", help="skip the final joint refinement")
-    parser.add_argument("--ring-points", help="save the extracted ring points to this .npz file")
+    parser.add_argument(
+        "--ring-points", help="save the extracted ring points to this .npz file (deprecated: use --nexus)"
+    )
+    parser.add_argument(
+        "--nexus",
+        help="also write the calibration as this NeXus (.nxs) file, with ring points, strip fits and residuals",
+    )
     parser.add_argument("--sub-runs", type=int, nargs="+", help="sub-runs to use; None: all")
     parser.add_argument(
         "--max-rounds",
@@ -212,12 +244,15 @@ def main(argv: Optional[List[str]] = None) -> int:
             ring_points_file=args.ring_points,
             sub_runs=args.sub_runs,
             max_rounds=args.max_rounds,
+            nexus_output=args.nexus,
         )
     except (OSError, ValueError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(_summary(calibration))
     print(f"calibration written to {args.output}")
+    if args.nexus:
+        print(f"NeXus calibration (with diagnostics) written to {args.nexus}")
     return 0
 
 

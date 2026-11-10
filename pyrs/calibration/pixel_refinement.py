@@ -125,9 +125,22 @@ def _parameter_errors(jacobian: np.ndarray, residual: np.ndarray, dof: int) -> n
     -2, and the others' errors come from the pseudo-inverse, so the degenerate direction cannot
     inflate them. At full rank this is exactly the ``inv(JᵀJ)`` formula.
     """
+    return _parameter_errors_and_covariance(jacobian, residual, dof)[0]
+
+
+def _parameter_errors_and_covariance(
+    jacobian: np.ndarray, residual: np.ndarray, dof: int
+) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    """:func:`_parameter_errors` and the covariance matrix it comes from (#1054)
+
+    Returns:
+        ``(errors, covariance)``: the errors exactly as :func:`_parameter_errors` gives them, and the
+        covariance ``inv(JᵀJ) · Σr² / dof`` in the parameters' units (free-parameter order), with NaN in
+        the rows and columns of undetermined parameters; None if no covariance can be formed.
+    """
     scale = np.linalg.norm(jacobian, axis=0)
     if dof <= 0 or not np.all(np.isfinite(jacobian)) or np.any(scale == 0):
-        return np.full(jacobian.shape[1], UNDETERMINED)
+        return np.full(jacobian.shape[1], UNDETERMINED), None
     scaled = jacobian / scale
 
     def rank(matrix: np.ndarray) -> int:
@@ -141,8 +154,12 @@ def _parameter_errors(jacobian: np.ndarray, residual: np.ndarray, dof: int) -> n
             if rank(np.delete(scaled, column, axis=1)) == full_rank:
                 undetermined[column] = True
     covariance = np.linalg.pinv(scaled.T @ scaled, rcond=_RANK_RTOL**2, hermitian=True)
-    variances = np.diag(covariance) / scale**2 * np.sum(residual**2) / dof
-    return np.where(undetermined | ~(variances >= 0), UNDETERMINED, np.sqrt(np.abs(variances)))
+    variances = np.diag(covariance) / scale**2 * np.sum(residual**2) / dof  # the errors' own expression
+    errors = np.where(undetermined | ~(variances >= 0), UNDETERMINED, np.sqrt(np.abs(variances)))
+    unscaled = covariance / np.outer(scale, scale) * np.sum(residual**2) / dof
+    unscaled[errors == UNDETERMINED, :] = np.nan
+    unscaled[:, errors == UNDETERMINED] = np.nan
+    return errors, unscaled
 
 
 @dataclass(frozen=True)
@@ -161,6 +178,8 @@ class StageResult:
         nfev: Number of residual evaluations.
         message: The optimizer's termination message, or what a stage without refinement did.
         undetermined_reasons: Why each parameter flagged :data:`UNDETERMINED` is undetermined.
+        covariance: The errors' covariance matrix in ``free_parameters`` order and their units (NaN where
+            undetermined, #1054), or None.
         held_parameters: Parameters held fixed while estimating errors (``estimate_errors``,
             ``errors_at_current``); their errors are :data:`NOT_REFINED`.
     """
@@ -175,6 +194,7 @@ class StageResult:
     message: str = ""
     undetermined_reasons: Mapping[str, str] = field(default_factory=dict)
     held_parameters: Tuple[str, ...] = ()
+    covariance: Optional[np.ndarray] = None
 
 
 class PixelCalibration:
@@ -268,6 +288,14 @@ class PixelCalibration:
         for arm_two_theta, l2 in np.unique(positions, axis=0):
             index = np.flatnonzero((positions[:, 0] == arm_two_theta) & (positions[:, 1] == l2))
             self._groups.append((index, -float(arm_two_theta), float(l2)))
+
+    @property
+    def covariance(self) -> Optional[Tuple[Tuple[str, ...], np.ndarray]]:
+        """The last stage's error covariance (#1054): its free parameters' names and the matrix in their units
+        (NaN where undetermined), or None."""
+        if not self.stages or self.stages[-1].covariance is None:
+            return None
+        return self.stages[-1].free_parameters, self.stages[-1].covariance.copy()
 
     @property
     def start(self) -> Dict[str, Any]:
@@ -514,11 +542,14 @@ class PixelCalibration:
                 max_nfev=self._max_nfev,
             )
 
-        errors = _parameter_errors(out.jac, out.fun, out.fun.size - free.size)
+        errors, covariance = _parameter_errors_and_covariance(out.jac, out.fun, out.fun.size - free.size)
         # a parameter stopped by its bound is not at a minimum, so its covariance error means nothing
         at_bound = np.asarray(out.active_mask) != 0
         if np.any(at_bound):
             errors = np.where(at_bound, UNDETERMINED, errors)
+            if covariance is not None:
+                covariance[at_bound, :] = np.nan
+                covariance[:, at_bound] = np.nan
             pinned = [PARAMETER_NAMES[i] for i in free[at_bound]]
             self._warn(f"{name}: {pinned} stopped at a bound; their errors are flagged -2")
         free_names = tuple(PARAMETER_NAMES[i] for i in free)
@@ -539,6 +570,7 @@ class PixelCalibration:
             nfev=int(out.nfev),
             message=str(out.message),
             undetermined_reasons=_undetermined_reasons(free_names, errors, at_bound),
+            covariance=covariance,
         )
         self.stages.append(stage)
         return stage
@@ -652,7 +684,7 @@ class PixelCalibration:
 
         residual = self.residual(values)
         jacobian = approx_derivative(free_residual, values[free], method="3-point", rel_step=self._diff_step)
-        errors = _parameter_errors(jacobian, residual, residual.size - free.size)
+        errors, covariance = _parameter_errors_and_covariance(jacobian, residual, residual.size - free.size)
         self._caliberr[free] = errors
         self._caliberr[held] = NOT_REFINED
         free_names = tuple(PARAMETER_NAMES[i] for i in free)
@@ -667,6 +699,7 @@ class PixelCalibration:
             message="no refinement: errors from the Jacobian at the current values",
             undetermined_reasons=_undetermined_reasons(free_names, errors),
             held_parameters=tuple(PARAMETER_NAMES[i] for i in held),
+            covariance=covariance,
         )
         self.stages.append(stage)
         return stage
@@ -742,24 +775,100 @@ class PixelCalibration:
             extra=extra,
         )
 
-    def write_calibration(self, file_name: Union[str, Path], inputs: Optional[Mapping[str, Any]] = None) -> None:
-        """Write the calibration in the standard calibration JSON format (``write_calibration_to_json``).
-
-        Values and errors are :attr:`calibration_array` and :attr:`calibration_error_array`; ``Status``
-        is the scipy status of the last stage. The file also carries :meth:`provenance` (#1053).
+    def diagnostics(self, strip_fits: Optional[Sequence[Any]] = None) -> Dict[str, Any]:
+        """What this calibration was fitted to, for the NeXus calibration file (#1054 phase 2).
 
         Args:
-            file_name: Calibration JSON to write.
+            strip_fits: The extraction's strip fits (``StripFit``, from ``calibrate_rings(..., diagnostics=)``),
+                if known: every ring sought in every strip, accepted or rejected and why.
+
+        Returns:
+            ``method`` ("ring"), ``covariance`` (:attr:`covariance`) and ``tables``: ``ring_points``, one row
+            per ring point with its pixel, arm angle, L2, reflection, uncertainty, the model 2theta and the
+            residual (deg, pixel 2theta minus Bragg) at the current values; and ``strip_fits`` if given.
+        """
+        points = self.ring_points
+        values = self._calib.copy()
+        tables: Dict[str, Dict[str, Any]] = {
+            "ring_points": {
+                "sub_run": points.sub_run,
+                "index_0": points.index_0,
+                "index_1": points.index_1,
+                "det_2theta": points.det_2theta,
+                "l2": points.l2,
+                "d_spacing": points.d_spacing,
+                "hkl_squared": points.hkl_squared,
+                "powder": points.powder,
+                "sigma": points.sigma,
+                "two_theta_model": self.model_two_theta(values),
+                "residual": self.residual(values),
+            }
+        }
+        if strip_fits:
+            columns = (
+                "sub_run",
+                "strip",
+                "row",
+                "powder",
+                "hkl_squared",
+                "bragg_two_theta",
+                "start_center",
+                "center",
+                "center_error",
+                "index_0",
+                "accepted",
+                "reason",
+            )
+            tables["strip_fits"] = {column: [getattr(fit, column) for fit in strip_fits] for column in columns}
+        return {"method": "ring", "covariance": self.covariance, "tables": tables}
+
+    def write_calibration(
+        self,
+        file_name: Union[str, Path],
+        inputs: Optional[Mapping[str, Any]] = None,
+        strip_fits: Optional[Sequence[Any]] = None,
+    ) -> None:
+        """Write the calibration as a calibration JSON or, for a ``.nxs`` name, a NeXus calibration file (#1054).
+
+        Values and errors are :attr:`calibration_array` and :attr:`calibration_error_array`; ``Status``
+        is the scipy status of the last stage. The file also carries :meth:`provenance` (#1053); a NeXus
+        file also carries :meth:`diagnostics` (a failure to build them is warned about and they are left
+        out: the calibration itself is always written).
+
+        Args:
+            file_name: Calibration file to write: ``.json``, or ``.nxs`` for NeXus.
             inputs: Passed to :meth:`provenance`: run and mask files, monochromator, settings.
+            strip_fits: Passed to :meth:`diagnostics` (NeXus only).
 
         Raises:
             RuntimeError: If nothing has been refined yet (reduction rejects ``Status`` < 0).
+            ValueError: If the extension is neither ``.json`` nor ``.nxs``.
         """
-        from pyrs.utilities.calibration_file_io import write_calibration_to_json
+        from pyrs.utilities.calibration_file_io import calibration_format, write_calibration_to_json
 
         if self._status < 0:
             raise RuntimeError("nothing has been refined: refusing to write a calibration with Status -1")
         values, errors = self._calib, self._caliberr
+        if calibration_format(file_name) == "nexus":
+            from pyrs.utilities.calibration_nexus import write_calibration_nexus
+
+            try:
+                diagnostics: Optional[Dict[str, Any]] = self.diagnostics(strip_fits)
+            except Exception as build_err:  # noqa: BLE001 - the diagnostics must never stop a calibration
+                self._warn(f"calibration diagnostics could not be built and are left out: {build_err}")
+                diagnostics = None
+            write_calibration_nexus(
+                str(file_name),
+                to_shift(values),
+                to_shift(errors),
+                float(values[7]),
+                float(errors[7]),
+                int(self._status),
+                self._model.instrument_setup,
+                provenance=_provenance.safe_build(lambda: self.provenance(inputs)),
+                diagnostics=diagnostics,
+            )
+            return
         write_calibration_to_json(
             to_shift(values),
             to_shift(errors),

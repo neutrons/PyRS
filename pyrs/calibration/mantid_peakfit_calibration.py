@@ -11,11 +11,12 @@ from pyrs.calibration.pixel_refinement import (
     PARAMETER_NAMES,
     RANK_DEFICIENT,
     UNDETERMINED,
-    _parameter_errors,
+    _parameter_errors_and_covariance,
 )
 from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
-from pyrs.utilities.calibration_file_io import write_calibration_to_json
+from pyrs.utilities.calibration_file_io import calibration_format, write_calibration_to_json
+from pyrs.utilities.calibration_nexus import write_calibration_nexus
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
 from pyrs.core.nexus_conversion import NeXusConvertingApp
@@ -131,6 +132,15 @@ class FitCalibration:
     def residual_rmse(self):
         return self._residual_rmse[-1]
 
+    @property
+    def covariance(self):
+        """The last refinement's error covariance (#1054): its free parameters' names and the matrix in their
+        units (NaN where undetermined), or None."""
+        if getattr(self, "_covariance", None) is None:
+            return None
+        free, matrix = self._covariance
+        return tuple(PARAMETER_NAMES[i] for i in free), matrix.copy()
+
     def set_calibration_array(self, params):
         """Set the starting calibration vector (8 values: Shift_x/y/z, Rot_x/y/z, TTH_0, Lambda).
 
@@ -147,6 +157,8 @@ class FitCalibration:
             "first_step": len(getattr(self, "steps", [])),
         }
         self._final_residual = None
+        self._covariance = None
+        self._final_peaks = None
 
     def set_refinement_method(self, method):
         self._ref_method = method
@@ -274,6 +286,8 @@ class FitCalibration:
         self.steps = []
         self._residual_labels = []
         self._final_residual = None
+        self._covariance = None
+        self._final_peaks = None
 
     def fit_peaks(self):
         self.reduce_data()
@@ -281,6 +295,7 @@ class FitCalibration:
         self._fitting_ws.set_sub_runs(range(1, len(self._hidra_ws.reduction_masks) + 1))
 
         center_errors = np.array([])
+        center_uncertainties = np.array([])  # each fitted center's fit uncertainty, for the diagnostics (#1054)
         labels = []  # see _raw_labels
         self.fitted_ws = [None] * self.sub_runs.size
 
@@ -310,13 +325,16 @@ class FitCalibration:
                     fits = _fit_engine.fit_multiple_peaks(["peak_tags"], [peak - 3], [peak + 3])
 
                     _ws.append(fits.fitted)
-                    centers = fits.peakcollections[0].get_effective_params()[0]["Center"]
+                    effective_values, effective_errors = fits.peakcollections[0].get_effective_params()
+                    centers = effective_values["Center"]
                     center_errors = np.concatenate((center_errors, centers - peak))
+                    center_uncertainties = np.concatenate((center_uncertainties, effective_errors["Center"]))
                     labels += self._raw_labels(sub_run, in_range, len(_ws) - 1, np.size(centers))
 
                 self.fitted_ws[i_run] = _ws
 
         self._residual_labels = labels
+        self._center_uncertainties = center_uncertainties
         return center_errors
 
     def _raw_labels(self, sub_run, in_range, i_peak, n_centers):
@@ -379,9 +397,22 @@ class FitCalibration:
             solution[list(free) if free is not None else slice(None)] = out.x
             self.set_inst_shifts_wl(solution)
             residual = self.fit_peaks()
-            return np.array(residual), list(self._residual_labels), out.x.size, "residual at the solution"
         except Exception as refit_err:  # noqa: BLE001 - the provenance must never abort a refinement
+            self._final_peaks = None
             return np.array(out.fun), None, out.x.size, f"least_squares residual; re-evaluation failed: {refit_err}"
+        # the peaks at the solution, for the NeXus diagnostics (#1054); kept apart from the provenance's residual,
+        # which must not depend on them
+        uncertainties = getattr(self, "_center_uncertainties", None)
+        if uncertainties is not None and np.size(uncertainties) == np.size(residual):
+            self._final_peaks = (
+                np.array(residual),
+                list(self._residual_labels),
+                np.array(uncertainties),
+                float(solution[7]),
+            )
+        else:
+            self._final_peaks = None
+        return np.array(residual), list(self._residual_labels), out.x.size, "residual at the solution"
 
     def _record_step(self, routine, free, values, errors, status, residual=None, nfev=None, message="", reason=""):
         """Append the provenance record of one refinement routine to :attr:`steps` (#1053)."""
@@ -425,6 +456,8 @@ class FitCalibration:
             # brute() gives no covariance, so the errors are undetermined (#1049)
             errors = np.full(len(BOUNDS), UNDETERMINED)
             self._final_residual = None  # a grid search has no residual at a least-squares solution
+            self._covariance = None
+            self._final_peaks = None
             self._record_step(
                 routine,
                 free,
@@ -467,7 +500,9 @@ class FitCalibration:
 
             # errors scaled by the residual scatter, -2 where undetermined: same formula as the ring
             # calibration (#1049, docs/ground_truths.md)
-            errors = _parameter_errors(out.jac, out.fun, out.fun.size - out.x.size)
+            errors, covariance = _parameter_errors_and_covariance(out.jac, out.fun, out.fun.size - out.x.size)
+            # the last refinement's covariance, for the NeXus diagnostics (#1054)
+            self._covariance = None if covariance is None or free is None else (list(free), covariance)
             self._final_residual = self._residual_at_solution(out, free)
             self._record_step(
                 routine,
@@ -991,8 +1026,61 @@ class FitCalibration:
             "first_step": len(getattr(self, "steps", [])),
         }
         self._final_residual = None
+        self._covariance = None
+        self._final_peaks = None
 
         return
+
+    def diagnostics(self, patterns=False):
+        """What this calibration was fitted to, for the NeXus calibration file (#1054 phase 2).
+
+        Parameters
+        ----------
+        patterns : bool
+            also the reduced patterns of the last reduction, per kept sub-run and eta slice; after a refinement
+            that is the one at the solution (a few MB)
+
+        Returns
+        -------
+        dict
+            ``method`` ("peak-fit"), ``covariance`` (:attr:`covariance`) and ``tables``: ``peaks``, one row per
+            fitted peak and eta slice at the solution of the last refinement, with its sub-run, powder,
+            reflection, eta slice, Bragg angle, fitted center and its fit uncertainty, and the residual (deg,
+            center minus Bragg); and ``patterns`` if asked for
+        """
+        tables = {}
+        final = getattr(self, "_final_peaks", None)
+        if final is not None:
+            residual, labels, uncertainty, wavelength = final
+            standards = {standard.name: standard for standard in self._standards}
+            rows = []
+            for value, error, label in zip(residual, uncertainty, labels):
+                sub_run, powder, _, hkl_squared, mask = label if label is not None else (-1, "", "", -1, "")
+                standard = standards.get(powder)
+                if standard is not None and hkl_squared > 0:
+                    sin_theta = wavelength * np.sqrt(hkl_squared) / (2 * standard.lattice_a)
+                    bragg = float(np.rad2deg(2 * np.arcsin(sin_theta)))
+                else:
+                    bragg = np.nan
+                rows.append((int(sub_run), str(powder), int(hkl_squared), str(mask or ""), bragg, value, error))
+            columns = ("sub_run", "powder", "hkl_squared", "eta_mask", "bragg_two_theta", "residual", "uncertainty")
+            tables["peaks"] = {name: [row[i] for row in rows] for i, name in enumerate(columns)}
+            tables["peaks"]["fitted_two_theta"] = list(np.asarray(tables["peaks"]["bragg_two_theta"]) + residual)
+        result = {"method": "peak-fit", "covariance": self.covariance, "tables": tables}
+        if patterns and getattr(self, "reducer", None) is not None:
+            reduced = {}
+            for keep, sub_run in zip(self._keep_subrun_list, self.sub_runs):
+                if not keep:
+                    continue
+                for mask in self._hidra_ws.reduction_masks:
+                    two_theta, intensity, errors = self.reducer.get_diffraction_data(int(sub_run), mask_id=mask)
+                    reduced[f"sub_run_{int(sub_run)}_{mask}"] = {
+                        "two_theta": two_theta,
+                        "intensity": intensity,
+                        "errors": errors,
+                    }
+            result["patterns"] = reduced
+        return result
 
     def _calibration_geometry(self):
         """The run's detector geometry, written with the calibration; None if it is not known."""
@@ -1062,13 +1150,17 @@ class FitCalibration:
             self._caliberr,
         )
 
-    def write_calibration(self, file_name=None, write_latest=False, inputs=None):
-        """Write the calibration to a Json file
+    def write_calibration(self, file_name=None, write_latest=False, inputs=None, patterns=False):
+        """Write the calibration to a Json file, or to a NeXus file for a ``.nxs`` file name (#1054)
 
         Parameters
         ----------
         file_name: str or None
-        output Json file name.  If None, write to /HFIR/HB2B/shared/CAL/
+        output Json (or ``.nxs`` NeXus, with :meth:`diagnostics`) file name.  If None, write to
+        /HFIR/HB2B/shared/CAL/
+
+        patterns: bool
+        NeXus only: also store the reduced patterns (:meth:`diagnostics`)
 
         write_latest: bool
         bool saying that the calibration should write HB2B_Cal_Latest
@@ -1128,6 +1220,25 @@ class FitCalibration:
             else:
                 print("User does not privilege to write to {}".format("/HFIR/HB2B/shared"))
 
+        elif calibration_format(file_name) == "nexus":
+            if geometry is None:
+                raise ValueError("a NeXus calibration file needs the run's detector geometry; no run is loaded")
+            try:
+                diagnostics = self.diagnostics(patterns=patterns)
+            except Exception as build_err:  # noqa: BLE001 - the diagnostics must never stop a calibration
+                warnings.warn(f"calibration diagnostics could not be built and are left out: {build_err}")
+                diagnostics = None
+            write_calibration_nexus(
+                file_name,
+                cal_shift,
+                cal_shift_error,
+                float(wl),
+                float(wl_error),
+                int(self._calibstatus),
+                geometry,
+                provenance=provenance,
+                diagnostics=diagnostics,
+            )
         else:
             write_calibration_to_json(
                 cal_shift,
