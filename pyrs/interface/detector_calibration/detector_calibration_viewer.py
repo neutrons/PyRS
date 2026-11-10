@@ -37,6 +37,7 @@ import matplotlib.pyplot as plt
 
 # import traceback
 import os
+from typing import Optional
 import json
 
 scale_factor = 1
@@ -813,6 +814,13 @@ def _settings() -> QSettings:
     return QSettings("neutrons", "PyRS")
 
 
+def _remembered_export_folder(remembered: Optional[object]) -> str:
+    """The preferred export folder remembered between sessions (#1087), or the current folder if none was
+    remembered or it has since been removed."""
+    folder = "" if remembered is None else str(remembered)
+    return folder if os.path.isdir(folder) else os.getcwd()
+
+
 EXPORT_FOLDER_KEY = "calibration/export_folder"
 
 
@@ -965,8 +973,7 @@ class CalibrationSummaryView(QGroupBox):
 
         self.export_calib_bttn = QPushButton("Export Calibration")
         self.export_calib_bttn.clicked.connect(self.export_calib)
-        # the preferred export folder, remembered between sessions (#1087)
-        self._export_folder = str(_settings().value(EXPORT_FOLDER_KEY, os.getcwd()))
+        self._export_folder = _remembered_export_folder(_settings().value(EXPORT_FOLDER_KEY))
 
         calib_layout.addWidget(self.export_calib_bttn, i_row + 5, 0, 1, 2)
         calib_summary.setLayout(calib_layout)
