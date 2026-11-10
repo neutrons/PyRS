@@ -139,7 +139,9 @@ class TextureFittingCrtl:
 
         fit_results = {}
 
-        if len(self._model.ws.reduction_masks) == 2:
+        wedges = self._model.eta_wedges(self._model.ws.reduction_masks)
+
+        if not wedges:
             fit_results[""] = self._model.fit_diff_peaks(
                 min_tth, max_tth, peak_tag, peak_function_name, background_function_name, out_of_plane_angle=None
             )
@@ -153,23 +155,22 @@ class TextureFittingCrtl:
                 self.parse_texture_fits(fit_results[""], "eta_0.0", len(min_tth))
 
         else:
-            for mask_key in self._model.ws.reduction_masks:
-                if "_var" not in mask_key:
-                    fit_results[mask_key] = self._model.fit_diff_peaks(
-                        min_tth,
-                        max_tth,
-                        peak_tag,
-                        peak_function_name,
-                        background_function_name,
-                        out_of_plane_angle=mask_key,
-                    )
+            for mask_key in wedges:
+                fit_results[mask_key] = self._model.fit_diff_peaks(
+                    min_tth,
+                    max_tth,
+                    peak_tag,
+                    peak_function_name,
+                    background_function_name,
+                    out_of_plane_angle=mask_key,
+                )
 
-                    self._fitted_patterns[mask_key] = [
-                        _extract_fitted_data(fit_results[mask_key].fitted),
-                        _extract_fitted_data(fit_results[mask_key].difference),
-                    ]
+                self._fitted_patterns[mask_key] = [
+                    _extract_fitted_data(fit_results[mask_key].fitted),
+                    _extract_fitted_data(fit_results[mask_key].difference),
+                ]
 
-                    self.parse_texture_fits(fit_results[mask_key], mask_key, len(min_tth))
+                self.parse_texture_fits(fit_results[mask_key], mask_key, len(min_tth))
 
         self._fits = fit_results
 
@@ -183,14 +184,14 @@ class TextureFittingCrtl:
 
         return x, y
 
-    def saveas(self, filename, fit_result):
-        self._model.save_fit_result(filename, fit_result)
+    def saveas(self, filename):
+        self._model.save_fit_result(filename, self._fits)
 
     def load(self, filename):
         self._model.from_json(filename)
 
-    def save(self, filename, fit_result):
-        self._model.save_fit_result(filename, fit_result)
+    def save(self, filename):
+        self._model.save_fit_result(filename, self._fits)
 
     def save_fit_range(self, filename, fit_range_table):
         self._model.to_json(filename, fit_range_table)

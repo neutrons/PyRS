@@ -11,6 +11,7 @@ from qtpy.QtCore import Qt  # type: ignore
 
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView, GeneralDiffDataView
 from pyrs.interface.gui_helper import pop_message
+from pyrs.interface.texture_fitting.texture_fitting_model import TextureFittingModel
 from pyrs.utilities import get_input_project_file  # type: ignore
 
 import numpy as np
@@ -85,6 +86,7 @@ class FileLoad(QWidget):
 
     def load_project_plot(self):
         self._reset_fit_data()
+        self._parent.enable_save_actions(False)  # a new file has no fits to save yet
         self._parent.controller.load_projectfile(self._parent._project_file)
         self._parent.update_diffraction_data_plot()
         self._parent.fit_setup.sl.setMaximum(self._parent.model.sub_runs.size - 1)
@@ -214,7 +216,7 @@ class SetupViz(QWidget):
         return self.sub_runs_list.text()
 
     def enable_polar_plot(self, dict_keys):
-        if (len(dict_keys) > 2) or self._parent.controller.texture_run():
+        if TextureFittingModel.eta_wedges(dict_keys) or self._parent.controller.texture_run():
             self.polar_bt.setVisible(True)
             self.shift_bt.setVisible(True)
 
@@ -271,12 +273,9 @@ class PlotSelect(QGroupBox):
         return self.plot_peakNum.currentText()
 
     def setup_out_of_plane_angle(self, dict_keys):
-        if len(dict_keys) > 2:
-            angles = []
-            for key in list(dict_keys):
-                if "_var" not in key:
-                    angles.append(key)
-
+        # the same wedges the controller fits, so the selection always names a fit (#1080)
+        angles = TextureFittingModel.eta_wedges(dict_keys)
+        if angles:
             self.out_of_plane.clear()
             self.out_of_plane.addItems(angles)
             self.oop_label.setVisible(True)
@@ -592,6 +591,8 @@ class FitSetupView(QGroupBox):
         self._parent.update_diffraction_data_plot()
         # self._parent.fit_window.update_diff_view(self._parent.model.sub_runs[0])
         self.setup_view_param(peaks=self.fit_range_table.rowCount())
+        if fit_results:
+            self._parent.enable_save_actions()
 
     def valuechange(self):
         self._parent.update_diffraction_data_plot()
@@ -656,12 +657,9 @@ class FitSummaryView(QGroupBox):
             self.fit_table_operator.populate_fit_result_table()
 
     def setup_out_of_plane_angle(self, dict_keys):
-        if len(dict_keys) > 2:
-            angles = []
-            for key in list(dict_keys):
-                if "_var" not in key:
-                    angles.append(key)
-
+        # the same wedges the controller fits, so the selection always names a fit (#1080)
+        angles = TextureFittingModel.eta_wedges(dict_keys)
+        if angles:
             self.out_of_plane.clear()
             self.out_of_plane.addItems(angles)
             self.oop_label.setVisible(True)
@@ -874,11 +872,11 @@ class TextureFittingViewer(QMainWindow):
         self.saveAction.setEnabled(False)
         fileMenu.addAction(self.saveAction)
 
-        self.saveAction = QAction("&Save as", self)
-        self.saveAction.setStatusTip("Save project state")
-        self.saveAction.triggered.connect(self.saveas)
-        self.saveAction.setEnabled(False)
-        fileMenu.addAction(self.saveAction)
+        self.saveAsAction = QAction("&Save as", self)
+        self.saveAsAction.setStatusTip("Save project state")
+        self.saveAsAction.triggered.connect(self.saveas)
+        self.saveAsAction.setEnabled(False)
+        fileMenu.addAction(self.saveAsAction)
 
         self.loadAction = QAction("&Load state", self)
         self.loadAction.setStatusTip("Load application state")
@@ -912,6 +910,8 @@ class TextureFittingViewer(QMainWindow):
 
         # Update plot if fitsetup is changed
         self.fit_setup.fit_range_table.itemChanged.connect(self.update_diffraction_data_plot)
+
+        self._model.failureMsg.connect(self.show_failure_msg)
 
         # UPDATE options to change summary table and plot data
         self.fit_summary.out_of_plane.currentTextChanged.connect(self.update_oop_select)
@@ -1062,14 +1062,19 @@ class TextureFittingViewer(QMainWindow):
     def update_save_peak_range_widget(self):
         self.fit_setup.export_peak_info.setEnabled(True)
 
+    def enable_save_actions(self, enabled=True):
+        """Allow Save / Save as once there are fits to save, and not before (#1080)."""
+        self.saveAction.setEnabled(enabled)
+        self.saveAsAction.setEnabled(enabled)
+
     def save(self):
         if self._project_file is not None:
-            self.controller.save(self._project_file, self._parent.fit_summary.fit_table_operator.fit_result)
+            self.controller.save(self._project_file)
 
     def saveas(self):
         filename, _ = QFileDialog.getSaveFileName(self, "Save HidraWorkspace", "", "HDF5 (*.h5);;All Files (*)")
         if filename:
-            self.controller.save(filename, self._parent.fit_summary.fit_table_operator.fit_result)
+            self.controller.saveas(filename)
 
     def load(self):
         filename, _ = QFileDialog.getOpenFileName(self, "Load Stress state", "", "JSON (*.json);;All Files (*)")
