@@ -2805,3 +2805,32 @@ Tests:
 - `tests/ui/test_peak_fitting.py::test_save_asks_before_combining_reduction_differences`.
 - `tests/integration/test_texture_fitting_unsplit.py`, `test_rewrite_peak_parameters.py` and
   `test_append_sub_runs.py` (the pre-existing bugs).
+## A FitCalibration clean-up after the ring calibration does not help on unseen data (2026-11, #1074)
+
+Started from the ring geometry, a FitCalibration `FullCalibration` moves the geometry by 10-24 mdeg, lowering
+its own η-wedge residual and raising the ring residual by about as much (#1038). To decide which is closer to
+the truth, both were judged on data they were not fitted to (`tests/scripts/default_calibration_study.py
+holdout`).
+
+- **Leave-one-out, not half-run splits.** Fitting on half a run's arm positions leaves the geometry poorly
+  determined: half-run ring calibrations landed 18-470 mdeg (8-44 × the precision) from the all-sub-run one,
+  and 4 of 12 did not converge. Each fold therefore fits on all arm positions but one, with the ring
+  calibration and with the ring calibration plus the clean-up, and scores both on the left-out position. The
+  scores use both costs: ring points extracted once at the all-sub-run geometry, and FitCalibration restricted
+  to that sub-run.
+- **Result** (clean-up − ring, held-out, mean over folds ± its standard error):
+  - HB2B_3510 (10 folds): ring cost +0.9 ± 2.1 mdeg, FitCalibration cost +0.4 ± 2.3;
+  - HB2B_3489 (8 of 12): +0.2 ± 2.5 and −2.6 ± 2.7;
+  - HB2B_4971 (11): +0.7 ± 0.6 and +0.6 ± 0.6.
+  On the fitted positions the clean-up always lowers FitCalibration's cost (29/29) and always raises the
+  ring cost (0/29 better).
+- **Conclusion:** the clean-up's move is over-fitting to its own cost. It improves neither cost on unseen
+  data, and on HB2B_4971 it is slightly worse on both. The ring-based default (#1077) has no FitCalibration
+  step.
+- **Seen on the way:**
+  - 4 HB2B_3489 folds could not start the clean-up: their ring result lay just outside FitCalibration's bounds
+    (Rot_y > 5°, Shift_x < −50 mm).
+  - HB2B_3489's full ring calibration ends at the Rot_y = +5° stage bound, with Shift_x near −50 mm, along
+    the degenerate Rot_y / Shift_x / 2θ₀ direction. Its stages warn "stopped at a bound", but the final
+    `estimate_errors` (2θ₀ held) writes ordinary errors, so the file does not flag it.
+  - With one arm left out, HB2B_3510's ring calibration converged in only 4 of 10 folds within 10 rounds.
