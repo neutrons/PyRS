@@ -7,6 +7,7 @@ from collections import Counter
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
+from mantid.kernel import Logger
 from qtpy.QtCore import Signal, QObject  # type:ignore
 from pyrs.calibration.mantid_peakfit_calibration import FitCalibration
 from pyrs.calibration.pixel_calibration_plots import (
@@ -29,6 +30,9 @@ from pyrs.calibration.ring_extraction import column_at_two_theta
 from pyrs.core.detector_model import DetectorModel, to_shift
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 from pyrs.utilities.calibration_file_io import read_calibration_json_file, write_calibration_to_json
+
+# the files each Export wrote, or the targets it refused (#1087)
+_LOG = Logger("PyRS detector calibration")
 
 # calibration methods (#1045): FitCalibration re-reduces and re-fits for every trial geometry; the
 # ring-based calibration fits each ring once in detector strips, then refines from the ring points
@@ -362,63 +366,85 @@ class DetectorCalibrationModel(QObject):
         else:
             return None
 
-    def export_calibration(self, folder: str, write_shared: bool = True) -> List[str]:
-        """Write the chosen method's calibration to ``folder``, and optionally to the shared HB2B folder.
+    def export_calibration(
+        self,
+        folder: Optional[str] = None,
+        latest: bool = False,
+        latest_mono: bool = False,
+        archive: bool = False,
+    ) -> List[str]:
+        """Write the chosen method's calibration to the chosen targets (#1087).
 
-        The calibration JSON (reduction's own writer, TTH_0 included) is written as
-        ``<folder>/HB2B_CAL_<time>.json``. With ``write_shared`` it is also written to
-        :data:`SHARED_CALIBRATION_DIR` as ``<Si...>/HB2B_CAL_<time>.json``,
-        ``HB2B_Latest_<Si...>.json`` and, last, ``HB2B_Latest.json`` (the calibration reduction picks
-        up), ``<Si...>`` being the run's monochromator setting. Every target is checked before
-        anything is written, and each file is written to a temporary file and then renamed, so a
-        failure never leaves a truncated file and ``HB2B_Latest.json`` is never newer than its
-        archived copy.
+        The targets (reduction's own JSON writer, TTH_0 included), ``<Si...>`` being the run's monochromator
+        setting:
+
+        - ``folder``: ``<folder>/HB2B_CAL_<time>.json``, a copy that is not shared;
+        - ``archive``: :data:`SHARED_CALIBRATION_DIR` ``/<Si...>/HB2B_CAL_<time>.json``;
+        - ``latest_mono``: :data:`SHARED_CALIBRATION_DIR` ``/HB2B_Latest_<Si...>.json``;
+        - ``latest``: :data:`SHARED_CALIBRATION_DIR` ``/HB2B_Latest.json``, the calibration reduction picks up.
+
+        User decisions (#1087): the folder copy and the shared targets are exclusive; a "latest" file requires
+        the archive, so every shared calibration has its archived copy; at least one target is required. The
+        shared files are written in the order archive, ``HB2B_Latest_<Si...>.json``, ``HB2B_Latest.json``, each
+        to a temporary file and then renamed, after every target was checked: a failure never leaves a
+        truncated file, and a "latest" file is never newer than its archive. One log line lists the files
+        written, or the targets refused.
 
         Args:
-            folder: Existing folder for the user's copy.
-            write_shared: Also write the shared copies.
+            folder: Existing folder for a copy that is not shared, or None.
+            latest: Write ``HB2B_Latest.json``.
+            latest_mono: Write ``HB2B_Latest_<Si...>.json``.
+            archive: Write the archive copy.
 
         Returns:
             The files written, in order.
 
         Raises:
-            RuntimeError: If there is no calibration to export, it was not refined (status -1) or a
-                stage stopped before converging (status 0).
+            ValueError: If no target is chosen, a folder is combined with a shared target, or a "latest" file is
+                chosen without the archive.
+            RuntimeError: If there is no calibration to export, it was not refined (status -1) or a stage
+                stopped before converging (status 0).
             FileNotFoundError: If ``folder`` does not exist.
-            PermissionError: If a shared target is not writable (the user's copy is still written).
+            PermissionError: If a shared target is not writable (nothing is written).
             OSError: If writing fails; the message lists the files already written.
         """
+        shared_targets = latest or latest_mono or archive
+        if folder is None and not shared_targets:
+            raise ValueError("choose at least one target: a folder, the archive or a latest file")
+        if folder is not None and shared_targets:
+            raise ValueError("a folder copy and the shared HB2B calibration are exclusive: choose one")
+        if (latest or latest_mono) and not archive:
+            raise ValueError("a latest file requires the archive copy, so that every shared calibration is archived")
         values, errors, status = self._export_values()
-        if not os.path.isdir(folder):
+        if folder is not None and not os.path.isdir(folder):
             raise FileNotFoundError(f"folder {folder} does not exist")
         provenance = self.export_provenance()
         geometry = self._run_geometry()  # the calibration carries its detector geometry (#1053)
         stamp = time.strftime(CALIBRATION_TIME_FORMAT, time.localtime())
         mono = self.monochromator
-        user_copy = os.path.join(folder, f"HB2B_CAL_{stamp}.json")
-        shared: List[str] = []
-        if write_shared:
-            archive = os.path.join(SHARED_CALIBRATION_DIR, mono)
-            shared = [
-                os.path.join(archive, f"HB2B_CAL_{stamp}.json"),
-                os.path.join(SHARED_CALIBRATION_DIR, f"HB2B_Latest_{mono}.json"),
-                os.path.join(SHARED_CALIBRATION_DIR, "HB2B_Latest.json"),
-            ]
-            blocked = [target for target in shared if not _writable(target)]
+        if folder is not None:
+            targets = [os.path.join(folder, f"HB2B_CAL_{stamp}.json")]
+        else:
+            targets = [os.path.join(SHARED_CALIBRATION_DIR, mono, f"HB2B_CAL_{stamp}.json")]  # the archive, first
+            if latest_mono:
+                targets.append(os.path.join(SHARED_CALIBRATION_DIR, f"HB2B_Latest_{mono}.json"))
+            if latest:
+                targets.append(os.path.join(SHARED_CALIBRATION_DIR, "HB2B_Latest.json"))
+            blocked = [target for target in targets if not _writable(target)]
             if blocked:
-                _write_atomically(values, errors, status, user_copy, provenance, geometry)
-                raise PermissionError(
-                    f"cannot write {', '.join(blocked)}; the calibration was written to {user_copy} only"
-                )
+                _LOG.warning(f"Calibration export refused, not writable: {', '.join(blocked)}; nothing written")
+                raise PermissionError(f"cannot write {', '.join(blocked)}; nothing was written")
         written: List[str] = []
-        for target in [user_copy] + shared:
+        for target in targets:
             try:
                 _make_folder(os.path.dirname(os.path.abspath(target)))
                 _write_atomically(values, errors, status, target, provenance, geometry)
             except (OSError, RuntimeError) as write_err:
                 done = ", ".join(written) if written else "nothing"
+                _LOG.error(f"Calibration export: writing {target} failed ({write_err}); written: {done}")
                 raise OSError(f"writing {target} failed ({write_err}); written so far: {done}") from write_err
             written.append(target)
+        _LOG.notice(f"Calibration ({self.method}, status {status}) exported to: {', '.join(written)}")
         return written
 
     def _run_geometry(self) -> Optional[DENEXDetectorGeometry]:
