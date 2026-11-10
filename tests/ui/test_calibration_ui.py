@@ -29,17 +29,24 @@ def calibration_window(my_qtbot):
     return window, my_qtbot
 
 
-def handle_export_dialog(folder, write_shared):
-    """Fill in and accept the Export Calibration dialog."""
+def handle_export_dialog(folder):
+    """Fill in and accept the Export Calibration dialog for a folder copy (its default, #1087)."""
     dialog = QtWidgets.QApplication.activeModalWidget()
-    assert dialog.write_shared.isChecked()  # the shared HB2B calibration is written by default
+    assert dialog.folder_box.isChecked()
+    assert not any(box.isChecked() for box in (dialog.archive_box, dialog.latest_mono_box, dialog.latest_box))
     dialog.folder_lineEdit.setText(folder)
-    dialog.write_shared.setChecked(write_shared)
     dialog.accept()
 
 
-def test_detector_calibration(calibration_window, tmp_path):
+def test_detector_calibration(calibration_window, tmp_path, monkeypatch):
     window, qtbot = calibration_window
+    # the remembered export folder goes to a scratch file, not the user's settings (#1087)
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+
+    settings_file = str(tmp_path / "pyrs.ini")
+    monkeypatch.setattr(
+        viewer_module, "_settings", lambda: QtCore.QSettings(settings_file, QtCore.QSettings.IniFormat)
+    )
 
     window.show()
     qtbot.wait(wait)
@@ -108,7 +115,7 @@ def test_detector_calibration(calibration_window, tmp_path):
     qtbot.wait(wait)
 
     # Export: the user's folder, with the shared-calibration flag (ticked by default) unticked here
-    QtCore.QTimer.singleShot(300, functools.partial(handle_export_dialog, str(calib_folder), False))
+    QtCore.QTimer.singleShot(300, functools.partial(handle_export_dialog, str(calib_folder)))
     qtbot.mouseClick(window.calib_summary.export_calib_bttn, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
     assert not hasattr(window.calib_summary, "export_local_calib_bttn")  # Export replaces it (#1045)
@@ -219,7 +226,7 @@ def test_ring_based_calibration_matches_driver(calibration_window, tmp_path):
     assert not detector_view._point_artists
     folder = tmp_path / "ring"
     folder.mkdir()
-    written = window.calib_summary.write_calibration(str(folder), write_shared=False)
+    written = window.calib_summary.write_calibration(str(folder))
 
     # Assert - the same file as the driver, with the window's mask (none without /HFIR) and wavelength
     spec = importlib.util.spec_from_file_location(
@@ -332,7 +339,52 @@ def test_export_failure_is_reported(calibration_window, tmp_path, monkeypatch):
     )
 
     # Act
-    written = window.calib_summary.write_calibration(str(tmp_path / "nowhere"), write_shared=False)
+    written = window.calib_summary.write_calibration(str(tmp_path / "nowhere"))
 
     # Assert
     assert written is None and messages == [("Export failed", "error")]
+
+
+def test_export_dialog_rules(calibration_window):
+    """#1087: folder and shared exclusive, a latest file locks the archive, OK needs a target"""
+    from pyrs.interface.detector_calibration.detector_calibration_viewer import ExportCalibDialog
+
+    # Arrange
+    dialog = ExportCalibDialog(None, folder="/tmp", mono="Si422", description=(True, "ring"))
+    ok = dialog.buttonBox.button(QtWidgets.QDialogButtonBox.Ok)
+
+    # Assert - opens with only the folder ticked, ready to export
+    assert dialog.folder_box.isChecked() and ok.isEnabled()
+    assert dialog.targets() == {"folder": "/tmp", "latest": False, "latest_mono": False, "archive": False}
+
+    # a shared target unticks and disables the folder
+    dialog.archive_box.setChecked(True)
+    assert not dialog.folder_box.isChecked() and not dialog.folder_box.isEnabled()
+    assert not dialog.folder_lineEdit.isEnabled()
+
+    # a latest file ticks and locks the archive
+    dialog.archive_box.setChecked(False)
+    dialog.latest_box.setChecked(True)
+    assert dialog.archive_box.isChecked() and not dialog.archive_box.isEnabled()
+    assert dialog.targets() == {"folder": None, "latest": True, "latest_mono": False, "archive": True}
+    dialog.latest_mono_box.setChecked(True)
+    dialog.latest_box.setChecked(False)
+    assert dialog.archive_box.isChecked() and not dialog.archive_box.isEnabled()  # still a latest file
+
+    # unticking every latest file unlocks the archive; unticking it re-enables the folder
+    dialog.latest_mono_box.setChecked(False)
+    assert dialog.archive_box.isEnabled()
+    dialog.archive_box.setChecked(False)
+    assert dialog.folder_box.isEnabled()
+
+    # nothing ticked: OK disabled; the folder ticked but empty: OK disabled
+    assert not ok.isEnabled()
+    dialog.folder_box.setChecked(True)
+    dialog.folder_lineEdit.setText("")
+    assert not ok.isEnabled()
+    dialog.folder_lineEdit.setText("/tmp")
+    assert ok.isEnabled()
+
+    # a calibration that cannot be exported keeps OK disabled whatever is ticked
+    refused = ExportCalibDialog(None, folder="/tmp", mono="Si422", description=(False, "not refined"))
+    assert not refused.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).isEnabled()

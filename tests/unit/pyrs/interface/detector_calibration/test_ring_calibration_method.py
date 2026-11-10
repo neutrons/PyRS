@@ -92,7 +92,7 @@ def test_ring_path_equals_the_driver(workspace, refined, tmp_path, monkeypatch):
 
     # Act
     gui_model, (values, errors, r_sum, rmse) = refined
-    (gui_file,) = gui_model.export_calibration(str(tmp_path), write_shared=False)
+    (gui_file,) = gui_model.export_calibration(str(tmp_path))
 
     # Assert - bit for bit, file and arrays; the provenance differs only in time and who ran it (#1053)
     np.testing.assert_array_equal(values[-1], driver.calibration_array)
@@ -203,21 +203,18 @@ def _assert_calibration_file(path, values, errors):
     np.testing.assert_array_equal(written_errors, errors)
 
 
-def test_export_writes_folder_and_shared_files(refined, tmp_path, shared):
+def test_export_writes_the_shared_files(refined, tmp_path, shared):
     # Arrange
     gui_model, _ = refined
-    user = tmp_path / "mine"
-    user.mkdir()
 
     # Act
-    written = gui_model.export_calibration(str(user), write_shared=True)
+    written = gui_model.export_calibration(latest=True, latest_mono=True, archive=True)
 
-    # Assert - four identical files, the ring-based result with its error codes
+    # Assert - three identical files, the ring-based result with its error codes
     names = sorted(os.path.relpath(path, tmp_path) for path in written)
     stamp = os.path.basename(written[0])[len("HB2B_CAL_") : -len(".json")]
     assert names == sorted(
         [
-            f"mine/HB2B_CAL_{stamp}.json",
             "shared/CALIBRATION/HB2B_Latest.json",
             "shared/CALIBRATION/HB2B_Latest_Si422.json",
             f"shared/CALIBRATION/Si422/HB2B_CAL_{stamp}.json",
@@ -231,7 +228,7 @@ def test_export_writes_folder_and_shared_files(refined, tmp_path, shared):
 
 def test_export_without_shared_flag_writes_only_folder(refined, tmp_path, shared):
     gui_model, _ = refined
-    written = gui_model.export_calibration(str(tmp_path), write_shared=False)
+    written = gui_model.export_calibration(str(tmp_path))
     assert len(written) == 1 and os.path.dirname(written[0]) == str(tmp_path)
     assert not os.listdir(shared)
 
@@ -240,30 +237,28 @@ needs_permissions = pytest.mark.skipif(os.geteuid() == 0, reason="root can write
 
 
 @needs_permissions
-def test_export_shared_not_writable_still_writes_folder(refined, tmp_path, shared):
+def test_unwritable_shared_folder_writes_nothing(refined, tmp_path, shared):
     # Arrange
     gui_model, _ = refined
-    user = tmp_path / "mine"
-    user.mkdir()
     shared.chmod(0o500)
 
-    # Act / Assert
+    # Act / Assert - refused before anything is written
     try:
-        with pytest.raises(PermissionError, match="written to"):
-            gui_model.export_calibration(str(user), write_shared=True)
-        assert len(os.listdir(user)) == 1
+        with pytest.raises(PermissionError, match="nothing was written"):
+            gui_model.export_calibration(latest=True, latest_mono=True, archive=True)
+        assert not os.listdir(shared)
     finally:
         shared.chmod(0o700)
 
 
 def test_export_missing_folder_raises(refined, tmp_path):
     with pytest.raises(FileNotFoundError, match="does not exist"):
-        refined[0].export_calibration(str(tmp_path / "nowhere"), write_shared=False)
+        refined[0].export_calibration(str(tmp_path / "nowhere"))
 
 
 def test_export_ring_before_refining_raises(workspace, tmp_path):
     with pytest.raises(RuntimeError, match="nothing has been refined"):
-        _model(workspace).export_calibration(str(tmp_path), write_shared=False)
+        _model(workspace).export_calibration(str(tmp_path))
 
 
 def test_export_fitcalibration_result(workspace, tmp_path):
@@ -273,7 +268,7 @@ def test_export_fitcalibration_result(workspace, tmp_path):
     gui_model._calibration_obj.calibration_error_array = np.full(8, 1e-4)
 
     # Act
-    written = gui_model.export_calibration(str(tmp_path), write_shared=False)
+    written = gui_model.export_calibration(str(tmp_path))
 
     # Assert
     _assert_calibration_file(written[0], TRUE_PARAMS, np.full(8, 1e-4))
@@ -385,7 +380,7 @@ def test_new_run_clears_ring_state(workspace, monkeypatch, tmp_path):
     assert not gui_model.has_ring_points and gui_model.ring_point_marks(1) is None
     assert gui_model.ring_summary == "" and gui_model.calibration_warnings == []
     with pytest.raises(RuntimeError, match="nothing has been refined"):
-        gui_model.export_calibration(str(tmp_path), write_shared=False)
+        gui_model.export_calibration(str(tmp_path))
     with pytest.raises(RuntimeError, match="extract the rings first"):
         gui_model.calibrate_detector(["iterate"])
 
@@ -395,7 +390,7 @@ def test_export_refuses_unrefined_or_unconverged(workspace, tmp_path, status, ma
     gui_model = _model(workspace, METHOD_FITCALIBRATION)
     gui_model._calibration_obj = _stand_in(workspace, status)
     with pytest.raises(RuntimeError, match=match):
-        gui_model.export_calibration(str(tmp_path), write_shared=False)
+        gui_model.export_calibration(str(tmp_path))
     assert not os.listdir(tmp_path)
 
 
@@ -411,7 +406,7 @@ def test_unconverged_ring_result_warns_and_cannot_export(workspace, tmp_path):
     # Assert
     assert any("before converging" in w for w in gui_model.calibration_warnings)
     with pytest.raises(RuntimeError, match="status 0"):
-        gui_model.export_calibration(str(tmp_path), write_shared=False)
+        gui_model.export_calibration(str(tmp_path))
 
 
 def test_partial_recipe_moves_only_its_parameters(workspace):
@@ -453,11 +448,10 @@ def test_export_writes_archive_before_latest_atomically(refined, tmp_path, share
     user.mkdir()
 
     # Act
-    written = gui_model.export_calibration(str(user), write_shared=True)
+    written = gui_model.export_calibration(latest=True, latest_mono=True, archive=True)
 
-    # Assert - user copy, archive, per-monochromator, and HB2B_Latest.json last; no temporary files left
+    # Assert - archive, per-monochromator, and HB2B_Latest.json last; no temporary files left
     assert [os.path.relpath(p, tmp_path).split("/HB2B_CAL_")[0] for p in written] == [
-        "mine",
         "shared/CALIBRATION/Si422",
         "shared/CALIBRATION/HB2B_Latest_Si422.json",
         "shared/CALIBRATION/HB2B_Latest.json",
@@ -478,7 +472,7 @@ def test_export_replaces_a_read_only_latest(refined, tmp_path, shared):
     latest.chmod(0o444)
 
     # Act
-    gui_model.export_calibration(str(tmp_path), write_shared=True)
+    gui_model.export_calibration(latest=True, archive=True)
 
     # Assert - replaced, and now rw-rw-r--
     assert json.loads(latest.read_text())["Lambda"] == gui_model.current_calibration_array[7]
@@ -496,11 +490,10 @@ def test_export_read_only_folder_writes_no_shared_copy(refined, tmp_path, shared
     latest.chmod(0o666)
     shared.chmod(0o555)
 
-    # Act / Assert - refused before any shared file is written; the user copy is written
+    # Act / Assert - refused before any shared file is written
     try:
         with pytest.raises(PermissionError, match="HB2B_Latest.json"):
-            gui_model.export_calibration(str(user), write_shared=True)
-        assert len(os.listdir(user)) == 1
+            gui_model.export_calibration(latest=True, latest_mono=True, archive=True)
         assert sorted(os.listdir(shared)) == ["HB2B_Latest.json"] and latest.read_text() == "{}"
     finally:
         shared.chmod(0o755)
@@ -536,7 +529,7 @@ def test_export_refuses_an_unconverged_earlier_stage(workspace, tmp_path):
     exportable, text = gui_model.export_description()
     assert not exportable and "status 0" in text
     with pytest.raises(RuntimeError, match="status 0"):
-        gui_model.export_calibration(str(tmp_path), write_shared=False)
+        gui_model.export_calibration(str(tmp_path))
 
 
 def test_ring_export_refuses_an_unconverged_earlier_stage(workspace, tmp_path):
@@ -553,7 +546,7 @@ def test_ring_export_refuses_an_unconverged_earlier_stage(workspace, tmp_path):
     # Assert
     assert gui_model._ring_calibration.calibration_status > 0
     with pytest.raises(RuntimeError, match="status 0"):
-        gui_model.export_calibration(str(tmp_path), write_shared=False)
+        gui_model.export_calibration(str(tmp_path))
 
 
 def test_failed_fitcalibration_recipe_is_not_exportable(workspace, tmp_path):
@@ -569,7 +562,7 @@ def test_failed_fitcalibration_recipe_is_not_exportable(workspace, tmp_path):
 
     # Assert
     with pytest.raises(RuntimeError, match="failed partway"):
-        gui_model.export_calibration(str(tmp_path), write_shared=False)
+        gui_model.export_calibration(str(tmp_path))
 
 
 def test_export_description_names_method_and_status(refined, workspace):
@@ -636,13 +629,13 @@ def test_export_writes_the_same_provenance_to_every_file(refined, tmp_path, shar
     user.mkdir()
 
     # Act
-    written = gui_model.export_calibration(str(user), write_shared=True)
+    written = gui_model.export_calibration(latest=True, latest_mono=True, archive=True)
 
-    # Assert - one block, identical in the user copy and the three shared files
+    # Assert - one block, identical in the three shared files
     from pyrs.utilities.calibration_file_io import read_calibration_provenance
 
     blocks = [read_calibration_provenance(path) for path in written]
-    assert len(written) == 4 and all(block == blocks[0] for block in blocks)
+    assert len(written) == 3 and all(block == blocks[0] for block in blocks)
     from pyrs.utilities.calibration_file_io import geometry_to_dict, read_calibration_geometry
 
     expected = geometry_to_dict(workspace_geometry := gui_model._calibration_obj._hidra_ws.get_instrument_setup())
@@ -683,7 +676,7 @@ def test_provenance_failure_does_not_block_export(refined, tmp_path, monkeypatch
 
     # Act
     with pytest.warns(UserWarning, match="provenance could not be built"):
-        (path,) = gui_model.export_calibration(str(tmp_path), write_shared=False)
+        (path,) = gui_model.export_calibration(str(tmp_path))
     assert gui_model.provenance_problem and "no residual" in gui_model.provenance_problem
 
     # Assert - the calibration is written, with the reason in place of the provenance
@@ -868,3 +861,76 @@ def test_default_method_is_ring_based():
     # Assert
     assert gui_model.method == METHOD_RING == model_module.DEFAULT_METHOD
     assert model_module.CALIBRATION_METHODS == (METHOD_RING, METHOD_FITCALIBRATION)
+
+
+# ---------------------------------------------------------------- export targets (#1087)
+
+
+@pytest.mark.parametrize(
+    "targets, match",
+    [
+        ({}, "at least one target"),
+        ({"folder": "x", "archive": True}, "exclusive"),
+        ({"folder": "x", "latest": True, "archive": True}, "exclusive"),
+        ({"latest": True}, "requires the archive"),
+        ({"latest_mono": True}, "requires the archive"),
+    ],
+    ids=["nothing", "folder-and-archive", "folder-and-latest", "latest-alone", "latest-mono-alone"],
+)
+def test_export_target_rules_raise(refined, shared, targets, match):
+    """User decisions: a target is needed, folder and shared are exclusive, a latest file is archived"""
+    # Act / Assert - refused before anything is written
+    with pytest.raises(ValueError, match=match):
+        refined[0].export_calibration(**targets)
+    assert not os.listdir(shared)
+
+
+@pytest.mark.parametrize(
+    "targets, expected",
+    [
+        ({"archive": True}, ["Si422"]),
+        ({"latest_mono": True, "archive": True}, ["Si422", "HB2B_Latest_Si422.json"]),
+        ({"latest": True, "archive": True}, ["Si422", "HB2B_Latest.json"]),
+    ],
+    ids=["archive-only", "latest-mono", "latest"],
+)
+def test_export_writes_only_the_chosen_targets(refined, shared, targets, expected):
+    # Act
+    written = refined[0].export_calibration(**targets)
+
+    # Assert - in order, the archive first
+    assert [os.path.relpath(path, shared).split("/HB2B_CAL_")[0] for path in written] == expected
+    assert sorted(os.listdir(shared)) == sorted(expected)
+
+
+def test_export_logs_the_files_written(refined, shared, monkeypatch):
+    """Decision 4: one log line per export, listing every file written"""
+    # Arrange
+    lines = []
+    monkeypatch.setattr(
+        model_module, "_LOG", SimpleNamespace(notice=lines.append, warning=lines.append, error=lines.append)
+    )
+
+    # Act
+    written = refined[0].export_calibration(latest=True, archive=True)
+
+    # Assert
+    assert len(lines) == 1 and all(path in lines[0] for path in written)
+
+
+@needs_permissions
+def test_export_logs_the_targets_refused(refined, shared, monkeypatch):
+    # Arrange
+    lines = []
+    monkeypatch.setattr(
+        model_module, "_LOG", SimpleNamespace(notice=lines.append, warning=lines.append, error=lines.append)
+    )
+    shared.chmod(0o500)
+
+    # Act / Assert
+    try:
+        with pytest.raises(PermissionError):
+            refined[0].export_calibration(latest=True, archive=True)
+    finally:
+        shared.chmod(0o700)
+    assert len(lines) == 1 and "refused" in lines[0] and "HB2B_Latest.json" in lines[0]
