@@ -59,7 +59,12 @@ class FileLoad(QWidget):
             self._parent.controller.export_combined_projectfile(_export_project)
 
     def loadRunNumbers(self):
-        self._parent._project_files = self._parent.controller.parse_entry_list(self.lineEdit.text())
+        try:
+            self._parent._project_files = self._parent.controller.parse_entry_list(self.lineEdit.text())
+        except (RuntimeError, ValueError) as run_err:
+            # e.g. a run that has not been reduced yet (#931)
+            pop_message(self, f"Failed to find run {self.lineEdit.text()}", str(run_err), "error")
+            return
         # the same checks and messages as the file dialog (this used to call saveFileDialog with an
         # argument it does not take, so a failure was never shown)
         self.load_project_files()

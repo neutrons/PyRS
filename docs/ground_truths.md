@@ -2834,3 +2834,44 @@ holdout`).
     the degenerate Rot_y / Shift_x / 2θ₀ direction. Its stages warn "stopped at a bound", but the final
     `estimate_errors` (2θ₀ held) writes ordinary errors, so the file does not flag it.
   - With one arm left out, HB2B_3510's ring calibration converged in only 4 of 10 folds within 10 rounds.
+
+## Loading by run number: the lookup must find the run's file, not just a folder (2026-11-10, #931)
+
+`get_input_project_file(run)` returned `shared/manualreduce` or `shared/autoreduce` as soon as the
+**folder** existed, whether or not `HB2B_<run>.h5` was in it. A run that was never reduced
+therefore passed the lookup, and the load failed afterwards. Both windows kept going after a failed
+load, so the issue's `'NoneType' object has no attribute …` crash followed:
+- peak fitting: `load_and_plot` → `get_subruns_limit`;
+- texture fitting: `load_project_plot` → `model.sub_runs`.
+
+**Fixed (approved per change):**
+- **A. The lookup returns a folder only if it holds the run's file.**
+  - "manual": `manualreduce`, then `autoreduce`. "auto": `autoreduce` only.
+  - Otherwise it raises `RuntimeError`, naming the file and the folders searched ("has the run been
+    reduced yet?"). Both windows already show that error in a pop-up.
+  - When the preferred folder holds the file, the result is the same as before. A run only in
+    `autoreduce` now loads from there with "manual" preferred.
+- **D. Combine runs by run number works.**
+  - It now looks up `<folder>/HB2B_<run>.h5`. It used to pass the folders on as project files, so
+    it never worked.
+  - `loadRunNumbers` shows lookup errors in a pop-up. Without that, fix A would have made a missing
+    run an unhandled error in the slot.
+
+**Not fixed (proposed, not approved; left as found):** both windows still continue after a load
+that fails for another reason, e.g. a file chosen in the file dialog that isn't a project file:
+- **B (peak fitting):** `load_and_plot` should stop after its error pop-up.
+- **C (texture fitting):** `load_hidra_project_file` returns nothing, so `load_project_plot` can't
+  tell a failed load from a successful one.
+
+For run numbers, fix A stops a missing file before any load is attempted.
+
+**Local GUI testing with a stale `DISPLAY`:** if `DISPLAY` points at a closed SSH X tunnel and
+there is no `xvfb-run`, matplotlib calls the session "headless" and refuses `QtAgg`, even with
+`QT_QPA_PLATFORM=offscreen`, as soon as a module selects that backend on import. Creating an
+offscreen `QApplication` before `pytest.main` avoids this. CI is unaffected, because it runs the
+GUI tier under `xvfb-run`.
+
+Tests:
+- `tests/unit/pyrs/utilities/test_input_project_file.py`
+- `tests/unit/pyrs/interface/combine_runs/test_combine_runs_crtl.py`
+- `tests/ui/test_merge_projectfiles.py::test_load_missing_run_number_reports`

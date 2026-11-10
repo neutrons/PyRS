@@ -74,3 +74,29 @@ def test_merged_projectfile_viewer(combine_projects_window, monkeypatch):
         window.hide()
         if os.path.exists(export_file):
             os.remove(export_file)
+
+
+def test_load_missing_run_number_reports(combine_projects_window, monkeypatch):
+    """A run number without a project file shows the lookup's message, not an unhandled error (#931)."""
+    # Arrange
+    window, _ = combine_projects_window
+    messages = []
+    monkeypatch.setattr(
+        combine_runs_viewer,
+        "pop_message",
+        lambda parent, message, detail="", kind="info": messages.append((detail, kind)),
+    )
+
+    def missing(run):
+        raise RuntimeError(f"No project file HB2B_{run}.h5 for run {run} (has the run been reduced yet?)")
+
+    monkeypatch.setattr("pyrs.interface.combine_runs.combine_runs_crtl.get_input_project_file", missing)
+    loader = window.fileLoading.file_load_run_number
+    loader.lineEdit.setText("1327")
+
+    # Act
+    loader.loadRunNumbers()
+
+    # Assert
+    assert len(messages) == 1
+    assert "HB2B_1327.h5" in messages[0][0] and messages[0][1] == "error"

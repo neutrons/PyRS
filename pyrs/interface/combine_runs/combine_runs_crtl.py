@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from pyrs.utilities import get_input_project_file  # type: ignore
 
@@ -10,7 +12,9 @@ class CombineRunsCrtl:
         filepaths = []
         for run in runs:
             try:
-                filepaths.append(get_input_project_file(int(run)))
+                # the lookup returns the folder holding the run's file, not the file (#931)
+                folder = get_input_project_file(int(run))
+                filepaths.append(os.path.join(folder, "HB2B_{}.h5".format(int(run))))
             except FileNotFoundError:
                 pass
 

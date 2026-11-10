@@ -176,8 +176,28 @@ def get_default_output_dir(run_number):
 
 
 def get_input_project_file(run_number, preferredType="manual"):
-    # lower preferredType
+    """Return the reduction folder that holds the project file ``HB2B_<run_number>.h5``.
+
+    Args:
+        run_number: Run number.
+        preferredType: ``"manual"`` looks in ``shared/manualreduce`` and then
+            ``shared/autoreduce``; ``"auto"`` looks only in ``shared/autoreduce``.
+
+    Returns:
+        The folder (``str``) containing the run's project file.
+
+    Raises:
+        RuntimeError: If the IPTS ``shared`` folder does not exist, or no searched folder holds
+            the run's project file (e.g. the run has not been reduced yet, #931).
+        ValueError: If ``preferredType`` is neither manual nor auto.
+    """
     preferredType = preferredType.lower()
+    if preferredType.startswith("manual"):
+        reductions = ["manualreduce", "autoreduce"]
+    elif preferredType.startswith("auto"):
+        reductions = ["autoreduce"]
+    else:
+        raise ValueError('Do not understand preferred type "{}"'.format(preferredType))
 
     # this can generate an exception
     shared_dir = os.path.join(get_ipts_dir(run_number), "shared")
@@ -185,26 +205,18 @@ def get_input_project_file(run_number, preferredType="manual"):
     if not os.path.exists(shared_dir):
         raise RuntimeError('Shared directory "{}" does not exist'.format(shared_dir))
 
-    # generate places to look for
-    auto_dir = os.path.join(shared_dir, "autoreduce")
-    manual_dir = os.path.join(shared_dir, "manualreduce")
-    err_msg = 'Failed to find project file for run "{}" in "{}"'.format(run_number, shared_dir)
+    # a folder that exists but lacks this run's file is not a match: its load would fail later (#931)
+    project_name = "HB2B_{}.h5".format(run_number)
+    folders = [os.path.join(shared_dir, reduction) for reduction in reductions]
+    for folder in folders:
+        if os.path.isfile(os.path.join(folder, project_name)):
+            return folder
 
-    preferredType = preferredType.lower()
-    if preferredType.startswith("manual"):
-        if os.path.exists(manual_dir):
-            return manual_dir
-        elif os.path.exists(auto_dir):
-            return auto_dir
-        else:
-            raise RuntimeError(err_msg)
-    elif preferredType.startswith("auto"):
-        if os.path.exists(auto_dir):
-            return auto_dir
-        else:
-            raise RuntimeError(err_msg)
-    else:
-        raise ValueError('Do not understand preferred type "{}"'.format(preferredType))
+    raise RuntimeError(
+        "No project file {} for run {} in {} (has the run been reduced yet?)".format(
+            project_name, run_number, " or ".join(folders)
+        )
+    )
 
 
 def get_nexus_file(run_number):
