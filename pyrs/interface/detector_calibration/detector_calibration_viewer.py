@@ -8,7 +8,7 @@ from qtpy.QtWidgets import QDialog, QDialogButtonBox
 
 from qtpy.QtWidgets import QGridLayout  # type:ignore
 from qtpy.QtWidgets import QMainWindow  # type:ignore
-from qtpy.QtCore import Qt  # type: ignore
+from qtpy.QtCore import QSettings, Qt  # type: ignore
 
 from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities import get_nexus_file  # type: ignore
@@ -808,49 +808,88 @@ class PeakLinesSetupView(QGroupBox):
                     self._parent.calib_summary.neval_lineEdit.setText(str(input_dict[key]))
 
 
+def _settings() -> QSettings:
+    """Where the window remembers the preferred export folder (one function, so tests can redirect it)."""
+    return QSettings("neutrons", "PyRS")
+
+
+EXPORT_FOLDER_KEY = "calibration/export_folder"
+
+
 class ExportCalibDialog(QDialog):
-    """Export: a folder of the user's choice, and (ticked by default) the shared HB2B calibration."""
+    """Export (#1087): a preferred folder, or the shared HB2B calibration's archive and "latest" files.
+
+    User decisions: the folder copy and the shared targets are exclusive (ticking a shared target unticks and
+    disables the folder); a "latest" file requires the archive (ticking one ticks and locks Archive); OK is
+    disabled when nothing is ticked. The dialog opens with only the folder ticked.
+    """
 
     def __init__(self, parent=None, folder="", mono="SiXXX", description=(True, "")):
         super().__init__(parent)
 
         self.setWindowTitle("Export Calibration")
-        exportable, text = description
+        self._exportable, text = description
         # what will be written (method, status, key values), or why it cannot be
         self.description = QLabel(text)
         self.description.setWordWrap(True)
 
+        self.folder_box = QCheckBox("Preferred folder: <folder>/HB2B_CAL_<time>.json (not shared)")
+        self.folder_box.setChecked(True)
         folder_row = QHBoxLayout()
-        folder_row.addWidget(QLabel("Folder"))
         self.folder_lineEdit = QLineEdit(folder)
         self.folder_lineEdit.setMinimumWidth(350)
         folder_row.addWidget(self.folder_lineEdit)
-        browse = QPushButton("Browse")
-        browse.clicked.connect(self.browse)
-        folder_row.addWidget(browse)
+        self.browse_button = QPushButton("Browse")
+        self.browse_button.clicked.connect(self.browse)
+        folder_row.addWidget(self.browse_button)
 
-        self.write_shared = QCheckBox("Also write the shared HB2B calibration")
-        self.write_shared.setChecked(True)
-        shared = QLabel(
-            f"{SHARED_CALIBRATION_DIR}/HB2B_Latest.json\n"
-            f"{SHARED_CALIBRATION_DIR}/HB2B_Latest_{mono}.json\n"
-            f"{SHARED_CALIBRATION_DIR}/{mono}/HB2B_CAL_<time>.json"
-        )
-        shared.setIndent(20)
+        shared = QLabel(f"Shared HB2B calibration, {SHARED_CALIBRATION_DIR}:")
+        self.archive_box = QCheckBox(f"Archive: {mono}/HB2B_CAL_<time>.json")
+        self.latest_mono_box = QCheckBox(f"Latest for this monochromator: HB2B_Latest_{mono}.json")
+        self.latest_box = QCheckBox("Latest: HB2B_Latest.json (what reduction picks up)")
+        note = QLabel("A latest file is always archived too. The folder copy and the shared files are exclusive.")
+        note.setWordWrap(True)
 
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
-        self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(exportable)
+        self._updating = False
+        for box in (self.folder_box, self.archive_box, self.latest_mono_box, self.latest_box):
+            box.stateChanged.connect(self._update)
+        self.folder_lineEdit.textChanged.connect(self._update)
 
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.description)
+        self.layout.addWidget(self.folder_box)
         self.layout.addLayout(folder_row)
-        self.layout.addWidget(self.write_shared)
         self.layout.addWidget(shared)
-        self.layout.addWidget(self.buttonBox)
+        for widget in (self.archive_box, self.latest_mono_box, self.latest_box, note, self.buttonBox):
+            self.layout.addWidget(widget)
         self.setLayout(self.layout)
+        self._update()
+
+    def _update(self, *_):
+        """Apply the rules between the checkboxes, and enable OK only when something can be written."""
+        if self._updating:  # the changes below re-emit stateChanged
+            return
+        self._updating = True
+        try:
+            latest = self.latest_box.isChecked() or self.latest_mono_box.isChecked()
+            if latest:
+                self.archive_box.setChecked(True)
+            self.archive_box.setEnabled(not latest)
+            shared = latest or self.archive_box.isChecked()
+            if shared:
+                self.folder_box.setChecked(False)
+            self.folder_box.setEnabled(not shared)
+            use_folder = self.folder_box.isChecked()
+            self.folder_lineEdit.setEnabled(use_folder)
+            self.browse_button.setEnabled(use_folder)
+            ready = shared or (use_folder and bool(self.folder))
+            self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(bool(self._exportable) and ready)
+        finally:
+            self._updating = False
 
     def browse(self):
         folder = QFileDialog.getExistingDirectory(
@@ -862,6 +901,15 @@ class ExportCalibDialog(QDialog):
     @property
     def folder(self) -> str:
         return self.folder_lineEdit.text().strip()
+
+    def targets(self) -> dict:
+        """The ticked targets, as ``export_calibration``'s keyword arguments."""
+        return {
+            "folder": self.folder if self.folder_box.isChecked() else None,
+            "latest": self.latest_box.isChecked(),
+            "latest_mono": self.latest_mono_box.isChecked(),
+            "archive": self.archive_box.isChecked(),
+        }
 
 
 class CalibrationSummaryView(QGroupBox):
@@ -917,7 +965,8 @@ class CalibrationSummaryView(QGroupBox):
 
         self.export_calib_bttn = QPushButton("Export Calibration")
         self.export_calib_bttn.clicked.connect(self.export_calib)
-        self._export_folder = os.getcwd()
+        # the preferred export folder, remembered between sessions (#1087)
+        self._export_folder = str(_settings().value(EXPORT_FOLDER_KEY, os.getcwd()))
 
         calib_layout.addWidget(self.export_calib_bttn, i_row + 5, 0, 1, 2)
         calib_summary.setLayout(calib_layout)
@@ -935,14 +984,18 @@ class CalibrationSummaryView(QGroupBox):
         )
         if not dlg.exec():
             return
-        self._export_folder = dlg.folder
-        self.write_calibration(dlg.folder, dlg.write_shared.isChecked())
+        targets = dlg.targets()
+        if self.write_calibration(**targets) is not None and targets["folder"] is not None:
+            self._export_folder = targets["folder"]
+            _settings().setValue(EXPORT_FOLDER_KEY, targets["folder"])
 
-    def write_calibration(self, folder, write_shared):
-        """Write the calibration and report which files were written (or why not)."""
+    def write_calibration(self, folder=None, latest=False, latest_mono=False, archive=False):
+        """Write the calibration to the chosen targets and report which files were written (or why not)."""
         try:
-            written = self._parent.controller.export_calibration(folder, write_shared=write_shared)
-        except (FileNotFoundError, PermissionError, RuntimeError, OSError) as export_err:
+            written = self._parent.controller.export_calibration(
+                folder, latest=latest, latest_mono=latest_mono, archive=archive
+            )
+        except (ValueError, FileNotFoundError, PermissionError, RuntimeError, OSError) as export_err:
             pop_message(self, "Export failed", str(export_err), "error")
             return None
         message = "Calibration written to " + ", ".join(written)
