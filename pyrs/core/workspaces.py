@@ -519,11 +519,7 @@ class HidraWorkspace:
         self._project_file = hidra_file
 
         # create the spectrum map - must exist before loading the counts array
-        # number after the largest existing sub-run as well as after the count: sub-runs that do
-        # not start at 1 (e.g. 2..24) would otherwise get duplicate numbers (#1080)
-        existing = self._sample_logs.subruns
-        last = max(existing.size, int(np.max(existing.raw_copy()))) if existing.size else 0
-        append_list = np.arange(len(hidra_file.read_sub_runs())) + 1 + last
+        append_list = np.arange(len(hidra_file.read_sub_runs())) + 1 + self._sample_logs.subruns.size
         self._sample_logs.append_subruns(append_list)
 
         # # load reduced diffraction

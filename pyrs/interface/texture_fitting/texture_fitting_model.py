@@ -1,4 +1,3 @@
-import copy
 import json
 import traceback
 from shutil import copyfile
@@ -28,7 +27,6 @@ class TextureFittingModel(QObject):
         self.peak_fit_engine = None
         self._polefigureinterface = None
         self._run_number = None
-        self._curr_file_name = None
 
     @property
     def runnumber(self):
@@ -39,10 +37,7 @@ class TextureFittingModel(QObject):
             source_project = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
             self.ws = HidraWorkspace(filename)
             self.ws.load_hidra_project(source_project, False, True)
-            # an open read-only handle would block saving the fits back into this file (#1080)
-            source_project.close()
             self.sub_runs = np.array(self.ws.get_sub_runs())
-            self._curr_file_name = filename
 
             for part in filename.split("/")[-1].replace(".h5", "").split("_"):
                 try:
@@ -143,63 +138,33 @@ class TextureFittingModel(QObject):
 
         return
 
-    @staticmethod
-    def eta_wedges(reduction_masks):
-        """The named η-wedge masks of a file; empty for a file not split into wedges (#1080).
+    def save_fit_result(self, out_file_name="", fit_result=None):
+        """Save the fit result, including a copy of the rest of the file if it does not exist at the specified path.
 
-        An unsplit file lists only its main mask, which the workspace names ``None``: ``[None]``
-        since variance entries stopped being listed as masks (4cab5d91), formerly
-        ``[None, "main_var"]``. The controller fits and the window offers exactly these wedges,
-        so a selected wedge always names a fit.
+        If out_file_name is empty or if it matches the parent's current file, this updates the file.
+
+        Otherwise, the parent's file is copied to out_file_name and
+        then the updated peak fit data is written to the copy.
+
+        :param out_file_name: string absolute fill path for the place to save the file
+
         """
-        return [mask for mask in reduction_masks if mask and "_var" not in mask]
 
-    @staticmethod
-    def saved_peak_tag(peak_tag, mask_key):
-        """Peak tag under which one η-wedge's fit of a peak is saved (#1080).
-
-        Every wedge is fitted with the same peak labels, so each wedge's peaks are saved as
-        ``<label>_<wedge>`` (e.g. ``peak0_eta_-5.0``); a fit without wedges (``mask_key`` "")
-        keeps the plain label.
-        """
-        return "{}_{}".format(peak_tag, mask_key) if mask_key else peak_tag
-
-    def save_fit_result(self, out_file_name="", fits=None):
-        """Save the fits of every η-wedge into a project file (#1080).
-
-        If ``out_file_name`` is empty or is the loaded file, the loaded file is updated in place.
-        Otherwise the loaded file is copied to ``out_file_name`` and the fits are written to the
-        copy. Each peak is saved under :meth:`saved_peak_tag`; saving again overwrites those
-        peaks. Failures are reported through ``failureMsg``.
-
-        Args:
-            out_file_name: Destination path.
-            fits: Fit results keyed by η-wedge (reduction mask) name, as returned by the
-                controller's ``fit_peaks``; nothing is saved when empty.
-        """
-        if not fits:
+        if fit_result is None:
             return
 
-        try:
-            if self._curr_file_name is None:
-                raise ValueError("No project file is loaded")
+        if out_file_name is not None and self.parent._curr_file_name != out_file_name:
+            copyfile(self.parent._curr_file_name, out_file_name)
+            current_project_file = out_file_name
+        else:
+            current_project_file = self.parent._curr_file_name
 
-            # realpath: the loaded file reached through a symbolic link is still the loaded file
-            if out_file_name and os.path.realpath(out_file_name) != os.path.realpath(self._curr_file_name):
-                copyfile(self._curr_file_name, out_file_name)
-                current_project_file = out_file_name
-            else:
-                current_project_file = self._curr_file_name
-
-            with HidraProjectFile(current_project_file, mode=HidraProjectFileMode.READWRITE) as project_h5_file:
-                for mask_key, fit_result in fits.items():
-                    for peak in fit_result.peakcollections:
-                        saved_peak = copy.copy(peak)
-                        saved_peak._tag = self.saved_peak_tag(peak.peak_tag, mask_key)
-                        project_h5_file.write_peak_parameters(saved_peak)
-                project_h5_file.save(False)
-        except (ValueError, OSError, RuntimeError) as e:
-            self.failureMsg.emit("Failed to save fit results", str(e), traceback.format_exc())
+        project_h5_file = HidraProjectFile(current_project_file, mode=HidraProjectFileMode.READWRITE)
+        peakcollections = fit_result.peakcollections
+        for peak in peakcollections:
+            project_h5_file.write_peak_parameters(peak)
+        project_h5_file.save(False)
+        project_h5_file.close()
 
     def load_pole_data(self, peak_id, intensity, eta, peak_center, scan_index):
         if self._polefigureinterface is None:

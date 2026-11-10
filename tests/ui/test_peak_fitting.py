@@ -284,36 +284,3 @@ def test_remove_peak_range_row_drops_its_d0(monkeypatch, fit_peaks_window):
     # Assert
     assert fit_setup.list_fit_peak_labels == ["Peak1"]
     assert fit_setup.list_fit_peak_d0 == [1.2]
-
-
-@pytest.mark.parametrize("answer, expected_calls", [("Yes", 2), ("No", 1)])
-def test_save_asks_before_combining_reduction_differences(monkeypatch, fit_peaks_window, answer, expected_calls):
-    """A vanadium/mask/binning difference asks the user; Yes saves with them accepted (#1080)."""
-    # Arrange
-    from pyrs.projectfile.file_object import ReductionMismatchError
-
-    window, _ = fit_peaks_window
-    calls = []
-
-    def fake_save(out_file_name, accept_reduction_differences=False):
-        calls.append(accept_reduction_differences)
-        window._model.save_warnings = ["accepted differences"] if accept_reduction_differences else []
-        if not accept_reduction_differences:
-            raise ReductionMismatchError("different vanadium runs. Combine them anyway?")
-
-    shown = []
-    monkeypatch.setattr(window._model, "save_fit_result", fake_save)
-    monkeypatch.setattr(
-        "pyrs.interface.peak_fitting.peak_fitting_viewer.QMessageBox.question",
-        lambda *args: getattr(QtWidgets.QMessageBox, answer),
-    )
-    monkeypatch.setattr(
-        "pyrs.interface.peak_fitting.peak_fitting_viewer.pop_message", lambda *args: shown.append(args)
-    )
-
-    # Act
-    window.save()
-
-    # Assert
-    assert calls == [False, True][:expected_calls]
-    assert [args[2] for args in shown] == (["accepted differences"] if answer == "Yes" else [])

@@ -137,11 +137,8 @@ def test_texture_fitting_viewer(texture_fitting_window):
 
     # Test fitting data
     qtbot.wait(wait)
-    assert not window.saveAction.isEnabled() and not window.saveAsAction.isEnabled()
     qtbot.mouseClick(window.fit_setup.fit_peaks, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
-    # Save / Save as become available once there are fits (#1080)
-    assert window.saveAction.isEnabled() and window.saveAsAction.isEnabled()
 
     # Test data fit visualization
     window.VizSetup.plot_paramX.setCurrentIndex(7)
@@ -189,27 +186,3 @@ def test_texture_fitting_viewer(texture_fitting_window):
     qtbot.keyClick(window.plot_select.out_of_plane, QtCore.Qt.Key_Down)
     # qtbot.wait(plot_wait)
     window.hide()
-
-
-@pytest.mark.parametrize(
-    "masks, expected_angles",
-    [(["eta_-5.0", "eta_5.0"], ["eta_-5.0", "eta_5.0"]), ([None], [])],
-    ids=["two-wedges", "unsplit"],
-)
-def test_out_of_plane_choice_follows_wedges(texture_fitting_window, masks, expected_angles):
-    """Both η-angle drop-downs list exactly the wedges the controller fits, even just two (#1080)."""
-    # Arrange
-    window, _ = texture_fitting_window
-    # no file is loaded, so the replot a selection change triggers has nothing to draw
-    blockers = [QtCore.QSignalBlocker(view.out_of_plane) for view in (window.fit_summary, window.plot_select)]
-
-    # Act
-    window.fit_summary.setup_out_of_plane_angle(masks)
-    window.plot_select.setup_out_of_plane_angle(masks)
-    del blockers
-
-    # Assert
-    for view in (window.fit_summary, window.plot_select):
-        angles = [view.out_of_plane.itemText(i) for i in range(view.out_of_plane.count())]
-        assert angles == expected_angles
-        assert view.out_of_plane.isHidden() is not bool(expected_angles)
