@@ -317,3 +317,24 @@ def test_old_json_still_reads_through_the_dispatch(tmp_path):
     assert (shift.center_shift_x, shift.two_theta_0, wavelength, status) == (0.01, 0.5, 1.54, 3)
     assert calibration_file_io.read_calibration_provenance(str(path)) is None
     assert calibration_file_io.read_calibration_geometry(str(path)) is None
+
+
+def test_nxs_that_is_not_hdf5_raises_oserror(tmp_path):
+    """As a malformed .json raises its JSON error: not wrapped, not silently ignored"""
+    # Arrange
+    path = tmp_path / "HB2B_CAL.nxs"
+    path.write_text("not an HDF5 file")
+
+    # Act / Assert
+    with pytest.raises(OSError, match="cannot be read as a NeXus"):
+        calibration_file_io.read_calibration_file(str(path))
+
+
+def test_file_is_written_with_nexusformat(tmp_path):
+    """Written with nexusformat, as PyRS's NXstress output is"""
+    # Act
+    with h5py.File(_write(tmp_path / "cal.nxs"), "r") as nexus:
+        creator = nexus.attrs.get("creator")
+
+    # Assert
+    assert _text(creator) == "nexusformat"

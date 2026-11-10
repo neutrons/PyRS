@@ -2665,7 +2665,8 @@ User-approved, after the C1-C5 evaluation and step 1 (repeated ring extraction) 
 
 ## NeXus calibration files (2026-11, #1054 phase 1)
 
-Reduction reads a calibration from either a **JSON** (`.json`) or a **NeXus** (`.nxs`) file, through one entry
+Reduction reads a calibration from either a **JSON** (`.json`) or a **NeXus** (`.nxs`) file (written and read
+with `nexusformat`, as PyRS's NXstress output is; user decision), through one entry
 point, `calibration_file_io.read_calibration_file`. Its format is chosen by the extension
 (`calibration_format`); anything else raises `ValueError`, including `.h5` (a PyRS project file) and
 `.nxs.h5` (raw event data). `read_calibration_provenance` and `read_calibration_geometry` dispatch the
@@ -2692,7 +2693,7 @@ becomes this check), `PyRsCore`, and the calibration GUI's "From file…" overla
 - **A NeXus file's geometry is part of the calibration.** Unlike the JSON's `"geometry"` block, whose problems
   only add a note to the reduction record, a NeXus file whose pixel layout is missing or not PyRS's is
   refused when the calibration is read, before any reduction work: the chain is defined on those pixels. A
-  `.nxs` that is not HDF5 raises h5py's `OSError`, as a malformed `.json` raises its JSON error.
+  `.nxs` that is not HDF5 raises `OSError`, as a malformed `.json` raises its JSON error.
 - **GUI:** the predicted-rings "From file…" dialog offers `*.json *.nxs`. The window's **Load Calibration** (a
   starting calibration for the table) still reads JSON only (`_initalize_calibration` parses it directly);
   phase 3.
