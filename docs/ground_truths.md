@@ -2764,3 +2764,36 @@ Tests:
 **Testing note:** combining by run number is now tested end to end on real data
 (`test_merge_projectfiles.py::test_combine_by_run_number`, 4 runs, 362 sub-runs). The lookup tests run
 the real lookup over a synthetic `shared/` tree; only `get_ipts_dir` is replaced.
+
+## Calibration Export: one checkbox per target (2026-11, #1087)
+
+The calibration window's Export (`ExportCalibDialog`; `DetectorCalibrationModel.export_calibration(folder=None,
+latest=False, latest_mono=False, archive=False)`, replacing `write_shared`) writes only the ticked targets:
+
+| checkbox | file |
+|---|---|
+| Preferred folder | `<folder>/HB2B_CAL_<time>.json` (not shared) |
+| Archive | `/HFIR/HB2B/shared/CALIBRATION/<mono>/HB2B_CAL_<time>.json` |
+| Latest for this monochromator | `/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest_<mono>.json` |
+| Latest | `/HFIR/HB2B/shared/CALIBRATION/HB2B_Latest.json` (what reduction picks up) |
+
+User decisions, enforced by the model (`ValueError`) and the dialog alike:
+- The folder copy and the shared targets are **exclusive**. Ticking a shared target unticks and disables
+  the folder.
+- A "latest" file **requires the archive**. Ticking either "latest" box ticks and locks Archive, so every
+  shared calibration has its archived copy. An archive-only export is allowed.
+- **At least one target**: OK is disabled when nothing is ticked, or when the folder is ticked with no folder
+  given.
+- The dialog **opens with only the folder ticked**, so shared targets are ticked deliberately. Live reduction
+  on v1.8.1 applies `HB2B_Latest.json` without 2θ₀ and rotations, #1066.
+- **One log line per export** (mantid `Logger("PyRS detector calibration")`) lists the files written, or the
+  targets refused. The calibration's provenance is unchanged.
+
+Kept from #1045:
+- Every shared target is checked before anything is written. An unwritable one raises `PermissionError`, and
+  **nothing is written**, since there is no folder copy to fall back to.
+- The files are written archive → `HB2B_Latest_<mono>.json` → `HB2B_Latest.json`, each atomically.
+
+The preferred folder is remembered between sessions (`QSettings("neutrons", "PyRS")`, key
+`calibration/export_folder`) after a successful folder export. The GUI tests redirect it to a scratch file
+through `detector_calibration_viewer._settings`.
