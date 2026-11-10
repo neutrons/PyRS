@@ -965,8 +965,9 @@ class CalibrationSummaryView(QGroupBox):
 
         self.export_calib_bttn = QPushButton("Export Calibration")
         self.export_calib_bttn.clicked.connect(self.export_calib)
-        # the preferred export folder, remembered between sessions (#1087)
-        self._export_folder = str(_settings().value(EXPORT_FOLDER_KEY, os.getcwd()))
+        # the preferred export folder, remembered between sessions (#1087); one since removed falls back
+        remembered = str(_settings().value(EXPORT_FOLDER_KEY, os.getcwd()))
+        self._export_folder = remembered if os.path.isdir(remembered) else os.getcwd()
 
         calib_layout.addWidget(self.export_calib_bttn, i_row + 5, 0, 1, 2)
         calib_summary.setLayout(calib_layout)

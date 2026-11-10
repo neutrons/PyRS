@@ -4,7 +4,7 @@ import tempfile
 import time
 import warnings
 from collections import Counter
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, NoReturn, Optional, Sequence, Tuple
 
 import numpy as np
 from mantid.kernel import Logger
@@ -33,6 +33,13 @@ from pyrs.utilities.calibration_file_io import read_calibration_json_file, write
 
 # the files each Export wrote, or the targets it refused (#1087)
 _LOG = Logger("PyRS detector calibration")
+
+
+def _refuse(error: Exception) -> NoReturn:
+    """Log why an export is refused (one log line per export, #1087) and raise ``error``."""
+    _LOG.warning(f"Calibration export refused: {error}; nothing written")
+    raise error
+
 
 # calibration methods (#1045): FitCalibration re-reduces and re-fits for every trial geometry; the
 # ring-based calibration fits each ring once in detector strips, then refines from the ring points
@@ -410,14 +417,19 @@ class DetectorCalibrationModel(QObject):
         """
         shared_targets = latest or latest_mono or archive
         if folder is None and not shared_targets:
-            raise ValueError("choose at least one target: a folder, the archive or a latest file")
+            _refuse(ValueError("choose at least one target: a folder, the archive or a latest file"))
         if folder is not None and shared_targets:
-            raise ValueError("a folder copy and the shared HB2B calibration are exclusive: choose one")
+            _refuse(ValueError("a folder copy and the shared HB2B calibration are exclusive: choose one"))
         if (latest or latest_mono) and not archive:
-            raise ValueError("a latest file requires the archive copy, so that every shared calibration is archived")
-        values, errors, status = self._export_values()
+            _refuse(
+                ValueError("a latest file requires the archive copy, so that every shared calibration is archived")
+            )
+        try:
+            values, errors, status = self._export_values()
+        except RuntimeError as not_exportable:
+            _refuse(not_exportable)
         if folder is not None and not os.path.isdir(folder):
-            raise FileNotFoundError(f"folder {folder} does not exist")
+            _refuse(FileNotFoundError(f"folder {folder} does not exist"))
         provenance = self.export_provenance()
         geometry = self._run_geometry()  # the calibration carries its detector geometry (#1053)
         stamp = time.strftime(CALIBRATION_TIME_FORMAT, time.localtime())

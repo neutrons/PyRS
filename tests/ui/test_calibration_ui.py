@@ -18,7 +18,19 @@ plot_wait = 100
 
 
 @pytest.fixture(scope="session")
-def calibration_window(my_qtbot):
+def export_settings(tmp_path_factory):
+    """The remembered export folder (#1087) goes to a scratch file, never the user's settings. Redirected before
+    the window is built, because the window reads it then."""
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+
+    settings_file = str(tmp_path_factory.mktemp("settings") / "pyrs.ini")
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(viewer_module, "_settings", lambda: QtCore.QSettings(settings_file, QtCore.QSettings.IniFormat))
+        yield settings_file
+
+
+@pytest.fixture(scope="session")
+def calibration_window(my_qtbot, export_settings):
     r"""
     Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
     This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
@@ -38,16 +50,8 @@ def handle_export_dialog(folder):
     dialog.accept()
 
 
-def test_detector_calibration(calibration_window, tmp_path, monkeypatch):
+def test_detector_calibration(calibration_window, tmp_path, export_settings):
     window, qtbot = calibration_window
-    # the remembered export folder goes to a scratch file, not the user's settings (#1087)
-    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
-
-    settings_file = str(tmp_path / "pyrs.ini")
-    monkeypatch.setattr(
-        viewer_module, "_settings", lambda: QtCore.QSettings(settings_file, QtCore.QSettings.IniFormat)
-    )
-
     window.show()
     qtbot.wait(wait)
 
@@ -114,12 +118,16 @@ def test_detector_calibration(calibration_window, tmp_path, monkeypatch):
     qtbot.mouseClick(window.peak_lines_setup.export_recipe, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
 
-    # Export: the user's folder, with the shared-calibration flag (ticked by default) unticked here
+    # Export: a folder copy, the dialog's default (#1087)
     QtCore.QTimer.singleShot(300, functools.partial(handle_export_dialog, str(calib_folder)))
     qtbot.mouseClick(window.calib_summary.export_calib_bttn, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
     assert not hasattr(window.calib_summary, "export_local_calib_bttn")  # Export replaces it (#1045)
     (calib_path,) = [str(path) for path in calib_folder.iterdir()]
+    # the folder is remembered for the next export, in the scratch settings
+    from pyrs.interface.detector_calibration.detector_calibration_viewer import EXPORT_FOLDER_KEY
+
+    assert QtCore.QSettings(export_settings, QtCore.QSettings.IniFormat).value(EXPORT_FOLDER_KEY) == str(calib_folder)
 
     QtCore.QTimer.singleShot(300, functools.partial(handle_dialog, calib_path))
     qtbot.mouseClick(window.fileLoading.file_load_calib.browse_button, QtCore.Qt.LeftButton)
@@ -345,7 +353,7 @@ def test_export_failure_is_reported(calibration_window, tmp_path, monkeypatch):
     assert written is None and messages == [("Export failed", "error")]
 
 
-def test_export_dialog_rules(calibration_window):
+def test_export_dialog_rules(my_qtbot):
     """#1087: folder and shared exclusive, a latest file locks the archive, OK needs a target"""
     from pyrs.interface.detector_calibration.detector_calibration_viewer import ExportCalibDialog
 

@@ -226,7 +226,7 @@ def test_export_writes_the_shared_files(refined, tmp_path, shared):
         )
 
 
-def test_export_without_shared_flag_writes_only_folder(refined, tmp_path, shared):
+def test_export_folder_writes_no_shared_file(refined, tmp_path, shared):
     gui_model, _ = refined
     written = gui_model.export_calibration(str(tmp_path))
     assert len(written) == 1 and os.path.dirname(written[0]) == str(tmp_path)
@@ -444,8 +444,6 @@ def test_failed_stage_restores_the_calibration(workspace):
 def test_export_writes_archive_before_latest_atomically(refined, tmp_path, shared):
     # Arrange
     gui_model, _ = refined
-    user = tmp_path / "mine"
-    user.mkdir()
 
     # Act
     written = gui_model.export_calibration(latest=True, latest_mono=True, archive=True)
@@ -456,7 +454,7 @@ def test_export_writes_archive_before_latest_atomically(refined, tmp_path, share
         "shared/CALIBRATION/HB2B_Latest_Si422.json",
         "shared/CALIBRATION/HB2B_Latest.json",
     ]
-    for folder in (user, shared, shared / "Si422"):
+    for folder in (shared, shared / "Si422"):
         assert not [name for name in os.listdir(folder) if name.startswith(".")]
     # rw-rw-r--: anyone who may write the folder may replace it, everyone may read it
     assert all(os.stat(p).st_mode & 0o777 == 0o664 for p in written)
@@ -483,8 +481,6 @@ def test_export_replaces_a_read_only_latest(refined, tmp_path, shared):
 def test_export_read_only_folder_writes_no_shared_copy(refined, tmp_path, shared):
     # Arrange - a writable HB2B_Latest.json in a folder this user may not write: it cannot be replaced
     gui_model, _ = refined
-    user = tmp_path / "mine"
-    user.mkdir()
     latest = shared / "HB2B_Latest.json"
     latest.write_text("{}")
     latest.chmod(0o666)
@@ -625,8 +621,6 @@ def test_keep_list_length_must_match(workspace):
 def test_export_writes_the_same_provenance_to_every_file(refined, tmp_path, shared):
     # Arrange
     gui_model, _ = refined
-    user = tmp_path / "mine"
-    user.mkdir()
 
     # Act
     written = gui_model.export_calibration(latest=True, latest_mono=True, archive=True)
@@ -903,13 +897,18 @@ def test_export_writes_only_the_chosen_targets(refined, shared, targets, expecte
     assert sorted(os.listdir(shared)) == sorted(expected)
 
 
-def test_export_logs_the_files_written(refined, shared, monkeypatch):
-    """Decision 4: one log line per export, listing every file written"""
-    # Arrange
+def _capture_log(monkeypatch):
     lines = []
     monkeypatch.setattr(
         model_module, "_LOG", SimpleNamespace(notice=lines.append, warning=lines.append, error=lines.append)
     )
+    return lines
+
+
+def test_export_logs_the_files_written(refined, shared, monkeypatch):
+    """Decision 4: one log line per export, listing every file written"""
+    # Arrange
+    lines = _capture_log(monkeypatch)
 
     # Act
     written = refined[0].export_calibration(latest=True, archive=True)
@@ -921,10 +920,7 @@ def test_export_logs_the_files_written(refined, shared, monkeypatch):
 @needs_permissions
 def test_export_logs_the_targets_refused(refined, shared, monkeypatch):
     # Arrange
-    lines = []
-    monkeypatch.setattr(
-        model_module, "_LOG", SimpleNamespace(notice=lines.append, warning=lines.append, error=lines.append)
-    )
+    lines = _capture_log(monkeypatch)
     shared.chmod(0o500)
 
     # Act / Assert
@@ -934,3 +930,56 @@ def test_export_logs_the_targets_refused(refined, shared, monkeypatch):
     finally:
         shared.chmod(0o700)
     assert len(lines) == 1 and "refused" in lines[0] and "HB2B_Latest.json" in lines[0]
+
+
+@pytest.mark.parametrize(
+    "targets, error",
+    [
+        ({}, ValueError),
+        ({"latest": True}, ValueError),
+        ({"folder": "/nonexistent/pyrs-export"}, FileNotFoundError),
+    ],
+    ids=["nothing", "latest-alone", "missing-folder"],
+)
+def test_refused_export_logs_one_line(refined, shared, monkeypatch, targets, error):
+    """Decision 4 holds for a refusal too: one log line, nothing written"""
+    # Arrange
+    lines = _capture_log(monkeypatch)
+
+    # Act / Assert
+    with pytest.raises(error):
+        refined[0].export_calibration(**targets)
+    assert len(lines) == 1 and "refused" in lines[0] and not os.listdir(shared)
+
+
+def test_unrefined_export_logs_one_line(workspace, shared, monkeypatch):
+    # Arrange - nothing refined yet
+    lines = _capture_log(monkeypatch)
+
+    # Act / Assert
+    with pytest.raises(RuntimeError):
+        _model(workspace).export_calibration(archive=True)
+    assert len(lines) == 1 and "refused" in lines[0] and not os.listdir(shared)
+
+
+def test_partial_write_names_what_was_written(refined, shared, monkeypatch):
+    """The archive is written, then HB2B_Latest.json fails: the error and the log name the archive"""
+    # Arrange
+    lines = _capture_log(monkeypatch)
+    real_write = model_module._write_atomically
+
+    def failing(values, errors, status, file_name, *args):
+        if file_name.endswith("HB2B_Latest.json"):
+            raise OSError("disk full")
+        real_write(values, errors, status, file_name, *args)
+
+    monkeypatch.setattr(model_module, "_write_atomically", failing)
+
+    # Act
+    with pytest.raises(OSError, match="written so far") as failure:
+        refined[0].export_calibration(latest=True, archive=True)
+
+    # Assert - the archive exists and is named; no latest file; one error line
+    (archived,) = os.listdir(shared / "Si422")
+    assert archived in str(failure.value) and not (shared / "HB2B_Latest.json").exists()
+    assert len(lines) == 1 and "HB2B_Latest.json" in lines[0] and archived in lines[0]
