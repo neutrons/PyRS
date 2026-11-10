@@ -139,7 +139,11 @@ class TextureFittingCrtl:
 
         fit_results = {}
 
-        if len(self._model.ws.reduction_masks) == 2:
+        # the named η-wedges; an unsplit file lists only its main mask (None since variance
+        # entries stopped being listed as masks, formerly "main" and "main_var")
+        wedges = [mask for mask in self._model.ws.reduction_masks if mask and "_var" not in mask]
+
+        if not wedges:
             fit_results[""] = self._model.fit_diff_peaks(
                 min_tth, max_tth, peak_tag, peak_function_name, background_function_name, out_of_plane_angle=None
             )
@@ -153,23 +157,22 @@ class TextureFittingCrtl:
                 self.parse_texture_fits(fit_results[""], "eta_0.0", len(min_tth))
 
         else:
-            for mask_key in self._model.ws.reduction_masks:
-                if "_var" not in mask_key:
-                    fit_results[mask_key] = self._model.fit_diff_peaks(
-                        min_tth,
-                        max_tth,
-                        peak_tag,
-                        peak_function_name,
-                        background_function_name,
-                        out_of_plane_angle=mask_key,
-                    )
+            for mask_key in wedges:
+                fit_results[mask_key] = self._model.fit_diff_peaks(
+                    min_tth,
+                    max_tth,
+                    peak_tag,
+                    peak_function_name,
+                    background_function_name,
+                    out_of_plane_angle=mask_key,
+                )
 
-                    self._fitted_patterns[mask_key] = [
-                        _extract_fitted_data(fit_results[mask_key].fitted),
-                        _extract_fitted_data(fit_results[mask_key].difference),
-                    ]
+                self._fitted_patterns[mask_key] = [
+                    _extract_fitted_data(fit_results[mask_key].fitted),
+                    _extract_fitted_data(fit_results[mask_key].difference),
+                ]
 
-                    self.parse_texture_fits(fit_results[mask_key], mask_key, len(min_tth))
+                self.parse_texture_fits(fit_results[mask_key], mask_key, len(min_tth))
 
         self._fits = fit_results
 

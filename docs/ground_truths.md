@@ -2760,16 +2760,34 @@ Tests: `tests/integration/test_texture_fitting_save.py` (these work on a copy, n
   number (`_run_number`). A bare `1423.h5` stays `1423`.
 - **Texture menu:** texture Save / Save As are disabled again when a new file is loaded.
 
-**Found, not fixed (pre-existing):**
-- **Texture Fit crashes on an older unsplit file.** In `TextureFittingController.fit_peaks`, older
-  unsplit files have `reduction_masks == [None]`, but the controller treats a file as unsplit only
-  when it has exactly 2 masks (main + `_var`). It then evaluates `"_var" not in None` → `TypeError`.
-  Examples: `tests/data/HB2B_1327.h5`, `HB2B_1599.h5`.
-- **`write_peak_parameters` mixes old and new values when a peak is re-saved with a different
-  profile or background.** h5py's `ds[...] = arr` accepts a different compound dtype silently. A
-  different shape raises `TypeError` instead.
-- **`append_hidra_project` numbers appended sub-runs from `size + 1`.** They collide when the first
-  file's sub-runs don't start at 1.
+**Pre-existing bugs found in review, fixed afterwards (each change approved separately):**
+- **Texture Fit crashed on every unsplit file.** This was a regression from `4cab5d91` (March 2026).
+  - Since that commit, the reader no longer lists `_var` variance entries as masks, so an unsplit
+    file lists `[None]` (or `[]` without reduced data). The texture controller still treated a file
+    as unsplit only when it had exactly 2 masks (main + `_var`), so it went on to evaluate
+    `"_var" not in None` → `TypeError`.
+  - `TextureFittingCrtl.fit_peaks` now treats a file with no named wedge masks as unsplit (one fit,
+    keyed `""`). Wedge files are fitted exactly as before.
+  - Across `tests/data`, split files list only `eta_*` masks. No file has the old 2-mask form.
+- **`write_peak_parameters` re-wrote peaks badly when the model changed.** It assigned in place
+  (`ds[...] = arr`):
+  - A different compound dtype (a new profile or background) left the file **unreadable** ("Did
+    not find Height parameter"). A different number of sub-runs raised `TypeError`.
+  - `HidraProjectFile._write_peak_dataset` now recreates a dataset whose dtype or shape differs, and
+    otherwise writes in place exactly as before.
+  - Edge case: a same-shape dataset whose numeric dtype differs (e.g. float32 → float64) is now
+    stored at the new dtype instead of being cast down.
+- **`append_hidra_project` could give appended sub-runs duplicate numbers.** It numbered them from
+  `count + 1`, so a workspace with sub-runs 2..24 gave the first appended sub-run the existing
+  number 24.
+  - It now numbers from `max(count, largest existing) + 1`.
+  - Every `tests/data` project file is numbered 1..N, or 0..N-1 for `Hidra_16-1`, and those numbers
+    are unchanged.
+
+**Found, not fixed:** the texture window decides whether a file is split with `len(masks) > 2`
+(`FitSummaryView` / `PlotSelect.setup_out_of_plane_angle`, `enable_polar_plot`). That is the same
+stale assumption from before `_var` stopped being listed. A file with exactly **two** η-wedges would
+hide its wedge drop-down, while the controller fits both wedges.
 
 Tests:
 - `tests/integration/test_peak_fitting_save.py`: a real fit; read back with `read_peak_parameters`
@@ -2779,3 +2797,5 @@ Tests:
   file.
 - `tests/unit/pyrs/interface/texture_fitting/test_texture_fitting_model.py`.
 - `tests/ui/test_peak_fitting.py::test_save_asks_before_combining_reduction_differences`.
+- `tests/integration/test_texture_fitting_unsplit.py`, `test_rewrite_peak_parameters.py` and
+  `test_append_sub_runs.py` (the pre-existing bugs).
