@@ -18,6 +18,15 @@ Subcommands, each printing one ``RESULT {json}`` line per result for collation:
 * ``score RUN POINTS.npz``: the C1 checks for several calibrations of one run: ring-point 2theta RMS and strip
   drift (the ring method's target), FitCalibration's eta-wedge residual (FitCalibration's target), and, neutral
   to both, each reflection's offset from Bragg and FWHM in the whole-detector 1D patterns reduction produces.
+* ``holdout RUN OUT_DIR``: #1074, judge on sub-runs not fitted. The run's sub-runs are split by arm angle
+  (``--split alternate``: every other arm, interpolation; ``--split halves``: low against high arms,
+  extrapolation; ``--split one-out``: all but the ``--fit-group``-th arm, leave-one-out) into group A
+  (``--fit-group``) and B. Half a run leaves the geometry poorly determined (the half-run calibrations differ from
+  the all-sub-run one by 8-44 x its precision), so leave-one-out, which keeps nearly every arm, is the main test. On A: the ring calibration (repeated extraction,
+  ``calibrate_rings``) and that followed by a FitCalibration clean-up (``FullCalibration`` from it). Both, and
+  the ring calibration of all sub-runs for reference, are scored on A and on B with both costs: the ring-point
+  2theta RMS (points extracted once, at the all-sub-run ring geometry, so every candidate is judged on the
+  same points) and FitCalibration's eta-wedge residual (its sub-runs restricted to the group).
 * ``strain RUN``: C4, the strain a change of calibration implies, Delta d / d = Delta lambda / lambda
   - cot(theta) Delta theta, over the detector at each sub-run's arm angle: its mean (a uniform offset, which a
   d0 measured with the same calibration cancels) and its spread across the detector (which no d0 cancels).
@@ -101,7 +110,9 @@ def cmd_ring(args: argparse.Namespace) -> None:
     if perturbed:
         calibration.set_calibration_array(start, source=f"perturbed start {list(perturb)} (#1038 C3)")
     calibration.iterate(passes=3, polish=True)
-    rounds = [{"points": len(points), "rmse": calibration.stages[-1].rmse, "values": list(calibration.calibration_array)}]
+    rounds = [
+        {"points": len(points), "rmse": calibration.stages[-1].rmse, "values": list(calibration.calibration_array)}
+    ]
     # further rounds (C3): extract the rings again where the refined geometry predicts them, refine from there
     for _ in range(args.rounds - 1):
         values = calibration.calibration_array.copy()
@@ -313,8 +324,13 @@ def peak_offsets(workspace, calibration_file: Optional[str], wavelength: float) 
             fitted = fit_reflection(x, y, float(bragg))
             if fitted is not None:
                 peaks.append(
-                    {"sub_run": sub_run, "powder": standard.name, "hkl2": int(hkl2), "offset": fitted[0] - bragg,
-                     "fwhm": fitted[1]}
+                    {
+                        "sub_run": sub_run,
+                        "powder": standard.name,
+                        "hkl2": int(hkl2),
+                        "offset": fitted[0] - bragg,
+                        "fwhm": fitted[1],
+                    }
                 )
     return peaks
 
@@ -363,6 +379,97 @@ def cmd_score(args: argparse.Namespace) -> None:
             wedge = np.asarray(fit.get_alignment_residual(vector.copy()))
             scores["fitcal_rmse"] = float(np.sqrt(np.mean(wedge**2)))
         result("score", run=Path(args.run).name, label=label, **scores, peaks=peaks)
+
+
+# --- hold-out (#1074) ---------------------------------------------------------------------------------------
+
+
+def split_sub_runs(workspace, split: str, fit_group: int) -> Tuple[List[int], List[int]]:
+    """Sub-runs ordered by arm angle, split into the fitted group and the held-out one."""
+    sub_runs = sorted(workspace.get_sub_runs(), key=lambda s: float(workspace.get_detector_2theta(s)))
+    if split == "one-out":
+        if not 0 <= fit_group < len(sub_runs):
+            raise ValueError(f"one-out index must be 0 to {len(sub_runs) - 1}, got {fit_group}")
+        held = sub_runs[fit_group]
+        return [int(s) for s in sub_runs if s != held], [int(held)]
+    if split == "alternate":
+        groups = (sub_runs[0::2], sub_runs[1::2])
+    else:
+        half = len(sub_runs) // 2
+        groups = (sub_runs[:half], sub_runs[half:])
+    return [int(s) for s in groups[fit_group]], [int(s) for s in groups[1 - fit_group]]
+
+
+def restricted_fit(run: str, mask: Optional[str], sub_runs: Sequence[int]):
+    """FitCalibration over only ``sub_runs`` (others are neither reduced nor fitted)."""
+    fit = fit_calibration(run, mask)
+    keep = np.isin(np.asarray(fit.sub_runs), list(sub_runs))
+    fit.set_keep_subrun_list(np.logical_and(keep, fit._keep_subrun_list))
+    return fit
+
+
+def cmd_holdout(args: argparse.Namespace) -> None:
+    from pyrs.calibration.pixel_pos_calibration import PixelCalibration, calibrate_rings, extract_ring_points
+    from pyrs.core.detector_model import to_shift
+
+    out = Path(args.output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    workspace = convert(args.run, args.mask)
+    mono = mono_wavelength(workspace)
+    group_a, group_b = split_sub_runs(workspace, args.split, args.fit_group)
+    label = f"{Path(args.run).name.split('.')[0]}_{args.split}_fit{args.fit_group}"
+
+    began = time.time()
+    full = calibrate_rings(workspace, mono)  # reference, and the geometry the scoring points are extracted at
+    ring_a = calibrate_rings(workspace, mono, sub_runs=group_a)
+    ring_a.estimate_errors()  # do the fitted sub-runs alone determine every parameter?
+    ring_a.write_calibration(out / f"{label}_ring.json")
+    ring_seconds = time.time() - began
+
+    began = time.time()
+    clean = restricted_fit(args.run, args.mask, group_a)
+    clean.set_calibration_array(ring_a.calibration_array.copy())
+    clean.FullCalibration()
+    clean.write_calibration(str(out / f"{label}_cleanup.json"))
+    cleanup_seconds = time.time() - began
+
+    candidates = {
+        "ring_A": ring_a.calibration_array.copy(),
+        "cleanup_A": np.asarray(clean.get_calib(), dtype=float),
+        "ring_all": full.calibration_array.copy(),
+    }
+    values = full.calibration_array
+    scores: Dict[str, Dict[str, float]] = {name: {} for name in candidates}
+    for group_name, group in (("A", group_a), ("B", group_b)):
+        points = extract_ring_points(
+            workspace, float(values[7]), calibration=to_shift(values[:7]), strips=5, sub_runs=group
+        )
+        ring_cost = PixelCalibration(points, workspace.get_instrument_setup(), wavelength=float(values[7]))
+        wedge_cost = restricted_fit(args.run, args.mask, group)
+        for name, vector in candidates.items():
+            residual = ring_cost.residual(vector)
+            wedge = np.asarray(wedge_cost.get_alignment_residual(vector.copy()))
+            scores[name][f"ring_rmse_{group_name}"] = float(np.sqrt(np.mean(residual**2)))
+            scores[name][f"fitcal_rmse_{group_name}"] = float(np.sqrt(np.mean(wedge**2)))
+        scores["ring_A"][f"ring_points_{group_name}"] = len(points)
+    result(
+        "holdout",
+        run=Path(args.run).name,
+        split=args.split,
+        fit_group=args.fit_group,
+        sub_runs_A=group_a,
+        sub_runs_B=group_b,
+        arms_A=[float(workspace.get_detector_2theta(s)) for s in group_a],
+        arms_B=[float(workspace.get_detector_2theta(s)) for s in group_b],
+        ring_A_errors=list(ring_a.calibration_error_array),
+        ring_A_rounds=len(ring_a.extraction_rounds or []),
+        ring_A_converged=ring_a.extraction_converged,
+        cleanup_status=int(clean._calibstatus),
+        ring_seconds=ring_seconds,
+        cleanup_seconds=cleanup_seconds,
+        candidates={name: list(vector) for name, vector in candidates.items()},
+        scores=scores,
+    )
 
 
 # --- strain (C4) ---------------------------------------------------------------------------------------------
@@ -415,7 +522,11 @@ def main() -> None:
     ring.add_argument("--use-points", help="refine these ring points (.npz) instead of extracting them")
     ring.add_argument("--rounds", type=int, default=1, help="extraction + refinement rounds (C3)")
     ring.add_argument(
-        "--perturb", type=float, nargs=7, default=[0.0] * 7, metavar=("DX", "DY", "DZ", "RX", "RY", "RZ", "DLAM"),
+        "--perturb",
+        type=float,
+        nargs=7,
+        default=[0.0] * 7,
+        metavar=("DX", "DY", "DZ", "RX", "RY", "RZ", "DLAM"),
         help="start offsets: shifts (mm), rotations (deg), wavelength (fraction)",
     )
     ring.set_defaults(handler=cmd_ring)
@@ -459,6 +570,16 @@ def main() -> None:
     score.add_argument("--calibration", action="append", required=True, help="LABEL=FILE.json (repeatable)")
     score.add_argument("--no-fitcalibration", action="store_true")
     score.set_defaults(handler=cmd_score)
+
+    holdout = sub.add_parser("holdout")
+    holdout.add_argument("run")
+    holdout.add_argument("output_dir")
+    holdout.add_argument("--mask")
+    holdout.add_argument("--split", choices=("alternate", "halves", "one-out"), default="one-out")
+    holdout.add_argument(
+        "--fit-group", type=int, default=0, help="alternate/halves: 0 or 1; one-out: index of the held-out arm"
+    )
+    holdout.set_defaults(handler=cmd_holdout)
 
     strain = sub.add_parser("strain")
     strain.add_argument("run")
