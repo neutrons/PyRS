@@ -74,7 +74,8 @@ def run_calibration(
 
     Raises:
         FileNotFoundError: If the NeXus or mask file does not exist.
-        ValueError: If ``nexus_output`` is not a ``.nxs`` file (checked before the calibration runs).
+        ValueError: If ``nexus_output`` is not a ``.nxs`` file or is ``output`` itself (checked before the
+            calibration runs).
     """
     from pyrs.calibration.pixel_pos_calibration import DEFAULT_MAX_ROUNDS, calibrate_rings
     from pyrs.utilities.calibration_file_io import calibration_format
@@ -88,6 +89,8 @@ def run_calibration(
         raise FileNotFoundError(f"mask file {mask_file} does not exist; give --mask PATH or --no-mask")
     if nexus_output is not None and calibration_format(nexus_output) != "nexus":
         raise ValueError(f"--nexus must name a .nxs file, got {nexus_output!r}")
+    if nexus_output is not None and Path(nexus_output).resolve() == Path(output).resolve():
+        raise ValueError(f"--nexus names the output file {output!r} itself: -o {output!r} already writes it")
     if ring_points_file is not None:
         warnings.warn(
             "--ring-points (.npz) is deprecated and will be removed: write the NeXus calibration file with --nexus, "
@@ -135,7 +138,7 @@ def run_calibration(
         "iteration": {"passes": passes, "polish": polish, "errors": "estimate_errors, TTH_0 held"},
         "driver": "scripts/pyrs_pixel_calibration.py",
     }
-    calibration.write_calibration(output, inputs=inputs)
+    calibration.write_calibration(output, inputs=inputs, strip_fits=strip_fits)  # used if output is .nxs
     if nexus_output is not None:
         calibration.write_calibration(nexus_output, inputs=inputs, strip_fits=strip_fits)
     return calibration

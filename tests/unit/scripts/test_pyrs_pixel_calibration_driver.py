@@ -306,6 +306,33 @@ def test_main_nexus_must_be_nxs(driver, monkeypatch, synthetic_run, nexus_file, 
     assert status == 1 and ".nxs" in capsys.readouterr().err and not output.exists()
 
 
+def test_main_nexus_same_as_output_is_refused(driver, monkeypatch, synthetic_run, nexus_file, tmp_path, capsys):
+    """-o already writes the .nxs file: the same path twice is refused before the calibration runs (review)"""
+    # Arrange
+    _stub_conversion(monkeypatch, synthetic_run)
+    output = tmp_path / "cal.nxs"
+
+    # Act
+    status = driver.main([str(nexus_file), "-o", str(output), "--no-mask", "--nexus", str(output)])
+
+    # Assert
+    assert status == 1 and "--nexus" in capsys.readouterr().err and not output.exists()
+
+
+def test_main_nxs_output_holds_the_strip_fits(driver, monkeypatch, synthetic_run, nexus_file, tmp_path):
+    # Arrange
+    from pyrs.utilities.calibration_nexus import read_calibration_nexus_diagnostics
+
+    _stub_conversion(monkeypatch, synthetic_run)
+    output = tmp_path / "cal.nxs"
+
+    # Act
+    status = driver.main([str(nexus_file), "-o", str(output), "--no-mask", "--wavelength", "1.54"])
+
+    # Assert
+    assert status == 0 and "strip_fits" in read_calibration_nexus_diagnostics(str(output))["tables"]
+
+
 def test_ring_points_option_is_deprecated(driver, monkeypatch, synthetic_run, nexus_file, tmp_path):
     # Arrange
     _stub_conversion(monkeypatch, synthetic_run)

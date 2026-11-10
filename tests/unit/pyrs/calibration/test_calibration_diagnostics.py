@@ -1,11 +1,16 @@
 """Calibration diagnostics in the NeXus calibration file (#1054 phase 2): covariance, ring points, strip fits"""
 
+import json
+import warnings
+
 import h5py
 import numpy as np
 import pytest
 
 from pyrs.calibration import pixel_refinement
 from pyrs.calibration.pixel_pos_calibration import PixelCalibration, calibrate_rings
+from pyrs.calibration.mantid_peakfit_calibration import FitCalibration
+from pyrs.calibration.powder_standards import PowderStandard
 from pyrs.calibration.pixel_refinement import UNDETERMINED, _parameter_errors, _parameter_errors_and_covariance
 from pyrs.utilities.calibration_file_io import read_calibration_file
 from pyrs.utilities.calibration_nexus import read_calibration_nexus_diagnostics, write_calibration_nexus
@@ -83,6 +88,21 @@ def test_no_covariance_without_degrees_of_freedom():
     assert covariance is None and np.all(errors == UNDETERMINED)
 
 
+def test_no_ring_covariance_after_a_restart():
+    """set_calibration_array starts again: the earlier stages' covariance no longer describes it (review)"""
+    # Arrange
+    calibration = PixelCalibration(
+        synthetic_ring_points(default_hb2b_geometry(), TRUE_PARAMS), default_hb2b_geometry(), 1.54
+    )
+    calibration.FullCalibration()
+
+    # Act
+    calibration.set_calibration_array(TRUE_PARAMS)
+
+    # Assert
+    assert calibration.covariance is None
+
+
 def test_ring_covariance_is_the_last_stage():
     # Arrange
     calibration = PixelCalibration(
@@ -145,7 +165,21 @@ def test_nexus_and_json_hold_the_same_calibration(ring_with_fits, tmp_path):
     # Assert
     from_json, from_nexus = read_calibration_file(json_file), read_calibration_file(nexus_file)
     assert from_json[0].convert_to_dict() == from_nexus[0].convert_to_dict()
+    assert from_json[1].convert_to_dict() == from_nexus[1].convert_to_dict()  # the shift errors
     assert (from_json[2], from_json[3], int(from_json[4])) == (from_nexus[2], from_nexus[3], from_nexus[4])
+
+
+def test_other_extension_is_written_as_json(ring_with_fits, tmp_path):
+    """Only .nxs goes to NeXus: any other name is JSON, as before #1054 (review)"""
+    # Arrange
+    calibration, _ = ring_with_fits
+    path = tmp_path / "HB2B_cal.txt"
+
+    # Act
+    calibration.write_calibration(str(path))
+
+    # Assert
+    assert json.loads(path.read_text())["Lambda"] == calibration.calibration_array[7]
 
 
 def test_json_file_carries_no_diagnostics(ring_with_fits, tmp_path):
@@ -219,3 +253,52 @@ def test_patterns_round_trip(tmp_path):
         np.testing.assert_array_equal(read[key], pattern[key])
     with h5py.File(path, "r") as nexus:
         assert nexus["entry/calibration"].attrs["NX_class"] == "NXprocess"
+
+
+NICKEL = PowderStandard("Ni", "FCC", 3.523799438, 62.0)
+
+
+def _fit_calibration(final_peaks):
+    """A FitCalibration holding only what diagnostics() reads, without a run"""
+    fit = FitCalibration.__new__(FitCalibration)
+    fit._standards = [NICKEL]
+    fit._final_peaks = final_peaks
+    fit._covariance = None
+    return fit
+
+
+def test_peaks_table_holds_bragg_and_fitted_centers():
+    # Arrange - the 111 and 200 peaks of nickel, fitted 0.01 deg off Bragg
+    wavelength = 1.54
+    bragg = NICKEL.two_theta(wavelength)[:2]
+    labels = [(1, "Ni", "FCC", 3, "eta_0"), (1, "Ni", "FCC", 4, "eta_0")]
+    fit = _fit_calibration((np.full(2, 0.01), labels, np.full(2, 0.002), bragg + 0.01, wavelength))
+
+    # Act
+    peaks = fit.diagnostics()["tables"]["peaks"]
+
+    # Assert - Bragg from the standard's own physics, the fitted centers as fitted
+    np.testing.assert_allclose(peaks["bragg_two_theta"], bragg, rtol=1e-12)
+    np.testing.assert_array_equal(peaks["fitted_two_theta"], bragg + 0.01)
+    assert peaks["hkl_squared"] == [3, 4] and peaks["powder"] == ["Ni", "Ni"]
+
+
+def test_patterns_need_the_peaks_at_the_solution():
+    """Without a re-fit at the solution the last reduction is some other point: no patterns (review)"""
+    # Arrange
+    fit = _fit_calibration(None)
+    fit.reducer = object()  # never read
+
+    # Act
+    with pytest.warns(UserWarning, match="not re-fitted at the solution"):
+        diagnostics = fit.diagnostics(patterns=True)
+
+    # Assert
+    assert "patterns" not in diagnostics and diagnostics["tables"] == {}
+
+
+def test_no_patterns_asked_no_warning():
+    # Act / Assert
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert "patterns" not in _fit_calibration(None).diagnostics()

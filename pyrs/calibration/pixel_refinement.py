@@ -293,7 +293,9 @@ class PixelCalibration:
     def covariance(self) -> Optional[Tuple[Tuple[str, ...], np.ndarray]]:
         """The last stage's error covariance (#1054): its free parameters' names and the matrix in their units
         (NaN where undetermined), or None."""
-        if not self.stages or self.stages[-1].covariance is None:
+        if (
+            len(self.stages) <= self._start["first_stage"] or self.stages[-1].covariance is None
+        ):  # none since a restart
             return None
         return self.stages[-1].free_parameters, self.stages[-1].covariance.copy()
 
@@ -842,14 +844,13 @@ class PixelCalibration:
 
         Raises:
             RuntimeError: If nothing has been refined yet (reduction rejects ``Status`` < 0).
-            ValueError: If the extension is neither ``.json`` nor ``.nxs``.
         """
-        from pyrs.utilities.calibration_file_io import calibration_format, write_calibration_to_json
+        from pyrs.utilities.calibration_file_io import write_calibration_to_json
 
         if self._status < 0:
             raise RuntimeError("nothing has been refined: refusing to write a calibration with Status -1")
         values, errors = self._calib, self._caliberr
-        if calibration_format(file_name) == "nexus":
+        if str(file_name).lower().endswith(".nxs"):  # any other name is written as JSON, as before #1054
             from pyrs.utilities.calibration_nexus import write_calibration_nexus
 
             try:

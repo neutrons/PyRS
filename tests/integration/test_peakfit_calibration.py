@@ -388,15 +388,21 @@ def test_nexus_file_carries_the_fitted_peaks(tmp_path):
     # Assert - the same calibration as the JSON
     from_json, from_nexus = read_calibration_file(json_file), read_calibration_file(nexus_file)
     assert from_json[2] == from_nexus[2] and int(from_json[4]) == from_nexus[4]
-    # one peak per eta slice of the kept sub-run, at the solution: center = Bragg + residual, with its uncertainty
+    # one peak per eta slice of the kept sub-run, at the solution: center = Bragg + residual, with its uncertainty;
+    # Bragg from the powder standard at the refined wavelength
     masks = [str(mask) for mask in calibrator._hidra_ws.reduction_masks]
     peaks = diagnostics["tables"]["peaks"]
     assert diagnostics["method"] == "peak-fit" and sorted(peaks["eta_mask"]) == sorted(masks)
     assert set(peaks["sub_run"]) == {int(calibrator.sub_runs[0])}
     np.testing.assert_allclose(
-        np.asarray(peaks["fitted_two_theta"]) - np.asarray(peaks["bragg_two_theta"]), peaks["residual"], atol=1e-12
+        np.asarray(peaks["fitted_two_theta"]) - np.asarray(peaks["bragg_two_theta"]), peaks["residual"], atol=1e-9
     )
     assert np.all(np.asarray(peaks["uncertainty"]) > 0)
+    standards = {standard.name: standard for standard in calibrator._standards}
+    for powder, hkl_squared, bragg in zip(peaks["powder"], peaks["hkl_squared"], peaks["bragg_two_theta"]):
+        standard = standards[powder]
+        index = list(standard.hkl_squared).index(hkl_squared)
+        assert bragg == pytest.approx(standard.two_theta(from_json[2])[index], rel=1e-12)
     # the wavelength refinement's covariance: its variance is the written error squared
     names, matrix = diagnostics["covariance"]
     assert names == ("Lambda",)

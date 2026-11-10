@@ -15,7 +15,7 @@ from pyrs.calibration.pixel_refinement import (
 )
 from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
-from pyrs.utilities.calibration_file_io import calibration_format, write_calibration_to_json
+from pyrs.utilities.calibration_file_io import write_calibration_to_json
 from pyrs.utilities.calibration_nexus import write_calibration_nexus
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
@@ -295,7 +295,8 @@ class FitCalibration:
         self._fitting_ws.set_sub_runs(range(1, len(self._hidra_ws.reduction_masks) + 1))
 
         center_errors = np.array([])
-        center_uncertainties = np.array([])  # each fitted center's fit uncertainty, for the diagnostics (#1054)
+        center_uncertainties = np.array([])  # each fitted center and its fit uncertainty, for the diagnostics (#1054)
+        fitted_centers = np.array([])
         labels = []  # see _raw_labels
         self.fitted_ws = [None] * self.sub_runs.size
 
@@ -329,12 +330,14 @@ class FitCalibration:
                     centers = effective_values["Center"]
                     center_errors = np.concatenate((center_errors, centers - peak))
                     center_uncertainties = np.concatenate((center_uncertainties, effective_errors["Center"]))
+                    fitted_centers = np.concatenate((fitted_centers, centers))
                     labels += self._raw_labels(sub_run, in_range, len(_ws) - 1, np.size(centers))
 
                 self.fitted_ws[i_run] = _ws
 
         self._residual_labels = labels
         self._center_uncertainties = center_uncertainties
+        self._fitted_centers = fitted_centers
         return center_errors
 
     def _raw_labels(self, sub_run, in_range, i_peak, n_centers):
@@ -392,6 +395,8 @@ class FitCalibration:
         values and errors already come from ``least_squares``). Calls ``fit_peaks`` directly, so the
         residual history shown in the GUI is unchanged. If that fails, ``out.fun`` is kept with no labels.
         """
+        # a stand-in fit_peaks may set neither: then no earlier fit's peaks are paired with this residual
+        self._center_uncertainties = self._fitted_centers = None
         try:
             solution = np.copy(self._calib)
             solution[list(free) if free is not None else slice(None)] = out.x
@@ -402,12 +407,13 @@ class FitCalibration:
             return np.array(out.fun), None, out.x.size, f"least_squares residual; re-evaluation failed: {refit_err}"
         # the peaks at the solution, for the NeXus diagnostics (#1054); kept apart from the provenance's residual,
         # which must not depend on them
-        uncertainties = getattr(self, "_center_uncertainties", None)
-        if uncertainties is not None and np.size(uncertainties) == np.size(residual):
+        uncertainties, centers = self._center_uncertainties, self._fitted_centers
+        if uncertainties is not None and centers is not None and np.size(uncertainties) == np.size(residual):
             self._final_peaks = (
                 np.array(residual),
                 list(self._residual_labels),
                 np.array(uncertainties),
+                np.array(centers),
                 float(solution[7]),
             )
         else:
@@ -1037,8 +1043,9 @@ class FitCalibration:
         Parameters
         ----------
         patterns : bool
-            also the reduced patterns of the last reduction, per kept sub-run and eta slice; after a refinement
-            that is the one at the solution (a few MB)
+            also the reduced patterns at the solution, per kept sub-run and eta slice (a few MB); left out, with
+            a warning, if the peaks were not re-fitted there (no refinement yet, a brute-force grid search, or a
+            failed re-evaluation), because the last reduction is then some other point
 
         Returns
         -------
@@ -1051,10 +1058,10 @@ class FitCalibration:
         tables = {}
         final = getattr(self, "_final_peaks", None)
         if final is not None:
-            residual, labels, uncertainty, wavelength = final
+            residual, labels, uncertainty, centers, wavelength = final
             standards = {standard.name: standard for standard in self._standards}
             rows = []
-            for value, error, label in zip(residual, uncertainty, labels):
+            for value, error, center, label in zip(residual, uncertainty, centers, labels):
                 sub_run, powder, _, hkl_squared, mask = label if label is not None else (-1, "", "", -1, "")
                 standard = standards.get(powder)
                 if standard is not None and hkl_squared > 0:
@@ -1062,12 +1069,23 @@ class FitCalibration:
                     bragg = float(np.rad2deg(2 * np.arcsin(sin_theta)))
                 else:
                     bragg = np.nan
-                rows.append((int(sub_run), str(powder), int(hkl_squared), str(mask or ""), bragg, value, error))
-            columns = ("sub_run", "powder", "hkl_squared", "eta_mask", "bragg_two_theta", "residual", "uncertainty")
+                row = (int(sub_run), str(powder), int(hkl_squared), str(mask or ""), bragg, center, value, error)
+                rows.append(row)
+            columns = (
+                "sub_run",
+                "powder",
+                "hkl_squared",
+                "eta_mask",
+                "bragg_two_theta",
+                "fitted_two_theta",
+                "residual",
+                "uncertainty",
+            )
             tables["peaks"] = {name: [row[i] for row in rows] for i, name in enumerate(columns)}
-            tables["peaks"]["fitted_two_theta"] = list(np.asarray(tables["peaks"]["bragg_two_theta"]) + residual)
         result = {"method": "peak-fit", "covariance": self.covariance, "tables": tables}
-        if patterns and getattr(self, "reducer", None) is not None:
+        if patterns and final is None:
+            warnings.warn("the reduced patterns are left out: the peaks were not re-fitted at the solution")
+        elif patterns and getattr(self, "reducer", None) is not None:
             reduced = {}
             for keep, sub_run in zip(self._keep_subrun_list, self.sub_runs):
                 if not keep:
@@ -1220,7 +1238,7 @@ class FitCalibration:
             else:
                 print("User does not privilege to write to {}".format("/HFIR/HB2B/shared"))
 
-        elif calibration_format(file_name) == "nexus":
+        elif str(file_name).lower().endswith(".nxs"):
             if geometry is None:
                 raise ValueError("a NeXus calibration file needs the run's detector geometry; no run is loaded")
             try:
