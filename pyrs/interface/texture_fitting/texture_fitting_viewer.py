@@ -11,6 +11,7 @@ from qtpy.QtCore import Qt  # type: ignore
 
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView, GeneralDiffDataView
 from pyrs.interface.gui_helper import pop_message
+from pyrs.interface.texture_fitting.texture_fitting_model import TextureFittingModel
 from pyrs.utilities import get_input_project_file  # type: ignore
 
 import numpy as np
@@ -215,7 +216,7 @@ class SetupViz(QWidget):
         return self.sub_runs_list.text()
 
     def enable_polar_plot(self, dict_keys):
-        if (len(dict_keys) > 2) or self._parent.controller.texture_run():
+        if TextureFittingModel.eta_wedges(dict_keys) or self._parent.controller.texture_run():
             self.polar_bt.setVisible(True)
             self.shift_bt.setVisible(True)
 
@@ -272,12 +273,9 @@ class PlotSelect(QGroupBox):
         return self.plot_peakNum.currentText()
 
     def setup_out_of_plane_angle(self, dict_keys):
-        if len(dict_keys) > 2:
-            angles = []
-            for key in list(dict_keys):
-                if "_var" not in key:
-                    angles.append(key)
-
+        # the same wedges the controller fits, so the selection always names a fit (#1080)
+        angles = TextureFittingModel.eta_wedges(dict_keys)
+        if angles:
             self.out_of_plane.clear()
             self.out_of_plane.addItems(angles)
             self.oop_label.setVisible(True)
@@ -659,12 +657,9 @@ class FitSummaryView(QGroupBox):
             self.fit_table_operator.populate_fit_result_table()
 
     def setup_out_of_plane_angle(self, dict_keys):
-        if len(dict_keys) > 2:
-            angles = []
-            for key in list(dict_keys):
-                if "_var" not in key:
-                    angles.append(key)
-
+        # the same wedges the controller fits, so the selection always names a fit (#1080)
+        angles = TextureFittingModel.eta_wedges(dict_keys)
+        if angles:
             self.out_of_plane.clear()
             self.out_of_plane.addItems(angles)
             self.oop_label.setVisible(True)

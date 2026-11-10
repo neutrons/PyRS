@@ -139,9 +139,7 @@ class TextureFittingCrtl:
 
         fit_results = {}
 
-        # the named η-wedges; an unsplit file lists only its main mask (None since variance
-        # entries stopped being listed as masks, formerly "main" and "main_var")
-        wedges = [mask for mask in self._model.ws.reduction_masks if mask and "_var" not in mask]
+        wedges = self._model.eta_wedges(self._model.ws.reduction_masks)
 
         if not wedges:
             fit_results[""] = self._model.fit_diff_peaks(

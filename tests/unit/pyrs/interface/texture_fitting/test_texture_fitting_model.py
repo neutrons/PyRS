@@ -28,3 +28,24 @@ def test_save_without_loaded_file_reports_failure():
     # Assert
     assert len(failures) == 1
     assert "No project file is loaded" in failures[0][1]
+
+
+@pytest.mark.parametrize(
+    "reduction_masks, expected",
+    [
+        ([None], []),
+        ([], []),
+        ([None, "main_var"], []),
+        (["eta_-5.0", "eta_5.0"], ["eta_-5.0", "eta_5.0"]),
+        (["eta_0.0"], ["eta_0.0"]),
+        (["eta_-5.0", "eta_0.0", "eta_5.0"], ["eta_-5.0", "eta_0.0", "eta_5.0"]),
+    ],
+    ids=["unsplit", "no-data", "unsplit-with-variance", "two-wedges", "one-wedge", "three-wedges"],
+)
+def test_eta_wedges(reduction_masks, expected):
+    """Only named wedges count, however few: a two-wedge file is split (#1080)."""
+    # Act
+    wedges = TextureFittingModel.eta_wedges(reduction_masks)
+
+    # Assert
+    assert wedges == expected

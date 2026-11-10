@@ -2784,10 +2784,16 @@ Tests: `tests/integration/test_texture_fitting_save.py` (these work on a copy, n
   - Every `tests/data` project file is numbered 1..N, or 0..N-1 for `Hidra_16-1`, and those numbers
     are unchanged.
 
-**Found, not fixed:** the texture window decides whether a file is split with `len(masks) > 2`
-(`FitSummaryView` / `PlotSelect.setup_out_of_plane_angle`, `enable_polar_plot`). That is the same
-stale assumption from before `_var` stopped being listed. A file with exactly **two** η-wedges would
-hide its wedge drop-down, while the controller fits both wedges.
+**The texture window's wedge drop-down follows the controller.** The window used to decide
+whether a file is split with `len(masks) > 2` (`FitSummaryView` / `PlotSelect`
+`.setup_out_of_plane_angle`, `enable_polar_plot`). That is the same stale assumption from before
+`_var` stopped being listed.
+- A file with exactly one or two η-wedges hid its drop-down, while the controller fitted each wedge
+  under its own key. The hidden drop-down's selection `""` then named no fit.
+- Controller and window now share one rule, `TextureFittingModel.eta_wedges`: the named masks,
+  excluding `None` and `_var`. So the selection always names a fit.
+- Files with three or more wedges, and unsplit files, behave as before.
+- No computed value changes.
 
 Tests:
 - `tests/integration/test_peak_fitting_save.py`: a real fit; read back with `read_peak_parameters`

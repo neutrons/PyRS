@@ -144,6 +144,17 @@ class TextureFittingModel(QObject):
         return
 
     @staticmethod
+    def eta_wedges(reduction_masks):
+        """The named η-wedge masks of a file; empty for a file not split into wedges (#1080).
+
+        An unsplit file lists only its main mask, which the workspace names ``None``: ``[None]``
+        since variance entries stopped being listed as masks (4cab5d91), formerly
+        ``[None, "main_var"]``. The controller fits and the window offers exactly these wedges,
+        so a selected wedge always names a fit.
+        """
+        return [mask for mask in reduction_masks if mask and "_var" not in mask]
+
+    @staticmethod
     def saved_peak_tag(peak_tag, mask_key):
         """Peak tag under which one η-wedge's fit of a peak is saved (#1080).
 
