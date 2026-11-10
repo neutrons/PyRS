@@ -1,0 +1,12 @@
+# CodeRabbit configuration: https://docs.coderabbit.ai/reference/configuration
+# Automatic reviews were off (the dashboard default for this repository); this file turns them on.
+reviews:
+  auto_review:
+    enabled: true
+    # skip draft PRs (e.g. stacked ones) until they are marked ready for review
+    drafts: false
+    # PRs into these branches are reviewed
+    base_branches:
+      - next
+      - qa
+      - main
