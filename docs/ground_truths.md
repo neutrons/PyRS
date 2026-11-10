@@ -2875,3 +2875,34 @@ Tests:
 - `tests/unit/pyrs/utilities/test_input_project_file.py`
 - `tests/unit/pyrs/interface/combine_runs/test_combine_runs_crtl.py`
 - `tests/ui/test_merge_projectfiles.py::test_load_missing_run_number_reports`
+
+### #931 review follow-ups (2026-11-10, each approved separately)
+
+- **The texture window parses the run number once** and uses it for both the lookup and the file
+  name. `" 1060"` or `"01060"` used to pass the lookup (`HB2B_1060.h5`) and then load
+  `HB2B_01060.h5`, so #931's crash could still happen.
+- **Combine runs:**
+  - Run numbers are Python ints. `np.int16` overflowed above 32767.
+  - A range `a:b` (or `a;b`) **includes `b`**. It used `np.arange(a, b)`, so `1327:1332` stopped at
+    1331.
+  - A run that can't be found raises instead of being silently dropped (the old
+    `except FileNotFoundError: pass`). `loadRunNumbers` also catches `FileNotFoundError`, which is
+    raised when the `finddata` tool is missing.
+  - Fewer than two runs: "Select at least two runs to combine" instead of the export dialog, which
+    used to write the *previous* combination under the new name, or crash.
+  - `combine_project_files` forgets the previous combination first.
+  - A cancelled save dialog (`""`) writes nothing.
+- **NeXus lookup errors:** `finddata` exiting with an error (`CalledProcessError`) and an empty
+  `FileFinder` result (`IndexError`) now raise `RuntimeError`. The peak-fitting, texture and combine-runs
+  windows show it in a pop-up. So does manual reduction: its run-number path
+  (`_build_reduction_jobs` → `get_nexus_file`) now catches `RuntimeError` and `FileNotFoundError`.
+- **Combine runs, smaller fixes:**
+  - Cancelling the Browse dialog does nothing. It returns `[]`, not `None`, so it used to go on to load
+    (later, to the "select at least two runs" error).
+  - A range with more than two ends (`1327:1330:1332`) is refused with a clear message. Before, it
+    silently used the first two ends.
+  - The "fewer than two runs" branch also clears the chosen files, as the other error branches do.
+
+**Testing note:** combining by run number is now tested end to end on real data
+(`test_merge_projectfiles.py::test_combine_by_run_number`, 4 runs, 362 sub-runs). The lookup tests run
+the real lookup over a synthetic `shared/` tree; only `get_ipts_dir` is replaced.

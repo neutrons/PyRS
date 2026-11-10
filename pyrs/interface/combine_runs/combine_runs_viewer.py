@@ -43,12 +43,14 @@ class FileLoad(QWidget):
         self.setLayout(layout)
 
     def openFileDialog(self):
-        self._parent._project_files, _ = QFileDialog.getOpenFileNames(
+        files, _ = QFileDialog.getOpenFileNames(
             self, self.name, "", self.fileType, options=QFileDialog.DontUseNativeDialog
         )
+        if not files:
+            return  # cancelled: the dialog returns an empty list, not None
 
-        if self._parent._project_files is not None:
-            self.load_project_files()
+        self._parent._project_files = files
+        self.load_project_files()
 
     def saveFileDialog(self):
         if self._parent._project_files is not None:
@@ -61,7 +63,7 @@ class FileLoad(QWidget):
     def loadRunNumbers(self):
         try:
             self._parent._project_files = self._parent.controller.parse_entry_list(self.lineEdit.text())
-        except (RuntimeError, ValueError) as run_err:
+        except (FileNotFoundError, RuntimeError, ValueError) as run_err:
             # e.g. a run that has not been reduced yet (#931)
             pop_message(self, f"Failed to find run {self.lineEdit.text()}", str(run_err), "error")
             return
@@ -75,7 +77,7 @@ class FileLoad(QWidget):
         files = self._parent._project_files
         try:
             try:
-                self._parent.controller.load_combine_projects(files)
+                combined = self._parent.controller.load_combine_projects(files)
             except ReductionMismatchError as differences:
                 answer = QMessageBox.question(
                     self, "Different reductions", str(differences), QMessageBox.Yes | QMessageBox.No, QMessageBox.No
@@ -83,13 +85,18 @@ class FileLoad(QWidget):
                 if answer != QMessageBox.Yes:
                     self._parent._project_files = None
                     return
-                self._parent.controller.load_combine_projects(files, accept_reduction_differences=True)
+                combined = self._parent.controller.load_combine_projects(files, accept_reduction_differences=True)
         except CalibrationMismatchError as mismatch:
             pop_message(self, "Runs reduced with different calibrations", str(mismatch), "error")
             self._parent._project_files = None
             return
         except (FileNotFoundError, RuntimeError, ValueError) as run_err:
             pop_message(self, f"Failed to find run {files}", str(run_err), "error")
+            self._parent._project_files = None
+            return
+        if not combined:
+            # nothing was combined: exporting now would write an earlier combination, or crash (#931)
+            pop_message(self, "Select at least two runs to combine", f"Only {len(files or [])} chosen", "error")
             self._parent._project_files = None
             return
         for warning in self._parent.model.warnings:

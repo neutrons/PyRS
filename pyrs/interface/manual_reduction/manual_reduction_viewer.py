@@ -305,7 +305,12 @@ class ManualReductionViewer(QMainWindow):
             except ValueError as parse_err:
                 pop_message(self, "Invalid run specification '{}'".format(text), str(parse_err), message_type="error")
                 return []
-            return [(str(run), get_nexus_file(run)) for run in run_numbers]
+            try:
+                return [(str(run), get_nexus_file(run)) for run in run_numbers]
+            except (FileNotFoundError, RuntimeError) as run_err:
+                # e.g. an unknown run, or no `finddata` tool (deferred defect 3, #931)
+                pop_message(self, "Failed to find run {}".format(text), str(run_err), message_type="error")
+                return []
 
         # otherwise treat the input as a single NeXus file path
         nexus_file = text

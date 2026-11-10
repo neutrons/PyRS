@@ -152,3 +152,26 @@ def test_manual_reduction_subruns(tmpdir, manual_reduction_window):
         qtbot.wait(wait)
 
     window.hide()
+
+
+@pytest.mark.parametrize("error", [RuntimeError("No NeXus file found for HB2B_99999"), FileNotFoundError("finddata")])
+def test_unknown_run_number_reports(monkeypatch, manual_reduction_window, error):
+    """A run whose NeXus file cannot be found shows an error and builds no jobs (#931)."""
+    # Arrange
+    window, _ = manual_reduction_window
+    from pyrs.interface.manual_reduction import manual_reduction_viewer
+
+    def not_found(run_number):
+        raise error
+
+    shown = []
+    monkeypatch.setattr(manual_reduction_viewer, "get_nexus_file", not_found)
+    monkeypatch.setattr(manual_reduction_viewer, "pop_message", lambda *args, **kwargs: shown.append(args))
+    window.ui.lineEdit_runNumber.setText("99999")
+
+    # Act
+    jobs = window._build_reduction_jobs()
+
+    # Assert
+    assert jobs == []
+    assert len(shown) == 1 and "99999" in shown[0][1]

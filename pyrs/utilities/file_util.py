@@ -5,7 +5,7 @@ from mantid.kernel import amend_config
 import configparser
 import os
 from pathlib import Path
-from subprocess import check_output
+from subprocess import CalledProcessError, check_output
 from typing import Optional, Union
 
 __all__ = [
@@ -118,7 +118,11 @@ def get_temp_directory():
 
 def __run_finddata(runnumber):
     """This is a backup solution while the ...ORIG.nxs.h5 files are floating around"""
-    result = check_output(["finddata", "hb2b", str(runnumber)]).decode("utf-8").strip()
+    try:
+        result = check_output(["finddata", "hb2b", str(runnumber)]).decode("utf-8").strip()
+    except CalledProcessError as error:
+        # not a RuntimeError, so the windows' error pop-ups would not catch it (#931)
+        raise RuntimeError('Failed to find HB2B_{} using "finddata": {}'.format(runnumber, error)) from error
     if (not result) or (result == "None"):
         raise RuntimeError('Failed to find HB2B_{} using "finddata"'.format(runnumber))
     return result
@@ -222,7 +226,11 @@ def get_input_project_file(run_number, preferredType="manual"):
 def get_nexus_file(run_number):
     try:
         with amend_config(instrument="HB2B", facility="HFIR"):
-            nexus_file = FileFinder.findRuns("HB2B{}".format(run_number))[0]
+            found = FileFinder.findRuns("HB2B{}".format(run_number))
+        if not found:
+            # an empty result used to escape as IndexError, which the windows do not catch (#931)
+            raise RuntimeError("No NeXus file found for HB2B_{}".format(run_number))
+        nexus_file = found[0]
     except RuntimeError as e:
         print("ArchiveSearch failed:", e)
         nexus_file = __run_finddata(run_number)

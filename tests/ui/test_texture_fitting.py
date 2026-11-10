@@ -7,6 +7,7 @@ from qtpy import QtCore, QtWidgets
 import numpy as np
 import functools
 import os
+import shutil
 import json
 import pytest
 
@@ -213,3 +214,24 @@ def test_out_of_plane_choice_follows_wedges(texture_fitting_window, masks, expec
         angles = [view.out_of_plane.itemText(i) for i in range(view.out_of_plane.count())]
         assert angles == expected_angles
         assert view.out_of_plane.isHidden() is not bool(expected_angles)
+
+
+@pytest.mark.parametrize("typed", [" 1599", "01599"])
+def test_load_run_number_padded_text(tmp_path, monkeypatch, texture_fitting_window, typed):
+    """A padded run number loads HB2B_1599.h5, the file the lookup checked (#931)."""
+    # Arrange
+    window, _ = texture_fitting_window
+    autoreduce = tmp_path / "shared" / "autoreduce"
+    autoreduce.mkdir(parents=True)
+    shutil.copy("tests/data/HB2B_1599.h5", autoreduce)
+    monkeypatch.setattr("pyrs.utilities.file_util.get_ipts_dir", lambda run_number: tmp_path)
+    loader = window.fileLoading.file_load_run_number
+    loaded = []
+    monkeypatch.setattr(loader, "load_project_plot", lambda: loaded.append(window._project_file))
+    loader.lineEdit.setText(typed)
+
+    # Act
+    loader.loadRunNumber()
+
+    # Assert
+    assert loaded == [str(autoreduce / "HB2B_1599.h5")]

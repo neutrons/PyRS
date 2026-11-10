@@ -24,6 +24,10 @@ class CombineRunsModel(QObject):
         them); either way nothing is combined. Historic files without a record are combined, and
         :attr:`warnings` names them.
         """
+        # forget the previous combination first, so a refused or failed combine can't be exported as it
+        self._hidra_ws = None
+        self._record = None
+        self.warnings = []
         sources = []
         for file_name in project_files:
             project = HidraProjectFile(file_name)
