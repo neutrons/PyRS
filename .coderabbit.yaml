@@ -5,8 +5,9 @@ reviews:
     enabled: true
     # skip draft PRs (e.g. stacked ones) until they are marked ready for review
     drafts: false
-    # PRs into these branches are reviewed
+    # PRs into these branches are reviewed. The patterns are regular expressions,
+    # anchored so that e.g. "qa" does not also match "qa-integration".
     base_branches:
-      - next
-      - qa
-      - main
+      - "^next$"
+      - "^qa$"
+      - "^main$"
