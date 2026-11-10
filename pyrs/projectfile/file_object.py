@@ -964,16 +964,11 @@ class HidraProjectFile:
         return samplelogs
 
     def read_run_number(self) -> int:
-        """The file's run number: -1 if it is missing or the file combines several runs.
-
-        -1 for combined runs matches what the peak-fit engine records for appended runs, so peaks
-        saved into a combined file can be read back (#1080).
-        """
         try:
             values = self.read_log_value("run_number")
             values_set = set(values[()].astype(int))
             if len(values_set) > 1:
-                return -1
+                raise RuntimeError("more than one run number: {}".format(values_set))
             return values_set.pop()
         except KeyError:
             # field is missing
@@ -1398,30 +1393,57 @@ class HidraProjectFile:
         self.set_attributes(single_peak_entry, HidraConstants.PEAK_PROFILE, peak_profile)
         self.set_attributes(single_peak_entry, HidraConstants.BACKGROUND_TYPE, background_type)
 
-        # Create or replace each dataset; see _write_peak_dataset
-        self._write_peak_dataset(single_peak_entry, HidraConstants.SUB_RUNS, fitted_peaks.sub_runs)
+        # Create or replace each dataset as appropriate
+        if HidraConstants.SUB_RUNS not in single_peak_entry:
+            single_peak_entry.create_dataset(HidraConstants.SUB_RUNS, data=fitted_peaks.sub_runs)
+        else:
+            single_peak_entry[HidraConstants.SUB_RUNS][...] = fitted_peaks.sub_runs
 
-        self._write_peak_dataset(single_peak_entry, HidraConstants.PEAK_FIT_CHI2, fitted_peaks.fitting_costs)
+        if HidraConstants.PEAK_FIT_CHI2 not in single_peak_entry:
+            single_peak_entry.create_dataset(HidraConstants.PEAK_FIT_CHI2, data=fitted_peaks.fitting_costs)
+        else:
+            single_peak_entry[HidraConstants.PEAK_FIT_CHI2][...] = fitted_peaks.fitting_costs
 
-        self._write_peak_dataset(single_peak_entry, HidraConstants.EXCLUDE_PEAKS, fitted_peaks.exclude)
+        if HidraConstants.EXCLUDE_PEAKS not in single_peak_entry:
+            single_peak_entry.create_dataset(HidraConstants.EXCLUDE_PEAKS, data=fitted_peaks.exclude)
+        else:
+            single_peak_entry[HidraConstants.EXCLUDE_PEAKS][...] = fitted_peaks.exclude
 
         peak_values, peak_errors = fitted_peaks.get_native_params()
-        self._write_peak_dataset(single_peak_entry, HidraConstants.PEAK_PARAMS, peak_values)
+        if HidraConstants.PEAK_PARAMS not in single_peak_entry:
+            single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS, data=peak_values)
+        else:
+            single_peak_entry[HidraConstants.PEAK_PARAMS][...] = peak_values
 
-        self._write_peak_dataset(single_peak_entry, HidraConstants.PEAK_PARAMS_ERROR, peak_errors)
+        if HidraConstants.PEAK_PARAMS_ERROR not in single_peak_entry:
+            single_peak_entry.create_dataset(HidraConstants.PEAK_PARAMS_ERROR, data=peak_errors)
+        else:
+            single_peak_entry[HidraConstants.PEAK_PARAMS_ERROR][...] = peak_errors
 
         effective_peak_values, effective_peak_errors = fitted_peaks.get_effective_params()
-        self._write_peak_dataset(single_peak_entry, HidraConstants.EFFECTIVE_PEAK_PARAMS, effective_peak_values)
+        if HidraConstants.EFFECTIVE_PEAK_PARAMS not in single_peak_entry:
+            single_peak_entry.create_dataset(HidraConstants.EFFECTIVE_PEAK_PARAMS, data=effective_peak_values)
+        else:
+            single_peak_entry[HidraConstants.EFFECTIVE_PEAK_PARAMS][...] = effective_peak_values
 
-        self._write_peak_dataset(single_peak_entry, HidraConstants.EFFECTIVE_PEAK_PARAMS_ERROR, effective_peak_errors)
+        if HidraConstants.EFFECTIVE_PEAK_PARAMS_ERROR not in single_peak_entry:
+            single_peak_entry.create_dataset(HidraConstants.EFFECTIVE_PEAK_PARAMS_ERROR, data=effective_peak_errors)
+        else:
+            single_peak_entry[HidraConstants.EFFECTIVE_PEAK_PARAMS_ERROR][...] = effective_peak_errors
 
         # Reference peak center in dSpacing: (strain)
         ref_d_array, ref_d_errors = fitted_peaks.get_d_reference()
         if isinstance(ref_d_array, numpy.ndarray):
             # if reference peak position in D is set
-            self._write_peak_dataset(single_peak_entry, HidraConstants.D_REFERENCE, ref_d_array)
+            if HidraConstants.D_REFERENCE not in single_peak_entry:
+                single_peak_entry.create_dataset(HidraConstants.D_REFERENCE, data=ref_d_array)
+            else:
+                single_peak_entry[HidraConstants.D_REFERENCE][...] = ref_d_array
 
-            self._write_peak_dataset(single_peak_entry, HidraConstants.D_REFERENCE_ERROR, ref_d_errors)
+            if HidraConstants.D_REFERENCE_ERROR not in single_peak_entry:
+                single_peak_entry.create_dataset(HidraConstants.D_REFERENCE_ERROR, data=ref_d_errors)
+            else:
+                single_peak_entry[HidraConstants.D_REFERENCE_ERROR][...] = ref_d_errors
         else:
             raise RuntimeError("Unexpected type for reference d-values")
 
@@ -1708,23 +1730,6 @@ class HidraProjectFile:
         """
         if not self._is_writable:
             raise RuntimeError("Project file {} is set to read-only by user".format(self._project_h5.name))
-
-    @staticmethod
-    def _write_peak_dataset(peak_entry, name, data):
-        """Write ``data`` as ``peak_entry[name]``, replacing a dataset of another dtype or shape.
-
-        Assigning in place to an existing dataset silently keeps the old fields when the compound
-        dtype differs (a peak re-fitted with another profile or background) and raises when the
-        shape differs (another number of sub-runs), so such a dataset is recreated (#1080).
-        """
-        data = numpy.asarray(data)
-        if name in peak_entry:
-            existing = peak_entry[name]
-            if existing.dtype == data.dtype and existing.shape == data.shape:
-                existing[...] = data
-                return
-            del peak_entry[name]
-        peak_entry.create_dataset(name, data=data)
 
     @staticmethod
     def set_attributes(h5_group, attribute_name, attribute_value):
