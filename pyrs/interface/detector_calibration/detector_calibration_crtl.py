@@ -37,9 +37,9 @@ class DetectorCalibrationCrtl:
 
         return tth_bins, eta_bins
 
-    def export_calibration(self, folder, write_shared=True):
-        """Write the calibration to ``folder`` and, with ``write_shared``, the shared HB2B copies; returns the files."""
-        return self._model.export_calibration(folder, write_shared=write_shared)
+    def export_calibration(self, folder=None, latest=False, latest_mono=False, archive=False):
+        """Write the calibration to the chosen targets (the model's ``export_calibration``, #1087); returns the files."""
+        return self._model.export_calibration(folder, latest=latest, latest_mono=latest_mono, archive=archive)
 
     def set_method(self, method):
         self._model.set_method(method)
