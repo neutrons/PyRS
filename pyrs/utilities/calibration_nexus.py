@@ -184,6 +184,22 @@ def _group(root: NXgroup, path: str) -> Optional[NXgroup]:
     return child if isinstance(child, NXgroup) else None
 
 
+def _field(group: Any, path: str, file_name: str) -> Optional[NXfield]:
+    """The data field at ``path``, or None if it is missing; ValueError if a group stands where the field belongs
+    (it has no data: reading it would raise AttributeError, which callers do not expect)."""
+    child = _child(group, path)
+    if child is not None and not isinstance(child, NXfield):
+        raise ValueError(f"{file_name}: {path} is a {type(child).__name__}, expected a data field")
+    return child
+
+
+def _metres(field: NXfield, name: str, file_name: str) -> None:
+    """ValueError unless ``field`` is in metres: the reader does not convert units (#1054 review)."""
+    units = _text(field.attrs.get("units"))
+    if units != "m":
+        raise ValueError(f"{file_name}: {name} has units {units!r}, expected 'm'")
+
+
 def _text(value: Any) -> Any:
     """A string as ``str``: bytes decoded, a one-element array (as other tools write) unwrapped."""
     if isinstance(value, np.ndarray) and value.size == 1:
@@ -207,12 +223,12 @@ def _check_chain(root: NXgroup, file_name: str) -> NXgroup:
     if detector is None or transformations is None:
         raise RuntimeError(f"{file_name}: no {_TRANSFORMATIONS} group; not a PyRS NeXus calibration file")
     first = "transformations/" + CALIBRATION_TRANSFORMATIONS[0][0]
-    field = _child(detector, "depends_on")
+    field = _field(detector, "depends_on", file_name)
     depends_on = _text(field.nxdata) if field is not None else None
     if depends_on != first:
         raise ValueError(f"{file_name}: the detector depends_on {depends_on!r}, expected {first!r}")
     for index, (name, transformation_type, vector, units, _) in enumerate(CALIBRATION_TRANSFORMATIONS):
-        field = _child(transformations, name)
+        field = _field(transformations, name, file_name)
         if field is None:
             raise RuntimeError(f"{file_name}: transformation {name!r} is missing")
         expected_next = (
@@ -230,6 +246,10 @@ def _check_chain(root: NXgroup, file_name: str) -> NXgroup:
                 f"{file_name}: transformation {name!r} is {found}, expected "
                 f"{(transformation_type, vector, units, expected_next)}; it would be applied differently"
             )
+        # NeXus's optional offset displaces where a transformation acts; DetectorModel has none (#1054 review)
+        offset = np.asarray(attrs.get("offset", 0.0), dtype=float)
+        if np.any(offset != 0):
+            raise ValueError(f"{file_name}: transformation {name!r} has offset {offset.tolist()}; PyRS applies none")
     arm = _scalar(transformations["arm_rotation"], file_name)
     if arm != 0.0:
         raise ValueError(f"{file_name}: arm_rotation is {arm}, expected 0 (the arm angle belongs to each sub-run)")
@@ -247,10 +267,15 @@ def _read_geometry(root: NXgroup, file_name: str) -> DENEXDetectorGeometry:
         ("y_pixel_size", detector),
         ("arm_length", transformations),
     ):
-        field = None if group is None else _child(group, name)
+        field = None if group is None else _field(group, name, file_name)
         if field is None:
             raise ValueError(f"{file_name}: missing {name}")
+        _metres(field, name, file_name)
         fields[name] = field
+    # DetectorModel's detector is flat: out-of-plane pixel offsets could not be applied (#1054 review)
+    z_offsets = None if detector is None else _field(detector, "z_pixel_offset", file_name)
+    if z_offsets is not None and np.any(np.asarray(z_offsets.nxdata, dtype=float) != 0):
+        raise ValueError(f"{file_name}: non-zero z_pixel_offset; PyRS's detector is flat")
     x_offsets = np.asarray(fields["x_pixel_offset"].nxdata, dtype=float)
     y_offsets = np.asarray(fields["y_pixel_offset"].nxdata, dtype=float)
     pixel_x = float(_scalar(fields["x_pixel_size"], file_name))
@@ -286,7 +311,8 @@ def read_calibration_nexus(
     Raises:
         RuntimeError: If the file is not a PyRS NeXus calibration file (a group or value is missing).
         ValueError: If it would be applied differently from how this PyRS writes it: another transformation
-            chain, a non-zero ``arm_rotation``, or another pixel layout.
+            chain, a transformation ``offset``, a non-zero ``arm_rotation``, another pixel layout, non-zero
+            ``z_pixel_offset``, lengths not in metres, or a group where a data field belongs.
         OSError: If it is not an HDF5 file.
     """
     checkdatatypes.check_file_name(calibration_file_name, True, False, False, "NeXus calibration file")
@@ -298,14 +324,14 @@ def read_calibration_nexus(
         for name, _, _, _, parameter in CALIBRATION_TRANSFORMATIONS:
             if parameter is None:
                 continue
-            error = _child(transformations, name + "_errors")
+            error = _field(transformations, name + "_errors", calibration_file_name)
             if error is None:
                 raise RuntimeError(f"{calibration_file_name}: {name}_errors is missing")
             values[parameter] = float(_scalar(transformations[name], calibration_file_name))
             errors[parameter] = float(_scalar(error, calibration_file_name))
         fields = {}
         for path in (_MONOCHROMATOR + "/wavelength", _MONOCHROMATOR + "/wavelength_errors", _NOTE + "/status"):
-            field = _child(root, path)
+            field = _field(root, path, calibration_file_name)
             if field is None:
                 raise RuntimeError(f"{calibration_file_name}: missing {path}")
             fields[path] = field
@@ -332,11 +358,11 @@ def read_calibration_nexus_provenance(calibration_file_name: str) -> Optional[Di
     """The provenance of a NeXus calibration file (#1053), or None if it has none.
 
     Raises:
-        ValueError: If the stored provenance is not valid JSON.
+        ValueError: If the stored provenance is not valid JSON, or is a group rather than a data field.
     """
     checkdatatypes.check_file_name(calibration_file_name, True, False, False, "NeXus calibration file")
     with _open(calibration_file_name) as root:
-        data = _child(root, _NOTE + "/data")
+        data = _field(root, _NOTE + "/data", calibration_file_name)
         if data is None:
             return None
         provenance = json.loads(_text(data.nxdata))
@@ -347,8 +373,8 @@ def read_calibration_nexus_geometry(calibration_file_name: str) -> DENEXDetector
     """The detector geometry a NeXus calibration file is valid for.
 
     Raises:
-        ValueError: If the detector's pixel layout or arm length is missing, malformed, or not PyRS's pixel
-            layout (as the JSON geometry reader's errors, so ``HidraSetup`` notes it and reduction goes on).
+        ValueError: If the detector's pixel layout or arm length is missing, malformed (not in metres, a
+            non-zero ``z_pixel_offset``, a group where a field belongs), or not PyRS's pixel layout (as the JSON geometry reader's errors, so ``HidraSetup`` notes it and reduction goes on).
     """
     checkdatatypes.check_file_name(calibration_file_name, True, False, False, "NeXus calibration file")
     with _open(calibration_file_name) as root:
