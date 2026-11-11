@@ -1,8 +1,12 @@
+from pathlib import Path
+from typing import Any, Dict, List, cast
+
 from qtpy.QtCore import Signal, QObject  # type:ignore
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.calibration.provenance import file_record
 from pyrs.projectfile import HidraProjectFile  # type: ignore
 from pyrs.projectfile.file_object import combine_reduction_records
+from pyrs.utilities.NXstress.NXstress import NXstress
 
 
 class CombineRunsModel(QObject):
@@ -15,7 +19,7 @@ class CombineRunsModel(QObject):
         self._record = None  # the combined files' calibration record, for the exported file (#1063)
         self.warnings = []  # e.g. files whose calibration could not be checked
 
-    def combine_project_files(self, project_files, accept_reduction_differences=False):
+    def combine_project_files(self, project_files: List[str], accept_reduction_differences: bool = False) -> None:
         """Combine reduced project files, refusing files reduced with different calibrations (#1063).
 
         The files' calibration records are checked before anything is loaded: different calibrations
@@ -27,7 +31,8 @@ class CombineRunsModel(QObject):
         sources = []
         for file_name in project_files:
             project = HidraProjectFile(file_name)
-            source = file_record(file_name)
+            # a path is always given, so `file_record` never returns None here
+            source = cast(Dict[str, Any], file_record(file_name))
             source["record"] = project.read_reduction_provenance()
             project.close()
             sources.append(source)
@@ -47,7 +52,18 @@ class CombineRunsModel(QObject):
         self._record = record
         self.warnings = [record["warning"]] if record.get("warning") else []
 
-    def export_project_files(self, fileout):
+    def export_project_files(self, fileout: str) -> None:
+        if Path(fileout).suffix == ".nxs":
+            # peakss is always [] for this viewer -- CombineRunsModel has no
+            # PeakCollection concept, only merges/exports raw/reduced diffraction
+            # data. Already a valid, no-op-safe input: _Peaks.validateNoDuplicatePeaks([])
+            # / _Fit.validateWorkspaceAndPeaksData(ws, []) both no-op, and
+            # _Peaks.init_group([], ...) / _Fit.init_group(ws, [], ...) both produce
+            # a valid, empty PEAKS/FIT group rather than raising.
+            with NXstress(Path(fileout), "w") as nx:
+                nx.write(self._hidra_ws, [])
+            return
+
         export_project = HidraProjectFile(fileout, "w")
         self._hidra_ws.save_experimental_data(
             export_project, sub_runs=self._hidra_ws._sample_logs.subruns, ignore_raw_counts=True

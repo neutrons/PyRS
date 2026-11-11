@@ -13,23 +13,39 @@ view-side collaborators, instantiated with this window as their ``parent``.
 """
 
 import os
+from pathlib import Path
+from typing import List, Optional
 
 import numpy as np
+from nexusformat.nexus import NeXusError
 from qtpy import QtGui  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 from qtpy.QtGui import QCursor  # type:ignore
-from qtpy.QtWidgets import QApplication, QMainWindow, QMenu, QTableWidgetItem, QVBoxLayout  # type:ignore
+from qtpy.QtWidgets import QApplication, QMainWindow, QMenu, QTableWidgetItem, QVBoxLayout, QWidget  # type:ignore
 
 import pyrs.icons
 import pyrs.interface.gui_helper
-from pyrs.interface.gui_helper import browse_dir, browse_file, parse_integers, pop_message
+from pyrs.interface.gui_helper import (
+    browse_dir,
+    browse_file,
+    nxstress_save_available,
+    parse_integers,
+    pop_message,
+    report_save_failure,
+    resolve_save_target,
+    write_nxstress_or_report,
+)
 from pyrs.interface.peak_fitting.fit_table import FitTable
 from pyrs.interface.peak_fitting.gui_utilities import GuiUtilities
+from pyrs.interface.peak_fitting.peak_fitting_crtl import PeakFittingCrtl
+from pyrs.interface.peak_fitting.peak_fitting_model import PeakFittingModel
+from pyrs.interface.peak_fitting.peak_tags import peak_tags_from_labels
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView, PeakFitSetupView
 from pyrs.interface.ui.rstables import FitResultTable
 from pyrs.utilities import get_input_project_file  # type: ignore
 from pyrs.utilities import load_ui  # type: ignore
+from pyrs.utilities.config import Config
 
 # Splitter/icon images are loaded from disk rather than a compiled Qt resource
 # module, since pyrcc-generated modules hard-code a single PyQt major version.
@@ -47,7 +63,9 @@ ANGSTROMS = "Å"
 class PeakFittingViewer(QMainWindow):
     """GUI window for fitting peaks (Model-View-Presenter view component)."""
 
-    def __init__(self, fit_peak_model, fit_peak_ctrl, parent=None):
+    def __init__(
+        self, fit_peak_model: PeakFittingModel, fit_peak_ctrl: PeakFittingCrtl, parent: Optional[QWidget] = None
+    ) -> None:
         """
         Args:
             fit_peak_model: The :class:`PeakFittingModel` instance.
@@ -62,7 +80,7 @@ class PeakFittingViewer(QMainWindow):
         # View-side state
         self.current_hidra_file_name = ""
         self.current_root_statusbar_message = ""
-        self._sample_log_names = list()
+        self._sample_log_names: List[str] = list()
         self._advanced_fit_dialog = None
 
         # set up UI: load_ui resolves by basename to pyrs/interface/designer/
@@ -112,6 +130,7 @@ class PeakFittingViewer(QMainWindow):
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionSave.triggered.connect(self.save)
         self.ui.actionSaveAs.triggered.connect(self.save_as)
+        self.ui.actionSaveAsNXstress.triggered.connect(self.save_as_nxstress)
         self.ui.pushButton_exportCSV.clicked.connect(self.export_csv)
         # self.ui.actionQuick_Fit_Result_Check.triggered.connect(self.do_make_movie)
         self.ui.lineEdit_subruns_2dplot.returnPressed.connect(self.list_subruns_2dplot_returned)
@@ -185,10 +204,34 @@ class PeakFittingViewer(QMainWindow):
     # ------------------------------------------------------------------
     # Save / load files
     # ------------------------------------------------------------------
-    def save(self):
-        self._model.save_fit_result(self.current_hidra_file_name)
+    def save(self) -> None:
+        """File > Save: write the fit result back to the loaded project file."""
+        target = self.current_hidra_file_name
+        if isinstance(target, list):
+            target = target[0]
+        if Path(target).suffix == Config["nxstress.extension"]:
+            # The same conditions as *Save as NXstress...*.
+            if not nxstress_save_available(self._model.hidra_workspace):
+                pop_message(
+                    self,
+                    "Unable to save as NXstress",
+                    "NXstress output is switched off ('nxstress.enable'), or the workspace has no instrument geometry.",
+                    "error",
+                )
+                return
+            if self._model.fit_result is None:
+                pop_message(self, "No fitted peaks to save", "Fit peaks before saving as NXstress.", "error")
+                return
+            # Never in place: an NXstress write truncates its target on open, so a
+            # failed save would destroy the file that was loaded.
+            write_nxstress_or_report(self, target, self._model.save_fit_result)
+            return
+        try:
+            self._model.save_fit_result(target)
+        except (OSError, RuntimeError, ValueError) as save_err:
+            report_save_failure(self, target, save_err)
 
-    def save_as(self):
+    def save_as(self) -> None:
         out_file_name = browse_file(
             self,
             caption="Choose a file to save fitted peaks to",
@@ -196,13 +239,46 @@ class PeakFittingViewer(QMainWindow):
             file_filter="H5 (*.h5);;HDF (*.hdf5)",
             save_file=True,
         )
+        if not out_file_name:
+            return  # user clicked cancel
 
+        target = resolve_save_target(
+            self,
+            out_file_name,
+            extension=Config["legacy_io.extension"],
+            format_name="HidraProjectFile",
+            also_accepted=(".hdf5",),
+        )
+        if target is None:
+            return
+        # Reported rather than raised: an exception escaping a Qt slot aborts PyRS
+        # (see docs/ground_truths.md). `ValueError` includes the refusal to save a
+        # project loaded from NXstress in the legacy format.
         try:
-            if not (out_file_name.endswith(".hdf5") or out_file_name.endswith(".h5")):
-                out_file_name += ".h5"
-            self._model.save_fit_result(out_file_name)
-        except AttributeError:
-            pass
+            self._model.save_fit_result(target)
+        except (OSError, RuntimeError, ValueError) as save_err:
+            report_save_failure(self, target, save_err)
+
+    def save_as_nxstress(self) -> None:
+        # Backstop only: the action is disabled whenever this would fail for want
+        # of instrument geometry (see `_update_nxstress_action`).
+        if not self.ui.actionSaveAsNXstress.isEnabled():
+            return
+        if self._model.fit_result is None:
+            pop_message(self, "No fitted peaks to save", "Fit peaks before saving as NXstress.", "error")
+            return
+
+        out_file_name = browse_file(
+            self,
+            caption="Choose a file to save fitted peaks to (NXstress)",
+            default_dir=self._model.working_dir,
+            file_filter="NXstress (*.nxs)",
+            save_file=True,
+        )
+        if not out_file_name:
+            return  # user clicked cancel
+
+        write_nxstress_or_report(self, out_file_name, self._model.save_fit_result)
 
     def load_run_number(self):
         runs = parse_integers(self.ui.lineEdit_expNumber.text())
@@ -217,16 +293,15 @@ class PeakFittingViewer(QMainWindow):
 
         hidra_file_name = [os.path.join(project_dir[i_run], f"HB2B_{runs[i_run]}.h5") for i_run in range(len(runs))]
 
-        self.current_hidra_file_name = hidra_file_name
         self.load_and_plot(hidra_file_name)
         try:
             self._do_plot_1d()
         except AttributeError:
             pass
 
-    def browse_hdf(self):
+    def browse_hdf(self) -> None:
         """Browse for a Hidra project HDF file, then load and plot it."""
-        file_filter = "HDF (*.hdf);H5 (*.h5)"
+        file_filter = "HDF (*.hdf);H5 (*.h5);NXstress (*.nxs)"
         hidra_file_name = browse_file(
             self, "HIDRA Project File", os.getcwd(), file_filter, file_list=True, save_file=False
         )
@@ -234,7 +309,6 @@ class PeakFittingViewer(QMainWindow):
         if hidra_file_name is None:
             return  # user clicked cancel
 
-        self.current_hidra_file_name = hidra_file_name
         self.load_and_plot(hidra_file_name)
         try:
             self._do_plot_1d()
@@ -248,10 +322,24 @@ class PeakFittingViewer(QMainWindow):
         # --- load the data into the model ---
         try:
             self._model.load_hidra_project(hidra_file_name)
-        except (RuntimeError, TypeError) as run_err:
+        # Every error a bad file is known to raise. An uncaught one aborts the
+        # application under PyQt6 (see docs/ground_truths.md): `OSError` is a
+        # non-HDF5 `.h5`, `NeXusError` a non-HDF5 or malformed `.nxs`, and
+        # `ValueError` a multi-file selection that includes a `.nxs`.
+        except (RuntimeError, TypeError, ValueError, KeyError, OSError, NeXusError) as run_err:
             pop_message(
                 self, "Unable to load {}".format(hidra_file_name), detailed_message=str(run_err), message_type="error"
             )
+            # Return rather than fall through: everything below assumes a loaded
+            # workspace, so continuing turns a reported failure into a second,
+            # unreported one against whatever was loaded previously.
+            return
+        # Recorded only once the load has succeeded: *Save* writes to this name, and
+        # after a failed load it would otherwise write the previous project over
+        # the file that failed to load.
+        self.current_hidra_file_name = hidra_file_name
+
+        self._update_nxstress_action()
 
         # --- set up sub-run range, comboboxes and 1D-plot widgets ---
         sub_run_list = self._model.get_subruns_limit()
@@ -321,7 +409,13 @@ class PeakFittingViewer(QMainWindow):
         try:
             peak_range_list = [tuple(_range) for _range in self._ui_graphicsView_fitSetup.list_peak_ranges]
             peak_center_list = [np.mean([left, right]) for (left, right) in peak_range_list]
-            peak_tag_list = ["peak{}".format(_index) for _index, _ in enumerate(peak_center_list)]
+            try:
+                peak_tag_list = peak_tags_from_labels(
+                    self._ui_graphicsView_fitSetup.list_fit_peak_labels, len(peak_center_list)
+                )
+            except ValueError as label_err:
+                pop_message(self, "Invalid peak labels", str(label_err), "error")
+                return
             peak_function_name = str(self.ui.comboBox_peakType.currentText())
             peak_background_name = str(self.ui.comboBox_backgroundType.currentText())
 
@@ -637,7 +731,11 @@ class PeakFittingViewer(QMainWindow):
         o_table.populate_fit_result_table()
         o_table.select_first_row()
 
-    def fit_table_radio_buttons(self):
+    def fit_table_radio_buttons(self) -> None:
+        # Connected to controls that are enabled before any fit: with nothing
+        # fitted there is no table to redraw, and FitTable would raise on it.
+        if self._model.fit_result is None:
+            return
         o_table = FitTable(parent=self, fit_result=self._model.fit_result)
         o_table.initialize_table()
         o_table.initialize_table_column_size()
@@ -656,10 +754,22 @@ class PeakFittingViewer(QMainWindow):
     # ------------------------------------------------------------------
     # Misc widget setup and file actions
     # ------------------------------------------------------------------
-    def _init_widgets(self):
+    def _update_nxstress_action(self) -> None:
+        """Enable *Save as NXstress...* only when NXstress output is enabled in the
+        config and the loaded workspace has the instrument geometry it requires.
+
+        Disabled, not hidden: the action stays in the menu, grayed out, so the
+        save dialog never opens for a workspace that cannot be written.
+        """
+        self.ui.actionSaveAsNXstress.setEnabled(nxstress_save_available(self._model.hidra_workspace))
+
+    def _init_widgets(self) -> None:
         """Initialize some widgets."""
-        self.ui.actionSave.setEnabled(True)
-        self.ui.actionSaveAs.setEnabled(True)
+        # Config-driven enablement: setEnabled (not setVisible) -- each action
+        # stays visible, just grayed out, when its own format is disabled.
+        self.ui.actionSave.setEnabled(Config["legacy_io.enable"])
+        self.ui.actionSaveAs.setEnabled(Config["legacy_io.enable"])
+        self._update_nxstress_action()
 
         self.ui.splitter.setStyleSheet(VERTICAL_SPLITTER_SHORT)
         self.ui.splitter_2.setStyleSheet(HORIZONTAL_SPLITTER)

@@ -103,8 +103,12 @@ class FitTable:
         self.parent.ui.tableView_fitSummary.cellClicked.connect(_update_exclude_list)
 
     def _get_d_spacing_to_display(self, peak_selected=1, peak_collection=None):
-        _d_reference = np.float64(str(self.parent.ui.peak_range_table.item(peak_selected - 1, 3).text()))
-        peak_collection.set_d_reference(values=_d_reference)
+        # The table's d0 overrides the collection's own only when the table has a
+        # d0 cell for this peak: peaks loaded from an NXstress file have no
+        # peak-range rows, and keep the d0 they were saved with.
+        d0_item = self.parent.ui.peak_range_table.item(peak_selected - 1, 3)
+        if d0_item is not None:
+            peak_collection.set_d_reference(values=np.float64(str(d0_item.text())))
         values, error = peak_collection.get_dspacing_center()
         if self.parent.ui.radioButton_fit_value.isChecked():
             return values

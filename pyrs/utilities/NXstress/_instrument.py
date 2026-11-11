@@ -437,7 +437,13 @@ class _Masks:
 
         if not ws._instrument_setup:
             raise RuntimeError("`_Masks._generate_default_mask`: workspace must have an instrument")
-        return np.ones(ws._instrument_setup.detector_size, dtype=np.int64)
+        # 1-D, (n_pixels,), matching what `set_detector_mask` stores and what a real
+        # default looks like on disk. `detector_size` is `(nrows, ncols)`, and
+        # returning that shape wrote a 2-D default which `set_detector_mask` then
+        # REFUSED on read -- "Mask array with shape (4, 4) is not acceptable" -- so a
+        # workspace with no mask of its own wrote a file PyRS could not read back.
+        nrows, ncols = ws._instrument_setup.detector_size
+        return np.ones(nrows * ncols, dtype=np.int64)
 
     @classmethod
     def _is_solid_angle_mask(cls, mask: np.ndarray) -> bool:
