@@ -2895,9 +2895,17 @@ through `detector_calibration_viewer._settings`.
 
 - **A range includes its end in every window.** Peak fitting's `gui_helper.parse_integers` excluded it,
   while combine runs and manual reduction included it, so `1327:1330` loaded 3 runs in peak fitting and 4
-  elsewhere. It now includes the end, in all three peak-fitting boxes: the run numbers, the sub-runs to
-  plot and the sub-runs for the 2D plot. So `1:5` there now also selects sub-run 5. This changes which
-  runs or sub-runs are selected, never a computed value.
+  elsewhere. It now includes the end in all three peak-fitting boxes. This changes which runs or sub-runs
+  are selected, never a computed value. But the two sub-run boxes don't mean the same thing by a number
+  (pre-existing; DD-12 in [deferred_defects.md](deferred_defects.md)):
+  - **Run numbers:** run numbers, so `1327:1330` is now 4 runs.
+  - **Sub-runs to plot** (`plot_diff_data`): a single entry is a 1-based **position**; two or more are
+    sub-run **numbers**. For sub-runs numbered 1..N the two agree, so nothing visible changes there.
+    The inclusive end does move some entries between the two meanings: `3:4` was one entry and is now
+    two, and `3:3` was empty and is now one.
+  - **Sub-runs for the 2D plot** (`parse_sub_run_list`): 0-based array **positions**, of which only 1 to
+    N−1 are kept, so the first sub-run can never be chosen. For sub-runs 1..N, `1:5` selected positions
+    1–4 (sub-runs 2–5) and now selects positions 1–5 (**sub-runs 2–6**).
 - **Combine runs keeps the runs in the order typed and combines a repeated run once.** Single runs used
   to come before ranges, and `1327, 1327:1328` combined 1327 twice. The order numbers the combined
   file's sub-runs. Empty entries (a trailing comma) are skipped.

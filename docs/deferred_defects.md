@@ -33,3 +33,33 @@ series, and keeping the numbers distinct lets those PRs merge without renumberin
 
   **Found during:** #931 (PR #1089).
   **Why it is deferred.** Making the window stop after a failed load was proposed and declined.
+
+- **DD-12**, 2026-11-11: peak fitting's sub-run boxes don't agree on what a number means.
+  - **Sub-runs for the 2D plot** (`PeakFittingCrtl.parse_sub_run_list`): entries are 0-based array
+    positions, kept only from 1 to N−1, so the first sub-run can never be plotted, and `1:5` is sub-runs
+    2–6 for a file numbered 1..N.
+  - **Sub-runs to plot** (`plot_diff_data`): a single entry is a 1-based position, and two or more are
+    sub-run numbers.
+  - **Run numbers** (`load_run_number`): run numbers, as everywhere else.
+
+  **Found during:** the second review of #931 (PR #1089), after ranges were made inclusive in
+  `gui_helper.parse_integers`.
+  **Why it is deferred.** Choosing one meaning changes what users select in the peak-fitting window; it
+  needs its own decision.
+
+- **DD-13**, 2026-11-11: a sub-run that doesn't exist escapes the Qt slot in peak fitting's
+  `plot_diff_data`. With two or more entries, the loop catches only `RuntimeError`, but a sub-run number
+  missing from the file raises `IndexError` from `SubRuns.get_indices` (e.g. `1:20` for a 10-sub-run
+  file). A single out-of-range entry fails the same way through `sub_run_list[scan_value - 1]`.
+
+  **Found during:** the second review of #931 (PR #1089).
+  **Why it is deferred.** Catching it is a production change outside #931's approved scope.
+
+- **DD-14**, 2026-11-11: `CombineRunsModel.combine_project_files` doesn't close a project file when
+  `file_record` or `read_reduction_provenance` raises. And if `append_hidra_project` fails partway,
+  `_hidra_ws` keeps the partly combined workspace. The second is latent: after a failure the window
+  clears `_project_files`, which both save dialogs check, so it can't be exported.
+
+  **Found during:** the second review of #931 (PR #1089).
+  **Why it is deferred.** A production change outside #931's approved scope (the same kind of leak as
+  DD-11).

@@ -18,7 +18,7 @@ def test_failed_combine_clears_previous_combination(tmp_path):
     model.warnings = ["previous warning"]
 
     # Act
-    # a missing file raises OSError from the file-record lookup
+    # a missing file raises OSError when its project file is opened
     with pytest.raises(OSError):
         model.combine_project_files([str(tmp_path / "missing_1.h5"), str(tmp_path / "missing_2.h5")])
 
