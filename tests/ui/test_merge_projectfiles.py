@@ -130,7 +130,7 @@ def test_load_missing_run_number_reports(combine_projects_window, monkeypatch, r
 
 
 @pytest.mark.parametrize(
-    "typed", ["13a7", "1327,", "1327:1330:1332"], ids=["not-a-number", "trailing-comma", "3-ends"]
+    "typed", ["13a7", "1327:", "1327:1330:1332"], ids=["not-a-number", "range-without-end", "3-ends"]
 )
 def test_load_bad_run_entry_reports(combine_projects_window, monkeypatch, request, tmp_path, typed):
     """Input that is not a run list shows one error instead of escaping the Qt slot (#931)."""
@@ -364,3 +364,35 @@ def test_save_file_dialog_nxstress_failure_keeps_existing_file(
     assert messages == [("Failed to save 'out.nxs'", "error")]
     assert chosen.read_text() == "keep"
     assert sorted(p.name for p in tmp_path.iterdir()) == ["out.nxs"]
+
+
+@pytest.mark.parametrize("bad_kind", ["not-hdf5", "not-a-project-file"])
+def test_combine_bad_project_file_reports(combine_projects_window, monkeypatch, tmp_path, bad_kind):
+    """A chosen file that isn't a readable project file shows an error instead of escaping the slot (#931)."""
+    # Arrange
+    import h5py
+
+    window, _ = combine_projects_window
+    bad = tmp_path / "HB2B_9999.h5"
+    if bad_kind == "not-hdf5":
+        bad.write_text("not an HDF5 file")
+    else:
+        with h5py.File(bad, "w") as handle:
+            handle["x"] = [1, 2, 3]
+    messages = []
+    monkeypatch.setattr(
+        combine_runs_viewer,
+        "pop_message",
+        lambda parent, message, detail="", kind="info": messages.append((message, detail, kind)),
+    )
+    monkeypatch.setattr(window, "_project_files", [os.path.abspath("tests/data/HB2B_1327.h5"), str(bad)])
+    monkeypatch.setattr(window.model, "_hidra_ws", None)
+    loader = window.fileLoading.file_load_dilg
+    monkeypatch.setattr(loader, "_auto_prompt_export", False)
+
+    # Act
+    loader.load_project_files()
+
+    # Assert
+    assert [kind for _, _, kind in messages] == ["error"]
+    assert window._project_files is None

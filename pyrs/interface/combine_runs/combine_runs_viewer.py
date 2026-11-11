@@ -120,8 +120,10 @@ class FileLoad(QWidget):
             pop_message(self, "Runs reduced with different calibrations", str(mismatch), "error")
             self._parent._project_files = None
             return
-        except (FileNotFoundError, RuntimeError, ValueError) as run_err:
-            pop_message(self, f"Failed to find run {files}", str(run_err), "error")
+        # OSError: a project file that has gone missing or isn't HDF5; KeyError: an HDF5 file that isn't a
+        # project file. Uncaught, either escapes the Qt slot and can close PyRS (#931)
+        except (OSError, KeyError, RuntimeError, ValueError) as run_err:
+            pop_message(self, f"Failed to load {files}", str(run_err), "error")
             self._parent._project_files = None
             return
         if not combined:

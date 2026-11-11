@@ -10,20 +10,30 @@ import pytest
 MISSING_RUNNUMBER = 112123260
 
 
-def test_parse_integers():
-    """
-    test main
-    :return:
-    """
-    print(gui_helper.parse_integers("3, 4, 5"))
-    print(gui_helper.parse_integers("3:5, 4:10, 19"))
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("3, 4, 5", [3, 4, 5]),
+        ("1:4", [1, 2, 3, 4]),
+        ("3:5, 4:10, 19", [3, 4, 5, 6, 7, 8, 9, 10, 19]),
+        ("2-3", [2, 3]),
+    ],
+    ids=["list", "range-includes-end", "overlapping-ranges", "dash-range"],
+)
+def test_parse_integers(text, expected):
+    """Ranges include both ends (#931), as in combine runs and manual reduction; repeats are merged."""
+    # Act
+    integers = gui_helper.parse_integers(text)
 
-    try:
-        int_list = gui_helper.parse_integers("3.2, 4")
-    except RuntimeError as run_err:
-        print(run_err)
-    else:
-        raise AssertionError("Shall be failed but get {0}".format(int_list))
+    # Assert
+    assert integers == expected
+
+
+def test_parse_integers_not_integer_raises():
+    """A non-integer entry is refused."""
+    # Act / Assert
+    with pytest.raises(RuntimeError):
+        gui_helper.parse_integers("3.2, 4")
 
 
 @pytest.mark.skipif(not os.path.exists("/HFIR/HB2B/shared/"), reason="HFIR data archive is not mounted")

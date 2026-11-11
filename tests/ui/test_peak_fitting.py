@@ -591,3 +591,25 @@ def test_save_nxstress_without_fit_refused(nxstress_ready_window, monkeypatch, t
     # Assert
     assert loaded.read_text() == "keep"
     assert messages == ["No fitted peaks to save"]
+
+
+def test_load_run_number_bad_entry_reports(monkeypatch, request, fit_peaks_window):
+    """Text that is not a run list shows one error instead of escaping the Qt slot (#931)."""
+    # Arrange
+    window, _ = fit_peaks_window
+    shown = []
+    monkeypatch.setattr(
+        "pyrs.interface.peak_fitting.peak_fitting_viewer.pop_message", lambda *args, **kwargs: shown.append(args)
+    )
+    previous = window.current_hidra_file_name
+    typed_before = window.ui.lineEdit_expNumber.text()
+    request.addfinalizer(lambda: window.ui.lineEdit_expNumber.setText(typed_before))
+    window.ui.lineEdit_expNumber.setText("abc")
+
+    # Act
+    window.load_run_number()
+
+    # Assert
+    assert len(shown) == 1
+    assert "abc" in shown[0][2]
+    assert window.current_hidra_file_name == previous

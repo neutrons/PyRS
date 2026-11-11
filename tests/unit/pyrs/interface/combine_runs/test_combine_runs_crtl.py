@@ -36,8 +36,20 @@ def _add_runs(folder, runs):
         ("1327;1330", [1327, 1328, 1329, 1330]),
         ("1330:1327", [1327, 1328, 1329, 1330]),
         ("40000, 40001", [40000, 40001]),
+        ("1327:1328, 1331", [1327, 1328, 1331]),
+        ("1327, 1327:1328", [1327, 1328]),
+        ("1327, 1328,", [1327, 1328]),
     ],
-    ids=["list", "range-includes-end", "semicolon-range", "reversed-range", "above-int16"],
+    ids=[
+        "list",
+        "range-includes-end",
+        "semicolon-range",
+        "reversed-range",
+        "above-int16",
+        "typed-order",
+        "repeat-combined-once",
+        "trailing-comma",
+    ],
 )
 def test_parse_entry_list_gives_project_files(manualreduce, entry, runs):
     """Each run becomes its existing project file; a range includes both ends."""

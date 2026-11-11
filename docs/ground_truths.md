@@ -2890,3 +2890,19 @@ Kept from #1045:
 The preferred folder is remembered between sessions (`QSettings("neutrons", "PyRS")`, key
 `calibration/export_folder`) after a successful folder export. The GUI tests redirect it to a scratch file
 through `detector_calibration_viewer._settings`.
+
+### #931 second review: run lists and unreadable files (2026-11-11, each approved separately)
+
+- **A range includes its end in every window.** Peak fitting's `gui_helper.parse_integers` excluded it,
+  while combine runs and manual reduction included it, so `1327:1330` loaded 3 runs in peak fitting and 4
+  elsewhere. It now includes the end, in all three peak-fitting boxes: the run numbers, the sub-runs to
+  plot and the sub-runs for the 2D plot. So `1:5` there now also selects sub-run 5. This changes which
+  runs or sub-runs are selected, never a computed value.
+- **Combine runs keeps the runs in the order typed and combines a repeated run once.** Single runs used
+  to come before ranges, and `1327, 1327:1328` combined 1327 twice. The order numbers the combined
+  file's sub-runs. Empty entries (a trailing comma) are skipped.
+- **Unreadable files and bad text show an error instead of escaping the Qt slot:**
+  - combine runs' `load_project_files` now also catches `OSError` (a missing or non-HDF5 file) and
+    `KeyError` (an HDF5 file that isn't a project file);
+  - peak fitting's `load_run_number` parses the run box inside its `try`, so text like `abc` is
+    reported.

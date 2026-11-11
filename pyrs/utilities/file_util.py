@@ -179,7 +179,7 @@ def get_default_output_dir(run_number):
     return os.path.join(ipts_dir, "shared", "manualreduce")
 
 
-def get_input_project_file(run_number, preferredType="manual"):
+def get_input_project_file(run_number: Union[int, str], preferredType: str = "manual") -> str:
     """Return the reduction folder that holds the project file ``HB2B_<run_number>.h5``.
 
     Args:
