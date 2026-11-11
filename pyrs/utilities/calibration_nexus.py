@@ -459,6 +459,18 @@ def _plain(field: NXfield) -> Any:
     return value
 
 
+def _diagnostics_part(group: Any, path: str, file_name: str, kind: type = NXgroup) -> Any:
+    """A required part of the diagnostics: the group (or, with ``kind=NXfield``, the data field) at ``path``;
+    ValueError if it is missing or of the other kind (#1054 review), not an AttributeError or KeyError."""
+    child = _child(group, path)
+    if not isinstance(child, kind):
+        found = "missing" if child is None else f"a {type(child).__name__}"
+        raise ValueError(
+            f"{file_name}: {path} is {found}, expected {'a data field' if kind is NXfield else 'a group'}"
+        )
+    return child
+
+
 def read_calibration_nexus_diagnostics(calibration_file_name: str) -> Optional[Dict[str, Any]]:
     """The diagnostics of a NeXus calibration file (#1054 phase 2), or None if it has none.
 
@@ -466,33 +478,45 @@ def read_calibration_nexus_diagnostics(calibration_file_name: str) -> Optional[D
         ``method``, ``version``, ``date``; ``covariance``, None or ``(parameter names, matrix)``; ``tables``,
         ``{name: {column: array or list of str}}``; ``patterns``, ``{name: {"two_theta", "intensity",
         "errors"}}``, as :func:`write_calibration_nexus` takes them.
+
+    Raises:
+        ValueError: If a part of the diagnostics is missing or is a group where a data field belongs (or the
+            reverse), as the calibration reader refuses such files.
     """
     checkdatatypes.check_file_name(calibration_file_name, True, False, False, "NeXus calibration file")
+    file_name = calibration_file_name
     with _open(calibration_file_name) as root:
-        process = _child(root, _PROCESS)
-        if process is None:
+        if _child(root, _PROCESS) is None:
             return None
-        diagnostics: Dict[str, Any] = {
-            key: _text(process[key].nxdata) if key in process else None for key in ("method", "version", "date")
-        }
+        process = _diagnostics_part(root, _PROCESS, file_name)
+        diagnostics: Dict[str, Any] = {}
+        for key in ("method", "version", "date"):
+            field = _field(process, key, file_name)
+            diagnostics[key] = None if field is None else _text(field.nxdata)
         diagnostics["covariance"] = None
-        if "covariance" in process:
-            names: Sequence[str] = _plain(process["covariance_parameters"])
-            diagnostics["covariance"] = (tuple(names), np.asarray(process["covariance"].nxdata, dtype=float))
+        if _field(process, "covariance", file_name) is not None:
+            names: Sequence[str] = _plain(_diagnostics_part(process, "covariance_parameters", file_name, NXfield))
+            matrix = _diagnostics_part(process, "covariance", file_name, NXfield)
+            diagnostics["covariance"] = (tuple(names), np.asarray(matrix.nxdata, dtype=float))
         tables: Dict[str, Dict[str, Any]] = {}
         patterns: Dict[str, Dict[str, Any]] = {}
         for name in process:
             group = process[name]
             if name == "patterns":
-                for pattern_name in group:
-                    pattern = group[pattern_name]
+                for pattern_name in _diagnostics_part(process, "patterns", file_name):
+                    pattern = _diagnostics_part(group, pattern_name, file_name)
                     patterns[pattern_name] = {
-                        "two_theta": np.asarray(pattern["two_theta"].nxdata, dtype=float),
-                        "intensity": np.asarray(pattern["intensity"].nxdata, dtype=float),
-                        "errors": np.asarray(pattern["intensity_errors"].nxdata, dtype=float),
+                        key: np.asarray(_diagnostics_part(pattern, stored, file_name, NXfield).nxdata, dtype=float)
+                        for key, stored in (
+                            ("two_theta", "two_theta"),
+                            ("intensity", "intensity"),
+                            ("errors", "intensity_errors"),
+                        )
                     }
-            elif group.nxclass == "NXdata":
-                tables[name] = {column: _plain(group[column]) for column in group}
+            elif isinstance(group, NXgroup) and group.nxclass == "NXdata":
+                tables[name] = {
+                    column: _plain(_diagnostics_part(group, column, file_name, NXfield)) for column in group
+                }
         diagnostics["tables"] = tables
         diagnostics["patterns"] = patterns
     return diagnostics

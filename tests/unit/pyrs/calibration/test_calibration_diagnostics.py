@@ -302,3 +302,42 @@ def test_no_patterns_asked_no_warning():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         assert "patterns" not in _fit_calibration(None).diagnostics()
+
+
+def _group_in_place_of(path):
+    def change(nexus):
+        del nexus[path]
+        nexus.create_group(path)
+
+    return change
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "entry/calibration/method",
+        "entry/calibration/covariance",
+        "entry/calibration/peaks/residual",
+        "entry/calibration/patterns/sub_run_1_eta_0/two_theta",
+    ],
+    ids=["method", "covariance", "table-column", "pattern"],
+)
+def test_diagnostics_with_a_group_for_a_field_raise(tmp_path, path):
+    """A ValueError naming the part, as the calibration reader gives, not an AttributeError (review)"""
+    # Arrange - every part of the diagnostics present, then one field replaced by a group
+    pattern = {"two_theta": np.linspace(70, 80, 5), "intensity": np.arange(5.0), "errors": np.ones(5)}
+    diagnostics = {
+        "method": "peak-fit",
+        "covariance": (("Shift_x", "Shift_y"), np.eye(2)),
+        "tables": {"peaks": {"residual": [0.01, -0.02], "powder": ["Ni", "Fe"]}},
+        "patterns": {"sub_run_1_eta_0": pattern},
+    }
+    nexus_path = tmp_path / "cal.nxs"
+    _write(nexus_path, diagnostics)
+    assert read_calibration_nexus_diagnostics(str(nexus_path))["tables"]["peaks"]["powder"] == ["Ni", "Fe"]
+    with h5py.File(nexus_path, "a") as nexus:
+        _group_in_place_of(path)(nexus)
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="expected a data field"):
+        read_calibration_nexus_diagnostics(str(nexus_path))
