@@ -85,6 +85,48 @@ def check_calibration_status(status):
         )
 
 
+# calibration file formats reduction reads, by extension (#1054)
+CALIBRATION_FORMATS = {".json": "json", ".nxs": "nexus"}
+
+
+def calibration_format(calibration_file_name):
+    """The format of a calibration file from its extension: ``"json"`` or ``"nexus"`` (#1054)
+
+    Raises
+    ------
+    ValueError
+        If the extension is neither ``.json`` nor ``.nxs`` (the ASCII geometry format was never readable,
+        #1051; ``.h5`` is a PyRS project file and ``.nxs.h5`` raw event data)
+    """
+    name = str(calibration_file_name).lower()
+    if name.endswith(".nxs.h5"):
+        raise ValueError(f"{calibration_file_name!r} is raw event data (.nxs.h5), not a calibration file")
+    for extension, file_format in CALIBRATION_FORMATS.items():
+        if name.endswith(extension):
+            return file_format
+    raise ValueError(f"Calibration file must be a .json or .nxs file, got {calibration_file_name!r}")
+
+
+def read_calibration_file(calibration_file_name):
+    """A calibration from a JSON or NeXus calibration file (#1054): the one reader reduction uses
+
+    Returns
+    -------
+    ~tuple
+        (DENEXDetectorShift, DENEXDetectorShift, float, float, int) as :func:`read_calibration_json_file`
+
+    Raises
+    ------
+    ValueError
+        If the extension is not ``.json`` or ``.nxs`` (:func:`calibration_format`)
+    """
+    if calibration_format(calibration_file_name) == "nexus":
+        from pyrs.utilities.calibration_nexus import read_calibration_nexus
+
+        return read_calibration_nexus(calibration_file_name)
+    return read_calibration_json_file(calibration_file_name)
+
+
 def read_calibration_json_file(calibration_file_name):
     """Import calibration file in json format
 
@@ -295,8 +337,12 @@ def geometry_from_dict(geometry_dict):
 
 
 def read_calibration_geometry(calibration_file_name):
-    """The detector geometry a calibration JSON file is valid for, or None if it has none (written before
-    calibrations carried their geometry, #1053)."""
+    """The detector geometry a calibration file is valid for, or None if it has none (a JSON file written
+    before calibrations carried their geometry, #1053); a NeXus file always has one (#1054)."""
+    if calibration_format(calibration_file_name) == "nexus":
+        from pyrs.utilities.calibration_nexus import read_calibration_nexus_geometry
+
+        return read_calibration_nexus_geometry(calibration_file_name)
     checkdatatypes.check_file_name(calibration_file_name, True, False, False, "Calibration JSON file")
     with open(calibration_file_name, "r") as calib_file:
         calib_dict = json.load(calib_file)
@@ -376,21 +422,27 @@ def write_calibration_to_json(
 
 
 def read_calibration_provenance(calibration_file_name):
-    """The ``"provenance"`` block of a calibration JSON file (#1053), or None if it has none
+    """The provenance of a calibration file (#1053): the JSON's ``"provenance"`` block, or the NeXus file's
+    (#1054); None if it has none
 
     Parameters
     ----------
     calibration_file_name : str
-        calibration JSON file
+        calibration JSON or NeXus file
 
     Returns
     -------
     dict or None
     """
-    checkdatatypes.check_file_name(calibration_file_name, True, False, False, "Calibration JSON file")
-    with open(calibration_file_name, "r") as calib_file:
-        calib_dict = json.load(calib_file)
-    provenance = calib_dict.get("provenance") if isinstance(calib_dict, dict) else None
+    if calibration_format(calibration_file_name) == "nexus":
+        from pyrs.utilities.calibration_nexus import read_calibration_nexus_provenance
+
+        provenance = read_calibration_nexus_provenance(calibration_file_name)
+    else:
+        checkdatatypes.check_file_name(calibration_file_name, True, False, False, "Calibration JSON file")
+        with open(calibration_file_name, "r") as calib_file:
+            calib_dict = json.load(calib_file)
+        provenance = calib_dict.get("provenance") if isinstance(calib_dict, dict) else None
     if not isinstance(provenance, dict):
         return None
     from pyrs.calibration.provenance import SCHEMA_VERSION  # pyrs.calibration imports this module

@@ -9,7 +9,8 @@ means the same thing when reduction applies it (#1011). Unit tests pin its 2thet
 reduction gave before it delegated here; see docs/ground_truths.md.
 """
 
-from typing import Optional, Sequence, Union
+from dataclasses import dataclass
+from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -19,6 +20,9 @@ from pyrs.utilities.convertdatatypes import to_float
 
 __all__ = [
     "DetectorModel",
+    "Transformation",
+    "transformation_chain",
+    "CALIBRATION_TRANSFORMATIONS",
     "to_shift",
     "from_shift",
     "rotate_positions",
@@ -306,3 +310,83 @@ class DetectorModel:
         new[:3] += np.linalg.solve(np.array(columns).T, target - base)
 
         return to_shift(new)
+
+
+@dataclass(frozen=True)
+class Transformation:
+    """One step of the detector's placement, as a NeXus ``NXtransformations`` entry.
+
+    Attributes:
+        name: Name of the transformation (the NeXus field name).
+        transformation_type: ``"translation"`` or ``"rotation"``.
+        vector: Unit axis of the translation or rotation, in the PyRS lab frame (+Z along the incident
+            beam, +Y up).
+        value: Translation in metres or rotation in degrees (right-handed about ``vector``).
+        units: ``"m"`` or ``"deg"``.
+        parameter: The calibration parameter it holds (``Shift_x`` ... ``TTH_0``), or None for the
+            instrument's arm length and the per-sub-run arm rotation.
+    """
+
+    name: str
+    transformation_type: str
+    vector: Tuple[float, float, float]
+    value: float
+    units: str
+    parameter: Optional[str]
+
+
+# the calibration parameters' transformations, innermost (applied first) to outermost, as
+# DetectorModel.lab_positions applies them: shift X, Y; rotate by Rx @ Ry @ Rz (so Rz acts first);
+# push out along +Z by L2, then Shift_z; swing about the sample's Y axis by 2theta_0, then by the arm
+CALIBRATION_TRANSFORMATIONS: Tuple[Tuple[str, str, Tuple[float, float, float], str, Optional[str]], ...] = (
+    ("shift_x", "translation", (1.0, 0.0, 0.0), "m", "Shift_x"),
+    ("shift_y", "translation", (0.0, 1.0, 0.0), "m", "Shift_y"),
+    ("rotation_z", "rotation", (0.0, 0.0, 1.0), "deg", "Rot_z"),
+    ("rotation_y", "rotation", (0.0, 1.0, 0.0), "deg", "Rot_y"),
+    ("rotation_x", "rotation", (1.0, 0.0, 0.0), "deg", "Rot_x"),
+    ("arm_length", "translation", (0.0, 0.0, 1.0), "m", None),
+    ("shift_z", "translation", (0.0, 0.0, 1.0), "m", "Shift_z"),
+    ("two_theta_0", "rotation", (0.0, 1.0, 0.0), "deg", "TTH_0"),
+    ("arm_rotation", "rotation", (0.0, 1.0, 0.0), "deg", None),
+)
+
+
+def transformation_chain(
+    calibration: Optional[DENEXDetectorShift], arm_length: float, arm_two_theta: float = 0.0
+) -> List[Transformation]:
+    """The detector's placement as a chain of transformations, innermost first (#1054).
+
+    Applied in order to a pixel's uncalibrated position (:meth:`DetectorModel.local_positions`), the chain
+    gives its lab position, as :meth:`DetectorModel.lab_positions` does: the one description of the
+    detector's geometry, for the NeXus calibration file (and, later, NXstress output).
+
+    Args:
+        calibration: Detector shift, rotations and 2theta_0, or None for the nominal geometry.
+        arm_length: Sample-to-detector distance L2 (m).
+        arm_two_theta: Arm angle in the Mantid/PyRS convention (``-get_detector_2theta()``); a calibration
+            file stores 0, since the arm angle belongs to each sub-run, not to the calibration.
+
+    Returns:
+        The transformations of :data:`CALIBRATION_TRANSFORMATIONS`, with their values.
+    """
+    values = {
+        "Shift_x": 0.0,
+        "Shift_y": 0.0,
+        "Shift_z": 0.0,
+        "Rot_x": 0.0,
+        "Rot_y": 0.0,
+        "Rot_z": 0.0,
+        "TTH_0": 0.0,
+    }
+    if calibration is not None:
+        values.update(zip(values, (float(v) for v in from_shift(calibration))))
+    chain = []
+    for name, transformation_type, vector, units, parameter in CALIBRATION_TRANSFORMATIONS:
+        if parameter is not None:
+            value = values[parameter]
+        elif name == "arm_length":
+            value = float(arm_length)
+        else:
+            value = float(arm_two_theta)
+        chain.append(Transformation(name, transformation_type, vector, value, units, parameter))
+    return chain

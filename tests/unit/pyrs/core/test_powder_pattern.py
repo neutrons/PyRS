@@ -8,15 +8,18 @@ import pytest
 from pyrs.core.powder_pattern import ReductionApp, _describe_extra_mask
 
 
-@pytest.mark.parametrize("file_name", ["HB2B_geometry.txt", "HB2B_Latest.JSON.bak"])
-def test_non_json_calibration_file_raises(file_name):
-    """The ASCII geometry reader was removed: it crashed before reading, and its keys were wrong"""
+@pytest.mark.parametrize(
+    "file_name", ["HB2B_geometry.txt", "HB2B_Latest.JSON.bak", "HB2B_1327.h5", "HB2B_3510.nxs.h5"]
+)
+def test_non_calibration_file_raises(file_name):
+    """Only JSON and NeXus (.nxs, #1054) calibrations: the ASCII geometry reader was removed (#1051), .h5 is a
+    project file and .nxs.h5 raw event data"""
     # Arrange
     reducer = ReductionApp()
     reducer._hydra_ws = SimpleNamespace(get_detector_shift=lambda: None)
 
     # Act / Assert
-    with pytest.raises(ValueError, match="must be a .json file"):
+    with pytest.raises(ValueError, match="must be a .json or .nxs file|raw event data"):
         reducer.reduce_data([1], None, file_name, None)
 
 
