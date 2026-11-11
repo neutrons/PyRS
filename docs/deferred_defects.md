@@ -19,12 +19,13 @@ series, and keeping the numbers distinct lets those PRs merge without renumberin
   **Why it is deferred.** Giving legacy saves the same protection changes how every legacy write behaves,
   outside the NXstress scope of that PR; the save helper would also have to become format-neutral.
 
-- **DD-11**, 2026-11-10: the peak-fitting and texture windows carry on after a project file fails to load.
-  `PeakFittingViewer.load_and_plot` shows its error pop-up and then reads the sub-runs of a workspace that
-  was never loaded; texture's `FileLoad.load_project_plot` reads `model.sub_runs` after
-  `load_hidra_project_file` has reported its failure (it returns nothing either way). Both end in a
-  `'NoneType' object has no attribute …` error, e.g. for a non-project `.h5` picked in the file dialog.
-  Loading by run number no longer reaches this for a missing file: the run lookup now refuses it first.
+- **DD-11**, 2026-11-10: the texture-fitting window carries on after a project file fails to load.
+  `FileLoad.load_project_plot` goes on to read `model.sub_runs` and `model.ws` after
+  `load_hidra_project_file` has reported its failure through `failureMsg` (it returns nothing either way).
+  If no file was loaded before, that ends in a `'NoneType' object has no attribute …` error; otherwise the
+  window shows the previously loaded file under the failed one's name. E.g. a non-project `.h5` picked in
+  the file dialog. Loading by run number no longer reaches this for a missing file: the run lookup now
+  refuses it first. (The peak-fitting window had the same flaw; #1026 fixed it.)
 
   **Found during:** #931 (PR #1089).
-  **Why it is deferred.** Making both windows stop after a failed load was proposed and declined.
+  **Why it is deferred.** Making the window stop after a failed load was proposed and declined.

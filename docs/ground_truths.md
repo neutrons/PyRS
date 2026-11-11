@@ -2783,8 +2783,8 @@ holdout`).
 
 `get_input_project_file(run)` returned `shared/manualreduce` or `shared/autoreduce` as soon as the
 **folder** existed, whether or not `HB2B_<run>.h5` was in it. A run that was never reduced
-therefore passed the lookup, and the load failed afterwards. Both windows kept going after a failed
-load, so the issue's `'NoneType' object has no attribute …` crash followed:
+therefore passed the lookup, and the load failed afterwards. Before #1026, both windows kept going
+after a failed load, so the issue's `'NoneType' object has no attribute …` crash followed:
 - peak fitting: `load_and_plot` → `get_subruns_limit`;
 - texture fitting: `load_project_plot` → `model.sub_runs`.
 
@@ -2801,11 +2801,14 @@ load, so the issue's `'NoneType' object has no attribute …` crash followed:
   - `loadRunNumbers` shows lookup errors in a pop-up. Without that, fix A would have made a missing
     run an unhandled error in the slot.
 
-**Not fixed (proposed, not approved; left as found; DD-11 in [deferred_defects.md](deferred_defects.md)):** both windows still continue after a load
-that fails for another reason, e.g. a file chosen in the file dialog that isn't a project file:
-- **B (peak fitting):** `load_and_plot` should stop after its error pop-up.
-- **C (texture fitting):** `load_hidra_project_file` returns nothing, so `load_project_plot` can't
-  tell a failed load from a successful one.
+**Proposed here but declined.** The windows should stop after a load that fails for another reason,
+e.g. a file chosen in the file dialog that isn't a project file:
+- **B (peak fitting):** `load_and_plot` should stop after its error pop-up. #1026 (NXstress, phase 1)
+  has since done this: it returns after the pop-up, and records `current_hidra_file_name` only on
+  success.
+- **C (texture fitting):** still open, as DD-11 in [deferred_defects.md](deferred_defects.md).
+  `load_hidra_project_file` returns nothing, so `load_project_plot` can't tell a failed load from a
+  successful one.
 
 For run numbers, fix A stops a missing file before any load is attempted.
 
