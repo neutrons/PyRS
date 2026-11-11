@@ -2719,7 +2719,12 @@ becomes this check), `PyRsCore`, and the calibration GUI's "From file…" overla
   applied differently. It also checks that the detector's `depends_on` starts the chain at `shift_x`, that
   `arm_rotation` is 0, and that the pixel offsets are PyRS's layout (`DetectorModel.local_positions`:
   X decreasing with `index_0`, Y increasing with `index_1`). The old NXstress chain, with 2θ₀ about X, would
-  be refused. One-element string arrays and shape-(1,) values, as other tools write them, are read.
+  be refused. One-element string arrays and shape-(1,) values, as other tools write them, are read. Also
+  refused (CodeRabbit review): a transformation with a non-zero NeXus `offset` (`DetectorModel` applies none),
+  a non-zero `z_pixel_offset` (the detector is flat), pixel sizes, pixel offsets or the arm length in any
+  units but `m` (no conversion; the geometry-only reader checks the arm length itself, since it does not read
+  the chain), and a group where a data field belongs (`ValueError`, which reduction turns into a note for the
+  provenance and geometry, instead of an `AttributeError` that would stop it).
 - **A NeXus file's geometry is part of the calibration.** Unlike the JSON's `"geometry"` block, whose problems
   only add a note to the reduction record, a NeXus file whose pixel layout is missing or not PyRS's is
   refused when the calibration is read, before any reduction work: the chain is defined on those pixels. A

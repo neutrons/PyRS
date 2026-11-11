@@ -243,6 +243,14 @@ def _edit(path, change):
     return path
 
 
+def _in_millimetres(detector):
+    """Pixel sizes and offsets all in mm: consistent with each other, so the layout check alone would pass"""
+    for name in ("x_pixel_size", "y_pixel_size", "x_pixel_offset", "y_pixel_offset"):
+        field = detector[name]
+        field.write_direct(np.asarray(field[()] * 1000))
+        field.attrs["units"] = "mm"
+
+
 @pytest.mark.parametrize(
     "change, match",
     [
@@ -253,8 +261,21 @@ def _edit(path, change):
         ),
         (lambda d: d["x_pixel_offset"].write_direct(d["x_pixel_offset"][()][::-1].copy()), "pixel layout"),
         (lambda d: d.__delitem__("x_pixel_offset"), "missing"),
+        (lambda d: d["transformations/shift_z"].attrs.__setitem__("offset", [0.0, 0.0, 0.01]), "offset"),
+        (lambda d: d.create_dataset("z_pixel_offset", data=np.full(1024, 1e-4)), "z_pixel_offset"),
+        (_in_millimetres, "units 'mm'"),
+        (lambda d: (d.__delitem__("depends_on"), d.create_group("depends_on")), "expected a data field"),
     ],
-    ids=["arm-rotation", "detector-depends-on", "reversed-pixels", "no-offsets"],
+    ids=[
+        "arm-rotation",
+        "detector-depends-on",
+        "reversed-pixels",
+        "no-offsets",
+        "transformation-offset",
+        "z-offsets",
+        "millimetres",
+        "group-for-field",
+    ],
 )
 def test_file_applied_differently_is_refused(tmp_path, change, match):
     """Every part of the file that decides where pixels go is checked, not only the chain (review)"""
@@ -352,3 +373,46 @@ def test_detector_stored_as_a_dataset_is_refused(tmp_path):
         read_calibration_nexus_geometry(str(path))
     with pytest.raises(RuntimeError, match="not a PyRS NeXus calibration file"):
         read_calibration_nexus(str(path))
+
+
+def test_zero_offsets_are_accepted(tmp_path):
+    """A zero transformation offset and all-zero z_pixel_offset change nothing: the file still reads (review)"""
+
+    # Arrange
+    def change(detector):
+        detector["transformations/shift_x"].attrs["offset"] = [0.0, 0.0, 0.0]
+        detector.create_dataset("z_pixel_offset", data=np.zeros(1024))
+
+    path = _edit(_write(tmp_path / "cal.nxs"), change)
+
+    # Act
+    shift = read_calibration_nexus(path)[0]
+
+    # Assert
+    assert shift.convert_to_dict() == read_calibration_nexus(_write(tmp_path / "plain.nxs"))[0].convert_to_dict()
+
+
+def test_geometry_with_arm_length_in_mm_raises(tmp_path):
+    """The geometry reader checks the arm length's units itself: it does not read the chain (review)"""
+    # Arrange
+    path = _edit(
+        _write(tmp_path / "cal.nxs"), lambda d: d["transformations/arm_length"].attrs.__setitem__("units", "mm")
+    )
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="arm_length has units 'mm'"):
+        read_calibration_nexus_geometry(path)
+
+
+def test_provenance_stored_as_a_group_raises_valueerror(tmp_path):
+    """A ValueError, which reduction turns into a note, not an AttributeError that would stop it (review)"""
+    # Arrange
+    path = _write(tmp_path / "cal.nxs")
+    with h5py.File(path, "a") as nexus:
+        note = nexus["entry/instrument/detector/calibration_method"]
+        del note["data"]
+        note.create_group("data")
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="expected a data field"):
+        read_calibration_nexus_provenance(path)
