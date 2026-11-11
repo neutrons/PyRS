@@ -254,3 +254,97 @@ def test_bad_max_rounds_is_refused(driver, rounds):
     # Act / Assert
     with pytest.raises(SystemExit):
         driver.build_parser().parse_args(["run.nxs.h5", "-o", "cal.json", "--max-rounds", rounds])
+
+
+def test_main_nexus_writes_the_diagnostics(driver, monkeypatch, synthetic_run, nexus_file, tmp_path, capsys):
+    """--nexus (#1054): the same calibration as the JSON, with ring points, strip fits and covariance"""
+    from pyrs.utilities.calibration_file_io import read_calibration_file
+    from pyrs.utilities.calibration_nexus import read_calibration_nexus_diagnostics
+
+    # Arrange
+    _stub_conversion(monkeypatch, synthetic_run)
+    output, nexus = tmp_path / "cal.json", tmp_path / "cal.nxs"
+
+    # Act
+    status = driver.main(
+        [
+            str(nexus_file),
+            "-o",
+            str(output),
+            "--no-mask",
+            "--wavelength",
+            "1.54",
+            "--nexus",
+            str(nexus),
+            "--max-rounds",
+            "2",
+        ]
+    )
+
+    # Assert
+    assert status == 0 and f"written to {nexus}" in capsys.readouterr().out
+    from_json, from_nexus = read_calibration_file(str(output)), read_calibration_file(str(nexus))
+    assert from_json[0].convert_to_dict() == from_nexus[0].convert_to_dict() and from_json[2] == from_nexus[2]
+    diagnostics = read_calibration_nexus_diagnostics(str(nexus))
+    assert set(diagnostics["tables"]) == {"ring_points", "strip_fits"} and diagnostics["covariance"] is not None
+    assert (
+        len(diagnostics["tables"]["ring_points"]["residual"])
+        == json.loads(output.read_text())["provenance"]["inputs"]["ring_points"]
+    )
+
+
+def test_main_nexus_must_be_nxs(driver, monkeypatch, synthetic_run, nexus_file, tmp_path, capsys):
+    """Refused before the calibration runs, nothing written"""
+    # Arrange
+    _stub_conversion(monkeypatch, synthetic_run)
+    output = tmp_path / "cal.json"
+
+    # Act
+    status = driver.main([str(nexus_file), "-o", str(output), "--no-mask", "--nexus", str(tmp_path / "cal.h5")])
+
+    # Assert
+    assert status == 1 and ".nxs" in capsys.readouterr().err and not output.exists()
+
+
+def test_main_nexus_same_as_output_is_refused(driver, monkeypatch, synthetic_run, nexus_file, tmp_path, capsys):
+    """-o already writes the .nxs file: the same path twice is refused before the calibration runs (review)"""
+    # Arrange
+    _stub_conversion(monkeypatch, synthetic_run)
+    output = tmp_path / "cal.nxs"
+
+    # Act
+    status = driver.main([str(nexus_file), "-o", str(output), "--no-mask", "--nexus", str(output)])
+
+    # Assert
+    assert status == 1 and "--nexus" in capsys.readouterr().err and not output.exists()
+
+
+def test_main_nxs_output_holds_the_strip_fits(driver, monkeypatch, synthetic_run, nexus_file, tmp_path):
+    # Arrange
+    from pyrs.utilities.calibration_nexus import read_calibration_nexus_diagnostics
+
+    _stub_conversion(monkeypatch, synthetic_run)
+    output = tmp_path / "cal.nxs"
+
+    # Act
+    status = driver.main([str(nexus_file), "-o", str(output), "--no-mask", "--wavelength", "1.54"])
+
+    # Assert
+    assert status == 0 and "strip_fits" in read_calibration_nexus_diagnostics(str(output))["tables"]
+
+
+def test_ring_points_option_is_deprecated(driver, monkeypatch, synthetic_run, nexus_file, tmp_path):
+    # Arrange
+    _stub_conversion(monkeypatch, synthetic_run)
+
+    # Act / Assert - still written, with a warning pointing to --nexus
+    with pytest.warns(FutureWarning, match="--nexus"):
+        driver.run_calibration(
+            str(nexus_file),
+            str(tmp_path / "cal.json"),
+            mask_file=None,
+            wavelength=1.54,
+            ring_points_file=str(tmp_path / "rings.npz"),
+            max_rounds=1,
+        )
+    assert (tmp_path / "rings.npz").is_file()

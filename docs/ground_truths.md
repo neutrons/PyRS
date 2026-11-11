@@ -2863,3 +2863,38 @@ Kept from #1045:
 The preferred folder is remembered between sessions (`QSettings("neutrons", "PyRS")`, key
 `calibration/export_folder`) after a successful folder export. The GUI tests redirect it to a scratch file
 through `detector_calibration_viewer._settings`.
+
+## NeXus calibration files carry their diagnostics (2026-11, #1054 phase 2)
+
+A NeXus calibration file (#1054 phase 1) also holds what the calibration was fitted to, under
+`/entry/calibration` (an `NXprocess`): program, version, date and method; the final **covariance** and its
+parameter names; one `NXdata` table per diagnostic; and, on request, the reduced patterns
+(`/entry/calibration/patterns`). `calibration_nexus.read_calibration_nexus_diagnostics` reads them back.
+String columns are stored as UTF-8 bytes (HDF5 has no numpy unicode type) and read back as `str`.
+
+- **Covariance.** `_parameter_errors_and_covariance` (`pixel_refinement`) returns the errors and the matrix
+  they come from, `inv(JᵀJ)·Σr²/dof` in the parameters' units, with NaN rows and columns for undetermined or
+  bound-stopped parameters. The errors are computed with **exactly the previous expression**, so written
+  errors are bit-identical. A unit test compares them with a copy of the old `_parameter_errors` on
+  full-rank and degenerate Jacobians. Every `StageResult` keeps its covariance;
+  `PixelCalibration.covariance` and `FitCalibration.covariance` give the last refinement's.
+- **Ring method** (`PixelCalibration.diagnostics(strip_fits)`):
+  - `ring_points`: the pixel, arm angle, L2, reflection, d-spacing and uncertainty of every point, its model
+    2θ and its residual (pixel 2θ − Bragg, deg) at the written values;
+  - `strip_fits`: every ring sought in every strip, its centre and error, accepted or rejected and why, when
+    the extraction's strip fits are passed (`calibrate_rings(..., diagnostics=)`).
+- **FitCalibration** (`FitCalibration.diagnostics(patterns)`):
+  - `peaks`: one row per fitted peak and η slice at the solution of the last refinement, with its sub-run,
+    powder, reflection, η slice, Bragg angle, fitted centre (= Bragg + residual), the centre's fit
+    uncertainty, and the residual. `fit_peaks` now also keeps the centres' fit uncertainties
+    (`get_effective_params` errors), which changes no value;
+  - the peaks are captured apart from the provenance's residual at the solution, so a peak fit without
+    uncertainties (a test stand-in) leaves the provenance unchanged;
+  - `patterns=True` adds the last reduction's patterns per kept sub-run and η slice (a few MB).
+- **Writers choose the format by extension:** `PixelCalibration.write_calibration(path, inputs, strip_fits)`
+  and `FitCalibration.write_calibration(path, ..., patterns)` write NeXus with diagnostics for `.nxs`, and the
+  JSON (unchanged, no diagnostics) otherwise. A failure to build the diagnostics is warned about and they are
+  left out; the calibration itself is always written.
+- **`pyrs-pixel-calibration --nexus PATH`** also writes the NeXus file, with the last round's strip fits. A
+  non-`.nxs` name is refused before the calibration runs. `--ring-points` (`.npz`) still works for one
+  release, with a `FutureWarning` pointing to `--nexus`.
