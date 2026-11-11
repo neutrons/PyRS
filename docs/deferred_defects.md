@@ -21,10 +21,14 @@ series, and keeping the numbers distinct lets those PRs merge without renumberin
 
 - **DD-11**, 2026-11-10: the texture-fitting window carries on after a project file fails to load.
   `FileLoad.load_project_plot` goes on to read `model.sub_runs` and `model.ws` after
-  `load_hidra_project_file` has reported its failure through `failureMsg` (it returns nothing either way).
-  If no file was loaded before, that ends in a `'NoneType' object has no attribute …` error; otherwise the
-  window shows the previously loaded file under the failed one's name. E.g. a non-project `.h5` picked in
-  the file dialog. Loading by run number no longer reaches this for a missing file: the run lookup now
+  `load_hidra_project_file` has reported its failure through `failureMsg` (it returns nothing either way),
+  so the window continues with mixed state:
+  - **a file h5py cannot open** (not HDF5): the previous workspace stays, shown under the failed file's
+    name; with no earlier load, a `'NoneType' object has no attribute …` error;
+  - **an HDF5 file that is not a project file:** `model.ws` is already replaced by an empty workspace while
+    `model.sub_runs` still belongs to the previous file, and the failed file's handle is never closed.
+
+  Loading by run number no longer reaches this for a missing file: the run lookup now
   refuses it first. (The peak-fitting window had the same flaw; #1026 fixed it.)
 
   **Found during:** #931 (PR #1089).

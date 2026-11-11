@@ -11,7 +11,6 @@ from pyrs.interface.combine_runs.combine_runs_crtl import CombineRunsCrtl
 from qtpy import QtCore, QtWidgets
 import functools
 import os
-import shutil
 import pytest
 
 pytestmark = [pytest.mark.gui, pytest.mark.integration]
@@ -82,8 +81,12 @@ def test_merged_projectfile_viewer(combine_projects_window, monkeypatch):
             os.remove(export_file)
 
 
-def _run_number_loader(window, monkeypatch, ipts):
-    """The run-number loader, with the IPTS lookup pointed at ``ipts`` and pop-ups recorded."""
+def _run_number_loader(window, monkeypatch, request, ipts):
+    """The run-number loader, with the IPTS lookup pointed at ``ipts``, pop-ups recorded and no model state.
+
+    The window is shared by the whole session: clearing the combination and the chosen files makes each
+    test depend only on what it loads itself.
+    """
     messages = []
     monkeypatch.setattr(
         combine_runs_viewer,
@@ -91,18 +94,28 @@ def _run_number_loader(window, monkeypatch, ipts):
         lambda parent, message, detail="", kind="info": messages.append((message, detail, kind)),
     )
     monkeypatch.setattr("pyrs.utilities.file_util.get_ipts_dir", lambda run_number: ipts)
+    monkeypatch.setattr(window.model, "_hidra_ws", None)
+    monkeypatch.setattr(window, "_project_files", None)
     loader = window.fileLoading.file_load_run_number
     monkeypatch.setattr(loader, "_auto_prompt_export", False)  # no blocking save dialog
+    typed_before = loader.lineEdit.text()
+    request.addfinalizer(lambda: loader.lineEdit.setText(typed_before))
     return loader, messages
 
 
-def test_load_missing_run_number_reports(combine_projects_window, monkeypatch, tmp_path):
+def _link_runs(folder, runs):
+    """Make ``folder`` hold the test project files of ``runs`` (links: no copy needed)."""
+    folder.mkdir(parents=True)
+    for run in runs:
+        os.symlink(os.path.abspath(f"tests/data/HB2B_{run}.h5"), folder / f"HB2B_{run}.h5")
+
+
+def test_load_missing_run_number_reports(combine_projects_window, monkeypatch, request, tmp_path):
     """A run that was never reduced shows the lookup's message; nothing is combined (#931)."""
     # Arrange
     window, _ = combine_projects_window
     (tmp_path / "shared" / "manualreduce").mkdir(parents=True)
-    loader, messages = _run_number_loader(window, monkeypatch, tmp_path)
-    window._project_files = None
+    loader, messages = _run_number_loader(window, monkeypatch, request, tmp_path)
     loader.lineEdit.setText("1327")
 
     # Act
@@ -113,38 +126,62 @@ def test_load_missing_run_number_reports(combine_projects_window, monkeypatch, t
     _, detail, kind = messages[0]
     assert kind == "error" and "HB2B_1327.h5" in detail and "reduced yet" in detail
     assert window._project_files is None
+    assert window.model._hidra_ws is None
 
 
-def test_combine_by_run_number(combine_projects_window, monkeypatch, tmp_path):
-    """Run numbers and a range load the runs' files and combine them (#931: this never worked)."""
+@pytest.mark.parametrize(
+    "typed", ["13a7", "1327,", "1327:1330:1332"], ids=["not-a-number", "trailing-comma", "3-ends"]
+)
+def test_load_bad_run_entry_reports(combine_projects_window, monkeypatch, request, tmp_path, typed):
+    """Input that is not a run list shows one error instead of escaping the Qt slot (#931)."""
     # Arrange
     window, _ = combine_projects_window
-    manualreduce = tmp_path / "shared" / "manualreduce"
-    manualreduce.mkdir(parents=True)
-    for run in (1327, 1328, 1331, 1332):
-        shutil.copy(f"tests/data/HB2B_{run}.h5", manualreduce)
-    loader, messages = _run_number_loader(window, monkeypatch, tmp_path)
-    loader.lineEdit.setText("1327:1328, 1331, 1332")
+    loader, messages = _run_number_loader(window, monkeypatch, request, tmp_path)
+    loader.lineEdit.setText(typed)
 
     # Act
     loader.loadRunNumbers()
 
     # Assert
-    assert all(kind != "error" for _, _, kind in messages)
-    assert window.model._hidra_ws.get_sub_runs().size == 362
+    assert [kind for _, _, kind in messages] == ["error"]
+    assert window._project_files is None
+    assert window.model._hidra_ws is None
 
 
-def test_single_run_does_not_offer_export(combine_projects_window, monkeypatch, tmp_path):
-    """One run combines nothing: the user is told, and no export dialog is offered."""
+def test_combine_by_run_number(combine_projects_window, monkeypatch, request, tmp_path):
+    """Run ranges load the runs' own files and combine them (#931: this never worked)."""
     # Arrange
     window, _ = combine_projects_window
     manualreduce = tmp_path / "shared" / "manualreduce"
-    manualreduce.mkdir(parents=True)
-    shutil.copy("tests/data/HB2B_1327.h5", manualreduce)
-    loader, messages = _run_number_loader(window, monkeypatch, tmp_path)
+    _link_runs(manualreduce, (1327, 1328, 1331, 1332))
+    loader, messages = _run_number_loader(window, monkeypatch, request, tmp_path)
+    # two ranges, so the range end is tested without depending on how single runs and ranges are ordered
+    loader.lineEdit.setText("1327:1328, 1331:1332")
+
+    # Act
+    loader.loadRunNumbers()
+
+    # Assert
+    assert window._project_files == [str(manualreduce / f"HB2B_{run}.h5") for run in (1327, 1328, 1331, 1332)]
+    # the test files are historic (no calibration record), which is reported as a warning
+    assert [(message, kind) for message, _, kind in messages] == [("Reduction not fully checked", "warning")]
+    assert window.model._hidra_ws.get_sub_runs().size == 362
+
+
+def test_single_run_does_not_offer_export(
+    combine_projects_window, monkeypatch, request, tmp_path, minimal_HidraWorkspace: Callable[..., HidraWorkspace]
+):
+    """One run combines nothing: the user is told, and neither export dialog is offered."""
+    # Arrange
+    window, _ = combine_projects_window
+    _link_runs(tmp_path / "shared" / "manualreduce", (1327,))
+    loader, messages = _run_number_loader(window, monkeypatch, request, tmp_path)
+    # a previous combination with geometry: both export prompts would fire if the guard regressed
+    monkeypatch.setattr(window.model, "_hidra_ws", minimal_HidraWorkspace(with_instrument=True))
     monkeypatch.setattr(loader, "_auto_prompt_export", True)
     exports = []
-    monkeypatch.setattr(loader, "saveFileDialog", lambda: exports.append(True))
+    monkeypatch.setattr(loader, "saveFileDialog", lambda: exports.append("h5"))
+    monkeypatch.setattr(loader, "saveFileDialogNXstress", lambda: exports.append("nxstress"))
     loader.lineEdit.setText("1327")
 
     # Act
@@ -163,7 +200,7 @@ def test_browse_cancel_does_nothing(combine_projects_window, monkeypatch):
     messages = []
     monkeypatch.setattr(combine_runs_viewer, "pop_message", lambda *args, **kwargs: messages.append(args))
     monkeypatch.setattr(combine_runs_viewer.QFileDialog, "getOpenFileNames", lambda *args, **kwargs: ([], ""))
-    window._project_files = ["previous.h5"]
+    monkeypatch.setattr(window, "_project_files", ["previous.h5"])
 
     # Act
     window.fileLoading.file_load_dilg.openFileDialog()

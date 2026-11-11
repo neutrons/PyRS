@@ -7,7 +7,6 @@ from qtpy import QtCore, QtWidgets
 import numpy as np
 import functools
 import os
-import shutil
 import json
 import pytest
 from types import SimpleNamespace
@@ -196,15 +195,20 @@ def test_texture_fitting_viewer(texture_fitting_window):
 
 
 @pytest.mark.parametrize("typed", [" 1599", "01599"])
-def test_load_run_number_padded_text(tmp_path, monkeypatch, texture_fitting_window, typed):
+def test_load_run_number_padded_text(tmp_path, monkeypatch, request, texture_fitting_window, typed):
     """A padded run number loads HB2B_1599.h5, the file the lookup checked (#931)."""
     # Arrange
     window, _ = texture_fitting_window
     autoreduce = tmp_path / "shared" / "autoreduce"
     autoreduce.mkdir(parents=True)
-    shutil.copy("tests/data/HB2B_1599.h5", autoreduce)
+    # only the lookup and the file name matter here (loading is stubbed), so an empty file will do
+    (autoreduce / "HB2B_1599.h5").write_bytes(b"")
     monkeypatch.setattr("pyrs.utilities.file_util.get_ipts_dir", lambda run_number: tmp_path)
+    # the window is shared: keep its file name and typed text as they were
+    monkeypatch.setattr(window, "_project_file", window._project_file)
     loader = window.fileLoading.file_load_run_number
+    typed_before = loader.lineEdit.text()
+    request.addfinalizer(lambda: loader.lineEdit.setText(typed_before))
     loaded = []
     monkeypatch.setattr(loader, "load_project_plot", lambda: loaded.append(window._project_file))
     loader.lineEdit.setText(typed)

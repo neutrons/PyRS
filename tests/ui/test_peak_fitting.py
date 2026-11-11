@@ -323,7 +323,7 @@ def test_remove_peak_range_row_drops_its_d0(monkeypatch, fit_peaks_window):
     assert fit_setup.list_fit_peak_d0 == [1.2]
 
 
-def test_load_run_number_never_reduced_reports(tmp_path, monkeypatch, fit_peaks_window):
+def test_load_run_number_never_reduced_reports(tmp_path, monkeypatch, request, fit_peaks_window):
     """A run whose folders exist but hold no project file shows one error and loads nothing (#931)."""
     # Arrange
     window, _ = fit_peaks_window
@@ -335,6 +335,8 @@ def test_load_run_number_never_reduced_reports(tmp_path, monkeypatch, fit_peaks_
         "pyrs.interface.peak_fitting.peak_fitting_viewer.pop_message", lambda *args, **kwargs: shown.append(args)
     )
     previous = window.current_hidra_file_name
+    typed_before = window.ui.lineEdit_expNumber.text()
+    request.addfinalizer(lambda: window.ui.lineEdit_expNumber.setText(typed_before))
     window.ui.lineEdit_expNumber.setText("1234")
 
     # Act

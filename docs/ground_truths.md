@@ -2839,8 +2839,12 @@ Tests:
     used to write the *previous* combination under the new name, or crash.
   - `combine_project_files` forgets the previous combination first.
   - A cancelled save dialog (`""`) writes nothing.
-- **NeXus lookup errors:** `finddata` exiting with an error (`CalledProcessError`) and an empty
-  `FileFinder` result (`IndexError`) now raise `RuntimeError`. The peak-fitting, texture and combine-runs
+- **NeXus lookup errors:**
+  - `finddata` exiting with an error (`CalledProcessError`) now raises `RuntimeError`.
+  - An empty `FileFinder` result used to escape as `IndexError`. It is now treated like a failed archive
+    search: `get_nexus_file` falls back to `finddata` (printing "ArchiveSearch failed").
+  - So the caller gets `RuntimeError` if `finddata` also fails, or `FileNotFoundError` if `finddata`
+    isn't installed. The peak-fitting, texture and combine-runs
   windows show it in a pop-up. So does manual reduction: its run-number path
   (`_build_reduction_jobs` → `get_nexus_file`) now catches `RuntimeError` and `FileNotFoundError`.
 - **Combine runs, smaller fixes:**

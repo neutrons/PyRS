@@ -65,7 +65,7 @@ def test_missing_run_file_raises(shared, preferred, holders):
 
 
 @pytest.mark.parametrize("preferred", ["Manual", "Auto"])
-def test_capitalised_preferred_type(shared, preferred):
+def test_capitalised_preferred_type_is_accepted(shared, preferred):
     """The peak-fitting window sends "Manual" / "Auto"; case does not matter."""
     # Arrange
     _add_run(shared / "autoreduce")
