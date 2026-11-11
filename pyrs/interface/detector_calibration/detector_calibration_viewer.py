@@ -247,7 +247,7 @@ class DiffractionWindow(QWidget):
                 self,
                 "Calibration for the predicted rings",
                 "",
-                "json (*.json);;All Files (*)",
+                "Calibration (*.json *.nxs);;All Files (*)",  # JSON or NeXus (#1054)
                 options=QFileDialog.DontUseNativeDialog,
             )
             if not filename:

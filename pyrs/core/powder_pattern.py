@@ -200,9 +200,9 @@ class ReductionApp:
         else:
             geometry_calibration = False
 
-        if calibration_file is not None and not calibration_file.lower().endswith(".json"):
-            # the ASCII geometry format was never readable and nothing writes it (#1051)
-            raise ValueError(f"Calibration file must be a .json file, got {calibration_file!r}")
+        if calibration_file is not None:
+            # a JSON or NeXus calibration file (#1054); the ASCII geometry format was never readable (#1051)
+            calibration_file_io.calibration_format(calibration_file)
 
         # the instrument holds the calibration it applies; the project file is written from it (#1053)
         self._instrument = HidraSetup(self._hydra_ws.get_instrument_setup())

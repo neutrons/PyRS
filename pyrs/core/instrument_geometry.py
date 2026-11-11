@@ -163,18 +163,22 @@ class HidraSetup:
         return self._calibration_provenance
 
     def load_calibration_file(self, calibration_file):
-        """Take the calibration from a calibration JSON file: shift, errors, wavelength, status, and its
+        """Take the calibration from a calibration file (JSON or NeXus, #1054): shift, errors, wavelength, status, its
         provenance and creation time (the provenance's ``created``, else the file's modification time,
         labelled as such — a copy resets it).
 
         Raises
         ------
         RuntimeError
-            if the file cannot be read as a calibration (as read_calibration_json_file)
+            if the file cannot be read as a calibration (as read_calibration_file)
+        ValueError
+            if it is neither a .json nor a .nxs file, or a NeXus file would be applied differently
+        OSError
+            if a .nxs file is not HDF5 (as a malformed .json raises its JSON error)
         """
         from pyrs.utilities import calibration_file_io  # calibration_file_io imports this module
 
-        shift, shift_error, wave_length, wave_length_error, status = calibration_file_io.read_calibration_json_file(
+        shift, shift_error, wave_length, wave_length_error, status = calibration_file_io.read_calibration_file(
             calibration_file
         )
         self._geometry_shift, self._geometry_shift_error = shift, shift_error

@@ -6,6 +6,7 @@ from pyrs.utilities import file_util
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core import reduction_manager
 from pyrs.core import polefigurecalculator
+from pyrs.core.workspaces import HidraWorkspace
 import os
 import numpy
 
@@ -206,6 +207,27 @@ class PyRsCore:
 
         return ws
 
+    def register_hidra_workspace(self, project_name: str, hidra_ws: HidraWorkspace) -> None:
+        """Register an already-built HidraWorkspace as a session's data source.
+
+        Used by non-HDF5 loaders (e.g. NXstress) that construct a HidraWorkspace
+        directly rather than reading it from a .h5 project file via
+        `load_hidra_project` -- registering it here makes session-based accessors
+        such as `get_diffraction_data` work identically to the .h5 load path.
+
+        Parameters
+        ----------
+        project_name : str
+            name of the reduction project specified by user to trace
+        hidra_ws : pyrs.core.workspaces.HidraWorkspace
+            an already-populated workspace
+
+        Returns
+        -------
+        None
+        """
+        self._reduction_service.init_session(project_name, hidra_ws=hidra_ws)
+
     def save_peak_fit_result(self, project_name, hidra_file_name, peak_tag, overwrite=True):
         """Save the result from peak fitting to HiDRA project file
         Parameters
@@ -288,7 +310,7 @@ class PyRsCore:
         elif isinstance(geometry_calibration, str):
             # the standard calibration file reader: DENEXDetectorShift.from_json expects other keys and
             # would silently give a zero calibration (#1051)
-            calib_values = calibration_file_io.read_calibration_json_file(geometry_calibration)
+            calib_values = calibration_file_io.read_calibration_file(geometry_calibration)
             calibration_file_io.check_calibration_status(calib_values[4])
             apply_calibration = calib_values[0]
         elif isinstance(geometry_calibration, instrument_geometry.DENEXDetectorShift):

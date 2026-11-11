@@ -221,6 +221,23 @@ class TestWorkspaceRoundtrip:
             # Verify subruns match
             assert np.array_equal(peak_orig._sub_run_array.raw_copy(), peak_read._sub_run_array.raw_copy())
 
+    def test_roundtrip_without_masks_reads_back(self, minimal_HidraWorkspace, tmp_path):
+        """A workspace with no mask of its own gets a generated default mask on
+        write; that default must be 1-D, or `set_detector_mask` refuses it on read."""
+        # Arrange
+        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=False)
+        nxstress_file = tmp_path / "no_masks.nxs"
+        with NXstress(nxstress_file, mode="w") as nxs:
+            nxs.write(ws, [])
+
+        # Act
+        with NXstress(nxstress_file, mode="r") as nxs:
+            ws_readback, _ = nxs.read()
+
+        # Assert
+        nrows, ncols = ws.get_instrument_setup().detector_size
+        assert ws_readback.get_detector_mask(True).shape == (nrows * ncols,)
+
 
 class TestReadErrors:
     """Test error handling in read operations"""

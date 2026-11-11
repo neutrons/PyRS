@@ -2663,6 +2663,92 @@ User-approved, after the C1-C5 evaluation and step 1 (repeated ring extraction) 
   files, including `HB2B_Latest.json`, are untouched until someone calibrates again; reduction never chooses a
   method. Every calibration file records its method in its provenance (`method`: "ring" or "peak-fit").
 
+## `neutrons_standard.Config` has two undocumented side effects, one of which breaks under a test environment (2026-09)
+
+Found while probing this repo's config layer during the first seven-axis audit
+of `plans/NXstress-prod/`. Both are properties of the installed
+`neutrons_standard` 0.1.0 package, not of PyRS's own code, and neither is
+mentioned in its documentation or in PyRS's plan documents. Probe:
+[`plans/NXstress-prod/probes/a4_neutrons_standard_config.py`](../plans/NXstress-prod/probes/a4_neutrons_standard_config.py).
+
+**1. Importing the config module writes to the user's home directory.**
+`_Config.__init__` calls `persistBackup()`, which does
+`self._userHome().mkdir(parents=True, exist_ok=True)` and then writes
+`~/.pyrs/application.yml.bak` — on *every* load. Observed: the file's mtime
+changes from nothing more than
+
+```python
+import neutrons_standard
+
+neutrons_standard.init("pyrs")
+from neutrons_standard.config import Config
+```
+
+Since `pyrs/utilities/config.py` performs exactly that at import time, **any**
+import of PyRS's config layer touches `$HOME`. Harmless on a workstation;
+not harmless on a read-only home, in a container with no `$HOME`, or anywhere
+concurrent processes share one.
+
+**2. Under a test environment the config resources root resolves *outside* the
+repository.** `_find_root_dir()` returns `MODULE_ROOT.parent.parent / "tests"`
+whenever `isTestEnv()` is true — that is, when the `env` OS environment variable
+contains the string `"test"` **and** `conftest` is in `sys.modules`. For this
+repo's layout `MODULE_ROOT` is `<repo>/pyrs`, so `.parent.parent` is the
+directory *containing* the repo:
+
+```console
+  CLAIM   with env containing 'test' AND conftest imported, the resources root
+          moves to <repo>/tests/
+  RESULT  FileNotFoundError: [Errno 2] No such file or directory:
+          '/home/ux0/workspaces/tests/resources/application.yml'
+```
+
+Note the path — `workspaces/tests`, not `PyRS/tests`. The upstream intent is
+clearly `<repo>/tests`, but it is off by one level for a `repo/package/` layout,
+so the lookup lands outside the repository entirely and raises.
+
+**Why this matters going forward:** the documented `neutrons_standard` idiom for
+per-tier test configuration is to set `env` to a file whose name contains
+`"test"` (for example `integration_test.yml`, so unit and integration tiers can
+differ). **Do not adopt that idiom in this repo without checking this first** —
+under pytest, `conftest` is always imported, so the "test" substring alone flips
+`isTestEnv()` and config loading fails with a `FileNotFoundError` naming a
+directory above the repo root. A test that merely sets `env=<something>_test.yml`
+will fail for a reason that has nothing to do with what it is testing. Either
+avoid `"test"` in the `env` value, or raise the off-by-one with the
+`neutrons_standard` maintainers.
+
+## An uncaught exception in a Qt slot aborts PyRS; an NXstress write truncates its target on open (2026-10)
+
+Found while hooking NXstress saving into the PeakFitting and TextureFitting
+viewers. PyRS runs on PyQt6 (`qtpy.API_NAME == "PyQt6"`), which calls
+`qFatal()` for any Python exception that escapes a slot, and PyRS installs no
+`sys.excepthook` that would change that. Observed, offscreen:
+
+```python
+def slot():
+    raise RuntimeError("boom")
+
+
+app = QApplication([])
+a = QAction("x")
+a.triggered.connect(slot)
+QTimer.singleShot(0, a.trigger)
+app.exec()
+# -> traceback, then "dumped core", exit status 134 (SIGABRT)
+```
+
+Separately, `NXstress(path, "w")` truncates `path` on open, before anything is
+validated: a write that then fails (e.g. a peak tag that does not parse as
+`<phase> <hkl>`) leaves an ~800-byte file, and an existing file at that path is
+already gone.
+
+**Why this matters going forward:** a GUI slot that can raise must catch and
+report, not merely let the error propagate — "it prints a traceback" is not
+what happens; the whole application exits. And an NXstress save must write to a
+temporary file and rename it on success, never write in place. Both are done by
+`pyrs.interface.gui_helper.write_nxstress_or_report`; reuse it for any new
+NXstress save action.
 ## A FitCalibration clean-up after the ring calibration does not help on unseen data (2026-11, #1074)
 
 Started from the ring geometry, a FitCalibration `FullCalibration` moves the geometry by 10-24 mdeg, lowering
@@ -2692,6 +2778,58 @@ holdout`).
     the degenerate Rot_y / Shift_x / 2θ₀ direction. Its stages warn "stopped at a bound", but the final
     `estimate_errors` (2θ₀ held) writes ordinary errors, so the file does not flag it.
   - With one arm left out, HB2B_3510's ring calibration converged in only 4 of 10 folds within 10 rounds.
+
+## NeXus calibration files (2026-11, #1054 phase 1)
+
+Reduction reads a calibration from either a **JSON** (`.json`) or a **NeXus** (`.nxs`) file (written and read
+with `nexusformat`, as PyRS's NXstress output is; user decision), through one entry
+point, `calibration_file_io.read_calibration_file`. Its format is chosen by the extension
+(`calibration_format`); anything else raises `ValueError`, including `.h5` (a PyRS project file) and
+`.nxs.h5` (raw event data). `read_calibration_provenance` and `read_calibration_geometry` dispatch the
+same way. Users: `HidraSetup.load_calibration_file`, `ReductionApp.reduce_data` (its #1051 `.json`-only check
+becomes this check), `PyRsCore`, and the calibration GUI's "From file…" overlay. Design and decisions
+(user-approved): the #1054 thread.
+
+- **A complete calibration** (`pyrs/utilities/calibration_nexus.py`): `NXentry/NXinstrument`, the wavelength
+  and its error under `NXmonochromator`, and the detector as an `NXdetector`:
+  - pixel pitch, and the uncalibrated pixel offsets as 1D arrays along `index_0` (`x_pixel_offset`, length =
+    columns) and `index_1` (`y_pixel_offset`, length = rows), as `DetectorModel.local_positions` gives them;
+  - the provenance as JSON and the `status` in an `NXnote`, and `calibration_date` from the provenance;
+  - the placement as an `NXtransformations` chain.
+- **The chain is `DetectorModel`'s order, innermost first** (`detector_model.CALIBRATION_TRANSFORMATIONS`,
+  built by `transformation_chain`): shift_x, shift_y, rotation_z, rotation_y, rotation_x (R = Rx·Ry·Rz, so Rz
+  acts first), arm_length, shift_z, two_theta_0 (about Y), arm_rotation (about Y; stored as 0, because the arm
+  angle belongs to each sub-run). Each value is float64 in m or deg, right-handed, in the PyRS frame (+Z beam,
+  +Y up), with `<name>_errors` beside it (the JSON's -1 / -2 codes). The reader checks every transformation's
+  type, vector, units and `depends_on` against this chain, and refuses (`ValueError`) a file that would be
+  applied differently. It also checks that the detector's `depends_on` starts the chain at `shift_x`, that
+  `arm_rotation` is 0, and that the pixel offsets are PyRS's layout (`DetectorModel.local_positions`:
+  X decreasing with `index_0`, Y increasing with `index_1`). The old NXstress chain, with 2θ₀ about X, would
+  be refused. One-element string arrays and shape-(1,) values, as other tools write them, are read. Also
+  refused (CodeRabbit review): a transformation with a non-zero NeXus `offset` (`DetectorModel` applies none),
+  a non-zero `z_pixel_offset` (the detector is flat), pixel sizes, pixel offsets or the arm length in any
+  units but `m` (no conversion; the geometry-only reader checks the arm length itself, since it does not read
+  the chain), and a group where a data field belongs (`ValueError`, which reduction turns into a note for the
+  provenance and geometry, instead of an `AttributeError` that would stop it).
+- **A NeXus file's geometry is part of the calibration.** Unlike the JSON's `"geometry"` block, whose problems
+  only add a note to the reduction record, a NeXus file whose pixel layout is missing or not PyRS's is
+  refused when the calibration is read, before any reduction work: the chain is defined on those pixels. A
+  `.nxs` that is not HDF5 raises `OSError`, as a malformed `.json` raises its JSON error.
+- **GUI:** the predicted-rings "From file…" dialog offers `*.json *.nxs`. The window's **Load Calibration** (a
+  starting calibration for the table) still reads JSON only (`_initalize_calibration` parses it directly);
+  phase 3.
+- **Verified:**
+  - Applying the file's chain with plain 4×4 matrices (Rodrigues rotations), independently of `DetectorModel`,
+    reproduces `DetectorModel.lab_positions` to 1e-12 m and the pixel 2θ to 1e-9°, at arm angles 0, 76, 90
+    and 103°, on HB2B's detector and on a 4-row × 6-column one (catches swapped axes).
+  - The same calibration written as JSON and as NeXus reads back bit for bit (values, errors, λ, status).
+  - HB2B_3510 reduces **bit-identically** with either, whole-detector and in 3° η slices. The reduced file's
+    record names the NeXus file and its SHA-256.
+  - `Status` < 0 reads back and is refused by `check_calibration_status`, as for the JSON.
+- **Decisions (user):** `.nxs` only. The NeXus file is written beside the JSON (GUI default on; on request
+  from the command line, phases 2-3). `HB2B_Latest.json` stays the only shared default: live reduction
+  (v1.8.1) and older tools read JSON only. FitCalibration diagnostics: peaks and residuals, reduced patterns on
+  request (phase 2). The mask is recorded by file and SHA-256 only (no `pixel_mask`).
 
 ## Calibration Export: one checkbox per target (2026-11, #1087)
 
@@ -2728,3 +2866,40 @@ The preferred folder is remembered between sessions (`QSettings("neutrons", "PyR
 `calibration/export_folder`) after a successful folder export. A remembered folder that has since been removed
 opens the current folder instead (`_remembered_export_folder`). The GUI tests redirect the setting to a scratch
 file through `detector_calibration_viewer._settings`, before the window is built (it reads the setting then).
+`calibration/export_folder`) after a successful folder export. The GUI tests redirect it to a scratch file
+through `detector_calibration_viewer._settings`.
+
+## NeXus calibration files carry their diagnostics (2026-11, #1054 phase 2)
+
+A NeXus calibration file (#1054 phase 1) also holds what the calibration was fitted to, under
+`/entry/calibration` (an `NXprocess`): program, version, date and method; the final **covariance** and its
+parameter names; one `NXdata` table per diagnostic; and, on request, the reduced patterns
+(`/entry/calibration/patterns`). `calibration_nexus.read_calibration_nexus_diagnostics` reads them back.
+String columns are stored as UTF-8 bytes (HDF5 has no numpy unicode type) and read back as `str`.
+
+- **Covariance.** `_parameter_errors_and_covariance` (`pixel_refinement`) returns the errors and the matrix
+  they come from, `inv(JᵀJ)·Σr²/dof` in the parameters' units, with NaN rows and columns for undetermined or
+  bound-stopped parameters. The errors are computed with **exactly the previous expression**, so written
+  errors are bit-identical. A unit test compares them with a copy of the old `_parameter_errors` on
+  full-rank and degenerate Jacobians. Every `StageResult` keeps its covariance;
+  `PixelCalibration.covariance` and `FitCalibration.covariance` give the last refinement's.
+- **Ring method** (`PixelCalibration.diagnostics(strip_fits)`):
+  - `ring_points`: the pixel, arm angle, L2, reflection, d-spacing and uncertainty of every point, its model
+    2θ and its residual (pixel 2θ − Bragg, deg) at the written values;
+  - `strip_fits`: every ring sought in every strip, its centre and error, accepted or rejected and why, when
+    the extraction's strip fits are passed (`calibrate_rings(..., diagnostics=)`).
+- **FitCalibration** (`FitCalibration.diagnostics(patterns)`):
+  - `peaks`: one row per fitted peak and η slice at the solution of the last refinement, with its sub-run,
+    powder, reflection, η slice, Bragg angle, fitted centre (= Bragg + residual), the centre's fit
+    uncertainty, and the residual. `fit_peaks` now also keeps the centres' fit uncertainties
+    (`get_effective_params` errors), which changes no value;
+  - the peaks are captured apart from the provenance's residual at the solution, so a peak fit without
+    uncertainties (a test stand-in) leaves the provenance unchanged;
+  - `patterns=True` adds the last reduction's patterns per kept sub-run and η slice (a few MB).
+- **Writers choose the format by extension:** `PixelCalibration.write_calibration(path, inputs, strip_fits)`
+  and `FitCalibration.write_calibration(path, ..., patterns)` write NeXus with diagnostics for `.nxs`, and the
+  JSON (unchanged, no diagnostics) otherwise. A failure to build the diagnostics is warned about and they are
+  left out; the calibration itself is always written.
+- **`pyrs-pixel-calibration --nexus PATH`** also writes the NeXus file, with the last round's strip fits. A
+  non-`.nxs` name is refused before the calibration runs. `--ring-points` (`.npz`) still works for one
+  release, with a `FutureWarning` pointing to `--nexus`.

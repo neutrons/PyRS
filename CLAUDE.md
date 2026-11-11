@@ -33,6 +33,7 @@ computations behind the UI, and the established calibration (`FitCalibration`).
 4. **Test incrementally** — Each step should be testable on its own.
 5. **Review after major changes** — Delegate review to a sub-agent via the `Agent` tool.
 6. **Ground truths** — ALWAYS record key findings in [docs/ground_truths.md](docs/ground_truths.md) for future reference. Update the file with new findings, and link to it from related documentation and code comments.
+7. **Deferred defects** — A defect in the PyRS codebase that you find but do not fix gets one numbered, dated line in [docs/deferred_defects.md](docs/deferred_defects.md), and is listed in the PR's commit message.
 
 ## 🔄 Standard Workflow for Every Request
 

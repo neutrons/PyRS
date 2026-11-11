@@ -1,7 +1,13 @@
+import re
+
 import numpy as np
 from scipy.interpolate import griddata
 
 from pyrs.interface.utilities.plot_data_preparer import prepare_3d_plot_data
+
+# An out-of-plane (eta) wedge of the default pattern, as `HB2BReductionManager`
+# names it: "eta_{}".format(eta_center), e.g. `eta_-5.0`.
+_ETA_MASK = re.compile(r"eta_-?\d+(?:\.\d+)?")
 
 
 class TextureFittingCrtl:
@@ -115,6 +121,13 @@ class TextureFittingCrtl:
             return self.trim_data(xdata, ydata, zdata, include_list=parse_split_list(include_list))
 
     def fit_peaks(self, fit_range_table, peak_function_name, background_function_name, out_of_plane_angle=None):
+        """Fit the peak ranges in `fit_range_table` against each reduced pattern of the loaded workspace.
+
+        Raises:
+            NotImplementedError: If the workspace's reduced data is neither the
+                default pattern alone nor out-of-plane (eta) patterns alone.
+        """
+
         def _extract_fitted_data(fit_ws):
             diff_data = np.zeros((self._model.sub_runs.size, len(fit_ws.readX(int(self._model.sub_runs[0])))))
             tth_data = np.zeros_like(diff_data)
@@ -123,6 +136,20 @@ class TextureFittingCrtl:
                 diff_data[i_sub, :] = fit_ws.readY(int(i_sub))
 
             return tth_data, diff_data
+
+        # The two layouts of reduced data this viewer is known to fit correctly:
+        # the default pattern alone (key `None`), or out-of-plane wedges of it
+        # alone. Others -- the default pattern alongside wedges, in-plane
+        # detector masks, wedges of an in-plane mask (`<mask>_eta_<center>`) --
+        # are refused until what fitting them should mean is settled.
+        masks = self._model.ws.reduction_masks
+        default_only = masks == [None]
+        eta_only = bool(masks) and all(isinstance(key, str) and _ETA_MASK.fullmatch(key) for key in masks)
+        if not (default_only or eta_only):
+            raise NotImplementedError(
+                f"Texture fitting does not yet support this file's reduced data, {masks}.\n"
+                "  Supported: the default pattern alone, or out-of-plane (eta_<angle>) patterns alone."
+            )
 
         peak_tag = []
         min_tth = []
@@ -139,7 +166,7 @@ class TextureFittingCrtl:
 
         fit_results = {}
 
-        if len(self._model.ws.reduction_masks) == 2:
+        if default_only:
             fit_results[""] = self._model.fit_diff_peaks(
                 min_tth, max_tth, peak_tag, peak_function_name, background_function_name, out_of_plane_angle=None
             )
@@ -153,23 +180,22 @@ class TextureFittingCrtl:
                 self.parse_texture_fits(fit_results[""], "eta_0.0", len(min_tth))
 
         else:
-            for mask_key in self._model.ws.reduction_masks:
-                if "_var" not in mask_key:
-                    fit_results[mask_key] = self._model.fit_diff_peaks(
-                        min_tth,
-                        max_tth,
-                        peak_tag,
-                        peak_function_name,
-                        background_function_name,
-                        out_of_plane_angle=mask_key,
-                    )
+            for mask_key in masks:
+                fit_results[mask_key] = self._model.fit_diff_peaks(
+                    min_tth,
+                    max_tth,
+                    peak_tag,
+                    peak_function_name,
+                    background_function_name,
+                    out_of_plane_angle=mask_key,
+                )
 
-                    self._fitted_patterns[mask_key] = [
-                        _extract_fitted_data(fit_results[mask_key].fitted),
-                        _extract_fitted_data(fit_results[mask_key].difference),
-                    ]
+                self._fitted_patterns[mask_key] = [
+                    _extract_fitted_data(fit_results[mask_key].fitted),
+                    _extract_fitted_data(fit_results[mask_key].difference),
+                ]
 
-                    self.parse_texture_fits(fit_results[mask_key], mask_key, len(min_tth))
+                self.parse_texture_fits(fit_results[mask_key], mask_key, len(min_tth))
 
         self._fits = fit_results
 

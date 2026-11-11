@@ -384,11 +384,24 @@ class _Peaks:
             List of reconstructed PeakCollection instances
         """
         from ._fit import _PeakParameters, _BackgroundParameters
-        from ._definitions import GROUP_NAME
+        from ._definitions import GROUP_NAME, UNDEFINED_PEAK_TAG
 
         # Get the parameter groups
         pp = fit[GROUP_NAME.PEAK_PARAMETERS]
         bp = fit[GROUP_NAME.BACKGROUND_PARAMETERS]
+
+        # A file written with peakss=[] (e.g. CombineRunsViewer's NXstress export,
+        # which has no PeakCollection concept at all) has its title fields set to
+        # the writer's own UNDEFINED_PEAK_TAG sentinel (see
+        # _PeakParameters.init_group / _BackgroundParameters.init_group) -- there
+        # is nothing to reconstruct. The reader previously didn't recognize its
+        # own writer's sentinel and crashed trying to parse it as a real
+        # PeakShape/BackgroundFunction name.
+        pp_title = pp["title"].nxdata
+        if isinstance(pp_title, bytes):
+            pp_title = pp_title.decode()
+        if pp_title == UNDEFINED_PEAK_TAG:
+            return []
 
         # Get peak profile and background function from titles
         from pyrs.core.peak_profile_utility import PeakShape, BackgroundFunction
