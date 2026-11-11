@@ -31,6 +31,57 @@ atexit.register(shutil.rmtree, _QT_TEST_CONFIG_DIR, ignore_errors=True)
 ON_GITHUB_ACTIONS = bool(os.environ.get("GITHUB_ACTIONS", False))
 
 
+def _presandbox_neutrons_standard_config_home() -> None:
+    """Force the first-ever import of `pyrs.utilities.config` to happen against a
+    throwaway `HOME`, not the developer's/CI's real one.
+
+    Why: `neutrons_standard.Config` is a process-wide singleton constructed at
+    module-import time (`pyrs/utilities/config.py`'s module body), and its
+    `__init__` unconditionally calls `reload()` -> `persistBackup()`, which writes
+    `~/.pyrs/application.yml.bak` to whatever `HOME` is set at that moment
+    (confirmed by reading the installed `neutrons_standard` package directly).
+    Before the NXstress GUI hookup, only `test_config.py`/the NXstress test suite
+    ever imported this module, always behind the per-test `default_config` fixture
+    (`HOME` -> `tmp_path`). Once `peak_fitting_model.py`/`texture_fitting_model.py`
+    import it as production code, any test that imports those modules --
+    including pre-existing GUI tests with no such isolation -- transitively
+    imports it too. Pytest imports test modules during collection, *before* any
+    fixture (even autouse) runs, so a fixture-based guard can't intercept
+    whichever test file's collection happens to trigger the first import.
+
+    Fix: perform that one unavoidable first import ourselves, here, at this
+    conftest's own import time (guaranteed to run before pytest starts collecting
+    any *other* test file, regardless of where in this module it's called) --
+    but only while `HOME` is redirected to a throwaway directory, restoring the
+    real `HOME` immediately after. This keeps the write off the real home
+    directory without remapping `HOME` for the whole session (which would risk
+    breaking Mantid/Qt/matplotlib config-dir assumptions elsewhere in this
+    GUI+scientific-computing suite). The resulting ambient `Config` singleton
+    reflects only the shipped, unmodified `application.yml` defaults -- harmless
+    as ambient state; any test that needs a genuinely fresh, isolated instance
+    still uses the existing `default_config` fixture
+    (`tests/unit/pyrs/utilities/conftest.py`), unaffected by this.
+    """
+    # `env` selects a `neutrons_standard` overlay configuration (and a value
+    # containing "test" changes where the configuration is looked for), so it is
+    # cleared too: the ambient singleton must hold the shipped defaults.
+    saved = {name: os.environ.get(name) for name in ("HOME", "env")}
+    with tempfile.TemporaryDirectory(prefix="pyrs-conftest-presandbox-home-") as sandbox_home:
+        os.environ["HOME"] = sandbox_home
+        os.environ.pop("env", None)
+        try:
+            import pyrs.utilities.config  # noqa: F401  (import side effect is the point)
+        finally:
+            for name, value in saved.items():
+                if value is not None:
+                    os.environ[name] = value
+                else:
+                    os.environ.pop(name, None)
+
+
+_presandbox_neutrons_standard_config_home()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _clear_ads_at_session_end():
     r"""
