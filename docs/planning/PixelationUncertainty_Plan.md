@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Board** | [neutrons project #5](https://github.com/orgs/neutrons/projects/5); tracking issue [#1111](https://github.com/neutrons/PyRS/issues/1111) |
-| **Status** | Phase 0 started; first results on 2019–2023 data in [pixelation_results/2026-11-12_local](pixelation_results/2026-11-12_local/README.md) (2026-11-12) |
+| **Status** | Phase 0 in progress: 2019–2023 and 2025 (IPTS-36131) data analysed; findings in [ground truths](../ground_truths.md) (2026-11-12) |
 | **Production code changes** | None planned in this phase. Any change to reduction or fitting is proposed separately and needs its own approval. |
 
 ## Motivation
@@ -86,21 +86,25 @@ short write-up and, where a fact is established, a
 [ground-truth](../ground_truths.md) entry.
 
 ### Phase 0 — Characterise measured data ([#1106](https://github.com/neutrons/PyRS/issues/1106))
-First results: [2026-11-12, local 2019–2023 data](pixelation_results/2026-11-12_local/README.md).
-In short:
-- Vanadium-dead pixels are the detector border, and the production mask already covers them.
-- Zeros in live pixels follow Poisson statistics to within 0.1–7 %.
+Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test data; 2025 runs
+5339, 5340, 5344 from IPTS-36131, analysed per sub-run). In short:
+- Vanadium-dead pixels are the detector border, and the production mask already covers them
+  (2019 and 2025 masks).
+- Zeros in live pixels follow Poisson statistics to within 0.1–1 %, provided arm scans are
+  analysed per sub-run. Summing an arm scan at one arm angle produced an apparent 3–7 % deficit.
 - Along x, the zero fraction follows only the diffraction pattern.
 - Along y, efficiency and zero fraction are striped with the 6.56-row (1.92 mm) wire period,
-  and the stripe pattern drifts away from an older vanadium (2 % → 12 % mismatch).
+  unchanged from 2019 to 2025. A vanadium from the same day matches rows to about 2 % (the
+  floor); older vanadiums mismatch by up to 12 % (drift).
 
 - [x] Zero fraction per run, and observed vs Poisson-expected zeros per detector column and row
-      (`scripts/pixelation_study/run_zero_count_study.py`). Done on whole-run sums.
+      (study script `run_zero_count_study.py`). Done on whole-run sums.
 - [x] Separate dead pixels (zero counts in vanadium) from sparse pixels: the vanadium works as a
       dead-pixel mask.
-- [ ] Repeat on recent runs with a vanadium taken close in time, plus one from another cycle, to
-      measure the stripe drift. *Needs the machine with recent data.*
-- [ ] Per sub-run rather than whole-run sums.
+- [x] Repeat on recent runs with a vanadium taken close in time (IPTS-36131: vanadium 5339,
+      runs 5340 and 5344): row mismatch ~2 %, the floor.
+- [ ] Apply a vanadium from another cycle to the 2025 runs, to measure the drift directly.
+- [x] Per sub-run rather than whole-run sums (`--per-sub-run`). Needed for arm scans.
 - [ ] Per 2θ bin and per η wedge: *n*, *n₀*, Σ Nᵢ, and the inflation ratio
       (Σ Nᵢ + n₀) / Σ Nᵢ.
 - [ ] Confirm which wire plane encodes y. Results are labelled by detector axis.
@@ -142,9 +146,11 @@ In short:
 
 ## Where the study code lives
 
-Study scripts and notebooks go in `scripts/pixelation_study/`, with any
-reusable helpers covered by unit tests under `tests/unit/scripts/pixelation_study/`.
-Results go in `docs/planning/pixelation_results/<date>_<description>/`, each with a README. Nothing under
+Study scripts are **not** part of the PyRS repository: the repository holds only production code
+and tests of production code. The study code (`run_zero_count_study.py`, `zero_counts.py` and their
+tests) is kept outside the repository and run in the PyRS pixi environment.
+Findings go in [ground truths](../ground_truths.md); result files (figures, JSON, profiles) are kept
+with the study code, outside the repository. Nothing under
 `pyrs/` changes during Phases 0–3. Environments are run through pixi
 (`pixi run …`).
 

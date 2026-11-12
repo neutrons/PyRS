@@ -986,7 +986,8 @@ Predicted size, not yet measured: for a uniform Poisson mean λ per pixel, the r
 ## HB2B detector: pixel orientation, vanadium dead area, and vertical wire-period stripes (2026-11-12)
 
 From Phase 0 of the pixelation study
-([results](planning/pixelation_results/2026-11-12_local/README.md)). No production code changed.
+([plan](planning/PixelationUncertainty_Plan.md), [#1106](https://github.com/neutrons/PyRS/issues/1106)). No production code changed.
+Data: 2019–2023 runs in `tests/data`, and 2025 runs 5339, 5340 and 5344 from IPTS-36131.
 
 - **Orientation.** `counts.reshape(1024, 1024)` is indexed `[x, y]` (pixel ID = x·1024 + y).
   x is horizontal: uncalibrated 2θ spans 17.3° along x and 0° along y at a 90° arm. Event-file
@@ -995,12 +996,26 @@ From Phase 0 of the pixelation study
 - **Vanadium-dead pixels (< 0.9 counts, run 931) are the detector border.** That is 7.9 % of
   pixels; the active area is x 29–999, y 36–1000, with only 11 dead pixels inside it.
   `HB2B_Mask_12-18-19.xml` masks all of them plus 52,985 live pixels.
-- **Zeros in live pixels are counting statistics.** In runs 938–3489, observed zeros are within
-  0.1–7 % of Σ exp(−λᵢ), with λ from 2θ × η bins × vanadium efficiency.
+- **Zeros in live pixels are counting statistics.** Observed zeros match Σ exp(−λᵢ), with λ from
+  2θ × η bins × vanadium efficiency, to 0.1–1 % (2.5 % in one high-count sub-run of 1017, where
+  the vanadium-noise bias below is largest). This holds for runs 938–3489 and, per sub-run, for
+  2025 run 5344.
+- **Arm scans must be analysed per sub-run.** Runs 1017, 3489 and 5344 move the detector arm
+  between sub-runs (by 27°–43°). Summing them and binning with one arm angle puts most pixels at
+  the wrong 2θ. That alone produced an apparent 3–7 % zero deficit, e.g. 1017: 0.933 whole-run vs
+  0.975–0.996 per sub-run. Splitting the events on `scan_index` as reduction does, and
+  time-averaging the `2theta` log over each sub-run, reproduces the arm 2θ per sub-run that
+  reduction stores in the project file (5344, all 12 sub-runs).
 - **Vertical efficiency is striped with the delay-line wire period.** Vanadium row means vary
   ±52 % (0.5×–2.6×) with a 6.56-row (1.92 mm) period; columns vary only ±12 %, smoothly.
 - **The stripe pattern drifts.** Measured/predicted counts per row have a mismatch beyond
   counting noise that grows with time since the vanadium: 2.2 % (938), 4.4 % (1017), 9.4 %
-  (1118), 12.8 % (1431), 12.1 % (3489, 2023). Columns stay matched (≤ 0.3 %).
+  (1118), 12.8 % (1431), 12.1 % (3489, 2023). Columns stay matched (≤ 0.3 %). With a vanadium
+  from the same day in 2025 (5339), the row mismatch is 1.3 % for another flood (5340) and
+  1.4–2.1 % per sub-run of 5344, so **~2 % is the floor** and larger values are drift. The wire
+  period was still 6.56 rows in 2025. These mismatch values are the same whole-run and per
+  sub-run.
+- **Production mask, 2025.** `HB2B_Mask_Latest.xml` (2026-10-13) covers all but 353 of the
+  94,541 pixels dead in vanadium 5339.
 - **Noise bias.** Raw per-pixel vanadium used as an efficiency over-predicts zeros by about
   1 + λ²σ²/2 (σ² ≈ 1/N_van). Average it along x before using it.
