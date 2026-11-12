@@ -298,6 +298,21 @@ and `test_closing_window_releases_slice_viewer` in
 fail without it. Whether this was the *only* source of the CI crash is not
 verified -- that needs `xvfb-run` -- so the `os._exit()` wrapper stays.
 
+**It was not the only source (2026-11-12, phase-2 PR review).** With the observer
+fix in place, the GUI tier (`-m gui`, 50 passed, 2 xfailed) was run headless
+under `QT_QPA_PLATFORM=offscreen` through a runner that builds the
+`QApplication` first and then exits *normally*, without `os._exit()`. No
+`has been deleted` traceback appeared, and the process still segfaulted at
+interpreter shutdown, after pytest's summary. The same tier run through a runner
+ending in `os._exit()` exits cleanly. Not yet checked under `xvfb-run`.
+
+**Why this matters going forward:** some other object still outlives the Qt or
+mantid teardown it depends on, so `os._exit()` in
+`scripts/development/run_tests.py` remains necessary, and a headless run
+without it will report a crash after every test has passed. The search for the
+remaining source -- a widget removed but never closed, as the SliceViewer was,
+or a similar leak -- is DD-18 in [deferred_defects.md](deferred_defects.md).
+
 ## `tests/ui/test_calibration_ui.py` wrote/deleted files in the repo root, not a tmpdir (2026-07)
 
 While iterating on the segfault fix above, running the full suite

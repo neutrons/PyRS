@@ -236,6 +236,44 @@ class TestDefinitions:
         with pytest.raises(ValueError, match=r".*Malformed escape.*"):
             decode_identifier("a__ZZb")
 
+    # Codepoints above U+FFFF were written as `__u` + five or six hex digits, which
+    # the fixed-width decoder read as a BMP character followed by literal hex: the
+    # encoding was neither injective nor reversible there.
+
+    def test_astral_and_bmp_neighbour_no_longer_collide(self):
+        """U+1F600 and U+1F60 + '0' both encoded to `__u1F600`."""
+        assert allowed_identifier("\U0001f600") == "__U01F600"
+        assert allowed_identifier("ὠ" + "0") == "__u1F600"
+
+    @pytest.mark.parametrize("name", ["\U0001f600", "x\U0001f600y", "\U00010000", "\U0010ffff", "a\U00010000"])
+    def test_astral_codepoints_round_trip(self, name: str):
+        assert decode_identifier(allowed_identifier(name)) == name
+
+    @pytest.mark.parametrize("name", ["::", "é", "日本", "__3A", "__u1F600", "__U01F600", "_U01F600"])
+    def test_escape_shaped_and_bmp_names_round_trip(self, name: str):
+        assert decode_identifier(allowed_identifier(name)) == name
+
+    @pytest.mark.parametrize(
+        "identifier",
+        [
+            "a__3ab",  # lowercase hex
+            "__u1f60",  # lowercase hex
+            "__u1_F0",  # `int(..., 16)` accepts `_` between digits
+            "__U01F6",  # truncated
+            "__u1F",  # truncated
+            "a__",  # truncated
+        ],
+    )
+    def test_decode_identifier_refuses_what_the_encoder_never_writes(self, identifier: str):
+        with pytest.raises(ValueError, match="Malformed escape"):
+            decode_identifier(identifier)
+
+    @pytest.mark.parametrize("identifier", ["__u003A", "__U00E9AB", "__U110000"])
+    def test_decode_identifier_non_canonical_raises(self, identifier: str):
+        """One spelling per name: each codepoint has only its shortest form."""
+        with pytest.raises(ValueError, match="Non-canonical escape"):
+            decode_identifier(identifier)
+
     def test_is_ISO_8601_valid(self):
         """Verify is_ISO_8601 returns True for valid ISO 8601 strings"""
         assert is_ISO_8601("2024-01-15T10:30:00") is True

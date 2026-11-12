@@ -1004,60 +1004,134 @@ class TestPreconditionsAddedAfterReview:
                 nx.write([good], [good_peaks])
 
 
-class TestReadBackScanPointOrder:
-    """An append may not leave a workspace's scan points out of order on read.
+class TestOneWorkspacePerKey:
+    """An appended workspace may not share a workspace key with one already in the entry.
 
-    Rows sharing a discriminator value are read back as one workspace, in
-    on-disk order, and `SubRuns` refuses anything not strictly increasing. See
-    DD-2 in `plans/PR_review/deferred-defects.md`. Unsupported rather than
-    violated, like Case B: the entry is unchanged and the instance stays usable.
+    Rows under a key already on disk would be read back as part of that workspace:
+    two workspaces merged into one, which NXstress never does. Case B -- the same
+    key *and* the same peak, with further scan points -- is the exception: it
+    extends one workspace rather than merging two, and stays unsupported rather
+    than refused (`TestClassification`).
+
+    This replaces the read-back order refusal: that guarded only workspaces read
+    back together, which the rule makes impossible.
     """
 
-    @pytest.fixture
-    def higher(self, discriminated, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path):
-        """An entry holding scan points [4, 5, 6] for direction 11."""
-        path = tmp_path / "higher.nxs"
-        ws, peaks = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="11", sub_runs=(4, 5, 6))
-        with NXstress(path, "w") as nx:
-            nx.write([ws], [peaks])
-        return path
-
-    def test_lower_points_under_a_shared_discriminator_raise(
-        self, higher, minimal_HidraWorkspace, minimal_PeakCollection
-    ):
-        """Used to append without error, leaving an entry that `read` refused."""
-        # Arrange -- a new peak tag, so Case A, but the same direction
+    def test_shared_key_with_a_new_peak_raises(self, written, minimal_HidraWorkspace, minimal_PeakCollection):
+        # Arrange -- a new peak tag, so not Case B, but the same direction
         ws, peaks = workspace(
-            minimal_HidraWorkspace, minimal_PeakCollection, direction="11", sub_runs=(1, 2, 3), peak_tag="Ni200"
+            minimal_HidraWorkspace, minimal_PeakCollection, direction="11", sub_runs=(4, 5, 6), peak_tag="Ni200"
         )
-        before = digest(higher)
+        before = digest(written)
 
         # Act / Assert
-        with NXstress(higher, "a") as nx:
-            with pytest.raises(NotImplementedError, match=r"\[4, 5, 6, 1, 2, 3\]"):
+        with NXstress(written, "a") as nx:
+            with pytest.raises(RuntimeError, match=r"workspace key \{'direction': '11'\}.*already holds"):
                 nx.write([ws], [peaks])
-        assert digest(higher) == before
+            with pytest.raises(RuntimeError, match=r"no longer usable"):
+                nx.write([ws], [peaks])
+        assert digest(written) == before
 
-    def test_the_refusal_leaves_the_instance_usable(self, higher, minimal_HidraWorkspace, minimal_PeakCollection):
-        """Lower points under a new discriminator value are read back on their own."""
+    def test_lower_points_under_a_new_key_read_back_on_their_own(
+        self, written, minimal_HidraWorkspace, minimal_PeakCollection
+    ):
         # Arrange
-        refused, refused_peaks = workspace(
-            minimal_HidraWorkspace, minimal_PeakCollection, direction="11", sub_runs=(1, 2, 3), peak_tag="Ni200"
-        )
-        accepted, accepted_peaks = workspace(
-            minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(1, 2, 3)
-        )
+        ws, peaks = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(0,))
 
         # Act
-        with NXstress(higher, "a") as nx:
-            with pytest.raises(NotImplementedError):
-                nx.write([refused], [refused_peaks])
-            nx.write([accepted], [accepted_peaks])
-        with NXstress(higher, "r") as nx:
+        with NXstress(written, "a") as nx:
+            nx.write([ws], [peaks])
+        with NXstress(written, "r") as nx:
             read_wss, _ = nx.read()
 
         # Assert
-        assert [ws.get_sub_runs().raw_copy().tolist() for ws in read_wss] == [[4, 5, 6], [1, 2, 3]]
+        assert [ws.get_sub_runs().raw_copy().tolist() for ws in read_wss] == [[1, 2, 3], [0]]
+
+
+class TestPeakCoverage:
+    """Every appended scan point must be covered by one of its workspace's peaks.
+
+    On read, an entry holding more than one workspace gives each the union of its
+    collections' `sub_runs`; a point outside every union belongs to none, and
+    `read` refuses the file. An append always produces such an entry, so the rule
+    binds even for a single incoming workspace, whatever
+    `nxstress.allow_partial_peak_coverage` says.
+    """
+
+    @pytest.mark.parametrize("allow", [False, True])
+    def test_partially_covered_workspace_raises(
+        self, written, discriminated, minimal_HidraWorkspace, minimal_PeakCollection, allow
+    ):
+        # Arrange
+        discriminated({"nxstress": {"allow_partial_peak_coverage": allow}})
+        ws, _ = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(4, 5, 6))
+        peaks = [minimal_PeakCollection(N_subrun=2, peak_tag="Fe110", sub_runs=np.array([4, 6]))]
+        before = digest(written)
+
+        # Act / Assert
+        with NXstress(written, "a") as nx:
+            with pytest.raises(RuntimeError, match=r"scan point\(s\) \[5\] of input workspace \[0\]"):
+                nx.write([ws], [peaks])
+        assert digest(written) == before
+
+    def test_entry_written_with_partial_coverage_raises(
+        self, discriminated, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
+    ):
+        """Its uncovered points would belong to no workspace once the entry holds two."""
+        # Arrange -- a single-workspace entry whose peaks miss sub-run 3, allowed by config
+        discriminated({"nxstress": {"allow_partial_peak_coverage": True}})
+        path = tmp_path / "partial.nxs"
+        ws, _ = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="11", sub_runs=(1, 2, 3))
+        partial = [minimal_PeakCollection(N_subrun=2, peak_tag="Fe110", sub_runs=np.array([1, 2]))]
+        with NXstress(path, "w") as nx:
+            nx.write([ws], [partial])
+        incoming, peaks = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(4, 5))
+        before = digest(path)
+
+        # Act / Assert
+        with NXstress(path, "a") as nx:
+            with pytest.raises(RuntimeError, match=r"this entry's scan point\(s\) \[3\] have no peaks"):
+                nx.write([incoming], [peaks])
+        assert digest(path) == before
+
+
+class TestIncompleteEntryIsRefusedUpFront:
+    """An entry missing something the append grows is refused before anything grows.
+
+    These failed inside the append, after the entry times, `input_data` and other
+    groups had already grown: a desynchronized entry, which reads back without
+    error. `_classifyAppend` promises a rejected append leaves the file unchanged.
+    """
+
+    @staticmethod
+    def _delete(path: Path, dataset: str) -> None:
+        with h5py.File(path, "r+") as f:
+            del f[dataset]
+
+    @pytest.mark.parametrize(
+        ("dataset", "message"),
+        [
+            (
+                "entry/SAMPLE_DESCRIPTION/transformations/translation_y",
+                r"Missing from the entry: +\['translation_y'\]",
+            ),
+            ("entry/SAMPLE_DESCRIPTION/transformations", r"no `transformations` group"),
+            ("entry/instrument/monochromator/wavelength", r"no 'monochromator/wavelength'"),
+        ],
+    )
+    def test_missing_dataset_raises_and_leaves_the_file_unchanged(
+        self, written, minimal_HidraWorkspace, minimal_PeakCollection, dataset, message
+    ):
+        # Arrange
+        self._delete(written, dataset)
+        ws, peaks = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(4, 5, 6))
+        before = digest(written)
+
+        # Act / Assert
+        with NXstress(written, "a") as nx:
+            with pytest.raises(RuntimeError, match=message):
+                nx.write([ws], [peaks])
+        assert digest(written) == before
 
 
 class TestWriterEmitsResizableDatasets:

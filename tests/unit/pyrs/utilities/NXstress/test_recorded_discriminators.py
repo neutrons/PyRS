@@ -98,7 +98,7 @@ class TestTheRecord:
 
     def test_a_write_with_no_field_records_no_boundary(self, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path):
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         path = tmp_path / "single.nxs"
 
         # Act
@@ -121,7 +121,7 @@ class TestReadWithTheRecord:
     ):
         # Arrange -- written with nothing configured
         path = tmp_path / "single.nxs"
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         with NXstress(path, "w") as nx:
             nx.write([ws], [[minimal_PeakCollection(N_subrun=3)]])
         configure(config_override, "nxstress:\n  discriminator_fields: ['direction']\n")
@@ -156,7 +156,7 @@ class TestReadWithoutTheRecord:
     ):
         # Arrange -- a single-workspace file from another producer, with a field PyRS does not know
         path = tmp_path / "foreign.nxs"
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         with NXstress(path, "w") as nx:
             nx.write([ws], [[minimal_PeakCollection(N_subrun=3)]])
         drop_record(path)

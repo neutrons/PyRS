@@ -18,12 +18,14 @@ See spec 04's Follow-up 7 (F7.8, F7.10) and Decisions Log rows 24 and 26 in
 from pathlib import Path
 
 import h5py
+from nexusformat.nexus import nxload
 import numpy as np
 import pytest
 
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities.NXstress.NXstress import NXstress
+from pyrs.utilities.NXstress._transformations import resolve_depends_on
 
 pytestmark = pytest.mark.integration
 
@@ -185,21 +187,12 @@ def test_transformations_all_reachable(nxstress_from_real_data):
     """
     # Arrange
     _, _, nxs = nxstress_from_real_data
-    detector = nxs["entry/instrument/DETECTOR"]
+    detector = nxload(nxs.filename, "r")["entry/instrument/DETECTOR"]
     transformations = detector["transformations"]
 
-    def as_text(value):
-        return value.decode("utf-8") if isinstance(value, bytes) else str(value)
-
-    # Act: follow depends_on from the detector until '.'
-    reached = []
-    current = as_text(detector["depends_on"][()])
-    while current and current != ".":
-        name = current.rsplit("/", 1)[-1]
-        assert name in transformations, f"depends_on points outside the group: {current!r}"
-        assert name not in reached, f"cycle in the depends_on chain at {name!r}"
-        reached.append(name)
-        current = as_text(transformations[name].attrs.get("depends_on", "."))
+    # Act: follow depends_on from the detector until '.', resolving each value by
+    # the NeXus rule -- it raises on a link that does not resolve.
+    reached = [link.nxname for link in resolve_depends_on(detector)]
 
     # Assert
     assert set(reached) == set(transformations), f"unreachable: {sorted(set(transformations) - set(reached))}"

@@ -56,7 +56,7 @@ def test_plot_diff_and_fitted_data_fitted_none_does_not_raise(
 ) -> None:
     """The plotting path tolerates the None fitted spectrum an NXstress load leaves behind."""
     # Arrange
-    ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+    ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
     n_subrun = len(ws.get_sub_runs())
     peak = minimal_PeakCollection(N_subrun=n_subrun)
 

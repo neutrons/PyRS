@@ -1122,7 +1122,13 @@ class HidraWorkspace:
         checkdatatypes.check_string_variable("Log name", log_name)
         checkdatatypes.check_numpy_arrays("Sub runs and log values", [sub_runs, log_value_array], 1, True)
         if len(self._sample_logs) > 0:
-            self._sample_logs.matching_subruns(sub_runs)
+            # Its result was once discarded, so a log with the right length and the
+            # wrong sub-runs was stored against sub-runs it was not measured at.
+            if not self._sample_logs.matching_subruns(sub_runs):
+                raise RuntimeError(
+                    f"Sample log '{log_name}' is given for sub-runs {np.atleast_1d(sub_runs).tolist()}, "
+                    f"but this workspace's sub-runs are {self._sample_logs.subruns.raw_copy().tolist()}."
+                )
         else:
             # NOT sorted: `log_value_array` is paired with `sub_runs` positionally,
             # so reordering the axis alone would reattribute every value. See
@@ -1162,7 +1168,43 @@ class HidraWorkspace:
                 different values, or if `sort` is False and the input is not in
                 increasing order.
         """
+        self._require_rows_match(sub_runs, source="the sub-run axis being set")
         self._sample_logs.subruns = sorted(sub_runs) if sort else np.atleast_1d(sub_runs)
+
+    def _require_rows_match(self, sub_runs, *, source: str) -> None:
+        """Refuse a sub-run axis that this workspace's data disagree with.
+
+        Every per-sub-run array is paired with the axis positionally, so a row
+        count that differs is not a difference of opinion: one of them is wrong,
+        and nothing downstream can tell which. `set_reduced_diffraction_data_set`
+        checks the other direction -- data arriving after the axis.
+
+        Args:
+            sub_runs: The axis about to be used.
+            source: What supplies that axis, for the message.
+
+        Raises:
+            RuntimeError: If the reduced data's first axis disagrees with the
+                axis's length, or raw counts are held for a sub-run not on it.
+        """
+        sub_runs = np.atleast_1d(np.asarray(sub_runs))
+        rows = {}
+        if self._2theta_matrix is not None:
+            rows["two-theta matrix"] = np.asarray(self._2theta_matrix).shape[0]
+        for label, data_set in (("intensities", self._diff_data_set), ("variances", self._var_data_set)):
+            for mask_id, values in data_set.items():
+                rows[f"{label}[{mask_id!r}]"] = np.asarray(values).shape[0]
+        problems = [f"{n} row(s) of {label}" for label, n in rows.items() if n != len(sub_runs)]
+        # Raw counts are set one sub-run at a time, so fewer than the axis is normal.
+        stray = sorted(set(self._raw_counts) - {int(n) for n in sub_runs})
+        if stray:
+            problems.append(f"raw counts for sub-run(s) {stray}")
+        if problems:
+            raise RuntimeError(
+                f"{source} has sub-runs {sub_runs.tolist()}, but this workspace holds "
+                + ", ".join(problems)
+                + "; each is paired with the sub-run axis."
+            )
 
     def set_sub_runs(self, sub_runs):
         """Set sub runs to this workspace
@@ -1233,8 +1275,9 @@ class HidraWorkspace:
             sample_log_value = self.get_sample_log_values(sample_log_name=log_name, sub_runs=sub_runs)
             sample_log_units = self.get_sample_log_units(log_name)
 
-            if b"" in sample_log_value:
-                sample_log_value = np.where(sample_log_value == b"", b"None", sample_log_value)
+            # A blank log is written as "" -- never as a placeholder such as "None",
+            # which would make a log set to the empty string (left unfilled by the
+            # user, or by ADARA) indistinguishable from one that was never set.
 
             # Add log value to project file
             hidra_project.append_experiment_log(log_name, sample_log_value, units=sample_log_units)
@@ -1364,6 +1407,7 @@ class HidraWorkspace:
         -------
         None
         """
+        self._require_rows_match(sample_logs.subruns.raw_copy(), source="the replacement sample logs")
         self._sample_logs = sample_logs
 
     def set_wavelength_from_value(self, wavelength):

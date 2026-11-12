@@ -7,6 +7,7 @@ from pyrs.calibration.provenance import file_record
 from pyrs.projectfile import HidraProjectFile  # type: ignore
 from pyrs.projectfile.file_object import combine_reduction_records
 from pyrs.utilities.NXstress.NXstress import NXstress
+from pyrs.interface.gui_helper import is_nxstress_path
 
 
 class CombineRunsModel(QObject):
@@ -53,7 +54,7 @@ class CombineRunsModel(QObject):
         self.warnings = [record["warning"]] if record.get("warning") else []
 
     def export_project_files(self, fileout: str) -> None:
-        if Path(fileout).suffix == ".nxs":
+        if is_nxstress_path(fileout):
             # The peak list is always `[[]]` for this viewer -- CombineRunsModel has
             # no PeakCollection concept, only merges/exports raw/reduced diffraction
             # data. That shape is supported rather than merely tolerated:

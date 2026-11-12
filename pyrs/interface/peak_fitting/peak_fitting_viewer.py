@@ -13,7 +13,6 @@ view-side collaborators, instantiated with this window as their ``parent``.
 """
 
 import os
-from pathlib import Path
 from typing import List, Optional
 
 import numpy as np
@@ -28,7 +27,8 @@ import pyrs.interface.gui_helper
 from pyrs.interface.gui_helper import (
     browse_dir,
     browse_file,
-    dotted,
+    is_nxstress_path,
+    nxstress_file_filter,
     nxstress_save_available,
     parse_integers,
     pop_message,
@@ -210,7 +210,7 @@ class PeakFittingViewer(QMainWindow):
         target = self.current_hidra_file_name
         if isinstance(target, list):
             target = target[0]
-        if Path(target).suffix == dotted(Config["nxstress.extension"]):
+        if is_nxstress_path(target):
             # The same conditions as *Save as NXstress...*.
             if not nxstress_save_available(self._model.hidra_workspace):
                 pop_message(
@@ -273,7 +273,7 @@ class PeakFittingViewer(QMainWindow):
             self,
             caption="Choose a file to save fitted peaks to (NXstress)",
             default_dir=self._model.working_dir,
-            file_filter="NXstress (*.nxs)",
+            file_filter=nxstress_file_filter(),
             save_file=True,
         )
         if not out_file_name:
@@ -302,7 +302,7 @@ class PeakFittingViewer(QMainWindow):
 
     def browse_hdf(self) -> None:
         """Browse for a Hidra project HDF file, then load and plot it."""
-        file_filter = "HDF (*.hdf);H5 (*.h5);NXstress (*.nxs)"
+        file_filter = f"HDF (*.hdf);H5 (*.h5);{nxstress_file_filter()}"
         hidra_file_name = browse_file(
             self, "HIDRA Project File", os.getcwd(), file_filter, file_list=True, save_file=False
         )

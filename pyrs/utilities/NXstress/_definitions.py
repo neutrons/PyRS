@@ -450,8 +450,26 @@ def _legal_at(ch: str, *, edge: bool) -> bool:
 
 
 def _escape_char(ch: str) -> str:
+    # Each form has a FIXED width, so the decoder never has to guess where an escape
+    # ends. `:04X` is a minimum, not a width: a codepoint above U+FFFF written as
+    # `__u` + hex took five or six digits, and decoded as a BMP character followed by
+    # literal hex -- 'U+1F600' and 'U+1F60' + '0' both encoded to `__u1F600`.
     codepoint = ord(ch)
-    return f"{_ESCAPE}{codepoint:02X}" if codepoint < 256 else f"{_ESCAPE}u{codepoint:04X}"
+    if codepoint < 0x100:
+        return f"{_ESCAPE}{codepoint:02X}"
+    if codepoint < 0x10000:
+        return f"{_ESCAPE}u{codepoint:04X}"
+    return f"{_ESCAPE}U{codepoint:06X}"
+
+
+# The decoder's three forms, each matched at its exact width in uppercase hex:
+# `int(..., 16)` alone would also accept lowercase digits and `_` separators,
+# giving one name several spellings. Tried longest-introducer first.
+_DECODE_FORMS = (
+    (re.compile(f"{_ESCAPE}U([0-9A-F]{{6}})"), 0x10000, 0x110000),
+    (re.compile(f"{_ESCAPE}u([0-9A-F]{{4}})"), 0x100, 0x10000),
+    (re.compile(f"{_ESCAPE}([0-9A-F]{{2}})"), 0x0, 0x100),
+)
 
 
 # Throughout the PyRS codebase, `None` is the key for the default mask -- in
@@ -611,12 +629,16 @@ def allowed_identifier(s: str) -> str:
 
     Encoding forms, all introduced by ``__``:
 
-    ==========  ==========================================================
-    ``__XX``    the character with byte value ``0xXX`` -- ``__3A`` is ``:``
-    ``__uXXXX`` a codepoint above U+00FF
-    ``__5F``    a literal ``_`` that would otherwise be read as an escape
-    ``_``       a lone underscore means itself
-    ==========  ==========================================================
+    ==============  ======================================================
+    ``__XX``        a codepoint below U+0100 -- ``__3A`` is ``:``
+    ``__uXXXX``     a codepoint from U+0100 to U+FFFF
+    ``__UXXXXXX``   a codepoint from U+10000 to U+10FFFF
+    ``__5F``        a literal ``_`` that would otherwise be read as an escape
+    ``_``           a lone underscore means itself
+    ==============  ======================================================
+
+    Every escape has a fixed width and uppercase hex digits, and each codepoint
+    has exactly one form -- the shortest that holds it.
 
     Args:
         s: PV-log name, as recorded by the control system. Arbitrary text.
@@ -668,8 +690,11 @@ def allowed_identifier(s: str) -> str:
 def decode_identifier(s: str) -> str:
     """Recover the original PV-log name from :func:`allowed_identifier` output.
 
-    Decoding needs no lookahead: ``__u`` begins a 7-character form, ``__`` a
-    4-character one, and anything else is a literal.
+    Decoding needs no lookahead: ``__U`` begins a 9-character form, ``__u`` a
+    7-character one, ``__`` a 4-character one, and anything else is a literal.
+    Only the encoder's own spelling is accepted: uppercase hex at exactly the
+    form's width, in the shortest form that holds the codepoint. Anything else
+    would give one name several spellings.
 
     Args:
         s: An identifier produced by :func:`allowed_identifier`.
@@ -678,7 +703,8 @@ def decode_identifier(s: str) -> str:
         The original PV-log name.
 
     Raises:
-        ValueError: If `s` contains a truncated or non-hexadecimal escape.
+        ValueError: If `s` contains an escape that is truncated, not uppercase
+            hexadecimal, or not in the shortest form for its codepoint.
 
     Example:
         >>> decode_identifier("HB2B__3AMot__3Asz_real")
@@ -687,18 +713,24 @@ def decode_identifier(s: str) -> str:
     out: List[str] = []
     i = 0
     while i < len(s):
-        try:
-            if s.startswith(f"{_ESCAPE}u", i):
-                out.append(chr(int(s[i + 3 : i + 7], 16)))
-                i += 7
-            elif s.startswith(_ESCAPE, i):
-                out.append(chr(int(s[i + 2 : i + 4], 16)))
-                i += 4
-            else:
-                out.append(s[i])
-                i += 1
-        except ValueError as e:
-            raise ValueError(f"Malformed escape in NeXus identifier '{s}' at position {i}") from e
+        if not s.startswith(_ESCAPE, i):
+            out.append(s[i])
+            i += 1
+            continue
+        for form, low, high in _DECODE_FORMS:
+            match = form.match(s, i)
+            if match is not None:
+                codepoint = int(match.group(1), 16)
+                if not low <= codepoint < high:
+                    raise ValueError(
+                        f"Non-canonical escape '{match.group(0)}' in NeXus identifier '{s}' at position {i}: "
+                        "a codepoint is written in the shortest form that holds it."
+                    )
+                out.append(chr(codepoint))
+                i = match.end()
+                break
+        else:
+            raise ValueError(f"Malformed escape in NeXus identifier '{s}' at position {i}")
     return "".join(out)
 
 

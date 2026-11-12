@@ -25,7 +25,7 @@ class TestFit:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify numeric values in peak parameters match get_effective_params()"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -71,7 +71,7 @@ class TestFit:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify two PeakCollections create 2×N_scan rows in sort order"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -107,7 +107,7 @@ class TestFit:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify ValueError when PeakCollections have different peak_profile"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -141,7 +141,7 @@ class TestFit:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify A0, A1, A2 (and errors) match get_effective_params()"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -178,7 +178,7 @@ class TestFit:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify two PeakCollections create 2×N_scan rows"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -214,7 +214,7 @@ class TestFit:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify ValueError when PeakCollections have different background_type"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -259,7 +259,7 @@ class TestFit:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify RuntimeError when workspace._2theta_matrix is None"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         # Set _2theta_matrix to None to simulate no reduced data
         ws._2theta_matrix = None
@@ -273,7 +273,7 @@ class TestFit:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify RuntimeError when mask data not in workspace"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -298,7 +298,7 @@ class TestFit:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify diffractogram/diffractogram_errors match workspace arrays"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -340,7 +340,7 @@ class TestFit:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify _Fit._init creates fields: date, program, raw_data_file, DESCRIPTION"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         logs = ws._sample_logs
         fit = _Fit._init([logs], processing_description="Test description", processing_time="2024-01-15T10:30:00")
@@ -363,7 +363,7 @@ class TestFit:
         """Verify a workspace with multiple named reduced-diffraction masks creates exactly
         one DIFFRACTOGRAM per configured mask, plus the always-present default.
         """
-        ws = minimal_HidraWorkspace(with_instrument=False, with_reduced_diffraction=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False, with_reduced_diffraction=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -422,7 +422,7 @@ class TestFit:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify validation passes for matching workspace and peaks data"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -446,7 +446,7 @@ class TestFit:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify ValueError when PeakCollection references missing scan points"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -478,7 +478,7 @@ class TestFit:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify ValueError when PeakCollection references missing mask data"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -512,7 +512,7 @@ class TestFit:
         peakParametersForRange.  For Gaussian we verify that the call succeeds and that Height and
         Sigma (the actual native parameters) round-trip correctly.
         """
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)

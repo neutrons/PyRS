@@ -15,6 +15,7 @@ Integration: a real `HidraProjectFile` written to `tmp_path` and read back
 through a GUI model class.
 """
 
+import json
 from pathlib import Path
 from typing import Callable
 
@@ -32,7 +33,7 @@ pytestmark = pytest.mark.integration
 
 def _project_with_direction(tmp_path: Path, minimal_HidraWorkspace, direction: str | None) -> Path:
     """A Hidra project file whose `direction` log holds `direction`, or has none."""
-    ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+    ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
     if direction is not None:
         points = ws.get_sub_runs().raw_copy()
         ws.set_sample_log("direction", points, np.array([direction] * len(points)))
@@ -187,3 +188,89 @@ class TestControllerReportsARefusedLoad:
         # Assert
         assert not failures
         assert loaded is True
+
+
+class TestNoPartiallySuccessfulLoad:
+    """A failed load leaves nothing behind that a stress calculation could use.
+
+    A failed direction load used to keep that direction's strain from the
+    previous load, and `from_json` went on to calculate stress anyway -- from that
+    stale strain, or raising inside the slot on a fresh model.
+    """
+
+    DATA = "tests/data/HB2B_1320.h5"  # records peak `peak0`
+
+    @pytest.fixture
+    def loaded(self, model_and_failures):
+        model, failures = model_and_failures
+        model.e11 = self.DATA
+        model.e22 = self.DATA
+        model.selectedPeak = "peak0"
+        assert model._e22_strain is not None
+        return model, failures
+
+    def _session(self, tmp_path: Path, **overrides) -> Path:
+        data = {
+            "stress_case": "In-plane-stress",  # as the controller passes it to the model
+            "filenames_11": [self.DATA],
+            "filenames_22": [self.DATA],
+            "filenames_33": [],
+            "peak_tag": "peak0",
+            "youngs_modulus": 200.0,
+            "poisson_ratio": 0.3,
+            "d0": None,
+        }
+        data.update(overrides)
+        path = tmp_path / "session.json"
+        path.write_text(json.dumps(data))
+        return path
+
+    def test_failed_direction_load_clears_that_direction_and_the_stress(self, loaded, tmp_path):
+        # Arrange
+        model, failures = loaded
+
+        # Act
+        model.e22 = str(tmp_path / "missing.h5")
+
+        # Assert -- e22 is empty, its strain gone; e11 is kept
+        assert failures
+        assert model.e22 == [] and model.e22_peaks == []
+        assert model._e22_strain is None
+        assert model.stress is None
+        assert model._e11_strain is not None
+
+    @pytest.mark.parametrize(
+        "overrides",
+        [{"filenames_22": ["missing.h5"]}, {"peak_tag": "no_such_peak"}],
+        ids=["unloadable file", "absent peak"],
+    )
+    def test_failed_session_restore_clears_everything(self, loaded, tmp_path, overrides):
+        # Arrange -- a model already holding a session
+        model, failures = loaded
+        path = self._session(tmp_path, **overrides)
+
+        # Act -- must not raise, nor compute stress from the earlier session
+        model.from_json(str(path))
+
+        # Assert
+        assert failures
+        for direction in ("11", "22", "33"):
+            assert getattr(model, f"e{direction}") == []
+            assert getattr(model, f"_e{direction}_strain") is None
+        assert model.stress is None
+        assert model.peakTags == [] and model.selectedPeak is None
+
+    def test_session_restore_succeeds(self, model_and_failures, tmp_path):
+        # Arrange -- the view refreshes its peak list on "peakTags"
+        model, failures = model_and_failures
+        updated: list = []
+        model.propertyUpdated.connect(updated.append)
+
+        # Act
+        model.from_json(str(self._session(tmp_path)))
+
+        # Assert
+        assert not failures
+        assert model.stress is not None
+        assert model.peakTags == ["peak0"]
+        assert updated.index("peakTags") < updated.index("modelUpdated")

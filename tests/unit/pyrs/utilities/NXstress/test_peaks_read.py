@@ -24,7 +24,7 @@ class TestPeakCollectionRanges:
 
     def test_peakCollectionRanges_happy_path(self, minimal_HidraWorkspace, createPeakCollection):
         """Write 3 PeakCollections with distinct keys, read ranges, verify count and span"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -81,7 +81,7 @@ class TestPeakCollectionRanges:
 
     def test_peakCollectionRanges_interleaved_blocks(self, minimal_HidraWorkspace):
         """Construct NXreflections with non-contiguous blocks for same key → RuntimeError"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         # Manually create NXreflections with interleaved blocks
         peaks = _Peaks._init(ws._sample_logs)
@@ -119,7 +119,7 @@ class TestPeakCollectionRanges:
 
     def test_peakCollectionRanges_scan_point_order_violation(self, minimal_HidraWorkspace):
         """Non-increasing scan points within block → RuntimeError"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         # Manually create NXreflections with non-increasing scan_point
         peaks = _Peaks._init(ws._sample_logs)
@@ -326,7 +326,7 @@ class TestPeakCollectionsFromNexus:
 
     def test_peakCollectionsFromNexus_roundtrip(self, minimal_HidraWorkspace, createPeakCollection):
         """Write PeakCollections via NXstress.write(), read back via peakCollectionsFromNexus, verify match"""
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True, with_raw_counts=True)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -423,7 +423,7 @@ class TestPeakCollectionsFromNexus:
 
     def test_peak_tag_roundtrip_multidigit_miller(self, minimal_HidraWorkspace, createPeakCollection):
         """PeakCollection with peak_tag='Fe120100' (h=12,k=1,l=0) round-trips correctly"""
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True, with_raw_counts=True)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -472,7 +472,7 @@ class TestValidateNoDuplicatePeaksIntegration:
 
     def test_validateNoDuplicatePeaks_integration_in_write(self, minimal_HidraWorkspace, createPeakCollection):
         """NXstress.write() with duplicates → ValueError before any file content written"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)

@@ -32,7 +32,7 @@ class TestPeakFittingViewerRoundtrip:
         minimal_PeakCollection: Callable[..., PeakCollection],
         tmp_path: Path,
     ) -> None:
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         n_subrun = len(ws.get_sub_runs())
         peaks = [
             minimal_PeakCollection(N_subrun=n_subrun, peak_tag="Fe110", runnumber=1),
@@ -63,7 +63,7 @@ class TestPeakFittingViewerRoundtrip:
         minimal_PeakCollection: Callable[..., PeakCollection],
         tmp_path: Path,
     ) -> None:
-        ws = minimal_HidraWorkspace(with_instrument=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
         project_path = write_minimal_h5_project(ws, filename="source.h5", with_instrument=True)
 
         model = PeakFittingModel(PyRsCore())
@@ -88,7 +88,7 @@ class TestTextureFittingViewerRoundtrip:
         minimal_PeakCollection: Callable[..., PeakCollection],
         tmp_path: Path,
     ) -> None:
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         n_subrun = len(ws.get_sub_runs())
         peaks = [
             minimal_PeakCollection(N_subrun=n_subrun, peak_tag="Fe110", runnumber=1),
@@ -120,7 +120,7 @@ class TestTextureFittingViewerRoundtrip:
         minimal_PeakCollection: Callable[..., PeakCollection],
         tmp_path: Path,
     ) -> None:
-        ws = minimal_HidraWorkspace(with_instrument=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
         project_path = write_minimal_h5_project(ws, filename="source.h5", with_instrument=True)
 
         model = TextureFittingModel(None)
@@ -148,8 +148,8 @@ class TestCombineRunsViewerRoundtrip:
         # narrowed to sub-run counts and sample-log arrays as a direct
         # consequence, not an arbitrary choice -- see
         # open-questions/03-combine-runs-nxstress.md Q1.
-        ws1 = minimal_HidraWorkspace(name="run1", with_masks=True)
-        ws2 = minimal_HidraWorkspace(name="run2", with_masks=True)
+        ws1 = minimal_HidraWorkspace(sub_runs=[1, 2, 3], name="run1", with_masks=True)
+        ws2 = minimal_HidraWorkspace(sub_runs=[1, 2, 3], name="run2", with_masks=True)
         project_path_1 = write_minimal_h5_project(ws1, filename="run1.h5", with_instrument=True, with_masks=True)
         project_path_2 = write_minimal_h5_project(ws2, filename="run2.h5", with_instrument=True, with_masks=True)
 
@@ -193,7 +193,7 @@ class TestCombineRunsViewerRoundtrip:
         # the inputs rather than against the model that produced the output. Comparing
         # the read-back count to `model._hidra_ws` would hold just as well if
         # `combine_project_files` had silently dropped two of the three runs.
-        runs = [minimal_HidraWorkspace(name=f"run{n}", with_masks=True) for n in (1, 2, 3)]
+        runs = [minimal_HidraWorkspace(sub_runs=[1, 2, 3], name=f"run{n}", with_masks=True) for n in (1, 2, 3)]
         expected_subruns = sum(len(ws.get_sub_runs()) for ws in runs)
         paths = [
             write_minimal_h5_project(
@@ -228,7 +228,7 @@ class TestCombineRunsViewerRoundtrip:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
         tmp_path: Path,
     ) -> None:
-        ws1 = minimal_HidraWorkspace(name="run1")
+        ws1 = minimal_HidraWorkspace(sub_runs=[1, 2, 3], name="run1")
         project_path_1 = write_minimal_h5_project(ws1, filename="run1.h5", with_instrument=True)
 
         model = CombineRunsModel()
@@ -237,3 +237,83 @@ class TestCombineRunsViewerRoundtrip:
         out_path = tmp_path / "combined.h5"
         model.export_project_files(str(out_path))
         assert out_path.exists()
+
+
+class TestConfiguredExtension:
+    """Every viewer model routes by the configured `nxstress.extension`, not a literal ".nxs".
+
+    With another extension configured, a literal check sent an NXstress save down
+    the legacy branch, and loaded an NXstress file as a legacy project file.
+    """
+
+    @pytest.fixture(autouse=True)
+    def nx5(self, config_override) -> None:
+        config_override({"nxstress": {"extension": "nx5"}})
+
+    def test_peak_fitting_saves_and_loads_nxstress(
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_PeakCollection: Callable[..., PeakCollection],
+        tmp_path: Path,
+    ) -> None:
+        # Arrange
+        model = PeakFittingModel(PyRsCore())
+        model.hidra_workspace = minimal_HidraWorkspace(sub_runs=[1, 2, 3])
+        peaks = [minimal_PeakCollection(N_subrun=3, peak_tag="Fe110")]
+        model.fit_result = FitResult(peakcollections=peaks, fitted=None, difference=None)
+        model._project_name = "test_project"
+        path = tmp_path / "saved.nx5"
+
+        # Act
+        model.save_fit_result(str(path))
+        reloaded = PeakFittingModel(PyRsCore())
+        reloaded.load_hidra_project(str(path))
+
+        # Assert
+        with NXstress(path, "r") as nx:
+            assert nx.entry_numbers() == (1,)
+        assert [p.peak_tag for p in reloaded.fit_result.peakcollections] == ["Fe110"]
+
+    def test_texture_fitting_saves_and_loads_nxstress(
+        self,
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_PeakCollection: Callable[..., PeakCollection],
+        tmp_path: Path,
+    ) -> None:
+        # Arrange
+        model = TextureFittingModel(None)
+        model.ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3])
+        fit_result = FitResult(
+            peakcollections=[minimal_PeakCollection(N_subrun=3, peak_tag="Fe110")], fitted=None, difference=None
+        )
+        path = tmp_path / "saved.nx5"
+
+        # Act
+        model.save_fit_result(str(path), fit_result=fit_result)
+        reloaded = TextureFittingModel(None)
+        reloaded.load_hidra_project_file(str(path))
+
+        # Assert
+        assert reloaded.fit_result is not None
+        assert [p.peak_tag for p in reloaded.fit_result.peakcollections] == ["Fe110"]
+
+    def test_combine_runs_exports_nxstress(
+        self,
+        write_minimal_h5_project: Callable[..., Path],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        tmp_path: Path,
+    ) -> None:
+        # Arrange
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], name="run1", with_masks=True)
+        project = write_minimal_h5_project(ws, filename="run1.h5", with_instrument=True, with_masks=True)
+        model = CombineRunsModel()
+        model.combine_project_files([str(project)])
+        path = tmp_path / "combined.nx5"
+
+        # Act
+        model.export_project_files(str(path))
+
+        # Assert
+        with NXstress(path, "r") as nx:
+            (read_ws,), _ = nx.read()
+        assert read_ws.get_sub_runs().raw_copy().tolist() == [1, 2, 3]

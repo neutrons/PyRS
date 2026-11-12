@@ -31,7 +31,7 @@ def roundtrip_nxstress(minimal_HidraWorkspace, createPeakCollection, tmp_path):
     """Fixture that writes and reads back a workspace with peaks"""
 
     ws_original = minimal_HidraWorkspace(
-        with_instrument=True, with_masks=True, with_raw_counts=True, with_reduced_diffraction=True
+        sub_runs=[1, 2, 3], with_instrument=True, with_masks=True, with_raw_counts=True, with_reduced_diffraction=True
     )
 
     # Create 2 PeakCollection objects
@@ -227,7 +227,7 @@ class TestWorkspaceRoundtrip:
         """A workspace with no mask of its own gets a generated default mask on
         write; that default must be 1-D, or `set_detector_mask` refuses it on read."""
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=False)
         nxstress_file = tmp_path / "no_masks.nxs"
         with NXstress(nxstress_file, mode="w") as nxs:
             nxs.write([ws], [[]])
@@ -246,7 +246,7 @@ class TestReadErrors:
 
     def test_read_nonexistent_entry(self, minimal_HidraWorkspace, tmp_path):
         """Attempt to read non-existent entry → KeyError"""
-        ws = minimal_HidraWorkspace(with_instrument=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
 
         nxstress_file = tmp_path / "test_nonexistent.nxs"
         with NXstress(nxstress_file, mode="w") as nxs:
@@ -259,7 +259,7 @@ class TestReadErrors:
     def test_read_outside_context_manager(self, minimal_HidraWorkspace, tmp_path):
         """Call read() outside context manager → RuntimeError"""
         # Build a valid NXstress file
-        ws = minimal_HidraWorkspace(with_instrument=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
 
         nxstress_file = tmp_path / "test_outside_context.nxs"
         with NXstress(nxstress_file, mode="w") as nxs:
@@ -408,6 +408,7 @@ def roundtrip_named_masks(minimal_HidraWorkspace, createPeakCollection, tmp_path
     correspondence used to be re-derived at each call site.
     """
     ws_original = minimal_HidraWorkspace(
+        sub_runs=[1, 2, 3],
         with_instrument=True,
         with_masks=True,
         mask_names=("front_half", "back_half"),
@@ -446,6 +447,11 @@ class TestMaskNamingConvention:
         """Verify every named mask survives the round trip with its own values"""
         # Arrange
         ws_original, ws_readback = roundtrip_named_masks
+        masks = [ws_original.get_detector_mask(is_default=True)] + [
+            ws_original.get_detector_mask(is_default=False, mask_id=mask_id) for mask_id in ("front_half", "back_half")
+        ]
+        # Distinct inputs, or a swapped or misattributed mask would compare equal.
+        assert not any(np.array_equal(a, b) for i, a in enumerate(masks) for b in masks[i + 1 :])
 
         # Act / Assert
         for mask_id in ("front_half", "back_half"):
@@ -484,8 +490,12 @@ class TestMaskNamingConvention:
 
     def test_diffraction_data_keyed_consistently(self, roundtrip_named_masks):
         """Verify reduced data comes back under the same keys it was written with"""
-        # Arrange
+        # Arrange -- reduced data under every mask key, each with its own values, or
+        # a dropped, renamed or swapped key would go unnoticed
         ws_original, ws_readback = roundtrip_named_masks
+        assert set(ws_original._diff_data_set) == {None, "front_half", "back_half"}
+        data = list(ws_original._diff_data_set.values())
+        assert not any(np.array_equal(a, b) for i, a in enumerate(data) for b in data[i + 1 :])
 
         # Act / Assert
         assert set(ws_readback._diff_data_set) == set(ws_original._diff_data_set)

@@ -95,7 +95,7 @@ def test_save_file_dialog_nxstress_writes_valid_nxs_file(
     window, qtbot = combine_projects_window
     export_file = "test_export.nxs"
 
-    window.model._hidra_ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+    window.model._hidra_ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
     window._project_files = ["placeholder"]
 
     try:
@@ -144,7 +144,7 @@ def test_load_project_files_auto_prompt_calls_both_save_dialogs_in_order(
     original_load_combine_projects = window.controller.load_combine_projects
 
     def fake_load_combine_projects(project_files: List[str]) -> None:
-        window.model._hidra_ws = minimal_HidraWorkspace(with_instrument=True)
+        window.model._hidra_ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
         # no warnings: a combine's warning would open a modal dialog
         window.model.warnings = []
 
@@ -175,7 +175,9 @@ def _refused_export_setup(window, *, minimal_HidraWorkspace, monkeypatch, chosen
     monkeypatch.setattr(
         combine_runs_viewer.QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (str(chosen), ""))
     )
-    monkeypatch.setattr(window.model, "_hidra_ws", minimal_HidraWorkspace(with_instrument=True, with_masks=True))
+    monkeypatch.setattr(
+        window.model, "_hidra_ws", minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
+    )
     monkeypatch.setattr(window, "_project_files", ["placeholder"])
     return messages
 

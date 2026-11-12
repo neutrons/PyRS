@@ -84,6 +84,7 @@ class _NXstress(_Section):
     instrument_name: NonBlankText
     instrument_short_name: NonBlankText
     discriminator_fields: DiscriminatorFields
+    allow_partial_peak_coverage: bool
 
 
 class _LegacyIO(_Section):

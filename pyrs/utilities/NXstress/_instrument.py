@@ -38,6 +38,7 @@ from ._definitions import (
     nxstress_mask_names,
     tail_append,
 )
+from ._transformations import resolve_depends_on
 
 
 _logger = logging.getLogger(__name__)
@@ -301,10 +302,12 @@ class _Instrument:
             f = NXfield(val, units=units)
             f.attrs["transformation_type"] = trtype
             f.attrs["vector"] = vec
-            # each transformation depends on the previous one in the chain
+            # each transformation depends on the previous one in the chain, named as
+            # its sibling: NeXus resolves a relative `depends_on` from the group
+            # enclosing it, which for this attribute is `transformations` itself.
             f.attrs["depends_on"] = depends
             trans[name] = f
-            depends = f"./transformations/{name}"
+            depends = name
 
         det["transformations"] = trans
 
@@ -328,7 +331,8 @@ class _Instrument:
         # pinned by `test_instrument.py`. The order question that stood open here is
         # closed; the separate question of `two_theta_zero`'s AXIS is not -- see the
         # note at its entry in the chain above.
-        det["depends_on"] = depends
+        det["depends_on"] = f"transformations/{depends}"
+        resolve_depends_on(det)  # a writer bug if the chain does not resolve
 
         # Add a calibrated flag as extra metadata
         det["transformations"].attrs["calibrated"] = bool(is_calibrated)
@@ -441,8 +445,18 @@ class _Instrument:
             instrument: The target entry's existing `NXinstrument` group.
 
         Raises:
-            RuntimeError: If geometry, detector shift or calibration state differ.
+            RuntimeError: If the entry has no wavelength to extend, or geometry,
+                detector shift, masks or calibration state differ.
         """
+        # `wavelength` is the one field the append grows. `appendableDatasets` omits it
+        # when it is absent, so without this the append would fail on it part-way.
+        if not cls.appendableDatasets(instrument):
+            raise RuntimeError(
+                f"NXstress._instrument: cannot append -- the target entry has no "
+                f"'{GROUP_NAME.MONOCHROMATOR}/wavelength' to extend.\n"
+                "  Write a new entry."
+            )
+
         incoming_geometry, incoming_shift = cls._entry_wide_geometry(wss)
         existing_geometry, existing_shift, _ = cls.instrumentFromNexus(instrument)
 

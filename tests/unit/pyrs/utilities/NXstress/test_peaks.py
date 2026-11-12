@@ -20,7 +20,7 @@ class TestPeaks:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify _Peaks._init creates empty datasets with correct dtypes/units"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         logs = ws._sample_logs
         peaks = _Peaks._init(logs)
@@ -59,7 +59,7 @@ class TestPeaks:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify one PeakCollection creates N_scan rows with correct values"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -109,7 +109,7 @@ class TestPeaks:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify two PeakCollections create 2×N_scan rows in lexicographic sort order"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -169,7 +169,7 @@ class TestPeaks:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify PeakIndex.sort_key returns correct tuple for sorting"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -212,7 +212,7 @@ class TestPeaks:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify qx, qy, qz fields exist but remain empty after init_group since implementation doesn't populate them"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
@@ -251,7 +251,7 @@ class TestPeaks:
     ):
         """Verify sx, sy, sz carry the sample coordinates, tagged with their source"""
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
         peak0 = createPeakCollection(
@@ -285,11 +285,12 @@ class TestPeaks:
         wholesale yields one value per workspace scan point, but this slice needs one
         per scan point *of this PeakCollection*.
         """
-        # Arrange: the collection covers fewer subruns than the workspace holds.
-        ws = minimal_HidraWorkspace(with_instrument=False)
-        N_workspace = len(ws._sample_logs.subruns.raw_copy())
-        N_subset = N_workspace - 1
-        assert N_subset >= 1, "fixture must supply more than one subrun"
+        # Arrange: the collection covers some of the workspace's sub-runs. Not a
+        # prefix, not contiguous, and not starting at the first: a positional
+        # lookup (`vx[:N]`, or a slice from any offset) then gives different values
+        # from the lookup by sub-run number.
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3, 4, 5], with_instrument=False)
+        subset = [2, 4]
         peak0 = createPeakCollection(
             peak_tag="Al 111",
             peak_profile="Gaussian",
@@ -297,15 +298,17 @@ class TestPeaks:
             wavelength=25.4,
             projectfilename="/does/not/exist.h5",
             runnumber=12345,
-            N_subrun=N_subset,
+            N_subrun=len(subset),
+            sub_runs=subset,
         )
 
         # Act
         peaks = _Peaks.init_group(_Peaks.indexed([peak0], ws._sample_logs), ws._sample_logs)
 
-        # Assert: length and values follow the collection, not the workspace
-        assert peaks["sx"].shape[0] == N_subset
-        np.testing.assert_allclose(peaks["sx"].nxdata, ws._sample_logs["vx"][:N_subset])
+        # Assert: length and values follow the collection's sub-runs, on every axis
+        for peak_axis, coord_axis in zip(("sx", "sy", "sz"), ("vx", "vy", "vz")):
+            assert peaks[peak_axis].shape[0] == len(subset)
+            np.testing.assert_allclose(peaks[peak_axis].nxdata, ws._sample_logs[coord_axis, np.array(subset)])
 
     def test_Peaks_sample_position_nan_fallback(
         self,
@@ -314,7 +317,7 @@ class TestPeaks:
     ):
         """Verify absent sample coordinates give NaN rather than failing the write"""
         # Arrange: drop the coordinate logs entirely
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
         subruns = ws._sample_logs.subruns.raw_copy()
         N_subrun = len(subruns)
         for coord_axis in ("vx", "vy", "vz"):

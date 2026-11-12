@@ -7,22 +7,20 @@ in-memory data via its public setters -- no project file is read from disk. The
 returns it; scripts under `tests/scripts/` call it directly.
 """
 
+from collections.abc import Sequence
+
 import numpy as np
 
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 from pyrs.core.workspaces import HidraWorkspace
-
-#: `n_subruns`' default, named so that `make_minimal_HidraWorkspace` can tell a
-#: caller who passed it explicitly from one who did not, and refuse the first in
-#: combination with `sub_runs` rather than silently discarding it.
-_DEFAULT_N_SUBRUNS = 3
+from tests.util.peak_collection_helpers import SEED
 
 
 def make_minimal_HidraWorkspace(
     *,
+    sub_runs: Sequence[int] | np.ndarray,
     name: str = "test_workspace",
-    n_subruns: int = _DEFAULT_N_SUBRUNS,
-    sub_runs: np.ndarray | None = None,
+    seed: int = SEED,
     with_instrument: bool = True,
     with_masks: bool = False,
     mask_names: tuple = (),
@@ -30,32 +28,40 @@ def make_minimal_HidraWorkspace(
     with_reduced_diffraction: bool = True,
     n_two_theta: int = 20,
 ) -> HidraWorkspace:
+    """A small, valid `HidraWorkspace` over `sub_runs`, built in memory.
+
+    Every per-scan-point and per-mask array holds *distinct* values -- seeded random
+    counts, masks and intensities; distinct coordinates per axis -- so that a round
+    trip that attaches a row to the wrong sub-run, or one mask's data to another
+    mask, is caught rather than compared equal.
+
+    Args:
+        sub_runs: Its scan points, strictly increasing. Required: two workspaces
+            sharing one NXstress entry must cover disjoint scan points, so no
+            single default is right for every test.
+        name: The workspace name; also used for the `Filename` log.
+        seed: Seeds a fresh generator per call, so a workspace's values never
+            depend on what was built before it.
+        with_instrument: Set a synthetic detector geometry and shift.
+        with_masks: Set a default mask, plus one named mask per `mask_names`.
+        mask_names: The named masks to set, when `with_masks`.
+        with_raw_counts: Set raw detector counts for every sub-run.
+        with_reduced_diffraction: Set reduced data, one data set per mask key.
+        n_two_theta: The number of two-theta bins.
+    """
+    rng = np.random.default_rng(seed)
     ws = HidraWorkspace(name)
 
-    # `sub_runs` replaces the default 1..N. Two workspaces sharing one
-    # NXstress entry must cover disjoint scan points, and the interesting
-    # case -- values that interleave between workspaces -- cannot be built
-    # from 1..N at all.
-    #
-    # It also replaces an explicitly passed `n_subruns`, so the two are
-    # refused together rather than one silently winning: a test reading
-    # `n_subruns=6, sub_runs=(1, 2, 3)` asks for six and would get three.
-    if sub_runs is None:
-        subruns = np.arange(1, n_subruns + 1, dtype=int)
-    else:
-        subruns = np.asarray(sub_runs, dtype=int)
-        if n_subruns != len(subruns) and n_subruns != _DEFAULT_N_SUBRUNS:
-            raise ValueError(
-                f"make_minimal_HidraWorkspace: n_subruns={n_subruns} disagrees with "
-                f"sub_runs={subruns.tolist()} ({len(subruns)} values). Pass one or the other."
-            )
-        n_subruns = len(subruns)
+    subruns = np.asarray(sub_runs, dtype=int)
+    n_subruns = len(subruns)
     ws.set_sub_runs(subruns)
 
     # Minimal sample logs: coordinates, timestamps, sample rotation.
+    # Distinct per axis as well as per scan point, so that a swapped axis or a
+    # positional (rather than by-sub-run) lookup does not compare equal.
     ws.set_sample_log("vx", subruns, np.arange(n_subruns, dtype=float))
-    ws.set_sample_log("vy", subruns, np.zeros(n_subruns, dtype=float))
-    ws.set_sample_log("vz", subruns, np.zeros(n_subruns, dtype=float))
+    ws.set_sample_log("vy", subruns, 10.0 + np.arange(n_subruns, dtype=float))
+    ws.set_sample_log("vz", subruns, 20.0 + np.arange(n_subruns, dtype=float))
     ws.set_sample_log(
         "start_time", subruns, np.array([f"2024-01-15T10:{n:02d}:00".encode("utf-8") for n in range(n_subruns)])
     )
@@ -88,19 +94,20 @@ def make_minimal_HidraWorkspace(
         ws.set_detector_shift(shift)
 
     if with_masks:
-        default_mask = np.ones(n_pixels, dtype=np.int64)
-        ws.set_detector_mask(default_mask, True)
+        ws.set_detector_mask(rng.integers(0, 2, n_pixels, dtype=np.int64), True)
         for mask_name in mask_names:
-            ws.set_detector_mask(np.ones(n_pixels, dtype=np.int64), False, mask_name)
+            ws.set_detector_mask(rng.integers(0, 2, n_pixels, dtype=np.int64), False, mask_name)
 
     if with_raw_counts:
         for subrun in subruns:
-            ws.set_raw_counts(int(subrun), np.arange(n_pixels, dtype=np.int64))
+            ws.set_raw_counts(int(subrun), rng.integers(0, 1000, n_pixels, dtype=np.int64))
 
     if with_reduced_diffraction:
         two_theta_matrix = np.tile(np.linspace(60.0, 120.0, n_two_theta), (n_subruns, 1))
-        intensities = np.ones((n_subruns, n_two_theta), dtype=float)
-        variances = np.ones((n_subruns, n_two_theta), dtype=float)
-        ws.set_reduced_diffraction_data_set(two_theta_matrix, {None: intensities}, {None: variances})
+        mask_keys = [None, *mask_names] if with_masks else [None]
+        intensities = {key: rng.uniform(1.0, 1000.0, (n_subruns, n_two_theta)) for key in mask_keys}
+        # Poisson-like: a variance equal to its intensity, so each is as distinct.
+        variances = {key: values.copy() for key, values in intensities.items()}
+        ws.set_reduced_diffraction_data_set(two_theta_matrix, intensities, variances)
 
     return ws

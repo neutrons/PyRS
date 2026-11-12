@@ -47,6 +47,14 @@ nxstress:
   # Empty, a write of more than one workspace is refused. NXstress does not merge
   # workspaces; merge them in PyRS first, as CombineRuns does.
   discriminator_fields: []
+  # Whether a single-workspace write may hold scan points that none of its peak
+  # collections cover. A multi-workspace entry recovers each workspace's scan
+  # points from its peaks, so there such a point would belong to no workspace on
+  # read, and it is always refused -- as it is on every append. A single-workspace
+  # entry is read back whole, so the rule is not needed there; it is enforced by
+  # default only because no workflow is known to need partial coverage. A
+  # workspace with no peak collections at all is not affected.
+  allow_partial_peak_coverage: false
 
 legacy_io:
   # Whether legacy HidraProject (.h5) output is written.

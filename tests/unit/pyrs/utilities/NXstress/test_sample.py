@@ -14,6 +14,7 @@ from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.constants import HidraConstants
 from pyrs.utilities.NXstress._sample import _Sample
 from pyrs.utilities.NXstress._definitions import FIELD_DTYPE
+from pyrs.utilities.NXstress._transformations import resolve_depends_on
 
 
 def _rodrigues(axis, degrees: float) -> np.ndarray:
@@ -63,7 +64,7 @@ class TestSample:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify scan_point matches subruns and vx,vy,vz have correct shape/dtype"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         sample = _Sample.init_group([ws._sample_logs])
 
@@ -89,7 +90,7 @@ class TestSample:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify chemical_formula field when CHEMICAL_FORMULA log is present"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         # Add chemical formula to logs - must match number of subruns
         subruns = ws._sample_logs.subruns.raw_copy()
@@ -107,7 +108,7 @@ class TestSample:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify chemical_formula defaults to 'unknown' when not in logs"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         # Ensure chemical formula is not in logs
         if HidraConstants.CHEMICAL_FORMULA in ws._sample_logs:
@@ -120,7 +121,7 @@ class TestSample:
 
     def test_Sample_temperature_present(self, minimal_HidraWorkspace: Callable[..., HidraWorkspace]):
         """Verify temperature field and units when TEMPERATURE log is present"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         # Add temperature data to logs with units using tuple syntax
         subruns = ws._sample_logs.subruns.raw_copy()
@@ -142,7 +143,7 @@ class TestSample:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify no temperature field when TEMPERATURE log is absent"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         # Ensure temperature is not in logs
         if HidraConstants.TEMPERATURE in ws._sample_logs:
@@ -157,7 +158,7 @@ class TestSample:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify stress_field field, shape, and direction attr when present"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         # Add stress field data to logs
         subruns = ws._sample_logs.subruns.raw_copy()
@@ -182,7 +183,7 @@ class TestSample:
 
     def test_Sample_stress_field_shape_mismatch(self, minimal_HidraWorkspace: Callable[..., HidraWorkspace]):
         """Verify RuntimeError when stress_field first axis != N_scan"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         # Add stress field with wrong shape
         subruns = ws._sample_logs.subruns.raw_copy()
@@ -201,7 +202,7 @@ class TestSample:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify RuntimeError when coordinate array axis != N_scan"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         # Corrupt vx to have wrong size by directly manipulating the logs
         subruns = ws._sample_logs.subruns.raw_copy()
@@ -221,7 +222,7 @@ class TestSample:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify logs not in NXstress_logs go to logs NXcollection with local_name"""
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         # Add a custom log with ':' in the name and units using tuple syntax
         custom_log_name = "HB2B:CS:CustomValue"
@@ -281,21 +282,20 @@ class TestSampleTransformationChain:
 
     @staticmethod
     def _traverse(sd) -> list[str]:
-        """Walk the chain the way a NeXus reader does: entry point, then back to '.'."""
-        reached: list[str] = []
-        current = str(sd["depends_on"].nxvalue)
-        while current != ".":
-            assert current.startswith("./transformations/"), f"depends_on leaves the group: {current!r}"
-            name = current.rsplit("/", 1)[-1]
-            assert name not in reached, f"cycle at {name!r}"
-            reached.append(name)
-            current = str(sd["transformations"][name].attrs["depends_on"])
-        return reached
+        """Walk the chain the way a NeXus reader does: entry point, then back to '.'.
+
+        Each value is resolved from the group enclosing it, so a link that names
+        anything but an existing transformation raises rather than being reduced
+        to its basename.
+        """
+        links = resolve_depends_on(sd)
+        assert all(link.nxgroup is sd["transformations"] for link in links), "a link leaves the group"
+        return [link.nxname for link in links]
 
     def test_every_link_is_reachable_from_the_entry_point(self, minimal_HidraWorkspace: Callable[..., HidraWorkspace]):
         """The F7.5 defect, asserted on the sample side before it can happen."""
         # Arrange
-        logs = self._with_rotations(minimal_HidraWorkspace(with_instrument=False))
+        logs = self._with_rotations(minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False))
         sd = _Sample.init_group([logs])
 
         # Act
@@ -310,12 +310,12 @@ class TestSampleTransformationChain:
     ):
         """Naming the first link leaves a chain that terminates at once."""
         # Arrange
-        logs = self._with_rotations(minimal_HidraWorkspace(with_instrument=False))
+        logs = self._with_rotations(minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False))
         sd = _Sample.init_group([logs])
         first, last = _Sample.TRANSFORMATION_CHAIN[0][0], _Sample.TRANSFORMATION_CHAIN[-1][0]
 
         # Assert
-        assert str(sd["depends_on"].nxvalue) == f"./transformations/{last}"
+        assert str(sd["depends_on"].nxvalue) == f"transformations/{last}"
         assert str(sd["transformations"][first].attrs["depends_on"]) == "."
 
     def test_traversal_order_reverses_write_order(self, minimal_HidraWorkspace: Callable[..., HidraWorkspace]):
@@ -326,7 +326,7 @@ class TestSampleTransformationChain:
         describes a different placement.
         """
         # Arrange
-        logs = self._with_rotations(minimal_HidraWorkspace(with_instrument=False))
+        logs = self._with_rotations(minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False))
         sd = _Sample.init_group([logs])
 
         # Act
@@ -339,7 +339,7 @@ class TestSampleTransformationChain:
         self, minimal_HidraWorkspace: Callable[..., HidraWorkspace]
     ):
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
         logs = self._with_rotations(ws)
         sd = _Sample.init_group([logs])
 
@@ -421,11 +421,11 @@ class TestSampleTransformationChain:
     ):
         """A synthetic workspace carries no stage angles; the chain is still valid."""
         # Arrange
-        sd = _Sample.init_group([minimal_HidraWorkspace(with_instrument=False)._sample_logs])
+        sd = _Sample.init_group([minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)._sample_logs])
 
         # Assert -- translations only, and the entry point follows
         assert set(sd["transformations"]) == {"translation_x", "translation_y", "translation_z"}
-        assert str(sd["depends_on"].nxvalue) == "./transformations/translation_z"
+        assert str(sd["depends_on"].nxvalue) == "transformations/translation_z"
         assert self._traverse(sd) == ["translation_z", "translation_y", "translation_x"]
 
     def test_a_rotation_in_some_inputs_only_raises(self, minimal_HidraWorkspace: Callable[..., HidraWorkspace]):
@@ -473,13 +473,15 @@ class TestSampleTransformationChain:
         sd = _Sample.init_group([first._sample_logs])
 
         # Act / Assert
-        with pytest.raises(RuntimeError, match=r"transformation chain has rotation links"):
+        with pytest.raises(
+            RuntimeError, match=r"On disk but not supplied: +\['chi', 'frame_offset', 'omega', 'phi'\]"
+        ):
             _Sample.init_group([second._sample_logs], data=sd)
 
     def test_only_some_of_the_three_angles_raises(self, minimal_HidraWorkspace: Callable[..., HidraWorkspace]):
         """Two of the three angles describe no frame, so a partial set is refused."""
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
         logs = ws._sample_logs
         logs["omega"] = np.zeros(len(logs.subruns))
         logs["chi"] = np.zeros(len(logs.subruns))
@@ -505,7 +507,7 @@ class TestNonFiniteCoordinatesAreAsked:
 
     def test_non_finite_coordinates_are_written_as_nan(self, minimal_HidraWorkspace: Callable[..., HidraWorkspace]):
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
         logs = ws._sample_logs
         n_scan = len(logs.subruns)
         logs["vy"] = np.full(n_scan, np.nan)
@@ -520,7 +522,7 @@ class TestNonFiniteCoordinatesAreAsked:
 
     def test_finite_coordinates_are_unchanged(self, minimal_HidraWorkspace: Callable[..., HidraWorkspace]):
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
         logs = ws._sample_logs
 
         # Act
@@ -532,7 +534,7 @@ class TestNonFiniteCoordinatesAreAsked:
     def test_a_missing_coordinate_log_still_raises(self, minimal_HidraWorkspace: Callable[..., HidraWorkspace]):
         """Not NaN-filled: a workspace with no positions at all must be reported."""
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
         logs = ws._sample_logs
         del logs._data["vz"]
 
@@ -545,7 +547,7 @@ class TestNonFiniteCoordinatesAreAsked:
     ):
         """The point of the change: the NaN path must survive a reworded assertion."""
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
         logs = ws._sample_logs
         logs["vx"] = np.full(len(logs.subruns), np.inf)
 
@@ -584,7 +586,7 @@ class TestStressFieldDirectionIsEntryWide:
 
     def test_the_attribute_is_a_scalar(self, minimal_HidraWorkspace: Callable[..., HidraWorkspace]):
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
         n_scan = len(ws._sample_logs.subruns)
         logs = self._with_stress(ws, ["z"] * n_scan)
 
@@ -598,7 +600,7 @@ class TestStressFieldDirectionIsEntryWide:
     def test_it_round_trips_one_dimensional(self, minimal_HidraWorkspace: Callable[..., HidraWorkspace]):
         """The defect: shape (3,) in, shape (3, 3) out, and nothing raised."""
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
         n_scan = len(ws._sample_logs.subruns)
         sample = _Sample.init_group([self._with_stress(ws, ["z"] * n_scan)])
 
@@ -637,7 +639,7 @@ class TestEntryWideScalarsAreNormalised:
     def test_a_bytes_valued_log_is_written_as_text(self, minimal_HidraWorkspace: Callable[..., HidraWorkspace]):
         # Arrange -- bytes reach `_scalar` directly, bypassing `SampleLogs`' own
         # normalisation, exactly as a value read straight off an `NXfield` would.
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
         logs = ws._sample_logs
         logs._data[HidraConstants.SAMPLE_NAME] = np.array([b"steel"] * len(logs.subruns))
 

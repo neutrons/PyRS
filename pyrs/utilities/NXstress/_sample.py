@@ -23,6 +23,7 @@ from ._definitions import (
     row_aligned_fields,
     tail_append,
 )
+from ._transformations import resolve_depends_on
 
 
 """
@@ -436,8 +437,14 @@ class _Sample:
         whose `depends_on` is "." -- terminates traversal immediately and leaves
         the rest written but unreachable. That is exactly the defect Follow-up 7
         F7.5 found on the detector side, and the reason this is written as a loop
-        ending in `sd["depends_on"] = depends`: the entry point cannot be set to
-        anything but the last link without editing the loop itself.
+        whose entry point is built from the last value of `depends`: it cannot be
+        set to anything but the last link without editing the loop itself.
+
+        Each link names the next by its bare sibling name, and the entry point
+        names the last link as `transformations/<name>`. NeXus resolves a relative
+        `depends_on` from the group enclosing it -- `transformations` for a link,
+        this group for the entry point -- and `resolve_depends_on` checks the
+        written chain by that rule.
 
         Args:
             sd: The `NXsample` group being built; its coordinate fields must
@@ -457,10 +464,13 @@ class _Sample:
             if source is not None:
                 field.attrs["local_name"] = source
             transformations[name] = field
-            depends = f"./{cls.TRANSFORMATIONS_GROUP}/{name}"
+            # The next link names this one as its sibling: NeXus resolves a relative
+            # `depends_on` from the group enclosing it -- `transformations` itself.
+            depends = name
 
         sd[cls.TRANSFORMATIONS_GROUP] = transformations
-        sd["depends_on"] = depends
+        sd["depends_on"] = f"{cls.TRANSFORMATIONS_GROUP}/{depends}" if depends != "." else depends
+        resolve_depends_on(sd)  # a writer bug if the chain does not resolve
 
     @classmethod
     def _append_transformations(cls, sd: NXsample, columns: list[tuple]) -> None:
@@ -474,8 +484,8 @@ class _Sample:
         if cls.TRANSFORMATIONS_GROUP not in sd:
             # An entry written before this group existed. Appending to it would
             # leave a chain shorter than the axes it describes, which is worse
-            # than the absence -- `NXstress._validateAppendableShapes` refuses
-            # such an entry up front, so this is a backstop, not a path.
+            # than the absence -- `validateAppend` refuses such an entry in the
+            # pre-flight pass, so this is a backstop, not a path.
             raise RuntimeError(
                 "NXstress._sample: the target entry has no `transformations` group, so its "
                 "sample frame is undefined and cannot be extended.\n"
@@ -559,19 +569,29 @@ class _Sample:
                     "  Appended data must carry the same optional sample fields as the entry it joins."
                 )
 
-        rotations_on_disk = cls.TRANSFORMATIONS_GROUP in sd and any(
-            name in sd[cls.TRANSFORMATIONS_GROUP]
-            for name, _s, _v, kind, _u in cls.TRANSFORMATION_CHAIN
-            if kind == "rotation"
-        )
-        if rotations_on_disk != cls._rotations_available(logss):
+        # The links on disk must be exactly the ones `_append_transformations` will grow:
+        # a missing one fails inside the append, after other groups have grown, and an
+        # extra one would be left short.
+        if cls.TRANSFORMATIONS_GROUP not in sd:
             raise RuntimeError(
-                f"NXstress: cannot append -- the target entry's transformation chain "
-                f"{'has' if rotations_on_disk else 'has no'} rotation links, while the incoming "
-                f"workspaces {'do' if not rotations_on_disk else 'do not'} supply "
-                f"{list(cls.ROTATION_SOURCE_LOGS)}.\n"
-                "  A chain that gained or lost its rotations part-way through an entry would mean "
-                "the sample frame changes definition between scan points."
+                "NXstress: cannot append -- the target entry has no `transformations` group, so "
+                "its sample frame is undefined and cannot be extended.\n"
+                "  Write a new entry."
+            )
+        rotations = cls._rotations_available(logss)
+        expected = [name for name, _s, _v, kind, _u in cls.TRANSFORMATION_CHAIN if kind != "rotation" or rotations]
+        links_on_disk = set(sd[cls.TRANSFORMATIONS_GROUP])
+        missing = [name for name in expected if name not in links_on_disk]
+        unexpected = sorted(links_on_disk - set(expected))
+        if missing or unexpected:
+            raise RuntimeError(
+                f"NXstress: cannot append -- the target entry's transformation chain does not hold "
+                f"the links the incoming workspaces supply.\n"
+                f"  Missing from the entry:     {missing}\n"
+                f"  On disk but not supplied:   {unexpected}\n"
+                f"  The rotation links come from {list(cls.ROTATION_SOURCE_LOGS)}; a chain that "
+                "gained or lost links part-way through an entry would mean the sample frame changes "
+                "definition between scan points."
             )
 
         incoming_logs = set(cls._retained_log_columns(logss))

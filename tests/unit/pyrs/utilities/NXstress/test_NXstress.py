@@ -53,7 +53,7 @@ class TestNXstress:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
         createPeakCollection: Callable[..., PeakCollection],
     ):
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True, with_raw_counts=True)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -83,7 +83,7 @@ class TestNXstress:
         # Verify that all required datasets, and attributes are present
         #   on the `NXentry`
 
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True, with_raw_counts=True)
 
         required_datasets = ("definition", "start_time", "end_time", "processing_type")
 
@@ -100,7 +100,7 @@ class TestNXstress:
         # Verify that all required subgroups are present
         #   on the `NXentry`
 
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True, with_raw_counts=True)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -135,7 +135,7 @@ class TestNXstress:
         # Verify that an optional `input_data` `NXdata` group will be created on the `NXentry`
         #   when detector-counts data is attached to the source workspace.
 
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True, with_raw_counts=True)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -167,7 +167,7 @@ class TestNXstress:
         # Notes:
         # -- A successful instrument load is required; this is keyed to detector-counts data load.
         #    So we need to fudge the workspace after the load in order to _remove_ the attached input data.
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True, with_raw_counts=False)
 
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
@@ -196,7 +196,7 @@ class TestNXstress:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
         createPeakCollection: Callable[..., PeakCollection],
     ):
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True, with_raw_counts=True)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -244,7 +244,7 @@ class TestNXstress:
         self,
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
-        ws = minimal_HidraWorkspace(with_instrument=True, with_raw_counts=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_raw_counts=True)
 
         required_fields = ("name",)
         required_subgroups = (
@@ -268,7 +268,7 @@ class TestNXstress:
         self,
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
-        ws = minimal_HidraWorkspace(with_instrument=True, with_raw_counts=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_raw_counts=True)
 
         required_fields = ("names",)
         required_subgroups = (("detector", NXcollection), ("solid_angle", NXcollection))
@@ -285,7 +285,7 @@ class TestNXstress:
         self,
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         required_fields = (
             "name",
@@ -310,7 +310,7 @@ class TestNXstress:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
         createPeakCollection: Callable[..., PeakCollection],
     ):
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -349,7 +349,7 @@ class TestNXstress:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify RuntimeError when write() is called without context manager"""
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True, with_raw_counts=True)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -376,7 +376,7 @@ class TestNXstress:
     ):
         """Verify NXstress._init succeeds when timestamps are not valid ISO-8601"""
         # Load workspace and deliberately corrupt the timestamps
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True, with_raw_counts=True)
 
         # Corrupt the timestamps to trigger the fallback path
         bad_timestamps = [b"not-valid-iso8601" for _ in ws._sample_logs.subruns]
@@ -404,7 +404,7 @@ class TestNXstress:
         ordinary case rather than the exotic one.
         """
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         stamps = [f"2024-01-15T10:{n:02d}:00" for n in range(len(ws._sample_logs.subruns))]
         ws._sample_logs["start_time"] = np.array(stamps)
         ws._sample_logs["end_time"] = np.array(stamps)
@@ -423,7 +423,7 @@ class TestNXstress:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         """Verify _validateWorkspaceAndPeaksData completes without error for valid data"""
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True, with_raw_counts=True)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -446,7 +446,7 @@ class TestNXstress:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify entry['definition'] is 'NXstress' and processing_type is 'd-spacing'"""
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, with_raw_counts=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True, with_raw_counts=True)
 
         entry = NXstress._init([ws])
         assert entry["definition"] == "NXstress"
@@ -458,7 +458,7 @@ class TestNXstress:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         # Load a workspace in order to get a realistic <scan point> axis.
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -504,7 +504,7 @@ class TestNXstress:
         createPeakCollection: Callable[..., PeakCollection],
     ):
         # Load a workspace in order to get a realistic <scan point> axis.
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -542,7 +542,7 @@ class TestNXstress:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
         createPeakCollection: Callable[..., PeakCollection],
     ):
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -584,7 +584,7 @@ class TestNXstress:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
         createPeakCollection: Callable[..., PeakCollection],
     ):
-        ws = minimal_HidraWorkspace(with_instrument=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
         sampleLogs = ws._sample_logs
         subruns = sampleLogs.subruns.raw_copy()
 
@@ -660,7 +660,7 @@ class TestNXstress:
         self,
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
-        ws = minimal_HidraWorkspace(with_instrument=True, with_raw_counts=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_raw_counts=True)
 
         required_attributes = ("axes", "signal")
         required_fields = ("scan_point", "detector_counts")
@@ -683,7 +683,7 @@ class TestNXstress:
     ):
         # When input-data is not attached to the source workspace,
         #   the structure of the input-data group should still be filled in.
-        ws = minimal_HidraWorkspace(with_instrument=False, with_raw_counts=False)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False, with_raw_counts=False)
 
         required_attributes = ("axes", "signal")
         required_fields = ("scan_point", "detector_counts")

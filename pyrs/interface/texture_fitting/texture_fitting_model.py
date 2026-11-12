@@ -1,4 +1,6 @@
 import json
+import logging
+import re
 import traceback
 from pathlib import Path
 from shutil import copyfile
@@ -13,6 +15,7 @@ from pyrs.core.workspaces import HidraWorkspace
 from pyrs.core.summary_generator import SummaryGenerator
 from pyrs.utilities.NXstress.NXstress import NXstress
 from pyrs.interface.nxstress_load import read_single_workspace
+from pyrs.interface.gui_helper import is_nxstress_path
 
 # from pyrs.interface.gui_helper import pop_message
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
@@ -20,6 +23,62 @@ from pyrs.peaks.peak_fit_engine import FitResult
 from pyrs.core.polefigurecalculator import PoleFigureCalculator
 from qtpy.QtWidgets import QTableWidgetItem  # type:ignore
 from qtpy.QtCore import Signal, QObject  # type:ignore
+from pyrs.utilities.convertdatatypes import to_text
+
+_logger = logging.getLogger(__name__)
+
+#: The sample log a project file records its run number in.
+_RUN_NUMBER_LOG = "run_number"
+_RUN_NUMBER_IN_FILE_NAME = re.compile(r"HB2B_(\d+)")
+
+
+def _run_number_of(ws: HidraWorkspace, filename: str) -> Optional[int]:
+    """The run number a loaded file belongs to, from the file itself where possible.
+
+    The workspace's `run_number` log when it holds a single value; otherwise the
+    number after `HB2B_` in the file name; otherwise None, logged as an error.
+    Never a previous file's: each load works it out afresh.
+
+    Args:
+        ws: The workspace just loaded.
+        filename: The file it was loaded from.
+
+    Returns:
+        The run number, or None if neither source gives one.
+    """
+    if _RUN_NUMBER_LOG in ws.sample_log_names:
+        values = {_whole_number(value) for value in np.atleast_1d(ws.get_sample_log_values(_RUN_NUMBER_LOG))}
+        if len(values) == 1 and None not in values:
+            return values.pop()
+    match = _RUN_NUMBER_IN_FILE_NAME.search(Path(filename).stem)
+    if match is not None:
+        return int(match.group(1))
+    _logger.error(
+        "No run number for '%s': its '%s' log holds no single run number, and its file name has no "
+        "'HB2B_<run>'. Exports that are named by run number will have none.",
+        filename,
+        _RUN_NUMBER_LOG,
+    )
+    return None
+
+
+def _whole_number(value) -> Optional[int]:
+    """A run number as one of the forms project files store it in, else None.
+
+    An integer; a float holding a whole number (newer project files store float32,
+    `HB2B_1017.h5`: 1017.0); or text -- `bytes` or `str`, Mantid's form -- holding an
+    integer. Text holding a float is not a run number.
+    """
+    if isinstance(value, (bytes, np.bytes_, str)):
+        try:
+            return int(to_text(value))
+        except ValueError:
+            return None
+    if isinstance(value, (int, np.integer)):
+        return int(value)
+    if isinstance(value, (float, np.floating)) and float(value).is_integer():
+        return int(value)
+    return None
 
 
 class TextureFittingModel(QObject):
@@ -53,7 +112,7 @@ class TextureFittingModel(QObject):
             RuntimeError: If the file cannot be loaded; the original error is chained.
         """
         try:
-            if Path(filename).suffix == ".nxs":
+            if is_nxstress_path(filename):
                 # NXstress round trip: read back into a fresh HidraWorkspace directly,
                 # bypassing HidraProjectFile entirely. fit_result is populated here
                 # (unlike the .h5 branch below, which never sets it) purely so
@@ -89,11 +148,7 @@ class TextureFittingModel(QObject):
 
         self.ws, self.fit_result, self.sub_runs = ws, fit_result, sub_runs
         self._curr_file_name = filename
-        for part in Path(filename).stem.split("_"):
-            try:
-                self._run_number = int(part)
-            except ValueError:
-                pass
+        self._run_number = _run_number_of(ws, filename)
 
     def to_json(self, filename, fit_range_table):
         fileParts = os.path.splitext(filename)
@@ -197,7 +252,7 @@ class TextureFittingModel(QObject):
         if fit_result is None:
             return
 
-        if Path(out_file_name).suffix == ".nxs":
+        if is_nxstress_path(out_file_name):
             # No copy-then-patch step here, unlike the .h5 branch below -- there is
             # no "existing .nxs file to patch" concept; NXstress always writes fresh
             # from the in-memory workspace + fit result.

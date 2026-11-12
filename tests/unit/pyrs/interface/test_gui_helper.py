@@ -226,3 +226,11 @@ def test_write_nxstress_failure_keeps_existing_target(tmp_path: Path, messages: 
     assert target.read_text() == "keep"
     assert sorted(p.name for p in tmp_path.iterdir()) == ["out.nxs"]
     assert messages == ["Failed to save 'out.nxs'"]
+
+
+def test_nxstress_path_and_filter_follow_the_configured_extension(config_override):
+    config_override({"nxstress": {"extension": "nx5"}})
+
+    assert gui_helper.is_nxstress_path("run.nx5")
+    assert not gui_helper.is_nxstress_path("run.nxs")
+    assert gui_helper.nxstress_file_filter() == "NXstress (*.nx5)"

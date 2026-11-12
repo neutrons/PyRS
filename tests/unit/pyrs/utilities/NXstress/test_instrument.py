@@ -15,6 +15,7 @@ from pyrs.core.instrument_geometry import DENEXDetectorShift
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.NXstress._instrument import _Instrument, _Masks
 from pyrs.utilities.NXstress._definitions import DEFAULT_TAG
+from pyrs.utilities.NXstress._transformations import resolve_depends_on
 from pyrs.utilities.NXstress.NXstress import NXstress
 from tests.util.mask_helpers import add_named_detector_mask
 
@@ -41,7 +42,7 @@ class TestInstrument:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify default mask appears in masks with DEFAULT_TAG name"""
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
 
         masks = _Masks.init_group(ws)
 
@@ -54,7 +55,7 @@ class TestInstrument:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify calling init_group twice (detector then solid_angle) populates both"""
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
 
         # First call for detector masks
         masks = _Masks.init_group(ws)
@@ -87,7 +88,7 @@ class TestInstrument:
         `init_group` writes it; the second call must raise because the same
         name is already present in the masks group.
         """
-        ws = minimal_HidraWorkspace(with_instrument=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
 
         # Add a non-default named mask so that `mask_keys(ws)` contains a
         # name other than DEFAULT_TAG.  The first `init_group` call will write
@@ -113,7 +114,7 @@ class TestInstrument:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify NXdetector_module contains required fields"""
-        ws = minimal_HidraWorkspace(with_instrument=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
 
         inst = _Instrument.init_group([ws])
 
@@ -139,7 +140,7 @@ class TestInstrument:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify all 8 transformations exist and depends_on chain is correct"""
-        ws = minimal_HidraWorkspace(with_instrument=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
 
         inst = _Instrument.init_group([ws])
 
@@ -171,17 +172,19 @@ class TestInstrument:
         # First transformation depends on '.'
         assert trans["translation_x"].attrs["depends_on"] == "."
 
-        # Subsequent transformations form a chain
-        assert trans["translation_y"].attrs["depends_on"] == "./transformations/translation_x"
-        assert trans["translation_z"].attrs["depends_on"] == "./transformations/translation_y"
-        assert trans["distance"].attrs["depends_on"] == "./transformations/translation_z"
+        # Subsequent transformations form a chain. Each names the previous one as a
+        # sibling: NeXus resolves a relative `depends_on` from the group enclosing
+        # it, which for these attributes is `transformations` itself.
+        assert trans["translation_y"].attrs["depends_on"] == "translation_x"
+        assert trans["translation_z"].attrs["depends_on"] == "translation_y"
+        assert trans["distance"].attrs["depends_on"] == "translation_z"
 
         # The detector's depends_on is the chain's ENTRY POINT, so it must name the
         # LAST link -- traversal follows each field's own depends_on back to ".".
         # This previously asserted "translation_x", the first link, whose depends_on
         # is "." -- a chain that terminates immediately, leaving the other seven
         # transformations written but unreachable.
-        assert detector["depends_on"] == "./transformations/two_theta_zero"
+        assert detector["depends_on"] == "transformations/two_theta_zero"
 
     # The instrument identity comes from config, not from the workspace: the Hidra
     # project format records no instrument name anywhere. Overriding it is what lets
@@ -210,7 +213,7 @@ class TestInstrument:
         """Verify instrument name and short_name are taken from configuration"""
         # Arrange
         config_override({"nxstress": {"instrument_name": "HB2A", "instrument_short_name": "PG3"}})
-        ws = minimal_HidraWorkspace(with_instrument=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
 
         # Act
         inst = _Instrument.init_group([ws])
@@ -231,7 +234,7 @@ class TestInstrument:
         was given.
         """
         # Act
-        inst = _Instrument.init_group([minimal_HidraWorkspace(with_instrument=True)])
+        inst = _Instrument.init_group([minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)])
 
         # Assert
         assert str(inst["name"].nxvalue) == "HB2B"
@@ -256,7 +259,7 @@ class TestInstrument:
             {"nxstress": {"instrument_name": "   ", "instrument_short_name": ""}},
             validate=False,
         )
-        ws = minimal_HidraWorkspace(with_instrument=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
 
         # Act
         with caplog.at_level(logging.WARNING):
@@ -279,21 +282,15 @@ class TestInstrument:
         tracking it.
         """
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
         inst = _Instrument.init_group([ws])
         detector = inst["DETECTOR"]
         trans = detector["transformations"]
         written = {name for name in trans}
 
-        # Act: follow depends_on from the detector until '.'
-        reached = []
-        current = str(detector["depends_on"].nxvalue)
-        while current and current != ".":
-            name = current.rsplit("/", 1)[-1]
-            assert name in trans, f"depends_on points outside the group: {current!r}"
-            assert name not in reached, f"cycle in the depends_on chain at {name!r}"
-            reached.append(name)
-            current = str(trans[name].attrs.get("depends_on", "."))
+        # Act: follow depends_on from the detector until '.', resolving each value
+        # by the NeXus rule -- it raises on a link that does not resolve.
+        reached = [link.nxname for link in resolve_depends_on(detector)]
 
         # Assert
         assert set(reached) == written, f"unreachable: {sorted(written - set(reached))}"
@@ -305,15 +302,7 @@ def _written_order(detector) -> list:
     Traversal from the entry point yields reverse write order, since each link
     depends on the one written before it.
     """
-    order = []
-    trans = detector["transformations"]
-    current = str(detector["depends_on"].nxvalue)
-    while current != ".":
-        name = current.rsplit("/", 1)[-1]
-        assert name not in order, f"cycle at {name!r}"
-        order.append(name)
-        current = str(trans[name].attrs["depends_on"])
-    return list(reversed(order))
+    return [link.nxname for link in reversed(resolve_depends_on(detector))]
 
 
 def _rodrigues(axis, degrees: float):
@@ -359,7 +348,7 @@ class TestDetectorRotationOrder:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         # Arrange -- angles large and asymmetric, so no two orderings coincide
-        ws = minimal_HidraWorkspace(with_instrument=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
         rot_x, rot_y, rot_z = 37.0, -52.0, 113.0
         ws.set_detector_shift(
             DENEXDetectorShift(
@@ -403,7 +392,7 @@ class TestDetectorRotationOrder:
         composition above would silently start testing something else.
         """
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
 
         # Act
         written = _written_order(_Instrument.init_group([ws])["DETECTOR"])
@@ -438,7 +427,7 @@ class TestMaskGroupHoldsOnlyRealMasks:
 
     def test_diffractogram_keys_are_not_listed_as_masks(self, minimal_HidraWorkspace: Callable[..., HidraWorkspace]):
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         self._texture(ws)
 
         # Act
@@ -453,7 +442,7 @@ class TestMaskGroupHoldsOnlyRealMasks:
     def test_every_listed_mask_resolves_to_an_array(self, minimal_HidraWorkspace: Callable[..., HidraWorkspace]):
         """The property the old `NXlink` was trying and failing to provide."""
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True, mask_names=("mask_a",))
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True, mask_names=("mask_a",))
         self._texture(ws)
 
         # Act
@@ -475,7 +464,7 @@ class TestMaskGroupHoldsOnlyRealMasks:
         ever stored as float.
         """
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         ws.set_detector_mask(np.array([-5.0, 5.0]), False, "roi")
 
         # Act / Assert

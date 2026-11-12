@@ -38,7 +38,7 @@ def unloadable_nxstress_files(tmp_path: Path, minimal_HidraWorkspace: Callable[.
     garbage.write_text("not an HDF5 file")
 
     two_entries = tmp_path / "two_entries.nxs"
-    ws = minimal_HidraWorkspace(with_instrument=True)
+    ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
     with NXstress(two_entries, "w") as nx:
         nx.write([ws], [[]])
         nx.write([ws], [[]], entry_number=2)

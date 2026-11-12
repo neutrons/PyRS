@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from pyrs.core.workspaces import HidraWorkspace
+from pyrs.dataobjects.sample_logs import SampleLogs
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from tests.util.workspace_helpers import make_minimal_HidraWorkspace
 
@@ -151,10 +152,12 @@ class TestSubRunNumbersAreNotPositions:
         np.testing.assert_allclose(readback._diff_data_set[None], ws._diff_data_set[None])
 
     @pytest.mark.xfail(
-        reason="DD-2: `set_sample_log` discards the `matching_subruns` result", raises=AssertionError, strict=True
+        reason="DD-2: values are paired with sub-runs positionally, so another order is refused",
+        raises=RuntimeError,
+        strict=True,
     )
     def test_set_sample_log_pairs_values_by_sub_run(self):
-        """Used to store [30, 20, 10] for sub-runs [1, 2, 3], as given positionally."""
+        """Used to store [30, 20, 10] for sub-runs [1, 2, 3], as given positionally; now refused."""
         # Arrange
         ws = make_minimal_HidraWorkspace(sub_runs=np.array([1, 2, 3]))
 
@@ -164,16 +167,55 @@ class TestSubRunNumbersAreNotPositions:
         # Assert
         assert ws.get_sample_log_values("x").tolist() == [10.0, 20.0, 30.0]
 
-    @pytest.mark.xfail(
-        reason="DD-2: `set_sample_log` discards the `matching_subruns` result",
-        raises=pytest.fail.Exception,
-        strict=True,
-    )
     def test_set_sample_log_for_other_sub_runs_raises(self):
         """Used to store the values against sub-runs they were not given for."""
         ws = make_minimal_HidraWorkspace(sub_runs=np.array([1, 2, 3]))
-        with pytest.raises(RuntimeError):
+        with pytest.raises(RuntimeError, match=r"given for sub-runs \[7, 8, 9\]"):
             ws.set_sample_log("x", np.array([7, 8, 9]), np.array([30.0, 20.0, 10.0]))
+
+
+class TestSubRunAxisMatchesTheData:
+    """The sub-run axis and every per-sub-run array must agree, whichever is set first.
+
+    Each array is paired with the axis positionally, so a disagreement attaches
+    values to the wrong sub-runs. Data set after the axis were already checked;
+    these cover the axis set, or replaced, after the data.
+    """
+
+    @staticmethod
+    def _reduced(ws: HidraWorkspace, n_rows: int) -> None:
+        shape = (n_rows, 4)
+        ws.set_reduced_diffraction_data_set(np.ones(shape), {None: np.ones(shape)}, {None: np.ones(shape)})
+
+    def test_axis_after_data_of_another_length_raises(self):
+        ws = HidraWorkspace()
+        self._reduced(ws, 5)
+
+        with pytest.raises(RuntimeError, match=r"5 row\(s\) of two-theta matrix"):
+            ws.set_sub_runs([1, 2, 3])
+
+    def test_axis_after_data_of_the_same_length_is_accepted(self):
+        ws = HidraWorkspace()
+        self._reduced(ws, 3)
+
+        ws.set_sub_runs([1, 2, 3])
+
+        assert ws.get_sub_runs().raw_copy().tolist() == [1, 2, 3]
+
+    def test_raw_counts_for_another_sub_run_raise(self):
+        ws = HidraWorkspace()
+        ws.set_raw_counts(9, np.zeros(4))
+
+        with pytest.raises(RuntimeError, match=r"raw counts for sub-run\(s\) \[9\]"):
+            ws.set_sub_runs([1, 2, 3])
+
+    def test_replacement_logs_with_another_axis_raise(self):
+        ws = make_minimal_HidraWorkspace(sub_runs=[1, 2, 3])
+        replacement = SampleLogs()
+        replacement.subruns = [1, 2]
+
+        with pytest.raises(RuntimeError, match=r"replacement sample logs has sub-runs \[1, 2\]"):
+            ws.set_sample_logs_from_object(replacement)
 
 
 class TestDirection:

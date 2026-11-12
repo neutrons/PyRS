@@ -121,7 +121,7 @@ class TestBackCompat:
         self, config_override, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
     ):
         """Regression guard for specs 02/03, which write a single workspace."""
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         n_subrun = len(ws.get_sub_runs())
         peaks = [minimal_PeakCollection(N_subrun=n_subrun, peak_tag="Fe110")]
 
@@ -139,7 +139,7 @@ class TestBackCompat:
         self, config_override, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
     ):
         """A pre-04b file stays readable once a deployment configures a field."""
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         peaks = [minimal_PeakCollection(N_subrun=len(ws.get_sub_runs()), peak_tag="Fe110")]
 
         path = tmp_path / "legacy.nxs"
@@ -180,7 +180,7 @@ class TestBackCompat:
         """
         # Arrange
         configure(config_override, "nxstress:\n  discriminator_fields: ['direction']\n")
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         path = tmp_path / "no_peaks.nxs"
 
         # Act
@@ -342,7 +342,7 @@ class TestWriteTimeInvariants:
     ):
         """Spec 03's case: `N == 1`, so nothing has to be told apart."""
         configure(config_override, "nxstress:\n  discriminator_fields: ['direction']\n")
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
 
         path = tmp_path / "no-peaks-one-ws.nxs"
         with NXstress(path, "w") as nx:
@@ -445,23 +445,24 @@ class TestScanPointFamilySplit:
             np.testing.assert_allclose(by_direction[direction]._diff_data_set[None], ws_original._diff_data_set[None])
 
 
-class TestReadBackScanPointOrder:
-    """A workspace read back must hold strictly increasing scan points.
+class TestOneWorkspacePerKey:
+    """Two inputs sharing a workspace key would be read back as one: a merge.
 
-    That requirement belongs to `SubRuns`, not to the file format, and DD-2 in
-    `plans/PR_review/deferred-defects.md` recommends dropping it. Until then a
-    write that could not be read back is refused, rather than re-sorted: the
-    on-disk rows are in the inputs' order, and sorting them would break the
-    round trip.
+    NXstress never merges workspaces -- PyRS does that before writing, as
+    CombineRuns does -- so the write is refused, whatever the scan-point order.
+    This replaces the read-back order refusal, which guarded only inputs read
+    back together, and DD-2's strict `xfail` for a shared value in decreasing
+    order: that write is now refused by design, not deferred.
     """
 
     @pytest.mark.parametrize(
-        "sub_runs_a, sub_runs_b", [((4, 5, 6), (1, 2, 3)), ((1, 3, 5), (2, 4, 6))], ids=["decreasing", "interleaved"]
+        "sub_runs_a, sub_runs_b",
+        [((1, 2, 3), (4, 5, 6)), ((4, 5, 6), (1, 2, 3)), ((1, 3, 5), (2, 4, 6))],
+        ids=["increasing", "decreasing", "interleaved"],
     )
-    def test_a_shared_discriminator_value_out_of_order_raises(
+    def test_shared_key_raises(
         self, config_override, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path, sub_runs_a, sub_runs_b
     ):
-        """Used to write an entry that `read` then refused: one discriminator value reads back as one workspace."""
         # Arrange
         configure(config_override, "nxstress:\n  discriminator_fields: ['direction']\n")
         workspaces, peakss = two_workspaces(
@@ -472,11 +473,10 @@ class TestReadBackScanPointOrder:
             directions=("11", "11"),
             peak_tags=("Fe110", "Ni200"),
         )
-        expected = str(list(sub_runs_a + sub_runs_b)).replace("[", r"\[").replace("]", r"\]")
 
         # Act / Assert
         with NXstress(tmp_path / "shared.nxs", "w") as nx:
-            with pytest.raises(NotImplementedError, match=expected):
+            with pytest.raises(ValueError, match=r"\[0\] and \[1\] have the same workspace key"):
                 nx.write(workspaces, peakss)
             assert nx.entry_numbers() == ()
 
@@ -500,32 +500,70 @@ class TestReadBackScanPointOrder:
         # Assert
         assert [ws.get_sub_runs().raw_copy().tolist() for ws in read_wss] == [[4, 5, 6], [1, 2, 3]]
 
-    @pytest.mark.xfail(
-        reason="DD-2: `SubRuns` requires sorted scan points, so a decreasing workspace cannot be held",
-        raises=NotImplementedError,
-        strict=True,
-    )
-    def test_shared_value_in_decreasing_order_round_trips(
+
+class TestPeakCoverage:
+    """Each workspace's `PeakCollection`s must cover all of its scan points.
+
+    A multi-workspace entry gives each workspace, on read, the union of its
+    collections' `sub_runs`, so an uncovered point belongs to no workspace and
+    `read` refuses the file. That was found only on read; it is refused at write.
+    A single-workspace entry is read back whole, so there the rule is a
+    configuration choice, `nxstress.allow_partial_peak_coverage`.
+    """
+
+    @staticmethod
+    def _partial(minimal_HidraWorkspace, minimal_PeakCollection):
+        ws = minimal_HidraWorkspace(with_instrument=True, sub_runs=np.array([1, 2, 3]))
+        with_direction(ws, "11", np.array([1, 2, 3]))
+        return ws, [minimal_PeakCollection(N_subrun=2, peak_tag="Fe110", sub_runs=np.array([1, 3]))]
+
+    def test_multi_workspace_partial_coverage_raises(
         self, config_override, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
     ):
-        """The target once the ordering requirement is dropped: the inputs' order is kept."""
-        # Arrange
-        configure(config_override, "nxstress:\n  discriminator_fields: ['direction']\n")
-        workspaces, peakss = two_workspaces(
-            minimal_HidraWorkspace,
-            minimal_PeakCollection,
-            sub_runs_a=(4, 5, 6),
-            sub_runs_b=(1, 2, 3),
-            directions=("11", "11"),
-            peak_tags=("Fe110", "Ni200"),
+        # Arrange -- allowing partial coverage does not reach a multi-workspace write
+        configure(
+            config_override,
+            "nxstress:\n  discriminator_fields: ['direction']\n  allow_partial_peak_coverage: true\n",
         )
-        path = tmp_path / "shared.nxs"
+        partial, partial_peaks = self._partial(minimal_HidraWorkspace, minimal_PeakCollection)
+        other = minimal_HidraWorkspace(with_instrument=True, sub_runs=np.array([4, 5, 6]))
+        with_direction(other, "22", np.array([4, 5, 6]))
+        other_peaks = [minimal_PeakCollection(N_subrun=3, peak_tag="Fe110", sub_runs=np.array([4, 5, 6]))]
+
+        # Act / Assert
+        with NXstress(tmp_path / "partial.nxs", "w") as nx:
+            with pytest.raises(ValueError, match=r"scan point\(s\) \[2\] of input workspace \[0\]"):
+                nx.write([partial, other], [partial_peaks, other_peaks])
+            assert nx.entry_numbers() == ()
+
+    def test_single_workspace_partial_coverage_raises_by_default(
+        self, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
+    ):
+        partial, peaks = self._partial(minimal_HidraWorkspace, minimal_PeakCollection)
+
+        with NXstress(tmp_path / "partial.nxs", "w") as nx:
+            with pytest.raises(ValueError, match=r"allow_partial_peak_coverage"):
+                nx.write([partial], [peaks])
+
+    def test_single_workspace_partial_coverage_allowed_by_config(
+        self, config_override, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
+    ):
+        # Arrange
+        configure(config_override, "nxstress:\n  allow_partial_peak_coverage: true\n")
+        partial, peaks = self._partial(minimal_HidraWorkspace, minimal_PeakCollection)
+        path = tmp_path / "partial.nxs"
 
         # Act
         with NXstress(path, "w") as nx:
-            nx.write(workspaces, peakss)
+            nx.write([partial], [peaks])
         with NXstress(path, "r") as nx:
             (read_ws,), _ = nx.read()
 
-        # Assert
-        assert read_ws.get_sub_runs().raw_copy().tolist() == [4, 5, 6, 1, 2, 3]
+        # Assert -- read back whole, the uncovered point included
+        assert read_ws.get_sub_runs().raw_copy().tolist() == [1, 2, 3]
+
+    def test_single_workspace_without_peaks_is_unaffected(self, minimal_HidraWorkspace, tmp_path):
+        ws = minimal_HidraWorkspace(with_instrument=True, sub_runs=np.array([1, 2, 3]))
+
+        with NXstress(tmp_path / "no_peaks.nxs", "w") as nx:
+            nx.write([ws], [[]])

@@ -13,6 +13,7 @@ from pyrs.core.peak_profile_utility import BackgroundFunction
 from pyrs.peaks.peak_collection import PeakCollection
 from pyrs.utilities.pydantic_transition import validate_call_
 
+from pyrs.utilities.config import Config
 from pyrs.utilities.convertdatatypes import to_text
 
 from ._definitions import (
@@ -177,21 +178,21 @@ class NXstress:
 
         Raises:
             ValueError: If the inputs are inconsistent (mismatched list lengths,
-                a missing required log, overlapping scan points between inputs),
-                or if `entry_number` skips past the next free entry.
+                a missing required log, overlapping scan points between inputs,
+                two inputs sharing a workspace key, or a workspace whose
+                `PeakCollection`s miss some of its scan points), or if
+                `entry_number` skips past the next free entry.
             RuntimeError: If called outside the context manager, where there is
                 no open root to write to; if this instance was already
                 invalidated; or, on an append, for a violated invariant -- a
-                duplicate row, an unmet precondition, or a disagreement with the
-                target entry. The last **invalidates this instance**: a later
+                duplicate row, an unmet precondition (the `ValueError` cases
+                above included), or a disagreement with the target entry. The last **invalidates this instance**: a later
                 `write` on it raises rather than proceeding.
             NotImplementedError: On an append, for Case B -- extending a
                 compound key the entry already holds with further scan points.
                 That needs a mid-array insertion rather than a tail-append and
-                is deliberately out of scope. Also, on a write or an append, if
-                a workspace would be read back with scan points that are not
-                strictly increasing (see `_refuseUnreadableScanPointOrder`).
-                Nothing is written, and the instance stays usable.
+                is deliberately out of scope. Nothing is written, and the
+                instance stays usable.
 
         Example:
             >>> with NXstress(path, "a") as nxs:        # doctest: +SKIP
@@ -472,8 +473,7 @@ class NXstress:
 
         Raises:
             RuntimeError: On any violated invariant; also sets `self._invalid`.
-            NotImplementedError: For Case B, or for an out-of-order read-back.
-                Leaves the instance usable.
+            NotImplementedError: For Case B. Leaves the instance usable.
         """
         # Ordinary write-time validation applies to the incoming batch regardless
         # of where it is going.
@@ -482,15 +482,16 @@ class NXstress:
         except ValueError as error:
             raise self._reject(f"NXstress: cannot append -- {error}") from error
 
-        self._rejectUnmetCaseAPreconditions(peakss, discriminator_names)
+        self._rejectUnmetCaseAPreconditions(wss, peakss, discriminator_names)
         self._rejectUnconfiguredColumns(entry, discriminator_names)
         self._rejectDiscriminatorTypeMismatch(entry, indexed, discriminator_names)
         self._rejectUngrowableOrDisagreeingGroups(entry, wss)
         self._classifyCompoundKeys(entry, indexed, discriminator_names)
+        self._rejectExistingWorkspaceKey(entry, wss, discriminator_names)
         self._rejectScanPointCollisions(entry, wss)
-        self._refuseUnreadableAppendOrder(entry, wss, discriminator_names)
         self._rejectDiffractogramKeyMismatch(entry, wss)
         self._rejectFitModelMismatch(entry, indexed)
+        self._rejectPartiallyCoveredEntry(entry)
 
     def _reject(self, message: str) -> RuntimeError:
         """Build the exception for a violated invariant, and invalidate the instance.
@@ -501,7 +502,9 @@ class NXstress:
         self._invalid = True
         return RuntimeError(message)
 
-    def _rejectUnmetCaseAPreconditions(self, peakss: list, discriminator_names: tuple) -> None:
+    def _rejectUnmetCaseAPreconditions(
+        self, wss: list[HidraWorkspace], peakss: list, discriminator_names: tuple
+    ) -> None:
         """Case A's two preconditions, inherited from 04b's write-time invariants."""
         # -- Case A precondition 1: every incoming workspace must contribute at
         #    least one `PeakCollection`. `_validateMultiWorkspace` already enforces
@@ -516,6 +519,15 @@ class NXstress:
                 "  The peak index is the only place a workspace's identity is recorded, so one "
                 "with no peaks could not be recovered from the appended entry."
             )
+
+        # -- Every incoming workspace's `PeakCollection`s must cover all of its scan
+        #    points, whatever `nxstress.allow_partial_peak_coverage` says: the entry
+        #    holds other workspaces, so an uncovered point would be claimed by none
+        #    of them on read.
+        try:
+            self._validatePeakCoverage(wss, peakss)
+        except ValueError as error:
+            raise self._reject(f"NXstress: cannot append -- {error}") from error
 
         # -- Case A precondition 2: the target must already have a discriminator
         #    scheme. Attaching a new, distinguishable workspace to an entry written
@@ -651,30 +663,54 @@ class NXstress:
                     "attributed."
                 )
 
-    def _refuseUnreadableAppendOrder(self, entry, wss: list[HidraWorkspace], discriminator_names: tuple) -> None:
-        """The appended entry must still read back with increasing scan points per workspace.
+    def _rejectExistingWorkspaceKey(self, entry, wss: list[HidraWorkspace], discriminator_names: tuple) -> None:
+        """An incoming workspace may not share a workspace key with one already in the entry.
 
-        An appended workspace sharing a discriminator value with rows already on
-        disk is read back together with them, after them; so are all rows of an
-        entry holding a single discriminator value. A tail-append of lower scan
-        points is then unreadable. "Unsupported" rather than "violated", like
-        Case B, so the instance stays usable.
+        The reader recovers each workspace by its discriminator values, so rows
+        under a key already on disk would be read back as part of that workspace:
+        two workspaces merged into one. NXstress never merges workspaces -- PyRS
+        does that before writing, as CombineRuns does -- and the same rule binds a
+        fresh write in `_validateMultiWorkspace`.
+
+        Runs after `_classifyCompoundKeys`, so that Case B -- the same key *and*
+        the same peak, with further scan points -- is still reported as the
+        unsupported operation it is. That one extends a single workspace, rather
+        than merging two, and stays a deferred feature.
         """
-        points_by_key: dict = {}
-        peaks_group = entry[GROUP_NAME.PEAKS]
-        for discriminators, _key, start, end in _Peaks.peakCollectionRanges(peaks_group, discriminator_names):
-            points_by_key.setdefault(discriminators, set()).update(
-                np.asarray(peaks_group["scan_point"].nxdata[start:end]).tolist()
+        on_disk = {
+            discriminators
+            for discriminators, *_ in _Peaks.peakCollectionRanges(entry[GROUP_NAME.PEAKS], discriminator_names)
+        }
+        for n, ws in enumerate(wss):
+            key = _discriminator.key(ws, discriminator_names)
+            if key in on_disk:
+                raise self._reject(
+                    f"NXstress: cannot append -- input workspace [{n}] has the workspace key {dict(key)}, "
+                    "which this entry already holds.\n"
+                    "  Its rows would be read back as part of the existing workspace. NXstress does not "
+                    "merge workspaces: merge them in PyRS first, as CombineRuns does, or give this one a "
+                    "distinct discriminator value."
+                )
+
+    def _rejectPartiallyCoveredEntry(self, entry) -> None:
+        """The entry's own scan points must all be covered by its peaks.
+
+        A single-workspace entry written with `nxstress.allow_partial_peak_coverage`
+        may hold scan points with no peak rows; it reads back whole. Appending to it
+        makes a multi-workspace entry, which `read` splits by peak rows, so those
+        points would belong to no workspace. The incoming workspaces are checked in
+        `_rejectUnmetCaseAPreconditions`; this checks the entry they join.
+        """
+        on_disk = set(np.asarray(entry[GROUP_NAME.SAMPLE_DESCRIPTION]["scan_point"].nxdata).tolist())
+        covered = set(np.asarray(entry[GROUP_NAME.PEAKS]["scan_point"].nxdata).tolist())
+        uncovered = sorted(on_disk - covered)
+        if uncovered:
+            raise self._reject(
+                f"NXstress: cannot append -- this entry's scan point(s) {uncovered} have no peaks.\n"
+                "  It was written with 'nxstress.allow_partial_peak_coverage', and an appended entry "
+                "recovers each workspace's scan points from its peaks, so these would belong to no "
+                "workspace on read. Write a new entry instead."
             )
-        for ws in wss:
-            points_by_key.setdefault(_discriminator.key(ws, discriminator_names), set()).update(
-                ws.get_sub_runs().raw_copy().tolist()
-            )
-        axis = np.concatenate(
-            [np.asarray(entry[GROUP_NAME.SAMPLE_DESCRIPTION]["scan_point"].nxdata)]
-            + [ws.get_sub_runs().raw_copy() for ws in wss]
-        )
-        self._refuseUnreadableScanPointOrder(axis, points_by_key, discriminator_names, operation="append")
 
     def _rejectDiffractogramKeyMismatch(self, entry, wss: list[HidraWorkspace]) -> None:
         """Every scan point in an entry needs a diffractogram under each key.
@@ -1068,6 +1104,8 @@ class NXstress:
 
         if len(wss) > 1:
             cls._validateMultiWorkspace(wss, peakss)
+        elif not Config["nxstress.allow_partial_peak_coverage"]:
+            cls._validatePeakCoverage(wss, peakss)
 
         # VERIFY that no duplicate PeakCollections exist
         _Peaks.validateNoDuplicatePeaks(indexed)
@@ -1080,11 +1118,11 @@ class NXstress:
     def _validateMultiWorkspace(cls, wss: list[HidraWorkspace], peakss: list[list[PeakCollection]]):
         """The invariants that only bite when an entry holds N > 1 workspaces.
 
-        The first three are write-time gates rather than documented conventions,
-        because violating any of them produces a file that is *readable* and
-        wrong rather than one that fails: an unsplittable entry, or one whose
-        rows are attributed to the wrong workspace. The fourth guards a file
-        that would be written correctly and then could not be read back.
+        These are write-time gates rather than documented conventions, because
+        violating any of them produces a file that is *readable* and wrong --
+        an unsplittable entry, inputs merged into one workspace, or rows
+        attributed to the wrong workspace -- or one that is written correctly
+        and then cannot be read back.
         """
         # 1. Without a discriminator, the boundary between inputs is not recorded
         #    anywhere. NXstress does not merge workspaces: that is PyRS's job,
@@ -1124,60 +1162,54 @@ class NXstress:
                     )
                 seen[point] = n
 
-        # 4. Each workspace read back must hold its scan points in increasing order.
+        # 4. The reader recovers each workspace by its discriminator values, so two
+        #    inputs sharing every value would be read back as one: a merge.
+        #    NXstress never merges workspaces; that is PyRS's job (rule 1).
         discriminator_names = cls._discriminatorNames(wss)
-        points_by_key: dict = {}
-        for ws in wss:
-            points_by_key.setdefault(_discriminator.key(ws, discriminator_names), set()).update(
-                ws.get_sub_runs().raw_copy().tolist()
-            )
-        axis = np.concatenate([ws.get_sub_runs().raw_copy() for ws in wss])
-        cls._refuseUnreadableScanPointOrder(axis, points_by_key, discriminator_names, operation="write")
+        owner: dict = {}
+        for n, ws in enumerate(wss):
+            key = _discriminator.key(ws, discriminator_names)
+            if key in owner:
+                raise ValueError(
+                    f"NXstress.write: input workspaces [{owner[key]}] and [{n}] have the same workspace "
+                    f"key {dict(key)}, so they would be read back as one.\n"
+                    "  NXstress does not merge workspaces: merge them in PyRS first, as CombineRuns "
+                    "does, or give each a distinct discriminator value."
+                )
+            owner[key] = n
 
-    @staticmethod
-    def _refuseUnreadableScanPointOrder(
-        axis: np.ndarray, points_by_key: dict, discriminator_names: tuple, *, operation: str
-    ) -> None:
-        """Refuse an entry whose read-back workspaces would hold out-of-order scan points.
+        # 5. On read, a workspace's scan points are the union of its collections'
+        #    `sub_runs`, so a point no collection covers is claimed by no workspace.
+        cls._validatePeakCoverage(wss, peakss)
 
-        `read` gives each workspace the rows whose scan points it claims, in the
-        order they are on disk, and builds a `SubRuns` from them -- which refuses
-        anything not strictly increasing. Interleaved inputs are therefore fine
-        when a discriminator separates them, but workspaces sharing one
-        discriminator value are read back as one, and their concatenated axis
-        must increase.
+    @classmethod
+    def _validatePeakCoverage(cls, wss: list[HidraWorkspace], peakss: list[list[PeakCollection]]) -> None:
+        """Every scan point of a workspace with peaks must be covered by one of them.
 
-        Refused rather than sorted: the on-disk row order is the inputs' order,
-        and re-sorting the rows would break the round trip -- there would
-        then be no way to re-assign them to the individual workspaces on read.
-        The requirement itself is arbitrary, and its removal is recommended in
-        DD-2 of `plans/PR_review/deferred-defects.md`.
-
-        Args:
-            axis: The entry's whole scan-point axis, as it would be on disk.
-            points_by_key: Each discriminator key's scan points, mirroring how
-                `_workspaceSelections` groups the entry on read.
-            discriminator_names: The entry's discriminator fields; empty for a
-                single-workspace entry.
-            operation: "write" or "append", for the message.
+        A multi-workspace entry is split on read by peak-collection membership:
+        each workspace gets the union of its collections' `sub_runs`, and a scan
+        point outside every union raises then. Refused here instead, before
+        anything is written. A workspace with no `PeakCollection` at all is not
+        this rule's concern -- see `_validateMultiWorkspace`.
 
         Raises:
-            NotImplementedError: If any read-back workspace's scan points would
-                not be strictly increasing. Nothing has been written, and an
-                appending instance stays usable.
+            ValueError: Naming each workspace and its uncovered scan points.
         """
-        if not discriminator_names or len(points_by_key) <= 1:
-            selections = [axis]
-        else:
-            selections = [axis[np.isin(axis, sorted(points))] for points in points_by_key.values()]
-        for points in selections:
-            if np.any(points[1:] <= points[:-1]):
-                raise NotImplementedError(
-                    f"NXstress: cannot {operation} -- one workspace would be read back from this entry "
-                    f"with scan points {points.tolist()}, in that order, and PyRS requires a "
-                    "workspace's scan points to be strictly increasing.\n"
-                    "  Pass the workspaces in increasing scan-point order, or give them distinct "
-                    "discriminator values so that they are read back separately."
+        for n, (ws, peaks) in enumerate(zip(wss, peakss)):
+            if not peaks:
+                continue
+            covered: set = set()
+            for collection in peaks:
+                covered |= set(collection.sub_runs.raw_copy().tolist())
+            uncovered = sorted(set(ws.get_sub_runs().raw_copy().tolist()) - covered)
+            if uncovered:
+                raise ValueError(
+                    f"NXstress.write: scan point(s) {uncovered} of input workspace [{n}] are in none of "
+                    "its `PeakCollection`s.\n"
+                    "  Every scan point of a workspace with peaks must be covered by at least one: a "
+                    "multi-workspace entry recovers each workspace's scan points from its peaks, so an "
+                    "uncovered point belongs to no workspace on read. A single-workspace write may "
+                    "allow it with 'nxstress.allow_partial_peak_coverage'."
                 )
 
     @classmethod

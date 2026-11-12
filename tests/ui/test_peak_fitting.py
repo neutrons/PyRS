@@ -339,7 +339,7 @@ def nxstress_ready_window(fit_peaks_window, minimal_HidraWorkspace, minimal_Peak
     and message boxes replaced. Call the returned `set_peak_tag` before saving.
     Every change to the window is made through `monkeypatch` and undone on exit."""
     window, _qtbot = fit_peaks_window
-    ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+    ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
     monkeypatch.setattr(window._model, "hidra_workspace", ws)
     monkeypatch.setattr(window._model, "fit_result", None)
     window._update_nxstress_action()

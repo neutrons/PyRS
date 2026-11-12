@@ -14,7 +14,7 @@ import pytest
 # Each consuming RNG is re-instantiated fresh inside the fixture
 # below (not held at module scope) so that no test's random draws depend on how many draws
 # earlier tests happened to consume from a shared stream.
-_SEED = 0x923F109B1D944AF5
+SEED = 0x923F109B1D944AF5
 
 
 def make_peak_collection(
@@ -29,7 +29,7 @@ def make_peak_collection(
     N_subrun: int,
     sub_runs: Sequence[int] | None = None,
     mask: str = HidraConstants.DEFAULT_MASK,
-    exclude_list: Sequence[int] | None = None,
+    exclude_list: Sequence[bool] | None = None,
     N_counts=1000,  # range for random counts
     N_span=10000.0,  # domain for random axes
     error_fraction_min=0.005,  # minimum fractional error (0.5%), as a fraction of the value drawn
@@ -39,7 +39,7 @@ def make_peak_collection(
 
     The plain-function form of the `createPeakCollection` fixture, for callers
     outside pytest (e.g. scripts under `tests/scripts/`). Pass
-    `np.random.default_rng(_SEED)` for the fixture's reproducible draws.
+    `np.random.default_rng(SEED)` for the fixture's reproducible draws.
     """
     if not (0 < error_fraction_min <= error_fraction_max):
         raise ValueError(
@@ -74,6 +74,13 @@ def make_peak_collection(
             raise ValueError(f"make_peak_collection: sub_runs has {len(subruns)} entries but N_subrun is {N_subrun}")
     else:
         subruns = [n + 1 for n in range(N_subrun)]
+    # Checked here because `PeakCollection.set_peak_fitting_values` stores the list
+    # without checking it, and a wrong length only fails later, wherever it is
+    # indexed per sub-run.
+    if exclude_list is not None and len(exclude_list) != N_subrun:
+        raise ValueError(
+            f"make_peak_collection: exclude_list has {len(exclude_list)} entries but N_subrun is {N_subrun}"
+        )
 
     # Ensure that the parameter values are somewhat physically meaningful:
     #   for example, no negative peak widths or out-of-range mixing fractions.
@@ -86,12 +93,14 @@ def make_peak_collection(
     #   subtracts comparable-magnitude terms and would otherwise amplify float32 rounding
     #   noise without bound whenever a draw happened to make one parameter's absolute
     #   uncertainty tiny relative to its value).
-    params = peaks._peak_profile.native_parameters
+    #
+    # Every parameter is filled, the background's included: `PeakCollection` marks a
+    # scan point whose errors include a zero as "did not refine all parameters", so a
+    # background left at zero would make every generated point an unsuccessful fit.
     dtypes = dict(get_parameter_dtype(peaks._peak_profile, peaks._background_type))
     param_values = np.zeros(N_subrun, list(dtypes.items()))
     param_errors = np.zeros(N_subrun, list(dtypes.items()))
-    for param in params:
-        dtype = dtypes[param]
+    for param, dtype in dtypes.items():
         match param:
             case "Height" | "Intensity":
                 vs = rng.uniform(0.0, N_counts, size=(N_subrun,)).astype(dtype)
@@ -101,16 +110,22 @@ def make_peak_collection(
                 vs = rng.uniform(0.0, N_span / 10.0, size=(N_subrun,)).astype(dtype)
             case "Mixing":
                 vs = rng.uniform(0.0, 1.0, size=(N_subrun,)).astype(dtype)
+            case "A0":  # background level
+                vs = rng.uniform(1.0, N_counts / 10.0, size=(N_subrun,)).astype(dtype)
+            case "A1":  # background slope
+                vs = rng.uniform(-1.0, 1.0, size=(N_subrun,)).astype(dtype)
+            case "A2":  # background curvature
+                vs = rng.uniform(-0.01, 0.01, size=(N_subrun,)).astype(dtype)
             case _:
                 raise RuntimeError(f"`make_peak_collection`: unexpected param '{param}'")
 
         fraction = rng.uniform(error_fraction_min, error_fraction_max, size=(N_subrun,))
-        es = (fraction * vs).astype(dtype)
+        es = (fraction * np.abs(vs)).astype(dtype)
 
         param_values[param] = vs
         param_errors[param] = es
 
-    fit_costs = rng.uniform(0.0, 100.0, size=(N_subrun,)).astype(dtype)
+    fit_costs = rng.uniform(0.0, 100.0, size=(N_subrun,)).astype(np.float32)
 
     peaks.set_peak_fitting_values(subruns, param_values, param_errors, fit_costs, exclude_list)
     return peaks
@@ -119,10 +134,10 @@ def make_peak_collection(
 @pytest.fixture
 def createPeakCollection() -> Generator[Callable[..., PeakCollection]]:
     # This fixture generates a `PeakCollection` instance initialized using random values.
-    # A fresh, identically-seeded RNG is created per test invocation (see `_SEED` above):
+    # A fresh, identically-seeded RNG is created per test invocation (see `SEED` above):
     # every test that requests this fixture gets the same deterministic sequence of draws,
     # regardless of what other tests ran before it in the same session.
-    rng = np.random.default_rng(seed=_SEED)
+    rng = np.random.default_rng(seed=SEED)
 
     def _init(**kwargs) -> PeakCollection:
         return make_peak_collection(rng=rng, **kwargs)

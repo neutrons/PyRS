@@ -412,7 +412,7 @@ class TestEveryPropertyRoundTripsOrIsRefused:
         assert restorable_names, "no restorable properties; expected at least `direction`"
 
         for name in restorable_names:
-            ws = minimal_HidraWorkspace(with_instrument=False)
+            ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
             # Act
             _discriminator.apply(ws, name, "sentinel-value")

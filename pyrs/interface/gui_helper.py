@@ -44,6 +44,21 @@ def dotted(extension: str) -> str:
     return "." + extension.lstrip(".")
 
 
+def is_nxstress_path(path: str | Path) -> bool:
+    """Whether `path` names an NXstress file, by the configured `nxstress.extension`.
+
+    The one test for "is this NXstress?" -- a literal ``".nxs"`` at each call site
+    would ignore the configuration, so a file saved with another configured
+    extension would be loaded, and saved, as a legacy project file.
+    """
+    return Path(path).suffix == dotted(Config["nxstress.extension"])
+
+
+def nxstress_file_filter() -> str:
+    """The file-dialog filter for NXstress files, by the configured `nxstress.extension`."""
+    return f"NXstress (*{dotted(Config['nxstress.extension'])})"
+
+
 def confirm_replace(parent, filename: str) -> bool:
     """Ask whether to replace an existing file.
 

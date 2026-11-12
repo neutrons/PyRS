@@ -124,7 +124,9 @@ class TestLoadDoesNotModifyTheFile:
         # Arrange -- a synthetic project that loads cleanly, so this covers the
         # normal path rather than only the error path above.
         project = write_minimal_h5_project(
-            minimal_HidraWorkspace(with_instrument=True), filename="loadable.h5", with_instrument=True
+            minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True),
+            filename="loadable.h5",
+            with_instrument=True,
         )
         assert os.access(project, os.W_OK)
         digest_before = _digest(Path(project))

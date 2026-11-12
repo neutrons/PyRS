@@ -35,7 +35,7 @@ from pyrs.core.workspaces import HidraWorkspace  # noqa: E402
 from pyrs.peaks.peak_collection import PeakCollection  # noqa: E402
 from pyrs.projectfile.file_mode import HidraProjectFileMode  # noqa: E402
 from pyrs.projectfile.file_object import HidraProjectFile  # noqa: E402
-from tests.util.peak_collection_helpers import _SEED, make_peak_collection  # noqa: E402
+from tests.util.peak_collection_helpers import SEED, make_peak_collection  # noqa: E402
 from tests.util.workspace_helpers import make_minimal_HidraWorkspace  # noqa: E402
 
 TEST_DATA = REPO / "tests" / "data"
@@ -119,7 +119,7 @@ def synthetic_peaks(ws: HidraWorkspace, tag: str = "Fe 110") -> PeakCollection:
     """A fitted `PeakCollection` over `ws`'s scan points, with reproducible random values."""
     sub_runs = ws.get_sub_runs().raw_copy()
     return make_peak_collection(
-        rng=np.random.default_rng(_SEED),
+        rng=np.random.default_rng(SEED),
         peak_tag=tag,
         peak_profile="Gaussian",
         background_type="Linear",

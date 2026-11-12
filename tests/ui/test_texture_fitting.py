@@ -228,13 +228,13 @@ def test_nxstress_action_follows_workspace_geometry(
 
     try:
         # Act / Assert: no geometry
-        monkeypatch.setattr(window._model, "ws", minimal_HidraWorkspace(with_instrument=False))
+        monkeypatch.setattr(window._model, "ws", minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False))
         window.update_nxstress_action()
         assert window.saveAsNXstressAction.isVisible()
         assert not window.saveAsNXstressAction.isEnabled()
 
         # Act / Assert: geometry
-        monkeypatch.setattr(window._model, "ws", minimal_HidraWorkspace(with_instrument=True))
+        monkeypatch.setattr(window._model, "ws", minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True))
         window.update_nxstress_action()
         assert window.saveAsNXstressAction.isEnabled() == Config["nxstress.enable"]
     finally:
@@ -250,7 +250,7 @@ def nxstress_ready_window(
     and message boxes replaced. Call the returned `set_peak_tag` before saving.
     Every change to the window is made through `monkeypatch` and undone on exit."""
     window, _qtbot = texture_fitting_window
-    ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+    ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
     fit_table = window.fit_summary.fit_table_operator
     monkeypatch.setattr(window._model, "ws", ws)
     monkeypatch.setattr(fit_table, "fit_result", None)
@@ -423,25 +423,32 @@ def test_load_failure_reports_and_keeps_workspace(
     """A file that cannot be loaded is reported in a dialog, and the previously
     loaded workspace stays loaded. The model used to swallow the error into an
     unconnected signal, so nothing was reported and, on a first load, plotting
-    then aborted the application."""
-    # Arrange
+    then aborted the application.
+
+    The fit table and the project file name are kept too: both used to be
+    replaced before the load was attempted, leaving the table empty while the
+    model still held the fit."""
+    # Arrange -- a loaded file, and the state a fit leaves in the fit table
     window, _ = texture_fitting_window
     file_load = window.fileLoading.file_load_dilg
-    window._project_file = os.path.abspath("tests/data/HB2B_1017.h5")
-    file_load.load_project_plot()
+    loaded_path = os.path.abspath("tests/data/HB2B_1017.h5")
+    file_load.load_project_plot(loaded_path)
     loaded = window._model.ws
+    table = window.fit_summary.fit_table_operator
+    table.fits, table.fit_result = fits, fit_result = {"eta_0.0": object()}, object()
     messages = []
     monkeypatch.setattr(
         texture_fitting_viewer, "pop_message", lambda parent, message, *args, **kwargs: messages.append(message)
     )
 
     # Act
-    window._project_file = str(unloadable_nxstress_files[kind])
-    file_load.load_project_plot()
+    file_load.load_project_plot(str(unloadable_nxstress_files[kind]))
 
     # Assert
     assert messages == [f"Unable to load {unloadable_nxstress_files[kind]}"]
     assert window._model.ws is loaded
+    assert table.fits is fits and table.fit_result is fit_result
+    assert window._project_file == loaded_path
 
 
 class TestParameterPlotsBeforeAnyFit:
@@ -456,8 +463,7 @@ class TestParameterPlotsBeforeAnyFit:
     def loaded_window(self, texture_fitting_window, monkeypatch):
         """A window with `HB2B_1017.h5` loaded and no fit, recording what the 2D plot draws."""
         window, _ = texture_fitting_window
-        window._project_file = os.path.abspath("tests/data/HB2B_1017.h5")
-        window.fileLoading.file_load_dilg.load_project_plot()
+        window.fileLoading.file_load_dilg.load_project_plot(os.path.abspath("tests/data/HB2B_1017.h5"))
         drawn, cleared = [], []
         monkeypatch.setattr(window.param_window, "plot_scatter_with_errors", lambda **kwargs: drawn.append(kwargs))
         monkeypatch.setattr(window.param_window, "reset_viewer", lambda: cleared.append(True))
@@ -485,7 +491,7 @@ class TestParameterPlotsBeforeAnyFit:
         cleared.clear()
 
         # Act
-        window.fileLoading.file_load_dilg.load_project_plot()
+        window.fileLoading.file_load_dilg.load_project_plot(window._project_file)
 
         # Assert -- cleared, not left showing the previous file's plot
         assert drawn == []

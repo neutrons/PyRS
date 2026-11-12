@@ -55,7 +55,7 @@ class TestInputData:
     ):
         """An entry with no raw counts cannot gain them by append, or vice versa."""
         # Arrange: an entry written WITHOUT raw counts, and an input that has them.
-        without = minimal_HidraWorkspace(with_instrument=True, with_raw_counts=False)
+        without = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_raw_counts=False)
         data = _InputData.init_group([without])
         with_counts = minimal_HidraWorkspace(with_instrument=True, with_raw_counts=True, sub_runs=np.array([4, 5]))
 
@@ -68,7 +68,7 @@ class TestInputData:
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
         """Verify detector_counts shape and scan_point values match workspace"""
-        ws = minimal_HidraWorkspace(with_instrument=True, with_raw_counts=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_raw_counts=True)
 
         data = _InputData.init_group([ws])
 
@@ -98,7 +98,9 @@ class TestInputData:
     ):
         """Verify readSubruns round-trip: write then read back"""
         # Build workspace with raw counts
-        ws_write = minimal_HidraWorkspace(name="test_workspace_write", with_instrument=True, with_raw_counts=True)
+        ws_write = minimal_HidraWorkspace(
+            sub_runs=[1, 2, 3], name="test_workspace_write", with_instrument=True, with_raw_counts=True
+        )
 
         # Create input data
         data = _InputData.init_group([ws_write])
@@ -138,7 +140,7 @@ class TestInputData:
     ):
         """Verify RuntimeError when workspace has subruns that don't match those from input data"""
         # Build workspace with data
-        ws = minimal_HidraWorkspace(with_instrument=True, with_raw_counts=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_raw_counts=True)
 
         # Create input data and write to file
         data = _InputData.init_group([ws])

@@ -129,6 +129,17 @@ A workspace that has no peak fits contributes an empty *inner* list, so a single
 workspace with no fits is ``write([ws], [[]])`` -- not ``write([ws], [])``,
 which is a different (and wrong) shape.
 
+That empty inner list is accepted **only for a single-workspace write**.  When an
+entry holds more than one workspace -- a multi-workspace write, or any append --
+every workspace must contribute at least one ``PeakCollection``, and together its
+collections must cover all of its scan points.  The discriminator values that tell
+workspaces apart are recorded only as columns of the ``peaks`` table, and ``read``
+rebuilds each workspace's scan points from its collections; a workspace with no
+peaks, or a scan point no collection covers, would belong to no workspace on read.
+A single-workspace entry is read back whole, so neither rule is needed there: no
+peaks at all is always accepted, and partial coverage is accepted when
+``nxstress.allow_partial_peak_coverage`` is ``true`` (default ``false``).
+
 Reading is the inverse, and returns the same pair:
 
 .. code-block:: python
@@ -145,11 +156,15 @@ nothing in the schema distinguishes them:
   ``read`` groups the rows by the tuple of their values.  A PV-style log name
   such as ``BL7:CS:Sample:Dir`` is encoded reversibly for the on-disk column and
   recovered exactly on read, by the same ``validItemName`` rule described above.
-* ``nxstress.merge_workspaces`` is consulted **only** when
-  ``discriminator_fields`` is empty.  ``false`` rejects a multi-workspace write
-  outright rather than writing a file that cannot be split again; ``true`` says
-  the merge is intentional and indistinguishable, and ``read`` then returns one
-  merged workspace rather than *N*.
+* With ``discriminator_fields`` empty, a multi-workspace write is refused.
+* **The NXstress backend never merges workspaces; only PyRS core does**, before
+  writing, as CombineRuns does.  This is a design rule of the backend, not a
+  missing feature.  It is enforced on the workspace key -- the tuple of a
+  workspace's discriminator values: two inputs of one write may not share a key,
+  and an append may not bring a key the entry already holds, since either would
+  be read back as one workspace.  (The one exception is *extending* a single
+  workspace with further scan points under its existing key and peaks, "Case B"
+  of spec 04c, which is a deferred feature and refused as unsupported.)
 
 Two data *families* behave differently under this, and the distinction runs
 through the whole implementation:
