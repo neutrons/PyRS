@@ -22,9 +22,38 @@ series, and keeping the numbers distinct lets those PRs merge without renumberin
 - **DD-15**, 2026-11-12: the ASCII pole-figure export scrambles its rows. `export_arrays_to_ascii`
   (`pyrs/core/polefigurecalculator.py`) sorts with `np.sort(combined_array, axis=0)`, which sorts each
   column on its own, so a written row's α, β and intensity no longer belong to the same measured point.
-  It is latent: the texture window exports MTEX (`.jul`), so ASCII is reached only by calling
-  `export_pole_figure(file_type="ascii")` directly. `test_export_ascii_keeps_each_point_together` pins
-  the correct behaviour as a strict `xfail`.
+  The same ASCII branch of `export_pole_figure` also passes the whole peak list on every pass, so each
+  per-peak `.txt` file holds every peak's points. Both are latent: the texture window exports MTEX
+  (`.jul`), so ASCII is reached only by calling `export_pole_figure(file_type="ascii")` directly.
+  `test_export_ascii_keeps_each_point_together` pins the correct row behaviour as a strict `xfail`.
 
   **Found during:** #411 (pole-figure tests).
   **Why it is deferred.** A production change outside #411, which adds tests only.
+
+- **DD-16**, 2026-11-12: a pole on the rim of the pole figure (α = 90°) can come out as NaN.
+  `rotate_project_q` takes `arccos(√(h₁²+h₂²))`, and the root can round to just above 1. Example:
+  θ = 41.1°, ω = θ, χ = 90° gives NaN, while θ = 41.3° gives 90°. Precision also drops near the rim
+  (about 1e-6° at χ = 89.9999°). Whether HB2B measures at χ = 90° decides how much this matters.
+  `test_tilt_to_rim_gives_alpha_ninety` pins it as a strict `xfail`.
+
+  **Found during:** the review of #411.
+  **Why it is deferred.** A production change outside #411, which adds tests only.
+
+- **DD-17**, 2026-11-12: `PoleFigureCalculator.add_input_data_set` checks only for **unknown** log
+  names (`checkdatatypes.check_list`), not missing ones. Data without e.g. `"phi"` is accepted, and
+  fails later in `calculate_pole_figure` (or when more data is appended) with a bare `KeyError`.
+
+  **Found during:** the review of #411.
+  **Why it is deferred.** A production change outside #411.
+
+- **DD-18**, 2026-11-12: `PoleFigureCalculator` bookkeeping:
+  - **The caller's data is changed in place.** The first `add_input_data_set` for a peak stores the
+    caller's dict itself, so adding more data to that peak later rewrites the caller's arrays.
+  - **A calculated pole figure goes stale.** `get_polefigure_array` keeps returning it after more
+    points are appended, until `calculate_pole_figure` runs again. The export recalculates, but
+    `texture_fitting_crtl.extract_polar_projection` does not.
+
+  Both are latent with today's callers (`load_pole_data` builds a new dict each time).
+
+  **Found during:** the review of #411.
+  **Why it is deferred.** A production change outside #411.
