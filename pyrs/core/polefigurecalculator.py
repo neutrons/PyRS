@@ -32,22 +32,25 @@ class PoleFigureCalculator:
         peak_id = to_int("Detector ID", peak_id, min_value=0)
         checkdatatypes.check_dict("Log values for pole figure", log_dict)
 
+        required = ["chi", "phi", "omega", "eta", "center", "intensity"]
         log_names = list(log_dict.keys())
-        checkdatatypes.check_list(
-            "Pole figure motor names", log_names, ["chi", "phi", "omega", "eta", "center", "intensity"]
-        )
+        checkdatatypes.check_list("Pole figure motor names", log_names, required)
+        # check_list rejects unknown names only; a missing one used to fail later as a bare KeyError (DD-17)
+        missing = [name for name in required if name not in log_dict]
+        if missing:
+            raise RuntimeError("Pole figure log values are missing {}".format(", ".join(missing)))
 
-        # check inputs
         if peak_id in self._peak_info_dict:
-            # set
-            for entry in ["chi", "omega", "eta", "center", "intensity", "phi"]:
+            for entry in required:
                 self._peak_info_dict[peak_id][entry] = np.concatenate(
                     (self._peak_info_dict[peak_id][entry], log_dict[entry]), axis=0
                 )
-
         else:
-            # set
-            self._peak_info_dict[peak_id] = log_dict
+            # a copy: appending later must not rewrite the caller's arrays (DD-18)
+            self._peak_info_dict[peak_id] = {entry: np.array(log_dict[entry], copy=True) for entry in required}
+
+        # the peak's points changed, so its pole figure is recalculated when next asked for (DD-18)
+        self._pole_figure_dict.pop(peak_id, None)
 
     def calculate_pole_figure(self, peak_id_list=None):
         """Calculate pole figures
@@ -127,10 +130,12 @@ class PoleFigureCalculator:
         exported the calculated pole figure
         :param detector_id_list: list of detector IDs to write the pole figure file
         :param file_name:
-        :param file_type: ASCII or MTEX (.jul)
+        :param file_type: "mtex" (.jul), the only format; the ASCII export was removed (DD-15)
         :param file_header: for MTEX format
         :return:
         """
+        if file_type.lower() != "mtex":
+            raise ValueError("Pole figures can only be exported as MTEX (.jul), not {!r}".format(file_type))
 
         # process detector ID list
         if peak_id_list is None:
@@ -148,13 +153,7 @@ class PoleFigureCalculator:
                 "[INFO] Exporting polefigure = {} with peak ID {}".format(peak_name_list[i_peak], peak_id_list[i_peak])
             )
 
-            # it is a dictionary now
-            if file_type.lower() == "ascii":
-                # export pole figure arrays as ascii column file
-                export_arrays_to_ascii(self._pole_figure_dict, peak_id_list, file_name)
-            elif file_type.lower() == "mtex":
-                # export to MTEX format
-                export_to_mtex(self._pole_figure_dict, [peak_id_list[i_peak]], file_name, header=file_header)
+            export_to_mtex(self._pole_figure_dict, [peak_id_list[i_peak]], file_name, header=file_header)
 
         return
 
@@ -216,8 +215,9 @@ class PoleFigureCalculator:
         h2 = -st * (cp * sc * sw - sp * cw) - ct * cg * cp * cc + ct * sg * (cp * sc * cw + sp * sw)
         h_length = np.sqrt(np.square(h1) + np.square(h2))
 
-        alpha = np.rad2deg(np.arccos(h_length))
-        beta = np.rad2deg(np.arccos(h1 / h_length))
+        # at the rim (alpha = 90 deg) rounding can put these just past 1, where arccos is NaN (DD-16)
+        alpha = np.rad2deg(np.arccos(np.clip(h_length, 0.0, 1.0)))
+        beta = np.rad2deg(np.arccos(np.clip(h1 / h_length, -1.0, 1.0)))
 
         if h2 < 0:
             beta = -1 * beta
@@ -230,41 +230,6 @@ class PoleFigureCalculator:
         """
         self._peak_info_dict = dict()
         self._pole_figure_dict = dict()
-
-
-def export_arrays_to_ascii(pole_figure_array_dict: dict, peak_id_list: list, file_name: str):
-    """
-    export a dictionary of arrays to an ASCII file
-    :param file_name:
-    :param detector_id_list: selected the detector IDs for pole figure
-    :param pole_figure_array_dict:
-    :return:
-    """
-
-    # check for correct file extension
-    if ".txt" not in file_name:
-        file_name = "{}.txt".format(file_name.replace(".jul", ""))
-
-    # combine
-    pole_figure_array_list = []
-    for pf_key in peak_id_list:
-        pole_figure_vec = pole_figure_array_dict[pf_key]
-
-        if pf_key not in peak_id_list:
-            raise NotImplementedError(
-                "The data structure of pole figure array is not clear. Find out how detector IDs are involved."
-            )
-
-        pole_figure_array_list.append(pole_figure_vec)
-    # END-FOR
-
-    combined_array = np.concatenate(pole_figure_array_list, axis=0)
-    # sort
-    combined_array = np.sort(combined_array, axis=0)
-    # save
-    np.savetxt(file_name, combined_array)  # x,y,z equal sized 1D arrays
-
-    return
 
 
 def export_to_mtex(pole_figure_array_dict: dict, peak_id_list: list, file_name: str, header: str):
