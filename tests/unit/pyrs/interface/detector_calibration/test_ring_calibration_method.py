@@ -37,6 +37,49 @@ def workspace():
     return ws
 
 
+@pytest.fixture(scope="module", autouse=True)
+def shared_extraction():
+    """Most tests here start with ``extract_rings`` on the same run and then test something else (#1101).
+    The ring extraction under it is deterministic and takes 7-9 s, so the model's call to it is cached:
+    the first call with given inputs runs it, later identical calls get a copy of its points, its strip
+    fits and its warnings again. ``extract_rings`` itself still runs in every test. The key includes the
+    run's sy and 2theta logs, which a test may change. The re-extraction rounds (``ring_rounds``) are not
+    cached."""
+    import copy
+    import warnings
+
+    real = model_module.extract_ring_points
+    cache = {}
+
+    def key(workspace, wavelength, calibration=None, diagnostics=None, **kwargs):
+        logs = tuple(
+            tuple(np.asarray(workspace.get_sample_log_values(name), dtype=float).round(12))
+            for name in ("sy", "2theta")
+        )
+        shift = None if calibration is None else tuple(from_shift(calibration))
+        options = tuple(sorted((k, tuple(v) if isinstance(v, (list, np.ndarray)) else v) for k, v in kwargs.items()))
+        return id(workspace), float(wavelength), shift, options, logs
+
+    def cached(workspace, wavelength, calibration=None, diagnostics=None, **kwargs):
+        k = key(workspace, wavelength, calibration, diagnostics, **kwargs)
+        if k not in cache:
+            fits = []
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                points = real(workspace, wavelength, calibration=calibration, diagnostics=fits, **kwargs)
+            cache[k] = (points, fits, [(w.message, w.category) for w in caught])
+        points, fits, raised = cache[k]
+        for message, category in raised:
+            warnings.warn(message, category)
+        if diagnostics is not None:
+            diagnostics.extend(copy.deepcopy(fits))
+        return copy.deepcopy(points)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(model_module, "extract_ring_points", cached)
+        yield
+
+
 def _model(workspace, method=METHOD_RING):
     """The GUI model over a loaded run (FitCalibration's object holds the converted run)"""
     gui_model = DetectorCalibrationModel(None)
