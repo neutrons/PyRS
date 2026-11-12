@@ -961,3 +961,24 @@ including the unknown-`sy` change below.
 
 Tests: `tests/unit/pyrs/calibration/test_fitcalibration_powders.py` and the updated integration
 test `test_reference_lattice_is_the_2020_set`.
+
+## Zero-count pixels are given σ = 1 before 2θ histogramming (2026-11-12)
+
+Found while scoping the pixelation-uncertainty study
+([plan](planning/PixelationUncertainty_Plan.md), [board #5](https://github.com/orgs/neutrons/projects/5)).
+No code changed.
+
+- **Per pixel:** `PyRsReduction.histogram_by_numpy` (`pyrs/core/reduce_hb2b_pyrs.py`) sets
+  σᵢ = √Nᵢ, then replaces σᵢ = 0 with 1. A 2θ bin of *n* pixels, *n₀* of them empty, therefore
+  gets σ²_bin = Σ Nᵢ + n₀ rather than the Poisson Σ Nᵢ. The excess depends on how many pixels fall
+  in the bin (pixel size, bin width, η range, mask), not on the counts.
+- **Masked pixels** are removed before histogramming and do not add to *n₀*. **Empty bins** get
+  intensity 0, σ = 1. **Vanadium:** pixels with < 0.9 vanadium counts are dropped, and vanadium σ
+  uses the same 0 → 1 substitution.
+- **`variances` holds σ, not σ².** The array (`variances_vector`, `HidraWorkspace._var_data_set`) is
+  passed unchanged to Mantid as `DataE` (`mantid_helper.generate_mantid_workspace`), which Mantid
+  reads as σ. The fit weights are therefore consistent with σ; only the name is wrong.
+- **Fitting** uses `FitPeaks`' default least-squares cost, weighting each bin by 1/σ²_bin.
+
+Predicted size, not yet measured: for a uniform Poisson mean λ per pixel, the reported variance is
+(1 + e^(−λ)/λ) times the true variance, i.e. 3.2× σ at λ = 0.1 and 1.17× at λ = 1.
