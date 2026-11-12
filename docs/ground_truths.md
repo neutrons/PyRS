@@ -968,7 +968,7 @@ Found while scoping the pixelation-uncertainty study
 ([plan](planning/PixelationUncertainty_Plan.md), [board #5](https://github.com/orgs/neutrons/projects/5)).
 No code changed.
 
-- **Per pixel:** `PyRsReduction.histogram_by_numpy` (`pyrs/core/reduce_hb2b_pyrs.py`) sets
+- **Per pixel:** `PyHB2BReduction.histogram_by_numpy` (`pyrs/core/reduce_hb2b_pyrs.py`) sets
   σᵢ = √Nᵢ, then replaces σᵢ = 0 with 1. A 2θ bin of *n* pixels, *n₀* of them empty, therefore
   gets σ²_bin = Σ Nᵢ + n₀ rather than the Poisson Σ Nᵢ. The excess depends on how many pixels fall
   in the bin (pixel size, bin width, η range, mask), not on the counts.
