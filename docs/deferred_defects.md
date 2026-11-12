@@ -25,7 +25,7 @@ series, and keeping the numbers distinct lets those PRs merge without renumberin
   The same ASCII branch of `export_pole_figure` also passes the whole peak list on every pass, so each
   per-peak `.txt` file holds every peak's points. Both are latent: the texture window exports MTEX
   (`.jul`), so ASCII is reached only by calling `export_pole_figure(file_type="ascii")` directly.
-  `test_export_ascii_keeps_each_point_together` pins the correct row behaviour as a strict `xfail`.
+  (Its strict-`xfail` test was replaced by `test_export_other_than_mtex_raises` when the export was removed.)
 
   **Found during:** #411 (pole-figure tests).
   **Why it is deferred.** A production change outside #411, which adds tests only.
@@ -57,3 +57,14 @@ series, and keeping the numbers distinct lets those PRs merge without renumberin
 
   **Found during:** the review of #411.
   **Why it is deferred.** A production change outside #411.
+
+- **DD-19**, 2026-11-12: `PoleFigureCalculator.export_pole_figure` and `get_pole_figure_1_pt` read the
+  stored pole figures directly. Since the DD-18 fix, adding data to a peak drops that peak's stored pole
+  figure, so calling either one afterwards without `calculate_pole_figure` raises a bare `KeyError`. The
+  export may already have written the earlier peaks' files by then. Before, both silently used the
+  stale pole figure. No caller does this: the texture window calls `calculate_pole_figure` right before
+  exporting, and `get_pole_figure_1_pt` has no callers. A fix would read through
+  `get_polefigure_array`, which recalculates.
+
+  **Found during:** the review of the DD-15 to DD-18 fixes.
+  **Why it is deferred.** A further production change, beyond the four approved fixes.

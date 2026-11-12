@@ -2941,7 +2941,7 @@ deliberate mistake in the code, undone afterwards):
 - ignoring η fails 5; flipping η's sign fails 3;
 - flipping φ's direction fails 4.
 
-Found, not fixed (see [deferred_defects.md](deferred_defects.md)):
+Found while testing; all four are fixed, see the next section ([deferred_defects.md](deferred_defects.md)):
 - **DD-15:** the ASCII export scrambles its rows, and puts every peak in each file.
 - **DD-16:** α = NaN at the rim.
 - **DD-17:** missing log names are not checked.

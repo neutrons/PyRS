@@ -156,13 +156,16 @@ def test_full_phi_turn_gives_same_pole(calculator):
     assert _angle_difference(pole_360[1], pole_0[1]) == pytest.approx(0.0, abs=1e-9)
 
 
-def test_tilt_to_rim_gives_alpha_ninety(calculator):
-    """Tilting χ to 90° puts the pole on the rim of the pole figure, α = 90° (it was NaN, DD-16)."""
+@pytest.mark.parametrize("theta", [12.0, 25.2, 41.1, 57.3, 74.4])  # each gave α = NaN before DD-16
+@pytest.mark.parametrize("chi", [90.0, -90.0])
+def test_tilt_to_rim_gives_alpha_ninety(calculator, theta, chi):
+    """Tilting χ to ±90° puts the pole on the rim of the pole figure, α = 90°, at β = ∓90° (DD-16)."""
     # Act
-    alpha, _ = calculator.rotate_project_q(41.1, 41.1, 90.0, 0.0, 0.0)
+    alpha, beta = calculator.rotate_project_q(theta, theta, chi, 0.0, 0.0)
 
     # Assert
-    assert alpha == pytest.approx(90.0, abs=1e-5)
+    assert alpha == pytest.approx(90.0, abs=1e-9)
+    assert beta == pytest.approx(-90.0 if chi > 0 else 90.0, abs=1e-6)
 
 
 # --- the calculator: calculate_pole_figure and its bookkeeping ---------------------------------
@@ -306,7 +309,7 @@ def test_add_negative_peak_id_raises(calculator):
         calculator.add_input_data_set(-1, _point_logs([2 * THETA], [THETA], [0.0], [0.0], [0.0], [1.0]))
 
 
-@pytest.mark.parametrize("missing", ["phi", "intensity"])
+@pytest.mark.parametrize("missing", ["chi", "phi", "omega", "eta", "center", "intensity"])
 def test_add_missing_log_name_raises(calculator, missing):
     """Data missing a required log name is refused up front, naming it (DD-17)."""
     # Arrange
@@ -331,11 +334,39 @@ def test_adding_does_not_change_callers_data(calculator):
     assert len(first["chi"]) == 1 and first["chi"][0] == 0.0
 
 
+def test_refused_add_leaves_peak_unchanged(calculator):
+    """Data refused for a missing log name changes none of the peak's points (DD-17)."""
+    # Arrange
+    calculator.add_input_data_set(1, _point_logs([2 * THETA], [THETA], [30.0], [0.0], [0.0], [1.0]))
+    bad = _point_logs([2 * THETA], [THETA], [0.0], [0.0], [0.0], [2.0])
+    del bad["intensity"]  # last in the old append loop, so the others used to be appended first
+
+    # Act
+    with pytest.raises(RuntimeError):
+        calculator.add_input_data_set(1, bad)
+
+    # Assert
+    np.testing.assert_allclose(calculator.get_polefigure_array(1)[:, [0, 2]], [[30.0, 1.0]], atol=1e-6)
+
+
+def test_changing_callers_data_later_has_no_effect(calculator):
+    """The calculator keeps its own copy: changing the caller's array afterwards changes nothing (DD-18)."""
+    # Arrange
+    logs = _point_logs([2 * THETA], [THETA], [0.0], [0.0], [0.0], [1.0])
+    calculator.add_input_data_set(1, logs)
+
+    # Act
+    logs["chi"][0] = 45.0
+
+    # Assert
+    assert calculator.get_polefigure_array(1)[0, 0] == pytest.approx(0.0, abs=1e-6)
+
+
 def test_pole_figure_updates_after_adding(calculator):
     """A pole figure asked for after more data is added includes the new points (DD-18)."""
     # Arrange
     calculator.add_input_data_set(1, _point_logs([2 * THETA], [THETA], [0.0], [0.0], [0.0], [1.0]))
-    assert calculator.get_polefigure_array(1).shape == (1, 3)
+    calculator.get_polefigure_array(1)  # calculates, and keeps, peak 1's one-point pole figure
 
     # Act
     calculator.add_input_data_set(1, _point_logs([2 * THETA], [THETA], [30.0], [0.0], [0.0], [2.0]))
@@ -387,7 +418,8 @@ def test_export_mtex_writes_one_file_per_peak(calculator, tmp_path):
         np.testing.assert_allclose(rows, calculator.get_polefigure_array(peak), atol=1e-5)
 
 
-def test_export_other_than_mtex_raises(calculator, tmp_path):
+@pytest.mark.parametrize("file_type", ["ascii", "txt"])
+def test_export_other_than_mtex_raises(calculator, tmp_path, file_type):
     """Only MTEX (.jul) is written; the ASCII export, which scrambled its rows, was removed (DD-15)."""
     # Arrange
     calculator.add_input_data_set(1, _point_logs([2 * THETA], [THETA], [0.0], [0.0], [0.0], [1.0]))
@@ -396,6 +428,6 @@ def test_export_other_than_mtex_raises(calculator, tmp_path):
     # Act / Assert
     with pytest.raises(ValueError, match="MTEX"):
         calculator.export_pole_figure(
-            output_folder=str(tmp_path), peak_id_list=[1], peak_name_list=["Peak_1"], file_type="ascii"
+            output_folder=str(tmp_path), peak_id_list=[1], peak_name_list=["Peak_1"], file_type=file_type
         )
     assert list(tmp_path.iterdir()) == []
