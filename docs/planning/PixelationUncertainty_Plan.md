@@ -105,8 +105,9 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
       runs 5340 and 5344): row mismatch ~2 %, the floor.
 - [ ] Apply a vanadium from another cycle to the 2025 runs, to measure the drift directly.
 - [x] Per sub-run rather than whole-run sums (`--per-sub-run`). Needed for arm scans.
-- [ ] Per 2θ bin and per η wedge: *n*, *n₀*, Σ Nᵢ, and the inflation ratio
-      (Σ Nᵢ + n₀) / Σ Nᵢ.
+- [x] Per 2θ bin and per η wedge: *n*, *n₀*, Σ Nᵢ, and the inflation ratio
+      (Σ Nᵢ + n₀) / Σ Nᵢ. On 5344 (autoreduction settings) it equals the Poisson prediction;
+      background σ is reported 1.5–1.8× too large, peaks unaffected, the same in 3° η wedges.
 - [ ] Confirm which wire plane encodes y. Results are labelled by detector axis.
 
 ### Phase 1 — Quantify the current treatment ([#1107](https://github.com/neutrons/PyRS/issues/1107))
@@ -116,7 +117,9 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
       outside production code. Compare fitted centre, FWHM, and intensity,
       their errors, and χ².
 - [ ] Show how the inflation ratio changes with 2θ bin width and η-wedge
-      size.
+      size. *Phase 0 shows R depends on counts per pixel, not on the number of pixels in a
+      bin. Bin width can matter only by mixing pixels of different λ (e.g. on peak flanks);
+      the vanadium terms are negligible.*
 - [ ] Measure how much a stale vanadium (wrong vertical stripe pattern)
       biases narrow-η-wedge intensities (texture).
 

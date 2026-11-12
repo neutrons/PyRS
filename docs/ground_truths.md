@@ -970,8 +970,10 @@ No code changed.
 
 - **Per pixel:** `PyHB2BReduction.histogram_by_numpy` (`pyrs/core/reduce_hb2b_pyrs.py`) sets
   σᵢ = √Nᵢ, then replaces σᵢ = 0 with 1. A 2θ bin of *n* pixels, *n₀* of them empty, therefore
-  gets σ²_bin = Σ Nᵢ + n₀ rather than the Poisson Σ Nᵢ. The excess depends on how many pixels fall
-  in the bin (pixel size, bin width, η range, mask), not on the counts.
+  gets σ²_bin = Σ Nᵢ + n₀ rather than the Poisson Σ Nᵢ. The absolute excess n₀ grows with the number
+  of pixels in the bin (bin width, η range, mask). The *relative* inflation
+  (Σ Nᵢ + n₀) / Σ Nᵢ ≈ 1 + mean(e^(−λᵢ)) / mean(λᵢ) depends only on the counts per pixel λ, so
+  changing the bin width or η wedge at fixed λ does not change it (measured below).
 - **Masked pixels** are removed before histogramming and do not add to *n₀*. **Empty bins** get
   intensity 0, σ = 1. **Vanadium:** pixels with < 0.9 vanadium counts are dropped, and vanadium σ
   uses the same 0 → 1 substitution.
@@ -980,8 +982,33 @@ No code changed.
   reads as σ. The fit weights are therefore consistent with σ; only the name is wrong.
 - **Fitting** uses `FitPeaks`' default least-squares cost, weighting each bin by 1/σ²_bin.
 
-Predicted size, not yet measured: for a uniform Poisson mean λ per pixel, the reported variance is
-(1 + e^(−λ)/λ) times the true variance, i.e. 3.2× σ at λ = 0.1 and 1.17× at λ = 1.
+For a uniform Poisson mean λ per pixel, the reported variance is (1 + e^(−λ)/λ) times the true
+variance, i.e. 3.2× σ at λ = 0.1 and 1.17× at λ = 1.
+
+**Measured (2026-11-12, Phase 0, [#1106](https://github.com/neutrons/PyRS/issues/1106)).** Run 5344
+(Si422 arm scan, 12 sub-runs, 0.5–1.1 counts per pixel) was reduced the way autoreduction reduced it:
+2024-07-09 calibration, 2019-11-18 mask, vanadium 4501, 720 bins (~0.023°, ~1,270 pixels per bin;
+~230 per 3° η wedge). Production's own `reduce_to_2theta_histogram` supplied the intensities and σ,
+and the formula σ²_rel = (ΣN + n₀)/ΣN² + 1/ΣV + 1/V_max reproduces that σ to 4×10⁻¹⁶.
+- **The inflation is exactly the Poisson prediction.** Per bin, observed (ΣN + n₀)/ΣN over
+  1 + Σe^(−λᵢ)/Σλᵢ has a median of 0.996–1.005 in every sub-run and wedge, where λᵢ comes from the
+  same-day vanadium 5339 times the bin's scale. The vertical efficiency stripes raise it only ~1.5 %
+  above the uniform-λ formula.
+- **Background bins** (the lower half by λ̄, per sub-run): variance inflated 2.4–3.1× (median), so
+  **σ is reported 1.5–1.8× too large**. **Peak bins** (top 1 % by λ̄, λ̄ ≈ 3–15): 1.00–1.03. Over all bins, the median σ_reported / σ_Poisson is
+  1.4–1.6 (90th percentile 1.7–1.9, max 2–4.5). 80–94 % of bins have variance inflated above 1.5×.
+- **η wedges** (3°, centres 0, ±3, ±6) show the same inflation as the full detector, confirming
+  that it is set by λ, not by the number of pixels.
+- **The vanadium terms barely matter:** σ_reported / σ_Poisson ≈ √((ΣN + n₀)/ΣN), because ΣV is large.
+- Consequence for fitting (Phase 1, [#1107](https://github.com/neutrons/PyRS/issues/1107)): the fit
+  weights background bins 2–3× too little relative to peak bins.
+
+**Arm-angle sign.** `ReductionManager.setup_reduction_engine` passes **−(logged `2theta`)** to
+`PyHB2BReduction.set_experimental_data`, converting DAS to PyRS convention. Building the instrument
+with the logged sign mirrors the pixel 2θ map along x (column 0 then reads 78.65° instead of
+61.35° at a 70° arm) and puts η near ±180°, so reduction's η wedges (centred on 0°) select no pixels.
+The Phase 0 zero-count results in the next entry were rechecked with the correct sign: observed/expected zeros
+moved by ≤ 0.002, and the row/column mismatches by ≤ 0.3 %.
 
 ## HB2B detector: pixel orientation, vanadium dead area, and vertical wire-period stripes (2026-11-12)
 
