@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Board** | [neutrons project #5](https://github.com/orgs/neutrons/projects/5) |
-| **Status** | Scoping (2026-11-12) |
+| **Status** | Phase 0 started; first results on 2019–2023 data in [pixelation_results/2026-11-12_local](pixelation_results/2026-11-12_local/README.md) (2026-11-12) |
 | **Production code changes** | None planned in this phase. Any change to reduction or fitting is proposed separately and needs its own approval. |
 
 ## Motivation
@@ -86,14 +86,24 @@ short write-up and, where a fact is established, a
 [ground-truth](../ground_truths.md) entry.
 
 ### Phase 0 — Characterise measured data
-- [ ] Pick representative runs (high and low count rate; powder standard and
-      a real sample). *Input needed from the instrument scientist.*
-- [ ] Per sub-run: fraction of unmasked zero-count pixels; histogram of pixel
-      counts; compare with the Poisson expectation from the local mean.
-- [ ] Separate dead or unmasked-bad pixels (zero counts in vanadium too) from
-      pixels that are simply sparse.
-- [ ] Per 2θ bin: *n*, *n₀*, Σ Nᵢ, and the inflation ratio
+First results: [2026-11-12, local 2019–2023 data](pixelation_results/2026-11-12_local/README.md).
+In short:
+- Vanadium-dead pixels are the detector border, and the production mask already covers them.
+- Zeros in live pixels follow Poisson statistics to within 0.1–7 %.
+- Along x, the zero fraction follows only the diffraction pattern.
+- Along y, efficiency and zero fraction are striped with the 6.56-row (1.92 mm) wire period,
+  and the stripe pattern drifts away from an older vanadium (2 % → 12 % mismatch).
+
+- [x] Zero fraction per run, and observed vs Poisson-expected zeros per detector column and row
+      (`scripts/pixelation_study/run_zero_count_study.py`). Done on whole-run sums.
+- [x] Separate dead pixels (zero counts in vanadium) from sparse pixels: the vanadium works as a
+      dead-pixel mask.
+- [ ] Repeat on recent runs with a vanadium taken close in time, plus one from another cycle, to
+      measure the stripe drift. *Needs the machine with recent data.*
+- [ ] Per sub-run rather than whole-run sums.
+- [ ] Per 2θ bin and per η wedge: *n*, *n₀*, Σ Nᵢ, and the inflation ratio
       (Σ Nᵢ + n₀) / Σ Nᵢ.
+- [ ] Confirm which wire plane encodes y. Results are labelled by detector axis.
 
 ### Phase 1 — Quantify the current treatment
 - [ ] Find out whether Mantid `FitPeaks` scales parameter errors by reduced
@@ -103,6 +113,8 @@ short write-up and, where a fact is established, a
       their errors, and χ².
 - [ ] Show how the inflation ratio changes with 2θ bin width and η-wedge
       size.
+- [ ] Measure how much a stale vanadium (wrong vertical stripe pattern)
+      biases narrow-η-wedge intensities (texture).
 
 ### Phase 2 — Monte Carlo validation
 - [ ] Synthetic generator: peak profile and background mapped onto the real
@@ -131,14 +143,17 @@ short write-up and, where a fact is established, a
 ## Where the study code lives
 
 Study scripts and notebooks go in `scripts/pixelation_study/`, with any
-reusable helpers covered by unit tests under `tests/unit/`. Nothing under
+reusable helpers covered by unit tests under `tests/unit/scripts/pixelation_study/`.
+Results go in `docs/planning/pixelation_results/<date>_<description>/`, each with a README. Nothing under
 `pyrs/` changes during Phases 0–3. Environments are run through pixi
 (`pixi run …`).
 
 ## Open questions
 
-1. Which runs should Phase 0 use?
-2. Should zero-count pixels that are also zero in vanadium be treated as
-   masked, i.e. should they be added to the production mask?
+1. Which recent runs and vanadium floods should Phase 0 use?
+2. ~~Should zero-count pixels that are also zero in vanadium be added to the
+   production mask?~~ Answered on 2019 data: `HB2B_Mask_12-18-19.xml` already covers all of
+   them. Re-check against the current production mask.
 3. Which quantity matters most for users: peak centre (strain), FWHM, or
    integrated intensity (texture)?
+4. How often is a vanadium flood measured? The vertical stripe pattern drifts.

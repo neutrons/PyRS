@@ -982,3 +982,25 @@ No code changed.
 
 Predicted size, not yet measured: for a uniform Poisson mean λ per pixel, the reported variance is
 (1 + e^(−λ)/λ) times the true variance, i.e. 3.2× σ at λ = 0.1 and 1.17× at λ = 1.
+
+## HB2B detector: pixel orientation, vanadium dead area, and vertical wire-period stripes (2026-11-12)
+
+From Phase 0 of the pixelation study
+([results](planning/pixelation_results/2026-11-12_local/README.md)). No production code changed.
+
+- **Orientation.** `counts.reshape(1024, 1024)` is indexed `[x, y]` (pixel ID = x·1024 + y).
+  x is horizontal: uncalibrated 2θ spans 17.3° along x and 0° along y at a 90° arm. Event-file
+  `bank1_events/event_id` uses the same IDs: it reproduces HB2B_938's project-file counts in all
+  but 215 pixels (+1 or +2 each).
+- **Vanadium-dead pixels (< 0.9 counts, run 931) are the detector border.** That is 7.9 % of
+  pixels; the active area is x 29–999, y 36–1000, with only 11 dead pixels inside it.
+  `HB2B_Mask_12-18-19.xml` masks all of them plus 52,985 live pixels.
+- **Zeros in live pixels are counting statistics.** In runs 938–3489, observed zeros are within
+  0.1–7 % of Σ exp(−λᵢ), with λ from 2θ × η bins × vanadium efficiency.
+- **Vertical efficiency is striped with the delay-line wire period.** Vanadium row means vary
+  ±52 % (0.5×–2.6×) with a 6.56-row (1.92 mm) period; columns vary only ±12 %, smoothly.
+- **The stripe pattern drifts.** Measured/predicted counts per row have a mismatch beyond
+  counting noise that grows with time since the vanadium: 2.2 % (938), 4.4 % (1017), 9.4 %
+  (1118), 12.8 % (1431), 12.1 % (3489, 2023). Columns stay matched (≤ 0.3 %).
+- **Noise bias.** Raw per-pixel vanadium used as an efficiency over-predicts zeros by about
+  1 + λ²σ²/2 (σ² ≈ 1/N_van). Average it along x before using it.
