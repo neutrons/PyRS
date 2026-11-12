@@ -380,7 +380,7 @@ class _RangeTable:
 def test_save_as_nxstress_real_eta_fits_refused(texture_fitting_window, monkeypatch, tmp_path) -> None:
     """End to end on real texture data with geometry
     (`HB2B_1599_texture_with_instrument.h5`, built by
-    `tests/scripts/make_texture_fixture_with_instrument.py`): *Save as NXstress...*
+    `tests/scripts/make_nxstress_sample_position_fixture.py`): *Save as NXstress...*
     is offered, the eta patterns fit, and saving those fits is refused."""
     # Arrange
     window, _qtbot = texture_fitting_window
