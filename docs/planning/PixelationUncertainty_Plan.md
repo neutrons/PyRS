@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Board** | [neutrons project #5](https://github.com/orgs/neutrons/projects/5) |
+| **Board** | [neutrons project #5](https://github.com/orgs/neutrons/projects/5); tracking issue [#1111](https://github.com/neutrons/PyRS/issues/1111) |
 | **Status** | Phase 0 started; first results on 2019–2023 data in [pixelation_results/2026-11-12_local](pixelation_results/2026-11-12_local/README.md) (2026-11-12) |
 | **Production code changes** | None planned in this phase. Any change to reduction or fitting is proposed separately and needs its own approval. |
 
@@ -85,7 +85,7 @@ Each item becomes a draft item on the board. Every phase produces a
 short write-up and, where a fact is established, a
 [ground-truth](../ground_truths.md) entry.
 
-### Phase 0 — Characterise measured data
+### Phase 0 — Characterise measured data ([#1106](https://github.com/neutrons/PyRS/issues/1106))
 First results: [2026-11-12, local 2019–2023 data](pixelation_results/2026-11-12_local/README.md).
 In short:
 - Vanadium-dead pixels are the detector border, and the production mask already covers them.
@@ -105,7 +105,7 @@ In short:
       (Σ Nᵢ + n₀) / Σ Nᵢ.
 - [ ] Confirm which wire plane encodes y. Results are labelled by detector axis.
 
-### Phase 1 — Quantify the current treatment
+### Phase 1 — Quantify the current treatment ([#1107](https://github.com/neutrons/PyRS/issues/1107))
 - [ ] Find out whether Mantid `FitPeaks` scales parameter errors by reduced
       χ², and record the answer as a ground truth.
 - [ ] Refit selected sub-runs with σ²_bin = Σ Nᵢ, a study-only variant run
@@ -116,7 +116,7 @@ In short:
 - [ ] Measure how much a stale vanadium (wrong vertical stripe pattern)
       biases narrow-η-wedge intensities (texture).
 
-### Phase 2 — Monte Carlo validation
+### Phase 2 — Monte Carlo validation ([#1108](https://github.com/neutrons/PyRS/issues/1108))
 - [ ] Synthetic generator: peak profile and background mapped onto the real
       HB2B pixel geometry, then Poisson-sampled at chosen count levels.
       Reduction code is used **unchanged**.
@@ -127,7 +127,7 @@ In short:
       (software 2×2 or 4×4 pixel grouping) to separate pixelation effects from
       counting effects.
 
-### Phase 3 — Candidate treatments (study only)
+### Phase 3 — Candidate treatments (study only) ([#1109](https://github.com/neutrons/PyRS/issues/1109))
 - [ ] Bin-level Poisson variance (σ²_bin = Σ Nᵢ, with an explicit rule for
       empty bins).
 - [ ] Model-based variance, or a Poisson-likelihood cost function, if
@@ -136,7 +136,7 @@ In short:
 - [ ] Write a proposal for any production change. **It needs separate
       approval** before any code in `pyrs/` changes.
 
-### Phase 4 — Propagate to strain and stress
+### Phase 4 — Propagate to strain and stress ([#1110](https://github.com/neutrons/PyRS/issues/1110))
 - [ ] Carry the Phase 2 and 3 results through d-spacing, strain, and stress,
       and report how much the stress uncertainty changes on a real sample.
 
