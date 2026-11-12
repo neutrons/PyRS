@@ -2899,6 +2899,33 @@ String columns are stored as UTF-8 bytes (HDF5 has no numpy unicode type) and re
   non-`.nxs` name is refused before the calibration runs. `--ring-points` (`.npz`) still works for one
   release, with a `FutureWarning` pointing to `--nexus`.
 
+## Mantid nightly moved to 7.0: default and dev environments on 7.0, prod and qa on 6.16 (2026-11-12)
+
+- **Symptom:** every CI job failed at `pixi install --locked` with `failed to fetch
+  mantid-6.16.20261026.1142…conda — 404 Not Found` (`mantid/label/nightly`). This happened on `next` and on
+  every PR, before any PyRS code ran. The scheduled lockfile update (`update-lockfiles.yml`) failed too:
+  `mantidworkbench >=6.16.0,<6.17 cannot be installed`.
+- **Cause:**
+  - The `dev` feature, which both the `default` and `dev` environments use, takes `mantid`, `mantidqt` and
+    `mantidworkbench` from `mantid/label/nightly`. That channel keeps only recent builds, and since
+    2026-11 only 7.0 ones (`7.0.20261102`, `…1106`, `…1109`).
+  - There is no 6.17: after 6.16 comes 7.0, and 7.0.0 is also released on `mantid/label/main`.
+  - With the base dependency capped at `<6.17`, nothing could be solved.
+- **Fix (`chore/mantid-7.0`):**
+  - The base `[tool.pixi.dependencies]` cap is now `<7.1`.
+  - Only the Mantid packages were re-locked (`pixi update mantidworkbench mantid mantidqt`). `default` and
+    `dev` moved to `7.0.20261109.1636`, with libboost 1.88 → 1.90, jsoncpp, libnetcdf, libtheora and a
+    vtk-base rebuild.
+  - **`prod` (`mantid/label/main` 6.16.1) and `qa` (`mantid-ornl/label/rc` 6.16.1.3rc3) are unchanged**:
+    their features keep `<6.17`.
+- **The published package stays on 6.16.** `[tool.pixi.package.run-dependencies]` keeps `<6.17`: it is the
+  dependency of the conda package that `publish` uploads and `deploy-dev` ships to the cluster. It feeds no
+  test environment, since pyrs is installed there as an editable PyPI package. Raise it only when prod and
+  qa move to 7.0.
+- **Verified on 7.0 (locally):** all 901 unit tests pass. All integration tests outside `tests/ui` pass (133
+  passed, 28 skipped, 2 xfailed: the same as 6.16), including the gold-file calibration and reduction
+  comparisons. The GUI tier was not run locally (no display): see the PR's CI.
+
 ## Parallel test tiers on CI (2026-11, #1100)
 
 CI runs the three test tiers as three jobs (`test-tier` matrix: `tests (unit)`, `tests (integration)`,
