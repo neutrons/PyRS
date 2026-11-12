@@ -2925,3 +2925,29 @@ String columns are stored as UTF-8 bytes (HDF5 has no numpy unicode type) and re
 - **Verified on 7.0 (locally):** all 901 unit tests pass. All integration tests outside `tests/ui` pass (133
   passed, 28 skipped, 2 xfailed: the same as 6.16), including the gold-file calibration and reduction
   comparisons. The GUI tier was not run locally (no display): see the PR's CI.
+
+## Ring-calibration tests: shared runs and design-study tests removed (2026-11, #1101)
+
+- **The unit tier was 96% ring-calibration tests** by time: 12.2 of 12.7 min. The cost was tests each repeating a
+  full synthetic calibration to check one more fact, not the number of tests.
+- **Shared runs, every assertion kept:**
+  - `test_ring_rounds.py`, 3.8 → 1.8 min: `converged_run`, `unconverged`, `one_extraction` fixtures.
+  - `test_ring_calibration_method.py`, 5.1 → 2.4 min: the model's identical ring extractions are cached per
+    module. The cache keys on the inputs and on the run's `sy` and `2theta` logs, and replays the warnings and
+    strip fits, so `extract_rings` still runs in every test.
+  - `test_pyrs_pixel_calibration_driver.py`, 1.8 → 1.1 min: one shared default run, and `--max-rounds 1`
+    where the rounds are not the subject.
+- **Design-study tests removed** (user decision, 2026-11-12). They answered design questions while the method
+  was built. They guarded no workflow behaviour:
+  - `test_two_distances_recover_two_theta_0`: a second distance frees 2θ₀. HB2B never uses two distances
+    (#1090), and the result is recorded there. The helper `concatenate_ring_points` went with it.
+  - `test_refine_with_rot_y_fixed_recovers_all`, `test_estimate_errors_hold_rot_y_gives_tth0_error`,
+    `test_estimate_errors_hold_by_index_same_as_name`: holding Rot_y. The workflow holds 2θ₀ instead.
+  - `test_errors_at_current_match_estimate_errors_at_optimum`: two error formulas agree.
+  - `test_errors_shrink_with_more_points`: kept its partner `test_errors_cover_true_values`.
+  - `test_iterate_with_polish_reaches_true_map`: `test_extract_then_iterate_recovers_two_theta_map` is the
+    end-to-end check.
+  - `test_points_independent_of_start_geometry`: `test_ring_located_despite_wrong_start_wavelength` guards
+    the behaviour.
+  - `test_full_calibration_reproduces_two_theta_map` now checks one arm angle (120°, outside the measured
+    range), not three.

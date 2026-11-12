@@ -73,21 +73,6 @@ def test_every_ring_on_the_detector_is_fitted(nominal_points):
     np.testing.assert_allclose(points.d_spacing[points.hkl_squared == 11], NI.lattice_a / np.sqrt(11))
 
 
-def test_points_independent_of_start_geometry(hb2b, workspace, nominal_points):
-    """Histogramming and mapping back with the same geometry cancels the geometry error"""
-    # Arrange
-    nominal, _ = nominal_points
-
-    # Act
-    exact = extract_ring_points(
-        workspace, TRUE_PARAMS[7], calibration=DENEXDetectorShift(*TRUE_PARAMS[:7]), strips=STRIPS
-    )
-
-    # Assert
-    np.testing.assert_array_equal(exact.index_1, nominal.index_1)
-    assert np.abs(exact.index_0 - nominal.index_0).max() < 0.05
-
-
 def test_sigma_is_fit_center_uncertainty(nominal_points):
     points, diagnostics = nominal_points
     accepted = [d for d in diagnostics if d.accepted]
