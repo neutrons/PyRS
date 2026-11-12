@@ -2946,3 +2946,20 @@ Found, not fixed (see [deferred_defects.md](deferred_defects.md)):
 - **DD-16:** α = NaN at the rim.
 - **DD-17:** missing log names are not checked.
 - **DD-18:** the caller's data is changed in place, and a calculated pole figure goes stale.
+
+### Pole-figure defects fixed (2026-11-12, each approved)
+
+- **DD-15:** the ASCII pole-figure export was **removed**, at the maintainer's decision. It sorted each
+  column on its own, which scrambled rows, and wrote every peak to each file. MTEX (`.jul`) is the
+  only format, and any other `file_type` raises `ValueError`. Nothing in PyRS used it: the texture
+  window always exports MTEX.
+- **DD-16:** `rotate_project_q` clips `√(h₁²+h₂²)` to [0, 1] and `h₁/√(h₁²+h₂²)` to [−1, 1] before
+  `arccos`. Only rim poles change, from NaN to α = 90°. Everywhere else the clip doesn't apply, so
+  results are bit-for-bit unchanged.
+- **DD-17:** `add_input_data_set` refuses data missing any of chi, phi, omega, eta, center or intensity,
+  naming what's missing.
+- **DD-18:** `add_input_data_set` keeps a copy of the first data for a peak, and drops that peak's
+  calculated pole figure whenever data is added. `get_polefigure_array` then recalculates it, so it no
+  longer returns a stale result.
+
+Tests: `tests/unit/pyrs/core/test_polefigurecalculator.py`. Each new test fails without its fix.
