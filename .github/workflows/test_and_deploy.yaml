@@ -18,8 +18,16 @@ env:
   CONDA_ORG: neutrons
 
 jobs:
-  tests:
+  # The three test tiers (CLAUDE.md) run as parallel jobs, unit and integration each with
+  # pytest-xdist (#1100); `tests` below gathers them, so the check name and `publish`'s needs
+  # are unchanged.
+  test-tier:
+    name: tests (${{ matrix.tier }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tier: [unit, integration, gui]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -31,6 +39,8 @@ jobs:
           pixi-version: v0.81.0
           manifest-path: pyproject.toml
 
+      # every tier needs a display: collecting ./tests imports the GUI modules, whatever the
+      # tier runs
       - name: Apt install deps
         run: |
           sudo apt update
@@ -51,16 +61,15 @@ jobs:
       - name: Test framework imports
         run: pixi run test-import-framework
 
-      - name: run unit tests
+      - name: run ${{ matrix.tier }} tests
         run: |
-          echo "running unit tests"
-          xvfb-run --server-args="-screen 0 1280x1024x16" -a pixi run test
+          echo "running ${{ matrix.tier }} tests"
+          xvfb-run --server-args="-screen 0 1280x1024x16" -a pixi run test-ci-${{ matrix.tier }}
 
       - name: List coverage files (debug)
         run: |
           echo "Coverage files generated:"
           ls -la coverage.xml || echo "No coverage.xml found"
-          ls -la .coverage || echo "No .coverage found"
 
       - name: upload coverage to codecov
         uses: codecov/codecov-action@v7
@@ -68,10 +77,20 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
+          flags: ${{ matrix.tier }}
+          name: codecov-${{ matrix.tier }}
           fail_ci_if_error: false
           verbose: true
+
+  tests:
+    needs: [test-tier]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: every test tier passed
+        run: |
+          echo "unit, integration and gui: ${{ needs.test-tier.result }}"
+          test "${{ needs.test-tier.result }}" = "success"
 
   lint:
     runs-on: ubuntu-latest
