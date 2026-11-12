@@ -2933,8 +2933,9 @@ String columns are stored as UTF-8 bytes (HDF5 has no numpy unicode type) and re
 - **Shared runs, every assertion kept:**
   - `test_ring_rounds.py`, 3.8 → 1.8 min: `converged_run`, `unconverged`, `one_extraction` fixtures.
   - `test_ring_calibration_method.py`, 5.1 → 2.4 min: the model's identical ring extractions are cached per
-    module. The cache keys on the inputs and on the run's `sy` and `2theta` logs, and replays the warnings and
-    strip fits, so `extract_rings` still runs in every test.
+    module. The cache keys on the inputs, the run's `sy` and `2theta` logs and its default mask, keeps each
+    workspace alive while cached, and replays the warnings and strip fits, so `extract_rings` still runs in
+    every test.
   - `test_pyrs_pixel_calibration_driver.py`, 1.8 → 1.1 min: one shared default run, and `--max-rounds 1`
     where the rounds are not the subject.
 - **Design-study tests removed** (user decision, 2026-11-12). They answered design questions while the method
@@ -2946,8 +2947,11 @@ String columns are stored as UTF-8 bytes (HDF5 has no numpy unicode type) and re
   - `test_errors_at_current_match_estimate_errors_at_optimum`: two error formulas agree.
   - `test_errors_shrink_with_more_points`: kept its partner `test_errors_cover_true_values`.
   - `test_iterate_with_polish_reaches_true_map`: `test_extract_then_iterate_recovers_two_theta_map` is the
-    end-to-end check.
-  - `test_points_independent_of_start_geometry`: `test_ring_located_despite_wrong_start_wavelength` guards
-    the behaviour.
+    end-to-end check. It now also asserts that `iterate` ends with its `FullCalibration` polish (review).
+  - `test_points_independent_of_start_geometry`: extraction with a shifted `calibration=` is now covered
+    only indirectly, by the round tests (rounds 2 and later extract from the refined geometry;
+    `test_rounds_recover_the_true_geometry`). That catches gross errors, not a sub-pixel drift.
   - `test_full_calibration_reproduces_two_theta_map` now checks one arm angle (120°, outside the measured
-    range), not three.
+    range), not three. 60° (below the range) is no longer checked.
+  - Integer indices in `estimate_errors(hold=...)` are no longer tested directly. `refine` shares the same
+    index handling.

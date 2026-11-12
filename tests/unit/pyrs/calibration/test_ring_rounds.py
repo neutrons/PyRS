@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 import copy
+import warnings
 
 from pyrs.calibration import ring_rounds
 from pyrs.calibration.pixel_pos_calibration import (
@@ -32,8 +33,8 @@ def workspace():
 
 @pytest.fixture(scope="module")
 def converged_run(workspace):
-    """The default calibration, and the strip-fit diagnostics it was given a stale list for (#1101: one run
-    shared by every test that only inspects it)"""
+    """The default calibration, and the diagnostics list it overwrote (seeded with a stale entry); one run
+    shared by every test that only inspects it (#1101)"""
     diagnostics = ["stale"]
     return calibrate_rings(workspace, MONO, diagnostics=diagnostics), diagnostics
 
@@ -56,7 +57,9 @@ def unconverged(workspace):
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(ring_rounds, "CONVERGENCE_FRACTION", 0.0)
         patch.setattr(PixelCalibration, "iterate", warning_iterate)
-        with pytest.warns(UserWarning, match="not converged after 3 rounds") as warned:
+        # recorded, not asserted here: a missing warning then fails the test that checks it, not the fixture
+        with warnings.catch_warnings(record=True) as warned:
+            warnings.simplefilter("always")
             calibration = calibrate_rings(workspace, MONO, max_rounds=3)
     return calibration, warned
 
@@ -131,11 +134,14 @@ def test_one_round_is_the_single_extraction(workspace):
 
 def test_round_limit_reached_warns(unconverged):
     """P4: a calibration still moving at the round limit is flagged, not corrected"""
-    # Arrange - no round can converge (the fixture), and it warned (checked there)
+    # Arrange - no round can converge (the fixture)
     calibration, warned = unconverged
 
     # Assert - the warning stays with the result, e.g. for the GUI
-    assert any("not converged after 3 rounds" in str(record.message) for record in warned)
+    assert any(
+        issubclass(record.category, UserWarning) and "not converged after 3 rounds" in str(record.message)
+        for record in warned
+    )
     assert len(calibration.extraction_rounds) == 3 and calibration.extraction_converged is False
     assert any("not converged after 3 rounds" in message for message in calibration.warning_log)
 

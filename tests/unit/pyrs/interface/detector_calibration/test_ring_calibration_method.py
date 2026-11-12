@@ -51,24 +51,27 @@ def shared_extraction():
     real = model_module.extract_ring_points
     cache = {}
 
-    def key(workspace, wavelength, calibration=None, diagnostics=None, **kwargs):
+    def key(workspace, wavelength, calibration=None, **kwargs):
         logs = tuple(
             tuple(np.asarray(workspace.get_sample_log_values(name), dtype=float).round(12))
             for name in ("sy", "2theta")
         )
+        mask = workspace.get_detector_mask(True)  # the default mask the extraction applies
+        mask_digest = None if mask is None else hash(np.asarray(mask).tobytes())
         shift = None if calibration is None else tuple(from_shift(calibration))
         options = tuple(sorted((k, tuple(v) if isinstance(v, (list, np.ndarray)) else v) for k, v in kwargs.items()))
-        return id(workspace), float(wavelength), shift, options, logs
+        return id(workspace), float(wavelength), shift, options, logs, mask_digest
 
     def cached(workspace, wavelength, calibration=None, diagnostics=None, **kwargs):
-        k = key(workspace, wavelength, calibration, diagnostics, **kwargs)
+        k = key(workspace, wavelength, calibration, **kwargs)
         if k not in cache:
             fits = []
             with warnings.catch_warnings(record=True) as caught:
                 warnings.simplefilter("always")
                 points = real(workspace, wavelength, calibration=calibration, diagnostics=fits, **kwargs)
-            cache[k] = (points, fits, [(w.message, w.category) for w in caught])
-        points, fits, raised = cache[k]
+            # the workspace is kept with its entry, so its id cannot be reused by another while cached
+            cache[k] = (workspace, points, fits, [(w.message, w.category) for w in caught])
+        _, points, fits, raised = cache[k]
         for message, category in raised:
             warnings.warn(message, category)
         if diagnostics is not None:

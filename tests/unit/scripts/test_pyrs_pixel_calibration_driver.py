@@ -111,9 +111,9 @@ def test_main_sub_runs_and_no_polish(driver, monkeypatch, synthetic_run, nexus_f
     args = [str(nexus_file), "-o", str(output), "--no-mask", "--wavelength", "1.54", "--ring-points", str(rings)]
 
     # Act
-    # one round: the sub-run selection and --no-polish do not depend on the rounds (#1101)
+    # two rounds: the saved points are the last round's, so a re-extraction must keep the sub-run selection
     status = driver.main(
-        args + ["--sub-runs", "1", "2", "3", "4", "--no-polish", "--passes", "2", "--max-rounds", "1"]
+        args + ["--sub-runs", "1", "2", "3", "4", "--no-polish", "--passes", "2", "--max-rounds", "2"]
     )
 
     # Assert
@@ -330,10 +330,10 @@ def test_main_nxs_output_holds_the_strip_fits(driver, monkeypatch, synthetic_run
     _stub_conversion(monkeypatch, synthetic_run)
     output = tmp_path / "cal.nxs"
 
-    # Act
+    # Act - one round: the strip-fit table exists after the first extraction (#1101)
     status = driver.main(
         [str(nexus_file), "-o", str(output), "--no-mask", "--wavelength", "1.54", "--max-rounds", "1"]
-    )  # one round: the strip-fit table does not depend on the rounds (#1101)
+    )
 
     # Assert
     assert status == 0 and "strip_fits" in read_calibration_nexus_diagnostics(str(output))["tables"]

@@ -128,9 +128,10 @@ def test_extract_then_iterate_recovers_two_theta_map(hb2b, nominal_points):
     grid = np.meshgrid(np.arange(0, 1024, 16), np.arange(0, 1024, 16), indexing="ij")
 
     # Act
-    calibration.iterate(passes=3)
+    n_pass = calibration.iterate(passes=3)
 
-    # Assert
+    # Assert - all passes run, and iterate ends with its joint polish by default
+    assert n_pass == 3 and calibration.stages[-1].name == "FullCalibration"
     fitted = DENEXDetectorShift(*calibration.calibration_array[:7])
     truth = DENEXDetectorShift(*TRUE_PARAMS[:7])
     for arm in (76.0, 90.0, 103.0):
