@@ -84,7 +84,7 @@ jobs:
 
   tests:
     needs: [test-tier]
-    if: always()
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: every test tier passed

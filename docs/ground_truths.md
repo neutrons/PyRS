@@ -2885,6 +2885,9 @@ coverage, at `b443d7a5`:
   both).
 - **`loadscope` matters for the unit tier.** Several ring-calibration modules share a module-scoped fixture
   that runs a full calibration (30-40 s). Spread across workers (`load`), every worker rebuilds it.
+  `loadscope` sends a module's top-level test functions to one worker, but a test **class** is its own
+  scope: a module's classes can run on different workers at once, each building the module's fixtures
+  again. The expensive calibration modules have no classes. `--dist loadfile` would group whole modules.
 - **A worker that crashes mid-test fails the run** (xdist: "worker 'gw1' crashed while running ..."; exit 1),
   and `run_tests.py`'s `os._exit` doesn't hide it. The per-test timeout fires inside a worker (verified).
 - **Why every tier job installs `xvfb`:** collecting `./tests` imports the GUI modules (matplotlib's `QtAgg`
@@ -2895,4 +2898,7 @@ coverage, at `b443d7a5`:
   busy pool's wait is the longest of three queues, not their sum.
 - **Tests must not share fixed file names in the working folder.** The three `HB2B_CAL_Test.json` writers in
   `test_peakfit_calibration.py` now use `tmp_path`. Others still write into the working folder under names no
-  other test uses; `loadscope` keeps each module on one worker.
+  other test uses.
+- **Codecov gets three uploads per commit** (flags `unit`, `integration`, `gui`), minutes apart. `codecov.yml`
+  makes its status and PR comment wait for all three (`after_n_builds: 3`), so the first upload alone never
+  shows as a coverage drop.

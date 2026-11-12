@@ -310,8 +310,8 @@ docs-autobuild = { cmd = "sphinx-autobuild docs/user/source docs/_build/user --h
 
 # Testing tasks
 test = { cmd = "python scripts/development/run_tests.py --cov=pyrs --cov-report=xml --cov-report=term ./tests", description = "Run the tests with coverage" }
-test-unit = { cmd = "python scripts/development/run_tests.py -m 'not integration and not gui' -n auto --dist loadscope ./tests", description = "Run fast tests only: no file I/O, no GUI (in parallel, one worker per core)" }
-test-integration = { cmd = "python scripts/development/run_tests.py -m 'integration and not gui' -n auto --dist loadscope ./tests", description = "Run tests that read/write real data (in parallel, one worker per core)" }
+test-unit = { cmd = "python scripts/development/run_tests.py -m 'not integration and not gui' -n auto --maxprocesses=8 --dist loadscope ./tests", description = "Run fast tests only: no file I/O, no GUI (in parallel: one worker per core, at most 8)" }
+test-integration = { cmd = "python scripts/development/run_tests.py -m 'integration and not gui' -n auto --maxprocesses=8 --dist loadscope ./tests", description = "Run tests that read/write real data (in parallel: one worker per core, at most 8)" }
 test-gui = { cmd = "python scripts/development/run_tests.py -m gui ./tests", env = { QT_QPA_PLATFORM = "offscreen" }, description = "Run tests that drive Qt widgets (offscreen; no windows appear; serial: they share one window)" }
 # CI (#1100): one job per tier, with coverage; the display comes from xvfb-run, so no QT_QPA_PLATFORM here
 test-ci-unit = { cmd = "python scripts/development/run_tests.py -m 'not integration and not gui' -n auto --dist loadscope --cov=pyrs --cov-report=xml --cov-report=term ./tests", description = "CI: unit tier, parallel, with coverage" }
