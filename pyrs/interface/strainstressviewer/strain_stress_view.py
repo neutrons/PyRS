@@ -649,12 +649,25 @@ class VizTabs(QTabWidget):
             if self.oneDViewer is not None:
                 self.plot_1d.removeWidget(self.oneDViewer)
                 self.oneDViewer = None
-            if self.strainSliceViewer is not None:
-                self.plot_2d.removeWidget(self.strainSliceViewer.view)
-                self.strainSliceViewer = None
+            self.close_slice_viewer()
             if self.vtk3dviewer:
                 self.plot_3d.removeWidget(self.vtk3dviewer)
                 self.vtk3dviewer = None
+
+    def close_slice_viewer(self) -> None:
+        """Close the 2D SliceViewer, if any, and forget it.
+
+        Closing, not just removing, is what releases it: mantid unregisters a
+        SliceViewer's ADS observer only in its view's `closeEvent`. A viewer that is
+        only removed stays registered for the rest of the session, still pointing at
+        its view after Qt has deleted it.
+        """
+        if self.strainSliceViewer is not None:
+            view = self.strainSliceViewer.view  # None once closed
+            if view is not None:
+                self.plot_2d.removeWidget(view)
+                view.close()
+            self.strainSliceViewer = None
 
     def setup_view(self, ws):
         print("define strainSliceViewer")
@@ -861,6 +874,12 @@ class StrainStressViewer(QMainWindow):
         self.splitter.addWidget(right)
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 5)
+
+    def closeEvent(self, event) -> None:
+        # Closing a window sends no `closeEvent` to the widgets inside it, so the
+        # SliceViewer must be closed here to release it (see `close_slice_viewer`).
+        self.viz_tab.close_slice_viewer()
+        super().closeEvent(event)
 
     @property
     def controller(self):

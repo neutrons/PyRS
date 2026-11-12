@@ -280,6 +280,24 @@ actual defect the first two dead ends above introduced) that the
 summary output and coverage report are still present in the log after
 the change.
 
+**One source found later (2026-11, phase 2 of the NXstress hookup):** the
+strain/stress viewer leaked a mantid SliceViewer **ADS observer** on every
+re-plot and on window close. Mantid unregisters a SliceViewer's observer only
+in its view's `closeEvent` (`ObservingView.closeEvent` →
+`presenter.clear_observer()`); `VizTabs` only *removed* the view from its stack,
+and closing a window sends no `closeEvent` to the widgets inside it. Each leaked
+observer kept its presenter alive, still pointing at a view Qt later deleted, so
+`_clear_ads_at_session_end`'s `ADS.clear()` printed `RuntimeError: wrapped C/C++
+object of type SliceViewerView has been deleted` from mantid's `ADS_cleared`, and
+the observers were still registered when the C++ ADS singleton was torn down.
+Reproduced under `offscreen` by closing and deleting the window, then clearing
+the ADS. `VizTabs.close_slice_viewer` now closes the view, and
+`StrainStressViewer.closeEvent` calls it; `test_dropped_slice_viewer_releases_its_observer`
+and `test_closing_window_releases_slice_viewer` in
+[tests/ui/test_stress_strain_viewer.py](../tests/ui/test_stress_strain_viewer.py)
+fail without it. Whether this was the *only* source of the CI crash is not
+verified -- that needs `xvfb-run` -- so the `os._exit()` wrapper stays.
+
 ## `tests/ui/test_calibration_ui.py` wrote/deleted files in the repo root, not a tmpdir (2026-07)
 
 While iterating on the segfault fix above, running the full suite

@@ -94,6 +94,10 @@ def _clear_ads_at_session_end():
     the offscreen platform used for local runs. Clearing the ADS here runs as a
     normal pytest fixture teardown, well before interpreter shutdown, so any
     lingering workspaces/observers are torn down in a safe, well-defined order.
+
+    The strain/stress viewer used to leak one such observer per SliceViewer it
+    replaced or left open at window close; it now closes them, which unregisters
+    them (see the shutdown-segfault section of `docs/ground_truths.md`).
     """
     yield
     from mantid.api import AnalysisDataService as ADS

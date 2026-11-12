@@ -715,3 +715,51 @@ def test_stress_strain_viewer(strain_stress_window):
         assert window.viz_tab.strainSliceViewer is not None
 
     window.hide()
+
+
+def _plotted_slice_viewer(window):
+    """Plot e11 of `HB2B_1320.h5` in the 2D tab and return its SliceViewer."""
+    window.model.e11 = "tests/data/HB2B_1320.h5"
+    window.model.selectedPeak = "peak0"
+    window.update_plot()
+    slice_viewer = window.viz_tab.strainSliceViewer
+    assert slice_viewer is not None and slice_viewer.ads_observer is not None
+    return slice_viewer
+
+
+@pytest.mark.skipif(old_mantid, reason="Need mantid version >= 5.1")
+@pytest.mark.gui
+@pytest.mark.integration
+def test_dropped_slice_viewer_releases_its_observer(strain_stress_window):
+    """A SliceViewer the viewer drops is closed, which unregisters its ADS
+    observer. It used to be only removed: its observer stayed registered for the
+    rest of the session, and fired on its deleted view when the ADS was cleared."""
+    # Arrange
+    window, _qtbot = strain_stress_window
+    dropped = _plotted_slice_viewer(window)
+
+    # Act
+    window.viz_tab.set_ws(None, None)
+
+    # Assert
+    assert window.viz_tab.strainSliceViewer is None
+    assert dropped.ads_observer is None
+    assert dropped.view is None
+
+
+@pytest.mark.skipif(old_mantid, reason="Need mantid version >= 5.1")
+@pytest.mark.gui
+@pytest.mark.integration
+def test_closing_window_releases_slice_viewer(strain_stress_window):
+    """Closing the window closes its SliceViewer: a window's `closeEvent` does not
+    reach the widgets inside it."""
+    # Arrange
+    window, _qtbot = strain_stress_window
+    slice_viewer = _plotted_slice_viewer(window)
+
+    # Act
+    window.close()
+
+    # Assert
+    assert window.viz_tab.strainSliceViewer is None
+    assert slice_viewer.ads_observer is None
