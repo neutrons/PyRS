@@ -2898,3 +2898,30 @@ String columns are stored as UTF-8 bytes (HDF5 has no numpy unicode type) and re
 - **`pyrs-pixel-calibration --nexus PATH`** also writes the NeXus file, with the last round's strip fits. A
   non-`.nxs` name is refused before the calibration runs. `--ring-points` (`.npz`) still works for one
   release, with a `FutureWarning` pointing to `--nexus`.
+
+## Pole-figure calculation: unit tests against the diffraction geometry (2026-11-12, #411)
+
+`PoleFigureCalculator.rotate_project_q` follows He, *Two-Dimensional X-ray Diffraction*, §8.3, with
+PyRS's conventions, which are **intended** (confirmed):
+- **α** is the pole's angle from the sample **normal**, 90° − He's α (from the sample plane), as MTEX's
+  `.jul` expects;
+- He's γ is **η + 270°**;
+- `calculate_pole_figure` uses **ω + 90°** for a negative ω.
+
+Before #411 the only check was the texture GUI test (#831, 2023). It compares exported `.jul` files
+with reference files written by the same code, which catches changes but not a wrong projection. The
+2020 `broken_test_pole_figure_calculation` was never collected (no `test_` prefix), pointed at a
+missing `tests/testdata/` folder and asserted nothing; it was removed.
+
+`tests/unit/pyrs/core/test_polefigurecalculator.py` derives its expected values from the geometry:
+- **Symmetric Bragg position** (ω = θ, χ = 0, η = 0): the diffraction vector lies along the sample
+  normal, so α = 0.
+- **Tilting by χ** gives α = |χ| and β = ∓90°.
+- **Rocking ω** by δ gives α = |δ| and |β| = 180° or 0°.
+- **Turning φ** (about the normal) keeps α and shifts β by ±φ, with one sign throughout. A 360° turn
+  changes nothing.
+
+The calculator agrees with all of these. As a check that the tests can fail, returning He's α instead
+of 90° − α fails 11 of them, and dropping the 270° fails 12.
+
+Found: the ASCII export scrambles its rows (DD-15 in [deferred_defects.md](deferred_defects.md)).

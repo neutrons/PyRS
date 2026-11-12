@@ -18,3 +18,13 @@ series, and keeping the numbers distinct lets those PRs merge without renumberin
   **Found during:** the review of the NXstress hookup, phase 1 (CodeRabbit comment D3).
   **Why it is deferred.** Giving legacy saves the same protection changes how every legacy write behaves,
   outside the NXstress scope of that PR; the save helper would also have to become format-neutral.
+
+- **DD-15**, 2026-11-12: the ASCII pole-figure export scrambles its rows. `export_arrays_to_ascii`
+  (`pyrs/core/polefigurecalculator.py`) sorts with `np.sort(combined_array, axis=0)`, which sorts each
+  column on its own, so a written row's α, β and intensity no longer belong to the same measured point.
+  It is latent: the texture window exports MTEX (`.jul`), so ASCII is reached only by calling
+  `export_pole_figure(file_type="ascii")` directly. `test_export_ascii_keeps_each_point_together` pins
+  the correct behaviour as a strict `xfail`.
+
+  **Found during:** #411 (pole-figure tests).
+  **Why it is deferred.** A production change outside #411, which adds tests only.
