@@ -14,9 +14,15 @@ Fixture conventions
   Defined here (rather than under `NXstress/`) since `pyrs/utilities/config.py`
   isn't itself NXstress-specific code; being one directory up, it's visible to
   `NXstress/` tests as well as siblings of this file (e.g. `test_config.py`).
+- `config_override` — override config values **without** swapping the singleton, so
+  that production modules which bound `Config` the documented way still see the
+  change. Use this for any test whose subject reads config; use `default_config`
+  only when the test is *about* the config machinery itself (reload, `loadEnv`,
+  isolation), which is what `test_config.py` does. See `config_override`'s own
+  docstring for why the two cannot be the same fixture.
 """
 
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -81,13 +87,24 @@ def default_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Generator
     reset_Singletons()
     import pyrs.utilities.config  # first-ever import correctly calls init() before Config
 
+    # Captured BEFORE the reload: this is the instance that every module which did
+    # `from pyrs.utilities.config import Config` at import time is bound to. The
+    # reload below replaces the module attribute but cannot reach those bindings,
+    # so unless it is put back at teardown this fixture permanently orphans every
+    # consumer for the rest of the session -- and `config_override` then has no
+    # way to reach them. See `config_override`'s docstring.
+    original_ns_config = sys.modules["neutrons_standard.config"].Config
+    original_pyrs_config = pyrs.utilities.config.Config
+
     importlib.reload(sys.modules["neutrons_standard.config"])
     importlib.reload(pyrs.utilities.config)
 
     yield pyrs.utilities.config.Config
 
-    # Leave a clean, freshly-reset singleton behind for the next test, rather than one
-    # holding this test's `tmp_path`-scoped `HOME` and any `env` override it applied.
+    # Restore the pre-test singleton rather than reloading to yet another new one:
+    # a third instance would be as orphaned as the second. `reset_Singletons()`
+    # still clears the decorator's bookkeeping so the next `default_config` can
+    # build its own fresh instance.
     reset_Singletons()
-    importlib.reload(sys.modules["neutrons_standard.config"])
-    importlib.reload(pyrs.utilities.config)
+    setattr(sys.modules["neutrons_standard.config"], "Config", original_ns_config)
+    pyrs.utilities.config.Config = original_pyrs_config

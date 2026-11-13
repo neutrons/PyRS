@@ -7,6 +7,8 @@ from pyrs.core.stress_facade import StressFacade
 from pyrs.core.summary_generator_stress import SummaryGeneratorStress
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
+from pyrs.utilities.restorable_property import restore
+from pyrs.utilities.convertdatatypes import to_text
 from qtpy.QtCore import Signal, QObject  # type:ignore
 
 
@@ -43,7 +45,7 @@ class Model(QObject):
 
     @e11.setter
     def e11(self, filename):
-        self._e11, self._e11_peaks = self.load_hidra_project_files(filename, "11")
+        self._load_direction("11", filename)
         self._peakTags = list(self._e11_peaks[0].keys()) if len(self._e11_peaks) > 0 else []
         self.propertyUpdated.emit("peakTags")
 
@@ -57,8 +59,7 @@ class Model(QObject):
 
     @e22.setter
     def e22(self, filename):
-        self._e22, self._e22_peaks = self.load_hidra_project_files(filename, "22")
-        if self._e22 and self.check_peak_for_direction("22"):
+        if self._load_direction("22", filename) and self._e22 and self.check_peak_for_direction("22"):
             self.create_strain("22")
 
     @property
@@ -71,8 +72,7 @@ class Model(QObject):
 
     @e33.setter
     def e33(self, filename):
-        self._e33, self._e33_peaks = self.load_hidra_project_files(filename, "33")
-        if self._e33 and self.check_peak_for_direction("33"):
+        if self._load_direction("33", filename) and self._e33 and self.check_peak_for_direction("33"):
             self.create_strain("33")
 
     @property
@@ -278,10 +278,29 @@ class Model(QObject):
         return "HB2B_{}_stress_grid_{}.csv".format("_".join(runnumbers), self.selectedPeak)
 
     def load_hidra_project_file(self, filename, direction):
+        source_project = None
         try:
             source_project = HidraProjectFile(filename, mode=HidraProjectFileMode.READONLY)
             ws = HidraWorkspace(direction)
+            # The workspace NAME has always carried the direction here, but `name` is
+            # free text that other viewers use for other things. Record it on the
+            # `direction` property too, which is what NXstress reads and restores.
+            restore(ws, "direction", direction)
             ws.load_hidra_project(source_project, False, False)
+            # The direction is the user's assertion about which file is which, made
+            # in the file-selection UI. If the project itself records one and the two
+            # disagree, one of them is wrong and neither this model nor the viewer
+            # can tell which -- so say so rather than silently preferring either.
+            # `ws.direction` would answer with the restored value above, so the log
+            # is read directly.
+            if "direction" in ws.sample_log_names:
+                recorded = to_text(ws.get_sample_log_value("direction"))
+                if recorded != direction:
+                    raise ValueError(
+                        f"This file records direction '{recorded}', but it was selected as the "
+                        f"'{direction}' direction.\n"
+                        "  Load it under the direction it records, or correct the file."
+                    )
             peaks = dict()
             for peak in source_project.read_peak_tags():
                 peaks[peak] = source_project.read_peak_parameters(peak)
@@ -291,8 +310,20 @@ class Model(QObject):
                 f"Failed to load {filename}. Check that this is a Hidra Project File", str(e), traceback.format_exc()
             )
             return None, dict()
+        finally:
+            # Closed explicitly, as every other project-file load does, rather than
+            # left to garbage collection; everything above reads eagerly.
+            if source_project is not None:
+                source_project.close()
 
     def load_hidra_project_files(self, filenames, direction):
+        """Load `filenames` as one direction's workspaces and peaks.
+
+        Returns:
+            `(workspaces, peaks)`, or None if any file failed to load -- already
+            reported through `failureMsg`. None rather than `([], [])`, which is
+            also what loading no files at all returns.
+        """
         # remove existing stress as it will need to be recreated
         self.stress = None
 
@@ -303,12 +334,45 @@ class Model(QObject):
         for filename in filenames:
             ws, p = self.load_hidra_project_file(filename, direction)
             if ws is None:
-                return [], []
+                return None
             workspaces.append(ws)
             if p:
                 peaks.append(p)
 
         return workspaces, peaks
+
+    def _load_direction(self, direction, filenames) -> bool:
+        """Load one direction, replacing everything held for it.
+
+        There is no partially successful load: on any failure the direction is
+        left empty -- workspaces, peaks and its cached strain -- rather than
+        holding a strain from an earlier load, which a later stress calculation
+        would silently use. The stress is cleared either way, since it derives
+        from every direction.
+
+        Returns:
+            Whether the load succeeded.
+        """
+        loaded = self.load_hidra_project_files(filenames, direction)
+        workspaces, peaks = loaded if loaded is not None else ([], [])
+        setattr(self, f"_e{direction}", workspaces)
+        setattr(self, f"_e{direction}_peaks", peaks)
+        setattr(self, f"_e{direction}_strain", None)
+        return loaded is not None
+
+    def _clear(self) -> None:
+        """Return the model's data to its freshly constructed state; signal connections are kept."""
+        for direction in ("11", "22", "33"):
+            setattr(self, f"_e{direction}", [])
+            setattr(self, f"_e{direction}_peaks", [])
+            setattr(self, f"_e{direction}_strain", None)
+        self._peakTags = []
+        self._selectedPeak = None
+        self.stress = None
+        self._stressCase = None
+        self._youngs_modulus = None
+        self._poisson_ratio = None
+        self._d0 = None
 
     def get_filenames_for_direction(self, direction):
         return [w.hidra_project_file for w in getattr(self, f"e{direction}")]
@@ -347,10 +411,25 @@ class Model(QObject):
 
         self._selectedPeak = data["peak_tag"]
 
+        # A session restores whole or not at all: a failure in any direction leaves
+        # the model empty, rather than computing stress from the directions that
+        # did load -- or from a strain an earlier session left behind.
         for direction in ("11", "22", "33"):
-            self.set_workspaces(f"e{direction}", data[f"filenames_{direction}"])
+            if not self._load_direction(direction, data[f"filenames_{direction}"]):
+                self._restore_failed()
+                return
             if getattr(self, f"e{direction}"):
+                if not self.check_peak_for_direction(direction):
+                    self.failureMsg.emit(
+                        f"Failed to restore {filename}",
+                        f"Peak {self.selectedPeak} is not in e{direction}.",
+                        "",
+                    )
+                    self._restore_failed()
+                    return
                 self.create_strain(direction)
+        self._peakTags = list(self._e11_peaks[0].keys()) if len(self._e11_peaks) > 0 else []
+        self.propertyUpdated.emit("peakTags")
 
         d0_data = data["d0"]
         if d0_data is None:
@@ -363,6 +442,10 @@ class Model(QObject):
         self.calculate_stress(data["stress_case"], data["youngs_modulus"], data["poisson_ratio"], d0)
 
         self.propertyUpdated.emit("modelUpdated")
+
+    def _restore_failed(self) -> None:
+        self._clear()
+        self.propertyUpdated.emit("peakTags")
 
     @property
     def modelUpdated(self):

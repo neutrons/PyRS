@@ -10,9 +10,11 @@ definitions). No widget is constructed and nothing here needs a display, so
 `gui` does not apply.
 """
 
+import logging
 from pathlib import Path
 from typing import Callable
 
+import numpy as np
 import pytest
 
 from pyrs.core.workspaces import HidraWorkspace
@@ -47,7 +49,7 @@ class TestTextureFittingModelH5SaveRegression:
         minimal_PeakCollection: Callable[..., PeakCollection],
         tmp_path: Path,
     ) -> None:
-        ws = minimal_HidraWorkspace(with_instrument=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
         project_path = write_minimal_h5_project(ws, filename="source.h5")
 
         texture_model.load_hidra_project_file(str(project_path))
@@ -72,7 +74,7 @@ class TestTextureFittingModelH5SaveRegression:
         # Suffix-routing regression: an .h5 out_file_name must still go through
         # HidraProjectFile, not NXstress -- exercised implicitly here since no
         # NXstress import/call would succeed against this pre-existing file layout.
-        ws = minimal_HidraWorkspace(with_instrument=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
         project_path = write_minimal_h5_project(ws, filename="source.h5")
 
         texture_model.load_hidra_project_file(str(project_path))
@@ -92,7 +94,7 @@ class TestTextureFittingModelH5SaveRegression:
     ) -> None:
         """An empty name updates the loaded file, as documented; it used to try to copy the file to ""."""
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
         project_path = write_minimal_h5_project(ws, filename="source.h5")
         texture_model.load_hidra_project_file(str(project_path))
         peak = minimal_PeakCollection(N_subrun=len(ws.get_sub_runs()))
@@ -117,7 +119,7 @@ class TestTextureFittingModelNXstressRoundtrip:
         minimal_PeakCollection: Callable[..., PeakCollection],
         tmp_path: Path,
     ) -> None:
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         n_subrun = len(ws.get_sub_runs())
         peak = minimal_PeakCollection(N_subrun=n_subrun)
         fit_result = FitResult(peakcollections=[peak], fitted=None, difference=None)
@@ -146,3 +148,71 @@ class TestTextureFittingModelNXstressRoundtrip:
         # reconstructs it in canonical no-space form on read -- "Fe 110" round
         # trips as "Fe110", not verbatim. See _Peaks._parse_peak_tag.
         assert reloaded.fit_result.peakcollections[0].peak_tag == peak.peak_tag.replace(" ", "")
+
+
+class TestRunNumber:
+    """The run number comes from the file just loaded: its log, then its name, else None.
+
+    It used to be parsed from the file name only, keeping the LAST number found
+    (`HB2B_1327_2` gave 2), and a name with no number kept the previous file's.
+    """
+
+    @staticmethod
+    def _project(write_minimal_h5_project, minimal_HidraWorkspace, filename: str, run_number: str | None) -> Path:
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3])
+        if run_number is not None:
+            ws.set_sample_log("run_number", np.array([1, 2, 3]), np.array([run_number] * 3))
+        return write_minimal_h5_project(ws, filename=filename)
+
+    def test_a_float_log_is_read(self, texture_model):
+        """Newer project files store `run_number` as float32 (`1017.0`)."""
+        texture_model.load_hidra_project_file("tests/data/HB2B_1017.h5")
+
+        assert texture_model.runnumber == 1017
+
+    def test_the_log_wins_over_the_file_name(self, texture_model, write_minimal_h5_project, minimal_HidraWorkspace):
+        path = self._project(write_minimal_h5_project, minimal_HidraWorkspace, "HB2B_999.h5", "1327")
+
+        texture_model.load_hidra_project_file(str(path))
+
+        assert texture_model.runnumber == 1327
+
+    def test_the_file_name_is_the_fallback(self, texture_model, write_minimal_h5_project, minimal_HidraWorkspace):
+        path = self._project(write_minimal_h5_project, minimal_HidraWorkspace, "HB2B_1327_2.h5", None)
+
+        texture_model.load_hidra_project_file(str(path))
+
+        assert texture_model.runnumber == 1327
+
+    def test_a_float_log_wins_over_the_file_name(
+        self, texture_model, write_minimal_h5_project, minimal_HidraWorkspace
+    ):
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3])
+        ws.set_sample_log("run_number", np.array([1, 2, 3]), np.full(3, 1327.0, dtype=np.float32))
+        path = write_minimal_h5_project(ws, filename="renamed_export.h5")
+
+        texture_model.load_hidra_project_file(str(path))
+
+        assert texture_model.runnumber == 1327
+
+    def test_neither_gives_none_and_an_error(
+        self, texture_model, write_minimal_h5_project, minimal_HidraWorkspace, caplog
+    ):
+        path = self._project(write_minimal_h5_project, minimal_HidraWorkspace, "sample.h5", None)
+
+        with caplog.at_level(logging.ERROR):
+            texture_model.load_hidra_project_file(str(path))
+
+        assert texture_model.runnumber is None
+        assert "No run number for" in caplog.text
+
+    def test_a_previous_files_run_number_is_never_kept(
+        self, texture_model, write_minimal_h5_project, minimal_HidraWorkspace
+    ):
+        texture_model.load_hidra_project_file("tests/data/HB2B_1327.h5")
+        assert texture_model.runnumber == 1327
+        path = self._project(write_minimal_h5_project, minimal_HidraWorkspace, "sample.h5", None)
+
+        texture_model.load_hidra_project_file(str(path))
+
+        assert texture_model.runnumber is None

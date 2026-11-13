@@ -280,6 +280,39 @@ actual defect the first two dead ends above introduced) that the
 summary output and coverage report are still present in the log after
 the change.
 
+**One source found later (2026-11, phase 2 of the NXstress hookup):** the
+strain/stress viewer leaked a mantid SliceViewer **ADS observer** on every
+re-plot and on window close. Mantid unregisters a SliceViewer's observer only
+in its view's `closeEvent` (`ObservingView.closeEvent` →
+`presenter.clear_observer()`); `VizTabs` only *removed* the view from its stack,
+and closing a window sends no `closeEvent` to the widgets inside it. Each leaked
+observer kept its presenter alive, still pointing at a view Qt later deleted, so
+`_clear_ads_at_session_end`'s `ADS.clear()` printed `RuntimeError: wrapped C/C++
+object of type SliceViewerView has been deleted` from mantid's `ADS_cleared`, and
+the observers were still registered when the C++ ADS singleton was torn down.
+Reproduced under `offscreen` by closing and deleting the window, then clearing
+the ADS. `VizTabs.close_slice_viewer` now closes the view, and
+`StrainStressViewer.closeEvent` calls it; `test_dropped_slice_viewer_releases_its_observer`
+and `test_closing_window_releases_slice_viewer` in
+[tests/ui/test_stress_strain_viewer.py](../tests/ui/test_stress_strain_viewer.py)
+fail without it. Whether this was the *only* source of the CI crash is not
+verified -- that needs `xvfb-run` -- so the `os._exit()` wrapper stays.
+
+**It was not the only source (2026-11-12, phase-2 PR review).** With the observer
+fix in place, the GUI tier (`-m gui`, 50 passed, 2 xfailed) was run headless
+under `QT_QPA_PLATFORM=offscreen` through a runner that builds the
+`QApplication` first and then exits *normally*, without `os._exit()`. No
+`has been deleted` traceback appeared, and the process still segfaulted at
+interpreter shutdown, after pytest's summary. The same tier run through a runner
+ending in `os._exit()` exits cleanly. Not yet checked under `xvfb-run`.
+
+**Why this matters going forward:** some other object still outlives the Qt or
+mantid teardown it depends on, so `os._exit()` in
+`scripts/development/run_tests.py` remains necessary, and a headless run
+without it will report a crash after every test has passed. The search for the
+remaining source -- a widget removed but never closed, as the SliceViewer was,
+or a similar leak -- is DD-18 in [deferred_defects.md](deferred_defects.md).
+
 ## `tests/ui/test_calibration_ui.py` wrote/deleted files in the repo root, not a tmpdir (2026-07)
 
 While iterating on the segfault fix above, running the full suite
@@ -2665,11 +2698,9 @@ User-approved, after the C1-C5 evaluation and step 1 (repeated ring extraction) 
 
 ## `neutrons_standard.Config` has two undocumented side effects, one of which breaks under a test environment (2026-09)
 
-Found while probing this repo's config layer during the first seven-axis audit
-of `plans/NXstress-prod/`. Both are properties of the installed
-`neutrons_standard` 0.1.0 package, not of PyRS's own code, and neither is
-mentioned in its documentation or in PyRS's plan documents. Probe:
-[`plans/NXstress-prod/probes/a4_neutrons_standard_config.py`](../plans/NXstress-prod/probes/a4_neutrons_standard_config.py).
+Found while probing this repo's config layer. Both are properties of the
+installed `neutrons_standard` 0.1.0 package, not of PyRS's own code, and
+neither is mentioned in its documentation.
 
 **1. Importing the config module writes to the user's home directory.**
 `_Config.__init__` calls `persistBackup()`, which does
@@ -2717,6 +2748,215 @@ directory above the repo root. A test that merely sets `env=<something>_test.yml
 will fail for a reason that has nothing to do with what it is testing. Either
 avoid `"test"` in the `env` value, or raise the off-by-one with the
 `neutrons_standard` maintainers.
+
+---
+
+## Loading a project file modified it on disk, because the mode came from permissions (2026-09-30)
+
+Found while closing out NXstress multi-workspace support: committed fixtures under `tests/data/`
+kept appearing in `git status` as modified, with no test that writes to them.
+
+`ReductionManager.load_hidra_project` chose its HDF5 mode from
+`os.access(project_file_name, os.W_OK)` — the file's *permissions* rather than
+what the operation needed — so loading any **writable** project file opened it
+in append mode. HDF5 marks the superblock on a read-write open, so the bytes
+change the moment the file is opened, and change back only when the handle is
+closed. The same method also failed to close the handle when loading raised, so
+for an unreadable file the modification persisted for as long as something kept
+the frame alive. Under pytest that is the rest of the session, because the
+traceback retained by a failure report retains the frame.
+
+That combination is why it looked non-deterministic: whether the file was still
+modified when you ran `git status` depended on whether the leaked handle had
+been garbage-collected yet.
+
+```console
+writable on disk: True
+load: RAISED RuntimeError: ... non-empty "reduced diffraction data" entry ...
+bytes changed immediately after the raise: True     # before the fix
+bytes changed after gc.collect():          False    # ... and then not
+```
+
+Fixed by opening `READONLY` unconditionally in that method — it only reads, and
+every genuine save path opens its own `READWRITE` handle by filename — and by
+closing in a `finally`. Pinned by
+`tests/integration/test_pyrscore.py::TestLoadDoesNotModifyTheFile`, which
+covers the succeeding and the raising path separately, since only the latter
+leaked.
+
+**Why this matters going forward:** choose an HDF5 mode from what the operation
+does, never from what the filesystem permits — `os.access(..., os.W_OK)` says a
+write is *allowed*, not that one is *intended*. And a read path that can raise
+needs its handle closed in a `finally`, or a failed read leaves the file marked
+as open-for-write. A fixture showing up in `git status` after a test run is the
+symptom to look for.
+
+---
+
+## An HDF5 dataset written without `maxshape` can never be appended to (2026-10-01)
+
+NXstress's append mode (`pyrs/utilities/NXstress/`) grows an `NXentry` already
+on disk by resizing each per-scan-point dataset and writing after its current
+end. That only works for a dataset created with `maxshape` and `chunks`: without
+them HDF5 lays the dataset out contiguously, `NXfield.resize` raises
+`NeXusError: Shape incompatible with current NXfield`, and no mechanism can
+extend it. Half of NXstress's own per-scan-point fields were written that way
+and had to be changed; `_definitions.growable(rank)` now supplies the kwargs and
+`tail_append` refuses a dataset that lacks them, naming it.
+
+**Why this matters going forward:** decide at *creation* whether a dataset will
+ever grow — it cannot be decided later, and a file already written cannot be
+retrofitted. Note also that a fixed-width `|S` string column is sized by the
+longest value present when it is created, so appending a longer one truncates it
+**silently**; store string data as the variable-length UTF-8 dtype if it will
+ever be appended to.
+
+## A string sample log's dtype used to depend on where the workspace came from (2026-10-09)
+
+`SampleLogs` stored whatever numpy dtype it was handed, and nothing normalized
+string values at any boundary, so the in-memory dtype of a string log was an
+accident of provenance:
+
+| source | string log value |
+|---|---|
+| `HidraProjectFile.read_sample_logs` — `data_set[()]`, straight from h5py | `bytes` |
+| `NXstress._sample._Sample.sampleLogsFromNexus` | `bytes` (except `name` and `chemical_formula`, decoded one-off) |
+| built in memory from a `<U` array, e.g. `set_sample_log("direction", pts, np.array(["11", ...]))` | `str` |
+
+Consumers each invented a policy. Some were tolerant
+(`summary_generator`, `peak_profile_utility`, `NXstress._discriminator._as_text`,
+`HidraWorkspace.direction`); some assumed `bytes` and called `.decode()`
+unconditionally. The latter crashed on a workspace built in memory —
+`NXstress._entryTimes` raised `AttributeError: 'numpy.str_' object has no
+attribute 'decode'` from inside a `try` that catches only `ValueError`, the
+clause that exists to substitute `NO_LOG` for an unparseable timestamp, so the
+fallback could not catch it. Even the test fixtures carried the split: the
+NXstress conftest `.encode("utf-8")`s `start_time`/`end_time`/`Filename` with a
+comment explaining that it must match h5py, and writes `direction` as a plain
+`<U` array four lines later.
+
+The rule is now **`bytes` on disk, `str` in memory**, with one conversion —
+`pyrs/utilities/convertdatatypes.py`'s `to_text`, `to_text_array` and the
+`is_text_array` predicate, alongside the existing `to_int`/`to_float` — applied
+at the two boundaries and at the nine sites that previously hand-rolled it:
+
+- `SampleLogs.__setitem__` converts a string array to `<U` on store, so *both*
+  file readers normalize without either one having to decode for itself.
+- `HidraProjectFile.add_sample_log` converts back at the HDF5 boundary. This is
+  not optional: **h5py has no conversion path for numpy's `<U` dtype**, so a
+  project file cannot be written at all without it.
+  `NXstress._sample._Sample._writable` was already doing the equivalent.
+
+**Two things that are easy to get wrong, both found by getting them wrong:**
+
+*Three dtypes mean "array of strings", and the one that matters is `object`.*
+The first version of this change tested `dtype.kind == "S"`, which catches only
+**fixed-width** byte arrays. HDF5 does not produce those: h5py and `nexusformat`
+both hand back an **object** array of Python `bytes` for the variable-length
+UTF-8 dtype, whose kind is `"O"`. The check therefore passed every test tier
+while doing nothing whatsoever for `start_time`, `end_time`, `Filename` or any
+discriminator column — and looked correct, because the unit fixture had been
+built with `np.array([b"11", ...])`, which *is* `|S`. A test for this kind of
+normalization has to construct the dtype the real reader yields, not the one the
+literal syntax happens to give.
+
+*Encode to variable-length, never to fixed-width.* `numpy.char.encode` produces
+`|S`, whose width is fixed by the longest value present at creation; a longer
+value written later is truncated **silently** (see the `maxshape` entry below for
+the same hazard in NXstress). Worse, since `HidraProjectFile` re-saves a
+workspace it previously read, encoding that way would quietly convert an existing
+file's variable-length columns to fixed-width on every save. The target is
+`h5py.string_dtype(encoding="utf-8")`.
+
+Both directions were built and measured against all three tiers before choosing.
+Normalizing toward **`bytes`** in memory cost one real regression — the CSV
+exporter wrote `# string1 = b'a constant string'` into a user-facing header —
+plus two test failures, and would have put the burden on every display consumer,
+most of them untested. Normalizing toward **`str`** produced 83 failures that
+were all the *same* defect (the unconditional `.decode()`, in two places), and
+once those were fixed every tier passed. The asymmetry is the argument: writers
+that must encode are few and already do it; readers that must decode are many
+and mostly invisible.
+
+`to_text_array` **raises** on an array that is not strings, rather than
+returning it unchanged — with one deliberate exception, an **empty `object`
+array**, which is accepted as an empty string column. That is safe because an
+empty HDF5 dataset keeps its own dtype on read and only a variable-length string
+comes back as `object`; an empty `float64` array still raises. Note the trap it
+replaces: `np.array([])` is `float64`, so a conversion that builds its result
+from a comprehension turns an empty string column into an empty array of
+*numbers* unless it names `dtype=np.str_`. A caller that may hold either kind — `SampleLogs`, whose
+logs are mostly numeric, and `_Peaks._decoded`, whose discriminator column is
+whatever the configured log holds — asks `is_text_array` first. A pass-through
+would make a misdirected call look like a working one, and the symptom would
+surface later as a `bytes` value in whichever consumer did not expect one, which
+is the failure this whole invariant exists to end.
+
+**Why this matters going forward:** when a value crosses between HDF5 and memory,
+pick the representation for each side *once*, put the conversion in **one**
+function, and call it at the boundary — do not let the type be decided by which
+loader ran, and do not hand-roll `isinstance(v, bytes)` at the point of use. The
+nine sites that did had drifted into four different behaviours: some handling
+`numpy.bytes_` and some not, some coercing the non-bytes branch to `str` and some
+returning it untouched. The failure mode of not doing so is
+not a crash at the boundary, where you would see it, but a crash or a wrong
+string far downstream in whichever consumer happens to meet the spelling it did
+not expect. Pinned by
+`tests/unit/pyrs/dataobjects/test_sample_logs.py::TestStringLogsAreTextInMemory`
+and
+`tests/unit/pyrs/projectfile/test_sample_logs.py::TestStringLogsAreBytesOnDisk`,
+which reference each other so neither half can be removed as redundant.
+
+---
+
+## PyRS's sample stage convention is recoverable from `rotate_project_q`, offset included (2026-10-14)
+
+`PoleFigureCalculator.rotate_project_q` (`pyrs/core/polefigurecalculator.py:186`)
+is the only place PyRS applies the three sample stage angles, and it applies them
+as the closed-form pole-figure projection of Bob He, *Two-Dimensional X-ray
+Diffraction*, ch. 8.3 — sines and cosines, with no matrix in it. There is no axis
+vector anywhere in the source to copy, which is why the sample-frame convention
+was for a long time recorded as "not located" rather than as a value.
+
+It is recoverable without touching the function's internals. Its `theta`/`eta`
+arguments fix the probe vector it rotates; choosing them aims that vector along
+each basis vector in turn, so three calls read off three columns of the matrix it
+implements, and its `(90 - alpha, beta)` return inverts to `(h1, h2)` exactly.
+The two rows it exposes are orthonormal, so the third is their cross product. The
+result, exact to `5.8e-14` over 200 random angle triples:
+
+```
+sample -> lab  ==  M0 @ R_omega(0,-1,0) @ R_chi(1,0,0) @ R_phi(0,0,-1)
+M0 = diag(1, -1, -1), i.e. 180 degrees about +x
+```
+
+`M0` is the load-bearing part. **The projection is not the identity at
+`omega = chi = phi = 0`** — there is a constant 180-degree offset between its
+output frame and the lab frame. The lab frame itself is right-handed with
+conventional axes, which `detector_model.py::rotation_matrix`
+(`Rx @ Ry @ Rz` about `+x/+y/+z`) confirms from the detector side, so the
+negative sample axes above are a real feature of the stage.
+
+`mrot` is present in every real HB2B file in `tests/data` alongside the three
+angles and does **not** appear in this decomposition, because `rotate_project_q`
+does not take it. Anything claiming to describe the full sample placement has to
+settle what `mrot` does first.
+
+**Why this matters going forward:** a decomposition that comes back
+*underdetermined* is as likely to mean the candidate space is too small as it is
+to mean the referent is genuinely ambiguous, and **the result alone cannot tell
+you which**. A first attempt here enumerated stage rotations only, found two
+survivors differing by a handedness sign, and was almost written up as an
+irreducible ambiguity for a stakeholder to settle — when the real answer was that
+no composition of three stage rotations can match one that carries a constant
+factor. Before reporting "ambiguous", add the constant term and re-run; before
+reporting "unrecoverable", check whether the function can simply be *driven* as a
+black box instead of read. Pinned by
+`tests/unit/pyrs/utilities/NXstress/test_sample.py::TestSampleTransformationChain::test_the_rotations_compose_in_write_order`,
+which composes the chain PyRS writes and compares it against `rotate_project_q`
+itself, so the two cannot drift apart silently.
+
+---
 
 ## An uncaught exception in a Qt slot aborts PyRS; an NXstress write truncates its target on open (2026-10)
 
@@ -2778,6 +3018,58 @@ holdout`).
     the degenerate Rot_y / Shift_x / 2θ₀ direction. Its stages warn "stopped at a bound", but the final
     `estimate_errors` (2θ₀ held) writes ordinary errors, so the file does not flag it.
   - With one arm left out, HB2B_3510's ring calibration converged in only 4 of 10 folds within 10 rounds.
+
+## NeXus calibration files (2026-11, #1054 phase 1)
+
+Reduction reads a calibration from either a **JSON** (`.json`) or a **NeXus** (`.nxs`) file (written and read
+with `nexusformat`, as PyRS's NXstress output is; user decision), through one entry
+point, `calibration_file_io.read_calibration_file`. Its format is chosen by the extension
+(`calibration_format`); anything else raises `ValueError`, including `.h5` (a PyRS project file) and
+`.nxs.h5` (raw event data). `read_calibration_provenance` and `read_calibration_geometry` dispatch the
+same way. Users: `HidraSetup.load_calibration_file`, `ReductionApp.reduce_data` (its #1051 `.json`-only check
+becomes this check), `PyRsCore`, and the calibration GUI's "From file…" overlay. Design and decisions
+(user-approved): the #1054 thread.
+
+- **A complete calibration** (`pyrs/utilities/calibration_nexus.py`): `NXentry/NXinstrument`, the wavelength
+  and its error under `NXmonochromator`, and the detector as an `NXdetector`:
+  - pixel pitch, and the uncalibrated pixel offsets as 1D arrays along `index_0` (`x_pixel_offset`, length =
+    columns) and `index_1` (`y_pixel_offset`, length = rows), as `DetectorModel.local_positions` gives them;
+  - the provenance as JSON and the `status` in an `NXnote`, and `calibration_date` from the provenance;
+  - the placement as an `NXtransformations` chain.
+- **The chain is `DetectorModel`'s order, innermost first** (`detector_model.CALIBRATION_TRANSFORMATIONS`,
+  built by `transformation_chain`): shift_x, shift_y, rotation_z, rotation_y, rotation_x (R = Rx·Ry·Rz, so Rz
+  acts first), arm_length, shift_z, two_theta_0 (about Y), arm_rotation (about Y; stored as 0, because the arm
+  angle belongs to each sub-run). Each value is float64 in m or deg, right-handed, in the PyRS frame (+Z beam,
+  +Y up), with `<name>_errors` beside it (the JSON's -1 / -2 codes). The reader checks every transformation's
+  type, vector, units and `depends_on` against this chain, and refuses (`ValueError`) a file that would be
+  applied differently. It also checks that the detector's `depends_on` starts the chain at `shift_x`, that
+  `arm_rotation` is 0, and that the pixel offsets are PyRS's layout (`DetectorModel.local_positions`:
+  X decreasing with `index_0`, Y increasing with `index_1`). The old NXstress chain, with 2θ₀ about X, would
+  be refused. One-element string arrays and shape-(1,) values, as other tools write them, are read. Also
+  refused (CodeRabbit review): a transformation with a non-zero NeXus `offset` (`DetectorModel` applies none),
+  a non-zero `z_pixel_offset` (the detector is flat), pixel sizes, pixel offsets or the arm length in any
+  units but `m` (no conversion; the geometry-only reader checks the arm length itself, since it does not read
+  the chain), and a group where a data field belongs (`ValueError`, which reduction turns into a note for the
+  provenance and geometry, instead of an `AttributeError` that would stop it).
+- **A NeXus file's geometry is part of the calibration.** Unlike the JSON's `"geometry"` block, whose problems
+  only add a note to the reduction record, a NeXus file whose pixel layout is missing or not PyRS's is
+  refused when the calibration is read, before any reduction work: the chain is defined on those pixels. A
+  `.nxs` that is not HDF5 raises `OSError`, as a malformed `.json` raises its JSON error.
+- **GUI:** the predicted-rings "From file…" dialog offers `*.json *.nxs`. The window's **Load Calibration** (a
+  starting calibration for the table) still reads JSON only (`_initalize_calibration` parses it directly);
+  phase 3.
+- **Verified:**
+  - Applying the file's chain with plain 4×4 matrices (Rodrigues rotations), independently of `DetectorModel`,
+    reproduces `DetectorModel.lab_positions` to 1e-12 m and the pixel 2θ to 1e-9°, at arm angles 0, 76, 90
+    and 103°, on HB2B's detector and on a 4-row × 6-column one (catches swapped axes).
+  - The same calibration written as JSON and as NeXus reads back bit for bit (values, errors, λ, status).
+  - HB2B_3510 reduces **bit-identically** with either, whole-detector and in 3° η slices. The reduced file's
+    record names the NeXus file and its SHA-256.
+  - `Status` < 0 reads back and is refused by `check_calibration_status`, as for the JSON.
+- **Decisions (user):** `.nxs` only. The NeXus file is written beside the JSON (GUI default on; on request
+  from the command line, phases 2-3). `HB2B_Latest.json` stays the only shared default: live reduction
+  (v1.8.1) and older tools read JSON only. FitCalibration diagnostics: peaks and residuals, reduced patterns on
+  request (phase 2). The mask is recorded by file and SHA-256 only (no `pixel_mask`).
 
 ## Loading by run number: the lookup must find the run's file, not just a folder (2026-11-10, #931)
 
@@ -2890,6 +3182,94 @@ Kept from #1045:
 The preferred folder is remembered between sessions (`QSettings("neutrons", "PyRS")`, key
 `calibration/export_folder`) after a successful folder export. The GUI tests redirect it to a scratch file
 through `detector_calibration_viewer._settings`.
+
+## NeXus calibration files carry their diagnostics (2026-11, #1054 phase 2)
+
+A NeXus calibration file (#1054 phase 1) also holds what the calibration was fitted to, under
+`/entry/calibration` (an `NXprocess`): program, version, date and method; the final **covariance** and its
+parameter names; one `NXdata` table per diagnostic; and, on request, the reduced patterns
+(`/entry/calibration/patterns`). `calibration_nexus.read_calibration_nexus_diagnostics` reads them back.
+String columns are stored as UTF-8 bytes (HDF5 has no numpy unicode type) and read back as `str`.
+
+- **Covariance.** `_parameter_errors_and_covariance` (`pixel_refinement`) returns the errors and the matrix
+  they come from, `inv(JᵀJ)·Σr²/dof` in the parameters' units, with NaN rows and columns for undetermined or
+  bound-stopped parameters. The errors are computed with **exactly the previous expression**, so written
+  errors are bit-identical. A unit test compares them with a copy of the old `_parameter_errors` on
+  full-rank and degenerate Jacobians. Every `StageResult` keeps its covariance;
+  `PixelCalibration.covariance` and `FitCalibration.covariance` give the last refinement's.
+- **Ring method** (`PixelCalibration.diagnostics(strip_fits)`):
+  - `ring_points`: the pixel, arm angle, L2, reflection, d-spacing and uncertainty of every point, its model
+    2θ and its residual (pixel 2θ − Bragg, deg) at the written values;
+  - `strip_fits`: every ring sought in every strip, its centre and error, accepted or rejected and why, when
+    the extraction's strip fits are passed (`calibrate_rings(..., diagnostics=)`).
+- **FitCalibration** (`FitCalibration.diagnostics(patterns)`):
+  - `peaks`: one row per fitted peak and η slice at the solution of the last refinement, with its sub-run,
+    powder, reflection, η slice, Bragg angle, fitted centre (= Bragg + residual), the centre's fit
+    uncertainty, and the residual. `fit_peaks` now also keeps the centres' fit uncertainties
+    (`get_effective_params` errors), which changes no value;
+  - the peaks are captured apart from the provenance's residual at the solution, so a peak fit without
+    uncertainties (a test stand-in) leaves the provenance unchanged;
+  - `patterns=True` adds the last reduction's patterns per kept sub-run and η slice (a few MB).
+- **Writers choose the format by extension:** `PixelCalibration.write_calibration(path, inputs, strip_fits)`
+  and `FitCalibration.write_calibration(path, ..., patterns)` write NeXus with diagnostics for `.nxs`, and the
+  JSON (unchanged, no diagnostics) otherwise. A failure to build the diagnostics is warned about and they are
+  left out; the calibration itself is always written.
+- **`pyrs-pixel-calibration --nexus PATH`** also writes the NeXus file, with the last round's strip fits. A
+  non-`.nxs` name is refused before the calibration runs. `--ring-points` (`.npz`) still works for one
+  release, with a `FutureWarning` pointing to `--nexus`.
+
+## Mantid nightly moved to 7.0: default and dev environments on 7.0, prod and qa on 6.16 (2026-11-12)
+
+- **Symptom:** every CI job failed at `pixi install --locked` with `failed to fetch
+  mantid-6.16.20261026.1142…conda — 404 Not Found` (`mantid/label/nightly`). This happened on `next` and on
+  every PR, before any PyRS code ran. The scheduled lockfile update (`update-lockfiles.yml`) failed too:
+  `mantidworkbench >=6.16.0,<6.17 cannot be installed`.
+- **Cause:**
+  - The `dev` feature, which both the `default` and `dev` environments use, takes `mantid`, `mantidqt` and
+    `mantidworkbench` from `mantid/label/nightly`. That channel keeps only recent builds, and since
+    2026-11 only 7.0 ones (`7.0.20261102`, `…1106`, `…1109`).
+  - There is no 6.17: after 6.16 comes 7.0, and 7.0.0 is also released on `mantid/label/main`.
+  - With the base dependency capped at `<6.17`, nothing could be solved.
+- **Fix (`chore/mantid-7.0`):**
+  - The base `[tool.pixi.dependencies]` cap is now `<7.1`.
+  - Only the Mantid packages were re-locked (`pixi update mantidworkbench mantid mantidqt`). `default` and
+    `dev` moved to `7.0.20261109.1636`, with libboost 1.88 → 1.90, jsoncpp, libnetcdf, libtheora and a
+    vtk-base rebuild.
+  - **`prod` (`mantid/label/main` 6.16.1) and `qa` (`mantid-ornl/label/rc` 6.16.1.3rc3) are unchanged**:
+    their features keep `<6.17`.
+- **The published package stays on 6.16.** `[tool.pixi.package.run-dependencies]` keeps `<6.17`: it is the
+  dependency of the conda package that `publish` uploads and `deploy-dev` ships to the cluster. It feeds no
+  test environment, since pyrs is installed there as an editable PyPI package. Raise it only when prod and
+  qa move to 7.0.
+- **Verified on 7.0 (locally):** all 901 unit tests pass. All integration tests outside `tests/ui` pass (133
+  passed, 28 skipped, 2 xfailed: the same as 6.16), including the gold-file calibration and reduction
+  comparisons. The GUI tier was not run locally (no display): see the PR's CI.
+
+---
+
+## `neutrons_standard` adds sections of its own to the configuration document (2026-10-21)
+
+Found while making `validate_config` refuse unknown keys. The merged
+document in `Config._config` holds more than `application.yml` and the override
+file: neutrons_standard 0.1.0 adds `environment` (the loaded override's name, in
+`_Config.refresh`), `module.root` and `version.default` (in `_Config.reload`), and,
+when `~/.pyrs/pyrs-user.yml` is in use, `application.version` (written by
+`_Config.swapToUserYml`). The shipped default loads as:
+
+```
+nxstress, legacy_io, environment: application, module: {root: .../pyrs}, version: {default: -1}
+```
+
+It also has no public way to list the keys a configuration holds, only
+`Config[...]` and `Config.exists(...)` for a key already known.
+
+**Why this matters going forward:** a check of the whole document must allow these
+sections, and `NEUTRONS_STANDARD_SECTIONS` in `pyrs/utilities/config.py` lists them.
+A neutrons_standard upgrade that adds another would stop PyRS starting;
+`test_config.py::TestUnknownKeysAreRefused::test_a_load_adds_no_unlisted_section`
+fails first and names it. Before row 46, `validate_config` read only the keys
+`ConfigSchema` declares, so an unknown key, misspelled or left over from a removed
+setting, was silently ignored.
 
 ### #931 second review: run lists and unreadable files (2026-11-11, each approved separately)
 

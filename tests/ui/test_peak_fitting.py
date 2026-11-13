@@ -21,15 +21,13 @@ pytestmark = [pytest.mark.gui, pytest.mark.integration]
 wait = 300
 
 
-@pytest.fixture(scope="session")
-def fit_peaks_window(my_qtbot):
-    r"""
-    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
-    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
-    """
+@pytest.fixture
+def fit_peaks_window(qtbot):
+    """A fresh peak fitting window for each test, closed afterwards (see `tests/ui/conftest.py`)."""
     fit_peak_core = pyrscore.PyRsCore()
     window = fitpeakswindow.FitPeaksWindow(None, fit_peak_core=fit_peak_core)
-    return window, my_qtbot
+    qtbot.addWidget(window)
+    return window, qtbot
 
 
 def test_peak_fitting(tmpdir, fit_peaks_window):
@@ -239,12 +237,7 @@ def test_init_widgets_nxstress_and_legacy_action_enablement_matches_config(fit_p
     r"""
     Confirm the new "Save as NXstress..." action exists, is wired, and its
     enabled state (set in _init_widgets) matches the shipped default config
-    (nxstress.enable / legacy_io.enable both True). This intentionally reuses
-    the session-scoped `fit_peaks_window` fixture rather than constructing a
-    second FitPeaksWindow with a different Config override -- constructing this
-    window with function scope is documented (see the fixture above) to cause
-    segfaults, so a "flip the config, rebuild the window, assert disabled"
-    variant is not attempted here.
+    (nxstress.enable / legacy_io.enable both True).
     """
     window, _qtbot = fit_peaks_window
 
@@ -367,11 +360,11 @@ def test_nxstress_action_follows_workspace_geometry(fit_peaks_window: tuple) -> 
 
 @pytest.fixture
 def nxstress_ready_window(fit_peaks_window, minimal_HidraWorkspace, minimal_PeakCollection, monkeypatch, tmp_path):
-    """The shared window holding a workspace with geometry, with the save dialog
+    """The window holding a workspace with geometry, with the save dialog
     and message boxes replaced. Call the returned `set_peak_tag` before saving.
     Every change to the window is made through `monkeypatch` and undone on exit."""
     window, _qtbot = fit_peaks_window
-    ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+    ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
     monkeypatch.setattr(window._model, "hidra_workspace", ws)
     monkeypatch.setattr(window._model, "fit_result", None)
     window._update_nxstress_action()
@@ -522,7 +515,7 @@ def test_fit_table_radio_buttons_keeps_loaded_d0(nxstress_ready_window, monkeypa
 
 @pytest.fixture
 def loaded_copy_window(fit_peaks_window, minimal_PeakCollection, monkeypatch, tmp_path):
-    """The shared window with a copy of `HB2B_1017.h5` loaded and a fit result
+    """The window with a copy of `HB2B_1017.h5` loaded and a fit result
     set, so that *Save* has something to write -- into the copy, never into
     `tests/data`. Message boxes are recorded."""
     window, _qtbot = fit_peaks_window
@@ -613,3 +606,26 @@ def test_load_run_number_bad_entry_reports(monkeypatch, request, fit_peaks_windo
     assert len(shown) == 1
     assert "abc" in shown[0][2]
     assert window.current_hidra_file_name == previous
+
+
+@pytest.mark.parametrize("kind", ["garbage", "two_entries", "nxs_in_multi_select"])
+def test_load_failure_reports_and_returns(fit_peaks_window, unloadable_nxstress_files, monkeypatch, kind) -> None:
+    """Every error a bad file raises is reported in a dialog rather than escaping
+    the slot -- which, under PyQt6, aborts the application."""
+    # Arrange
+    window, _ = fit_peaks_window
+    target: str | list[str]
+    if kind == "nxs_in_multi_select":
+        target = [str(unloadable_nxstress_files["two_entries"]), os.path.abspath("tests/data/HB2B_1017.h5")]
+    else:
+        target = str(unloadable_nxstress_files[kind])
+    messages = []
+    monkeypatch.setattr(
+        peak_fitting_viewer, "pop_message", lambda parent, message, *args, **kwargs: messages.append(message)
+    )
+
+    # Act
+    window.load_and_plot(target)
+
+    # Assert
+    assert messages == [f"Unable to load {target}"]
