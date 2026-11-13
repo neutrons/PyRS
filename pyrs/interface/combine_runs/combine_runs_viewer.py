@@ -6,7 +6,13 @@ from qtpy.QtWidgets import QGridLayout  # type:ignore
 from qtpy.QtWidgets import QMainWindow  # type:ignore
 from qtpy.QtCore import Qt  # type: ignore
 
-from pyrs.interface.gui_helper import pop_message, report_save_failure, resolve_save_target, write_nxstress_or_report
+from pyrs.interface.gui_helper import (
+    nxstress_file_filter,
+    pop_message,
+    report_save_failure,
+    resolve_save_target,
+    write_nxstress_or_report,
+)
 from pyrs.projectfile.file_object import CalibrationMismatchError, ReductionMismatchError
 from pyrs.utilities.config import Config
 # from pyrs.interface.gui_helper import browse_file
@@ -79,7 +85,7 @@ class FileLoad(QWidget):
                 self,
                 "Save Combined Proeject File (NXstress)",
                 "",
-                "NXstress (*.nxs)",
+                nxstress_file_filter(),
                 options=QFileDialog.DontUseNativeDialog,
             )
 
