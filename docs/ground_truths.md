@@ -3191,3 +3191,51 @@ A neutrons_standard upgrade that adds another would stop PyRS starting;
 fails first and names it. Before row 46, `validate_config` read only the keys
 `ConfigSchema` declares, so an unknown key, misspelled or left over from a removed
 setting, was silently ignored.
+
+## Pole-figure calculation: unit tests against the diffraction geometry (2026-11-12, #411)
+
+`PoleFigureCalculator.rotate_project_q` follows He, *Two-Dimensional X-ray Diffraction*, §8.3. The
+check below used He's own lecture slides, "Fundamentals of Two-dimensional X-ray Diffraction" (McMaster
+CMDW, 2023): slide 8 gives the transformation matrix, slide 9 the unit diffraction vector h₁, h₂, h₃,
+and slide 27 the pole angles. The ICDD PPXRD-9 talk (2010), slides 16 and 18, gives the same equations.
+- **h₁ and h₂** match He's, term for term and sign for sign, with ψ = χ.
+- **β** is He's: β = ±cos⁻¹(h₁/√(h₁²+h₂²)), with β ≥ 0 if h₂ ≥ 0 and β < 0 if h₂ < 0. So, from He's
+  equations: χ > 0 gives β = −90°, rocking ω past θ gives β = 180°, and turning φ by +x turns β by
+  +x (h₁ + i·h₂ is multiplied by e^{iφ}).
+
+PyRS's own conventions are **intended** (confirmed):
+- **α** is the pole's angle from the sample **normal**, 90° − He's α (from the sample plane), as MTEX's
+  `.jul` expects;
+- He's γ is **η + 270°**;
+- `calculate_pole_figure` uses **ω + 90°** for a negative ω;
+- **η**: with ω = θ and χ = φ = 0, cos α = sin²θ + cos²θ·cos η, and η > 0 tilts the pole to the same
+  side as χ > 0.
+
+Before #411 the only check was the texture GUI test (#831, 2023). It compares exported `.jul` files
+with reference files written by the same code, which catches changes but not a wrong projection. The
+2020 `broken_test_pole_figure_calculation` was never collected (no `test_` prefix), pointed at a
+missing `tests/testdata/` folder and asserted nothing; it was removed.
+
+`tests/unit/pyrs/core/test_polefigurecalculator.py` derives its expected values from the geometry:
+- **Symmetric Bragg position** (ω = θ, χ = 0, η = 0): the diffraction vector lies along the sample
+  normal, so α = 0.
+- **Tilting by χ** gives α = |χ| and β = ∓90°.
+- **Rocking ω** by δ gives α = |δ| and |β| = 180° or 0°.
+- **Turning φ** (about the normal) keeps α and shifts β by ±φ, with one sign throughout. A 360° turn
+  changes nothing.
+
+The calculator agrees with all of these. As a check that the tests can fail, returning He's α instead
+of 90° − α fails 11 of them, and dropping the 270° fails 12.
+
+Further tests pin η (closed form and sign), the φ direction (+φ), the ω < 0 rule against geometry,
+exporting several peaks, the calculator's bookkeeping and its input errors. Tests that can fail (each a
+deliberate mistake in the code, undone afterwards):
+- returning He's α instead of 90° − α fails 11 tests; dropping the 270° fails 12;
+- ignoring η fails 5; flipping η's sign fails 3;
+- flipping φ's direction fails 4.
+
+Found, not fixed (see [deferred_defects.md](deferred_defects.md)):
+- **DD-22:** the ASCII export scrambles its rows, and puts every peak in each file.
+- **DD-23:** α = NaN at the rim.
+- **DD-24:** missing log names are not checked.
+- **DD-25:** the caller's data is changed in place, and a calculated pole figure goes stale.
