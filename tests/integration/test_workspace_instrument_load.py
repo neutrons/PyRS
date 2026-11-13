@@ -29,7 +29,9 @@ def test_geometry_loaded_without_raw_counts(
 ) -> None:
     """Geometry no longer depends on `load_raw_counts`."""
     # Arrange
-    path = write_minimal_h5_project(minimal_HidraWorkspace(with_instrument=True), "geometry.h5", with_instrument=True)
+    path = write_minimal_h5_project(
+        minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True), "geometry.h5", with_instrument=True
+    )
     ws = HidraWorkspace()
 
     # Act
@@ -47,9 +49,9 @@ def test_reload_without_geometry_clears_previous_geometry(
     project's (`HB2BReductionManager` reloads its session workspace this way)."""
     # Arrange
     with_geometry = write_minimal_h5_project(
-        minimal_HidraWorkspace(with_instrument=True), "geometry.h5", with_instrument=True
+        minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True), "geometry.h5", with_instrument=True
     )
-    without_geometry = write_minimal_h5_project(minimal_HidraWorkspace(), "no_geometry.h5")
+    without_geometry = write_minimal_h5_project(minimal_HidraWorkspace(sub_runs=[1, 2, 3]), "no_geometry.h5")
     ws = HidraWorkspace()
     _load(ws, with_geometry)
     assert ws.get_instrument_setup() is not None
