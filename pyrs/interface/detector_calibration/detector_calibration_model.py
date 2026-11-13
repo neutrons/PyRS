@@ -31,7 +31,7 @@ from pyrs.core.detector_model import DetectorModel, to_shift
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 from pyrs.utilities.calibration_file_io import read_calibration_file, write_calibration_to_json
 
-# the files each Export wrote, or the targets it refused (#1087)
+# terminal only, no log file: the files each Export wrote, or what was written when a write fails partway (#1087)
 _LOG = Logger("PyRS detector calibration")
 
 # calibration methods (#1045): FitCalibration re-reduces and re-fits for every trial geometry; the
@@ -388,7 +388,7 @@ class DetectorCalibrationModel(QObject):
         shared files are written in the order archive, ``HB2B_Latest_<Si...>.json``, ``HB2B_Latest.json``, each
         to a temporary file and then renamed, after every target was checked: a failure never leaves a
         truncated file, and a "latest" file is never newer than its archive. One log line lists the files
-        written, or the targets refused.
+        written; a refused export is not logged, its error is shown to the user (user decision).
 
         Args:
             folder: Existing folder for a copy that is not shared, or None.
@@ -432,7 +432,6 @@ class DetectorCalibrationModel(QObject):
                 targets.append(os.path.join(SHARED_CALIBRATION_DIR, "HB2B_Latest.json"))
             blocked = [target for target in targets if not _writable(target)]
             if blocked:
-                _LOG.warning(f"Calibration export refused, not writable: {', '.join(blocked)}; nothing written")
                 raise PermissionError(f"cannot write {', '.join(blocked)}; nothing was written")
         written: List[str] = []
         for target in targets:
