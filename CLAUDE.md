@@ -244,11 +244,18 @@ Notes:
   (beyond tests *for* those helpers); `tests/scripts/` is excluded from
   collection via `norecursedirs`.
 - `test-gui` sets `QT_QPA_PLATFORM=offscreen` itself, so no window ever appears.
-  The full `pixi run test` does **not** — it is the task CI drives under
-  `xvfb-run`, and a pixi task `env` would override that. Export
-  `QT_QPA_PLATFORM=offscreen` yourself before running the full suite on a
-  workstation with a real desktop session, or it will stall on the GUI tier
-  until the timeout below fires — see [docs/ground_truths.md](docs/ground_truths.md).
+  The full `pixi run test` (all tiers, serial, with coverage) does **not**. Export
+  `QT_QPA_PLATFORM=offscreen` yourself before running it on a workstation with a
+  real desktop session, or it will stall on the GUI tier until the timeout below
+  fires — see [docs/ground_truths.md](docs/ground_truths.md).
+- **The unit and integration tiers run in parallel** (`pytest-xdist`, `-n auto
+  --dist loadscope`: one worker per core, at most 8 locally; a module's top-level test functions, or a
+  test class, all go to one worker, so a module-scoped fixture used by functions is
+  built once). The GUI tier stays serial: its tests share one window per module.
+  So a test must not depend on another test's order or write a fixed file name
+  into the working folder; use `tmp_path`. To debug with `--pdb` or `-s`, run
+  serially: `pixi run test-unit -n 0`. CI runs each tier as its own job
+  (`test-ci-unit`, `test-ci-integration`, `test-ci-gui`, under `xvfb-run`, #1100).
 - **Every test has a 300-second timeout** (`timeout`/`timeout_method` in
   `pyproject.toml`, via `pytest-timeout`). A hang is a failure, not an infinite
   wait. `timeout_method = "thread"` is deliberate: a test blocked inside Qt's C++
