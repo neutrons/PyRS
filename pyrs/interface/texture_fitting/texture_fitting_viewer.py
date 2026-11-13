@@ -11,6 +11,8 @@ from qtpy.QtCore import Qt  # type: ignore
 
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView, GeneralDiffDataView
 from pyrs.interface.gui_helper import (
+    dotted,
+    nxstress_file_filter,
     nxstress_save_available,
     pop_message,
     resolve_save_target,
@@ -23,7 +25,7 @@ from pyrs.utilities.config import Config
 
 import numpy as np
 
-from typing import Optional
+from typing import Any, Optional
 
 # import traceback
 import os
@@ -37,14 +39,15 @@ MICROSTRAIN = "\u00b5strain"
 class FileLoad(QWidget):
     def __init__(
         self,
+        *,
         name: Optional[str] = None,
-        fileType: str = "HidraProjectFile (*.h5);;NXstress (*.nxs);;All Files (*)",
         parent: Optional[QWidget] = None,
     ) -> None:
-        self._parent = parent
+        # The viewer window, whose widgets and controller this loader drives.
+        self._parent: Any = parent
         super().__init__(parent)
         self.name = name
-        self.fileType = fileType
+        self.fileType = f"HidraProjectFile (*.h5);;{nxstress_file_filter()};;All Files (*)"
         layout = QHBoxLayout()
         if name is not None:
             label = QLabel(name)
@@ -75,15 +78,12 @@ class FileLoad(QWidget):
         self._parent.fit_summary.fit_table_operator.fit_result = None
 
     def openFileDialog(self):
-        self._parent._project_file, _ = QFileDialog.getOpenFileNames(
+        project_files, _ = QFileDialog.getOpenFileNames(
             self, self.name, "", self.fileType, options=QFileDialog.DontUseNativeDialog
         )
 
-        if self._parent._project_file:
-            if type(self._parent._project_file) is list:
-                self._parent._project_file = self._parent._project_file[0]
-
-            self.load_project_plot()
+        if project_files:
+            self.load_project_plot(project_files[0] if isinstance(project_files, list) else project_files)
 
     def loadRunNumber(self):
         try:
@@ -94,13 +94,37 @@ class FileLoad(QWidget):
             pop_message(self, f"Failed to find run {self.lineEdit.text()}", str(run_err), "error")
             return
 
-        self._parent._project_file = os.path.join(project_dir, f"HB2B_{self.lineEdit.text()}.h5")
+        self.load_project_plot(os.path.join(project_dir, f"HB2B_{self.lineEdit.text()}.h5"))
 
-        self.load_project_plot()
+    def load_project_plot(self, project_file: str) -> None:
+        """Load `project_file` and plot it, replacing the current project only on success.
 
-    def load_project_plot(self):
+        A failed load is reported and changes nothing: the fit table and the
+        current project file name are replaced only once the new file has loaded,
+        as the model's workspace already was. Clearing the fit table first left it
+        empty while the model still held the fit, and "Save as NXstress" then
+        reported nothing to save.
+
+        Args:
+            project_file: The project or NXstress file to load.
+        """
+        try:
+            self._parent.controller.load_projectfile(project_file)
+        except (RuntimeError, TypeError, ValueError) as load_err:
+            # Previously unguarded: a load failure escaped into Qt, leaving the
+            # user a traceback on stderr and a window that looked as though
+            # nothing had happened. `loadRunNumber` above already reports its own
+            # failures this way. Everything below assumes a loaded workspace, so
+            # this returns rather than carrying on against the previous one.
+            pop_message(
+                self,
+                f"Unable to load {project_file}",
+                detailed_message=str(load_err),
+                message_type="error",
+            )
+            return
+        self._parent._project_file = project_file
         self._reset_fit_data()
-        self._parent.controller.load_projectfile(self._parent._project_file)
         self._parent.update_diffraction_data_plot()
         self._parent.fit_setup.sl.setMaximum(self._parent.model.sub_runs.size - 1)
         self._parent.fit_summary.setup_out_of_plane_angle(self._parent.model.ws.reduction_masks)
@@ -914,7 +938,9 @@ class TextureFittingViewer(QMainWindow):
         fileMenu.addAction(self.saveAsAction)
 
         self.saveAsNXstressAction = QAction("Save as NXstress...", self)
-        self.saveAsNXstressAction.setStatusTip("Save project state as NXstress (.nxs)")
+        self.saveAsNXstressAction.setStatusTip(
+            f"Save project state as NXstress ({dotted(Config['nxstress.extension'])})"
+        )
         self.saveAsNXstressAction.triggered.connect(self.save_as_nxstress)
         # setEnabled (not setVisible): stays visible, just grayed out, when disabled.
         self.update_nxstress_action()
@@ -1148,7 +1174,7 @@ class TextureFittingViewer(QMainWindow):
             )
             return
 
-        filename, _ = QFileDialog.getSaveFileName(self, "Save HidraWorkspace (NXstress)", "", "NXstress (*.nxs)")
+        filename, _ = QFileDialog.getSaveFileName(self, "Save HidraWorkspace (NXstress)", "", nxstress_file_filter())
         if not filename:
             return  # user clicked cancel
 

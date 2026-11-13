@@ -159,7 +159,7 @@ def test_full_phi_turn_gives_same_pole(calculator):
 @pytest.mark.xfail(
     strict=True,
     raises=AssertionError,
-    reason="DD-16: at the rim (α = 90°) √(h₁²+h₂²) can round to just above 1, and arccos returns NaN",
+    reason="DD-23: at the rim (α = 90°) √(h₁²+h₂²) can round to just above 1, and arccos returns NaN",
 )
 def test_tilt_to_rim_gives_alpha_ninety(calculator):
     """Tilting χ to 90° puts the pole on the rim of the pole figure, α = 90°."""
@@ -356,7 +356,7 @@ def test_export_mtex_writes_one_file_per_peak(calculator, tmp_path):
 @pytest.mark.xfail(
     strict=True,
     raises=AssertionError,
-    reason="DD-15: export_arrays_to_ascii sorts each column on its own (np.sort(axis=0)), so a row's "
+    reason="DD-22: export_arrays_to_ascii sorts each column on its own (np.sort(axis=0)), so a row's "
     "alpha, beta and intensity no longer belong to the same point",
 )
 def test_export_ascii_keeps_each_point_together(tmp_path):
