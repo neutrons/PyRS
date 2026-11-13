@@ -87,14 +87,16 @@ class FileLoad(QWidget):
 
     def loadRunNumber(self):
         try:
+            # one run number for the lookup and the file name: " 1060" or "01060" is run 1060 (#931)
+            run_number = int(self.lineEdit.text())
             project_dir = get_input_project_file(
-                int(self.lineEdit.text()), preferredType=self._parent.fileLoading.run_location.currentText()
+                run_number, preferredType=self._parent.fileLoading.run_location.currentText()
             )
         except (FileNotFoundError, RuntimeError, ValueError) as run_err:
             pop_message(self, f"Failed to find run {self.lineEdit.text()}", str(run_err), "error")
             return
 
-        self.load_project_plot(os.path.join(project_dir, f"HB2B_{self.lineEdit.text()}.h5"))
+        self.load_project_plot(os.path.join(project_dir, f"HB2B_{run_number}.h5"))
 
     def load_project_plot(self, project_file: str) -> None:
         """Load `project_file` and plot it, replacing the current project only on success.

@@ -384,10 +384,11 @@ def parse_rigorous_int_string(int_str):
 
 
 def parse_integers(int_list_string):
-    """parse a list of integers.  Note that the start is inclusive and the end is exclusive
+    """parse a list of integers.  A range includes both its start and its end, as in combine runs
+    and manual reduction (#931): "1:4" is 1, 2, 3, 4.
     example 1:4, 6:12, 8:12
     :param int_list_string:
-    :return: list of int or range tuples
+    :return: sorted list of unique ints
     """
     checkdatatypes.check_string_variable("Integer list (string)", int_list_string)
 
@@ -416,7 +417,7 @@ def parse_integers(int_list_string):
 
                 start_int = parse_rigorous_int_string(int_str_list[0])
                 end_int = parse_rigorous_int_string(int_str_list[1])
-                int_list.extend(range(start_int, end_int))
+                int_list.extend(range(start_int, end_int + 1))
 
             else:
                 # bad inputs

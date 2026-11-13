@@ -3071,6 +3071,85 @@ becomes this check), `PyRsCore`, and the calibration GUI's "From file…" overla
   (v1.8.1) and older tools read JSON only. FitCalibration diagnostics: peaks and residuals, reduced patterns on
   request (phase 2). The mask is recorded by file and SHA-256 only (no `pixel_mask`).
 
+## Loading by run number: the lookup must find the run's file, not just a folder (2026-11-10, #931)
+
+`get_input_project_file(run)` returned `shared/manualreduce` or `shared/autoreduce` as soon as the
+**folder** existed, whether or not `HB2B_<run>.h5` was in it. A run that was never reduced
+therefore passed the lookup, and the load failed afterwards. Before #1026, both windows kept going
+after a failed load, so the issue's `'NoneType' object has no attribute …` crash followed:
+- peak fitting: `load_and_plot` → `get_subruns_limit`;
+- texture fitting: `load_project_plot` → `model.sub_runs`.
+
+**Fixed (approved per change):**
+- **A. The lookup returns a folder only if it holds the run's file.**
+  - "manual": `manualreduce`, then `autoreduce`. "auto": `autoreduce` only.
+  - Otherwise it raises `RuntimeError`, naming the file and the folders searched ("has the run been
+    reduced yet?"). Both windows already show that error in a pop-up.
+  - When the preferred folder holds the file, the result is the same as before. A run only in
+    `autoreduce` now loads from there with "manual" preferred.
+- **D. Combine runs by run number works.**
+  - It now looks up `<folder>/HB2B_<run>.h5`. It used to pass the folders on as project files, so
+    it never worked.
+  - `loadRunNumbers` shows lookup errors in a pop-up. Without that, fix A would have made a missing
+    run an unhandled error in the slot.
+
+**Proposed here but declined.** The windows should stop after a load that fails for another reason,
+e.g. a file chosen in the file dialog that isn't a project file:
+- **B (peak fitting):** `load_and_plot` should stop after its error pop-up. #1026 (NXstress, phase 1)
+  has since done this: it returns after the pop-up, and records `current_hidra_file_name` only on
+  success.
+- **C (texture fitting):** still open, as DD-11 in [deferred_defects.md](deferred_defects.md).
+  `load_hidra_project_file` returns nothing, so `load_project_plot` can't tell a failed load from a
+  successful one.
+
+For run numbers, fix A stops a missing file before any load is attempted.
+
+**Local GUI testing with a stale `DISPLAY`:** if `DISPLAY` points at a closed SSH X tunnel and
+there is no `xvfb-run`, matplotlib calls the session "headless" and refuses `QtAgg`, even with
+`QT_QPA_PLATFORM=offscreen`, as soon as a module selects that backend on import. Creating an
+offscreen `QApplication` before `pytest.main` avoids this. CI is unaffected, because it runs the
+GUI tier under `xvfb-run`.
+
+Tests:
+- `tests/unit/pyrs/utilities/test_input_project_file.py`
+- `tests/unit/pyrs/interface/combine_runs/test_combine_runs_crtl.py`
+- `tests/ui/test_merge_projectfiles.py::test_load_missing_run_number_reports`
+
+### #931 review follow-ups (2026-11-10, each approved separately)
+
+- **The texture window parses the run number once** and uses it for both the lookup and the file
+  name. `" 1060"` or `"01060"` used to pass the lookup (`HB2B_1060.h5`) and then load
+  `HB2B_01060.h5`, so #931's crash could still happen.
+- **Combine runs:**
+  - Run numbers are Python ints. `np.int16` overflowed above 32767.
+  - A range `a:b` (or `a;b`) **includes `b`**. It used `np.arange(a, b)`, so `1327:1332` stopped at
+    1331.
+  - A run that can't be found raises instead of being silently dropped (the old
+    `except FileNotFoundError: pass`). `loadRunNumbers` also catches `FileNotFoundError`, which is
+    raised when the `finddata` tool is missing.
+  - Fewer than two runs: "Select at least two runs to combine" instead of the export dialog, which
+    used to write the *previous* combination under the new name, or crash.
+  - `combine_project_files` forgets the previous combination first.
+  - A cancelled save dialog (`""`) writes nothing.
+- **NeXus lookup errors:**
+  - `finddata` exiting with an error (`CalledProcessError`) now raises `RuntimeError`.
+  - An empty `FileFinder` result used to escape as `IndexError`. It is now treated like a failed archive
+    search: `get_nexus_file` falls back to `finddata` (printing "ArchiveSearch failed").
+  - So the caller gets `RuntimeError` if `finddata` also fails, or `FileNotFoundError` if `finddata`
+    isn't installed. The peak-fitting, texture and combine-runs
+  windows show it in a pop-up. So does manual reduction: its run-number path
+  (`_build_reduction_jobs` → `get_nexus_file`) now catches `RuntimeError` and `FileNotFoundError`.
+- **Combine runs, smaller fixes:**
+  - Cancelling the Browse dialog does nothing. It returns `[]`, not `None`, so it used to go on to load
+    (later, to the "select at least two runs" error).
+  - A range with more than two ends (`1327:1330:1332`) is refused with a clear message. Before, it
+    silently used the first two ends.
+  - The "fewer than two runs" branch also clears the chosen files, as the other error branches do.
+
+**Testing note:** combining by run number is now tested end to end on real data
+(`test_merge_projectfiles.py::test_combine_by_run_number`, 4 runs, 362 sub-runs). The lookup tests run
+the real lookup over a synthetic `shared/` tree; only `get_ipts_dir` is replaced.
+
 ## Calibration Export: one checkbox per target (2026-11, #1087)
 
 The calibration window's Export (`ExportCalibDialog`; `DetectorCalibrationModel.export_calibration(folder=None,
@@ -3191,3 +3270,27 @@ A neutrons_standard upgrade that adds another would stop PyRS starting;
 fails first and names it. Before row 46, `validate_config` read only the keys
 `ConfigSchema` declares, so an unknown key, misspelled or left over from a removed
 setting, was silently ignored.
+
+### #931 second review: run lists and unreadable files (2026-11-11, each approved separately)
+
+- **A range includes its end in every window.** Peak fitting's `gui_helper.parse_integers` excluded it,
+  while combine runs and manual reduction included it, so `1327:1330` loaded 3 runs in peak fitting and 4
+  elsewhere. It now includes the end in all three peak-fitting boxes. This changes which runs or sub-runs
+  are selected, never a computed value. But the two sub-run boxes don't mean the same thing by a number
+  (pre-existing; DD-12 in [deferred_defects.md](deferred_defects.md)):
+  - **Run numbers:** run numbers, so `1327:1330` is now 4 runs.
+  - **Sub-runs to plot** (`plot_diff_data`): a single entry is a 1-based **position**; two or more are
+    sub-run **numbers**. For sub-runs numbered 1..N the two agree, so nothing visible changes there.
+    The inclusive end does move some entries between the two meanings: `3:4` was one entry and is now
+    two, and `3:3` was empty and is now one.
+  - **Sub-runs for the 2D plot** (`parse_sub_run_list`): 0-based array **positions**, of which only 1 to
+    N−1 are kept, so the first sub-run can never be chosen. For sub-runs 1..N, `1:5` selected positions
+    1–4 (sub-runs 2–5) and now selects positions 1–5 (**sub-runs 2–6**).
+- **Combine runs keeps the runs in the order typed and combines a repeated run once.** Single runs used
+  to come before ranges, and `1327, 1327:1328` combined 1327 twice. The order numbers the combined
+  file's sub-runs. Empty entries (a trailing comma) are skipped.
+- **Unreadable files and bad text show an error instead of escaping the Qt slot:**
+  - combine runs' `load_project_files` now also catches `OSError` (a missing or non-HDF5 file) and
+    `KeyError` (an HDF5 file that isn't a project file);
+  - peak fitting's `load_run_number` parses the run box inside its `try`, so text like `abc` is
+    reported.
