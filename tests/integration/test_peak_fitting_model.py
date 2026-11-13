@@ -39,7 +39,7 @@ class TestPeakFittingModelNXstressRoundtrip:
         minimal_PeakCollection: Callable[..., PeakCollection],
         tmp_path: Path,
     ) -> None:
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         n_subrun = len(ws.get_sub_runs())
         peak = minimal_PeakCollection(N_subrun=n_subrun)
 
@@ -99,7 +99,7 @@ class TestPeakFittingModelNXstressRoundtrip:
         """A legacy save copies the loaded file and patches it, which cannot work
         for an NXstress file: refused, and nothing is written."""
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         peak_model.hidra_workspace = ws
         peak_model.fit_result = FitResult(
             peakcollections=[minimal_PeakCollection(N_subrun=len(ws.get_sub_runs()))], fitted=None, difference=None
@@ -124,7 +124,7 @@ class TestPeakFittingModelNXstressRoundtrip:
         # Verifies the fix for the gap where an NXstress-loaded session left
         # PyRsCore's session registry empty -- get_diffraction_data (and therefore
         # any sub-run plotting) would otherwise raise immediately after a load.
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         n_subrun = len(ws.get_sub_runs())
         peak = minimal_PeakCollection(N_subrun=n_subrun)
 
@@ -153,7 +153,7 @@ class TestPeakFittingModelSuffixRouting:
         minimal_PeakCollection: Callable[..., PeakCollection],
         tmp_path: Path,
     ) -> None:
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         project_path = write_minimal_h5_project(ws, filename="source.h5")
 
         peak_model.load_hidra_project([str(project_path)])
@@ -179,7 +179,7 @@ class TestPeakFittingModelSuffixRouting:
         """A bare-string .h5 path behaves like a one-element list (it used to be
         indexed character-by-character, loading "/" as the project file)."""
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         project_path = str(write_minimal_h5_project(ws, filename="source.h5"))
 
         # Act
@@ -198,7 +198,7 @@ class TestPeakFittingModelSuffixRouting:
     ) -> None:
         """An empty name updates the loaded file, as documented; it used to try to copy the file to ""."""
         # Arrange
-        ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
         project_path = write_minimal_h5_project(ws, filename="source.h5")
         peak_model.load_hidra_project([str(project_path)])
         peak = minimal_PeakCollection(N_subrun=len(ws.get_sub_runs()))
