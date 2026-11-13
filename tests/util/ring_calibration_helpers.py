@@ -5,7 +5,7 @@ Synthetic ring points and synthetic detector images for testing the ring-based d
 calibration (:mod:`pyrs.calibration.pixel_pos_calibration`) without real data.
 """
 
-from typing import Dict, List, Optional, Sequence
+from typing import Optional, Sequence
 
 import numpy as np
 from scipy.optimize import brentq
@@ -99,25 +99,6 @@ def synthetic_ring_points(
         powder=np.asarray(columns[7]),
         sigma=np.full(len(records), noise_deg),
     )
-
-
-def concatenate_ring_points(*point_sets: RingPoints) -> RingPoints:
-    """Join ring points of several runs, renumbering sub-runs so they stay distinct across runs.
-
-    ``PixelCalibration`` groups points by their own arm angle and L2, so repeated sub-run numbers are
-    safe; renumbering keeps the runs apart in diagnostics and plots (e.g. one scan at two
-    sample-detector distances).
-    """
-    if not point_sets:
-        raise ValueError("need at least one set of ring points")
-    fields: Dict[str, List[np.ndarray]] = {name: [] for name in RingPoints.__dataclass_fields__}
-    offset = 0
-    for points in point_sets:
-        for name in fields:
-            values = getattr(points, name)
-            fields[name].append(values + offset if name == "sub_run" else values)
-        offset += int(points.sub_run.max())
-    return RingPoints(**{name: np.concatenate(values) for name, values in fields.items()})
 
 
 def synthetic_detector_image(

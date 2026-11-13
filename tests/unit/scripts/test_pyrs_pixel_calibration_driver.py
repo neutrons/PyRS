@@ -59,26 +59,44 @@ def nexus_file(tmp_path):
     return path
 
 
-def test_main_writes_calibration(driver, monkeypatch, synthetic_run, nexus_file, tmp_path, capsys):
-    # Arrange
-    seen = _stub_conversion(monkeypatch, synthetic_run)
-    output, rings = tmp_path / "cal.json", tmp_path / "rings.npz"
+@pytest.fixture(scope="module")
+def default_run(driver, synthetic_run, tmp_path_factory):
+    """One run of the driver with its default rounds, writing the JSON, the NeXus file and the ring points:
+    shared by the tests that check what a default run writes and prints (#1101: one 30-40 s calibration)"""
+    import contextlib
+    import io
+    import warnings
 
-    # Act
-    status = driver.main(
-        [str(nexus_file), "-o", str(output), "--no-mask", "--wavelength", "1.54", "--ring-points", str(rings)]
-    )
+    folder = tmp_path_factory.mktemp("default_run")
+    nexus_file = folder / "HB2B_0001.nxs.h5"
+    nexus_file.write_bytes(b"")
+    files = {"output": folder / "cal.json", "nexus": folder / "cal.nxs", "rings": folder / "rings.npz"}
+    out = io.StringIO()
+    with pytest.MonkeyPatch.context() as patch:
+        seen = _stub_conversion(patch, synthetic_run)
+        with contextlib.redirect_stdout(out), warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)  # --ring-points' deprecation, tested on its own
+            status = driver.main(
+                [str(nexus_file), "-o", str(files["output"]), "--no-mask", "--wavelength", "1.54"]
+                + ["--ring-points", str(files["rings"]), "--nexus", str(files["nexus"])]
+            )
+    return {"status": status, "seen": seen, "nexus_file": nexus_file, "out": out.getvalue(), **files}
+
+
+def test_main_writes_calibration(default_run):
+    # Arrange - the shared default run (the fixture)
+    status, seen, output, rings = (default_run[key] for key in ("status", "seen", "output", "rings"))
 
     # Assert - a complete file reduction reads, 2theta_0 held, the true wavelength recovered
     assert status == 0
-    assert seen == [(str(nexus_file), None)]
+    assert seen == [(str(default_run["nexus_file"]), None)]
     raw = json.loads(output.read_text())
     assert raw["error_TTH_0"] == -1.0
     assert all(raw[f"error_{name}"] > 0 for name in ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z"))
     wavelength, wavelength_error = read_calibration_json_file(str(output))[2:4]
     assert abs(wavelength - TRUE_PARAMS[7]) < max(4 * wavelength_error, 1e-5)
     assert rings.is_file()
-    out = capsys.readouterr().out
+    out = default_run["out"]
     assert "TTH_0" in out and "held" in out and f"written to {output}" in out
     # the rings were extracted again until converged (#1038), and every round is reported and recorded
     rounds = raw["provenance"]["extraction_rounds"]
@@ -93,7 +111,10 @@ def test_main_sub_runs_and_no_polish(driver, monkeypatch, synthetic_run, nexus_f
     args = [str(nexus_file), "-o", str(output), "--no-mask", "--wavelength", "1.54", "--ring-points", str(rings)]
 
     # Act
-    status = driver.main(args + ["--sub-runs", "1", "2", "3", "4", "--no-polish", "--passes", "2"])
+    # two rounds: the saved points are the last round's, so a re-extraction must keep the sub-run selection
+    status = driver.main(
+        args + ["--sub-runs", "1", "2", "3", "4", "--no-polish", "--passes", "2", "--max-rounds", "2"]
+    )
 
     # Assert
     from pyrs.calibration.pixel_pos_calibration import RingPoints
@@ -256,33 +277,16 @@ def test_bad_max_rounds_is_refused(driver, rounds):
         driver.build_parser().parse_args(["run.nxs.h5", "-o", "cal.json", "--max-rounds", rounds])
 
 
-def test_main_nexus_writes_the_diagnostics(driver, monkeypatch, synthetic_run, nexus_file, tmp_path, capsys):
+def test_main_nexus_writes_the_diagnostics(default_run):
     """--nexus (#1054): the same calibration as the JSON, with ring points, strip fits and covariance"""
     from pyrs.utilities.calibration_file_io import read_calibration_file
     from pyrs.utilities.calibration_nexus import read_calibration_nexus_diagnostics
 
-    # Arrange
-    _stub_conversion(monkeypatch, synthetic_run)
-    output, nexus = tmp_path / "cal.json", tmp_path / "cal.nxs"
-
-    # Act
-    status = driver.main(
-        [
-            str(nexus_file),
-            "-o",
-            str(output),
-            "--no-mask",
-            "--wavelength",
-            "1.54",
-            "--nexus",
-            str(nexus),
-            "--max-rounds",
-            "2",
-        ]
-    )
+    # Arrange - the shared default run, which also wrote --nexus (the fixture)
+    status, output, nexus = default_run["status"], default_run["output"], default_run["nexus"]
 
     # Assert
-    assert status == 0 and f"written to {nexus}" in capsys.readouterr().out
+    assert status == 0 and f"written to {nexus}" in default_run["out"]
     from_json, from_nexus = read_calibration_file(str(output)), read_calibration_file(str(nexus))
     assert from_json[0].convert_to_dict() == from_nexus[0].convert_to_dict() and from_json[2] == from_nexus[2]
     diagnostics = read_calibration_nexus_diagnostics(str(nexus))
@@ -326,8 +330,10 @@ def test_main_nxs_output_holds_the_strip_fits(driver, monkeypatch, synthetic_run
     _stub_conversion(monkeypatch, synthetic_run)
     output = tmp_path / "cal.nxs"
 
-    # Act
-    status = driver.main([str(nexus_file), "-o", str(output), "--no-mask", "--wavelength", "1.54"])
+    # Act - one round: the strip-fit table exists after the first extraction (#1101)
+    status = driver.main(
+        [str(nexus_file), "-o", str(output), "--no-mask", "--wavelength", "1.54", "--max-rounds", "1"]
+    )
 
     # Assert
     assert status == 0 and "strip_fits" in read_calibration_nexus_diagnostics(str(output))["tables"]
