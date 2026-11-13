@@ -2,7 +2,9 @@ import numpy as np
 import pytest
 
 from pyrs.core.workspaces import HidraWorkspace
-from pyrs.projectfile import HidraProjectFile  # type: ignore
+from pyrs.dataobjects.sample_logs import SampleLogs
+from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
+from tests.util.workspace_helpers import make_minimal_HidraWorkspace
 
 
 class TestHidraWorkspace:
@@ -119,3 +121,118 @@ def test_unreadable_mask_source_still_loads(tmp_path, stored):
 
     # Assert
     assert workspace.get_detector_mask_source() == {"source": "not recorded"}
+
+
+class TestSubRunNumbersAreNotPositions:
+    """Sub-run numbers are labels, not array positions.
+
+    Each xfail is a site recorded under DD-2 in
+    `plans/PR_review/deferred-defects.md` that treats a sub-run number as a
+    position, or pairs values with sub-runs by position alone. They break on
+    sub-runs that do not run 1..N, even sorted ones.
+    """
+
+    @pytest.mark.xfail(reason="DD-2: rows are selected as `sub_run - 1`", raises=IndexError, strict=True)
+    def test_save_reduced_data_of_sub_runs_not_starting_at_one(self, tmp_path):
+        """With no raw counts loaded, the save always takes the subset branch."""
+        # Arrange
+        ws = make_minimal_HidraWorkspace(sub_runs=np.array([5, 6, 7]))
+        path = tmp_path / "project.h5"
+        project = HidraProjectFile(str(path), HidraProjectFileMode.OVERWRITE)
+        ws.save_experimental_data(project, sub_runs=ws.get_sub_runs(), ignore_raw_counts=True)
+
+        # Act
+        ws.save_reduced_diffraction_data(project)
+        project.save(False)
+
+        # Assert
+        readback = HidraWorkspace("readback")
+        with HidraProjectFile(str(path), HidraProjectFileMode.READONLY) as project:
+            readback.load_hidra_project(project, load_raw_counts=False, load_reduced_diffraction=True)
+        np.testing.assert_allclose(readback._diff_data_set[None], ws._diff_data_set[None])
+
+    @pytest.mark.xfail(
+        reason="DD-2: values are paired with sub-runs positionally, so another order is refused",
+        raises=RuntimeError,
+        strict=True,
+    )
+    def test_set_sample_log_pairs_values_by_sub_run(self):
+        """Used to store [30, 20, 10] for sub-runs [1, 2, 3], as given positionally; now refused."""
+        # Arrange
+        ws = make_minimal_HidraWorkspace(sub_runs=np.array([1, 2, 3]))
+
+        # Act
+        ws.set_sample_log("x", np.array([3, 2, 1]), np.array([30.0, 20.0, 10.0]))
+
+        # Assert
+        assert ws.get_sample_log_values("x").tolist() == [10.0, 20.0, 30.0]
+
+    def test_set_sample_log_for_other_sub_runs_raises(self):
+        """Used to store the values against sub-runs they were not given for."""
+        ws = make_minimal_HidraWorkspace(sub_runs=np.array([1, 2, 3]))
+        with pytest.raises(RuntimeError, match=r"given for sub-runs \[7, 8, 9\]"):
+            ws.set_sample_log("x", np.array([7, 8, 9]), np.array([30.0, 20.0, 10.0]))
+
+
+class TestSubRunAxisMatchesTheData:
+    """The sub-run axis and every per-sub-run array must agree, whichever is set first.
+
+    Each array is paired with the axis positionally, so a disagreement attaches
+    values to the wrong sub-runs. Data set after the axis were already checked;
+    these cover the axis set, or replaced, after the data.
+    """
+
+    @staticmethod
+    def _reduced(ws: HidraWorkspace, n_rows: int) -> None:
+        shape = (n_rows, 4)
+        ws.set_reduced_diffraction_data_set(np.ones(shape), {None: np.ones(shape)}, {None: np.ones(shape)})
+
+    def test_axis_after_data_of_another_length_raises(self):
+        ws = HidraWorkspace()
+        self._reduced(ws, 5)
+
+        with pytest.raises(RuntimeError, match=r"5 row\(s\) of two-theta matrix"):
+            ws.set_sub_runs([1, 2, 3])
+
+    def test_axis_after_data_of_the_same_length_is_accepted(self):
+        ws = HidraWorkspace()
+        self._reduced(ws, 3)
+
+        ws.set_sub_runs([1, 2, 3])
+
+        assert ws.get_sub_runs().raw_copy().tolist() == [1, 2, 3]
+
+    def test_raw_counts_for_another_sub_run_raise(self):
+        ws = HidraWorkspace()
+        ws.set_raw_counts(9, np.zeros(4))
+
+        with pytest.raises(RuntimeError, match=r"raw counts for sub-run\(s\) \[9\]"):
+            ws.set_sub_runs([1, 2, 3])
+
+    def test_replacement_logs_with_another_axis_raise(self):
+        ws = make_minimal_HidraWorkspace(sub_runs=[1, 2, 3])
+        replacement = SampleLogs()
+        replacement.subruns = [1, 2]
+
+        with pytest.raises(RuntimeError, match=r"replacement sample logs has sub-runs \[1, 2\]"):
+            ws.set_sample_logs_from_object(replacement)
+
+
+class TestDirection:
+    def test_a_constant_log_is_the_direction(self):
+        ws = make_minimal_HidraWorkspace(sub_runs=np.array([1, 2, 3]))
+        ws.set_sample_log("direction", np.array([1, 2, 3]), np.array(["22"] * 3))
+
+        assert ws.direction == "22"
+
+    def test_a_varying_log_raises(self):
+        """A workspace merged from several directions has no single one.
+
+        Used to be `get_sample_log_value`'s bare `AssertionError`, "Single log ...
+        is a np array with multiple items".
+        """
+        ws = make_minimal_HidraWorkspace(sub_runs=np.array([1, 2, 3]))
+        ws.set_sample_log("direction", np.array([1, 2, 3]), np.array(["11", "11", "22"]))
+
+        with pytest.raises(ValueError, match=r"no single direction.*\['11', '22'\]"):
+            ws.direction

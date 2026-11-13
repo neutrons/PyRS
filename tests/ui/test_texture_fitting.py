@@ -24,16 +24,14 @@ wait = 200
 plot_wait = 100
 
 
-@pytest.fixture(scope="session")
-def texture_fitting_window(my_qtbot):
-    r"""
-    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
-    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
-    """
+@pytest.fixture
+def texture_fitting_window(qtbot):
+    """A fresh texture fitting window for each test, closed afterwards (see `tests/ui/conftest.py`)."""
     model = TextureFittingModel(pyrscore.PyRsCore())
     ctrl = TextureFittingCrtl(model)
     window = TextureFittingViewer(model, ctrl)
-    return window, my_qtbot
+    qtbot.addWidget(window)
+    return window, qtbot
 
 
 def test_texture_fitting_viewer(texture_fitting_window):
@@ -200,9 +198,7 @@ def test_init_menu_actions_nxstress_enabled_legacy_disabled_matches_config(textu
     enabled state matches the shipped default config (nxstress.enable=True).
     The legacy Save/Save As actions are, by design, left permanently disabled
     here regardless of config -- see texture_fitting_viewer.py's __init__ for
-    why. Reuses the session-scoped `texture_fitting_window` fixture rather than
-    constructing a second window with a different Config override, for the same
-    segfault-avoidance reason documented on the fixture above.
+    why.
     """
     window, _qtbot = texture_fitting_window
 
@@ -232,13 +228,13 @@ def test_nxstress_action_follows_workspace_geometry(
 
     try:
         # Act / Assert: no geometry
-        monkeypatch.setattr(window._model, "ws", minimal_HidraWorkspace(with_instrument=False))
+        monkeypatch.setattr(window._model, "ws", minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False))
         window.update_nxstress_action()
         assert window.saveAsNXstressAction.isVisible()
         assert not window.saveAsNXstressAction.isEnabled()
 
         # Act / Assert: geometry
-        monkeypatch.setattr(window._model, "ws", minimal_HidraWorkspace(with_instrument=True))
+        monkeypatch.setattr(window._model, "ws", minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True))
         window.update_nxstress_action()
         assert window.saveAsNXstressAction.isEnabled() == Config["nxstress.enable"]
     finally:
@@ -250,11 +246,11 @@ def test_nxstress_action_follows_workspace_geometry(
 def nxstress_ready_window(
     texture_fitting_window, minimal_HidraWorkspace, minimal_PeakCollection, monkeypatch, tmp_path
 ):
-    """The shared window holding a workspace with geometry, with the save dialog
+    """The window holding a workspace with geometry, with the save dialog
     and message boxes replaced. Call the returned `set_peak_tag` before saving.
     Every change to the window is made through `monkeypatch` and undone on exit."""
     window, _qtbot = texture_fitting_window
-    ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+    ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
     fit_table = window.fit_summary.fit_table_operator
     monkeypatch.setattr(window._model, "ws", ws)
     monkeypatch.setattr(fit_table, "fit_result", None)
@@ -384,7 +380,7 @@ class _RangeTable:
 def test_save_as_nxstress_real_eta_fits_refused(texture_fitting_window, monkeypatch, tmp_path) -> None:
     """End to end on real texture data with geometry
     (`HB2B_1599_texture_with_instrument.h5`, built by
-    `tests/scripts/make_texture_fixture_with_instrument.py`): *Save as NXstress...*
+    `tests/scripts/make_nxstress_sample_position_fixture.py`): *Save as NXstress...*
     is offered, the eta patterns fit, and saving those fits is refused."""
     # Arrange
     window, _qtbot = texture_fitting_window
@@ -399,9 +395,6 @@ def test_save_as_nxstress_real_eta_fits_refused(texture_fitting_window, monkeypa
     fit_table = window.fit_summary.fit_table_operator
     monkeypatch.setattr(fit_table, "fits", None)
     monkeypatch.setattr(fit_table, "fit_result", None)
-    # The window is shared: whatever the load replaces is restored on exit.
-    for name in ("ws", "sub_runs", "fit_result", "_curr_file_name", "_run_number"):
-        monkeypatch.setattr(window._model, name, getattr(window._model, name, None))
     window.controller.load_projectfile("tests/data/HB2B_1599_texture_with_instrument.h5")
     window.update_nxstress_action()
     fits = window.controller.fit_peaks(_RangeTable([(62.864, 66.9115, "Fe 110")]), "PseudoVoigt", "Linear")
@@ -421,3 +414,85 @@ def test_save_as_nxstress_real_eta_fits_refused(texture_fitting_window, monkeypa
     finally:
         monkeypatch.undo()
         window.update_nxstress_action()
+
+
+@pytest.mark.parametrize("kind", ["garbage", "two_entries"])
+def test_load_failure_reports_and_keeps_workspace(
+    texture_fitting_window, unloadable_nxstress_files, monkeypatch, kind
+) -> None:
+    """A file that cannot be loaded is reported in a dialog, and the previously
+    loaded workspace stays loaded. The model used to swallow the error into an
+    unconnected signal, so nothing was reported and, on a first load, plotting
+    then aborted the application.
+
+    The fit table and the project file name are kept too: both used to be
+    replaced before the load was attempted, leaving the table empty while the
+    model still held the fit."""
+    # Arrange -- a loaded file, and the state a fit leaves in the fit table
+    window, _ = texture_fitting_window
+    file_load = window.fileLoading.file_load_dilg
+    loaded_path = os.path.abspath("tests/data/HB2B_1017.h5")
+    file_load.load_project_plot(loaded_path)
+    loaded = window._model.ws
+    table = window.fit_summary.fit_table_operator
+    table.fits, table.fit_result = fits, fit_result = {"eta_0.0": object()}, object()
+    messages = []
+    monkeypatch.setattr(
+        texture_fitting_viewer, "pop_message", lambda parent, message, *args, **kwargs: messages.append(message)
+    )
+
+    # Act
+    file_load.load_project_plot(str(unloadable_nxstress_files[kind]))
+
+    # Assert
+    assert messages == [f"Unable to load {unloadable_nxstress_files[kind]}"]
+    assert window._model.ws is loaded
+    assert table.fits is fits and table.fit_result is fit_result
+    assert window._project_file == loaded_path
+
+
+class TestParameterPlotsBeforeAnyFit:
+    """Choosing what to plot never raises, fitted or not.
+
+    `extract_data` returned `None` for every axis but `sub-runs` until a fit
+    existed -- the sample logs the selectors offer from the start included --
+    and the `TypeError` that followed escaped the Qt slot and aborted PyRS.
+    """
+
+    @pytest.fixture
+    def loaded_window(self, texture_fitting_window, monkeypatch):
+        """A window with `HB2B_1017.h5` loaded and no fit, recording what the 2D plot draws."""
+        window, _ = texture_fitting_window
+        window.fileLoading.file_load_dilg.load_project_plot(os.path.abspath("tests/data/HB2B_1017.h5"))
+        drawn, cleared = [], []
+        monkeypatch.setattr(window.param_window, "plot_scatter_with_errors", lambda **kwargs: drawn.append(kwargs))
+        monkeypatch.setattr(window.param_window, "reset_viewer", lambda: cleared.append(True))
+        return window, drawn, cleared
+
+    def test_a_sample_log_axis_is_plotted(self, loaded_window) -> None:
+        # Arrange
+        window, drawn, _ = loaded_window
+
+        # Act
+        window.plot_select.plot_paramY.setCurrentText("vx")
+
+        # Assert
+        assert len(drawn) == 1
+        np.testing.assert_array_equal(drawn[0]["vec_y"], window.model.ws.get_sample_log_values("vx"))
+
+    def test_loading_with_a_fit_parameter_axis_clears_the_plot(self, loaded_window) -> None:
+        """A fit populates the selectors with its parameters; loading a file then
+        clears the fit, leaving a selected parameter with nothing to plot."""
+        # Arrange -- the state a fit leaves behind
+        window, drawn, cleared = loaded_window
+        window.plot_select.plot_paramY.addItem("Center")
+        window.plot_select.plot_paramY.setCurrentText("Center")
+        drawn.clear()
+        cleared.clear()
+
+        # Act
+        window.fileLoading.file_load_dilg.load_project_plot(window._project_file)
+
+        # Assert -- cleared, not left showing the previous file's plot
+        assert drawn == []
+        assert cleared
