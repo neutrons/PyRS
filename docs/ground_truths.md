@@ -3290,6 +3290,15 @@ Tests: `tests/unit/pyrs/core/test_polefigurecalculator.py`. Each new test fails 
     range), not three. 60° (below the range) is no longer checked.
   - Integer indices in `estimate_errors(hold=...)` are no longer tested directly. `refine` shares the same
     index handling.
+- **The GUI window = driver test no longer runs the driver** (user decision). `test_ring_based_calibration_matches_driver`
+  now checks that the window ran with the driver's command-line defaults, read from its parser (strips,
+  recipe `iterate`, method `trf`, the polish, the round limit), using the written file's provenance. It still
+  checks the ring marks, the rounds and the method switch. 79 → 46 s on this workstation. The bit-for-bit
+  window = driver comparison stays in the unit test `test_ring_path_equals_the_driver`, on synthetic data. Real
+  data is checked by `test_driver_rounds_agree_with_the_reference` (integration) against the reference
+  calibration.
+
+
 ## Parallel test tiers on CI (2026-11, #1100)
 
 CI runs the three test tiers as three jobs (`test-tier` matrix: `tests (unit)`, `tests (integration)`,

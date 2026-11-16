@@ -173,7 +173,7 @@ def test_detector_calibration(calibration_window, tmp_path, export_settings):
 
 
 def test_ring_based_calibration_matches_driver(calibration_window, tmp_path):
-    """#1045: the window's ring-based calibration gives exactly the pyrs-pixel-calibration driver's result"""
+    """#1045: the window's ring-based calibration runs with the pyrs-pixel-calibration driver's defaults"""
     import importlib.util
     import json
     from pathlib import Path
@@ -236,29 +236,24 @@ def test_ring_based_calibration_matches_driver(calibration_window, tmp_path):
     folder.mkdir()
     written = window.calib_summary.write_calibration(str(folder))
 
-    # Assert - the same file as the driver, with the window's mask (none without /HFIR) and wavelength
+    # Assert - the window ran with the driver's defaults (#1101). The result itself is compared with the
+    # driver's, bit for bit, by the unit test test_ring_path_equals_the_driver; running the driver again
+    # here doubled this test's time without checking anything that test does not
     spec = importlib.util.spec_from_file_location(
         "pyrs_pixel_calibration", Path(__file__).resolve().parents[2] / "scripts" / "pyrs_pixel_calibration.py"
     )
     driver = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(driver)
-    driver_file = str(tmp_path / "driver.json")
-    driver.run_calibration(nexus, driver_file, mask_file=window.model.mask_file)
-    gui_json, driver_json = json.load(open(written[0])), json.load(open(driver_file))
-    # the provenance differs only in its time and who ran it (#1053): the calibration and its steps match
-    gui_provenance, driver_provenance = gui_json.pop("provenance"), driver_json.pop("provenance")
-    assert gui_json == driver_json
-    varying = {"created", "user", "host", "inputs", "start"}  # the start: same values, says who set it
-    assert gui_provenance["start"]["values"] == driver_provenance["start"]["values"]
-    # so does the first extraction round's start (#1038): compared without who set it
-    for provenance in (gui_provenance, driver_provenance):
-        provenance["extraction_rounds"][0]["start"].pop("source")
-    assert {k: v for k, v in gui_provenance.items() if k not in varying} == {
-        k: v for k, v in driver_provenance.items() if k not in varying
-    }
-
-    # the rings were extracted again until converged, as the driver does (compared above with the provenance)
-    assert len(gui_provenance["extraction_rounds"]) >= 2
+    defaults = driver.build_parser().parse_args([nexus, "-o", "calibration.json", "--no-mask"])
+    gui_provenance = json.load(open(written[0]))["provenance"]
+    assert gui_provenance["inputs"]["extraction"]["strips"] == defaults.strips
+    assert gui_provenance["inputs"]["recipes"][-1][:1] == ["iterate"]
+    assert gui_provenance["inputs"]["refinement"]["method"] == "trf"
+    # iterate ends with its joint polish (the driver's default, no --no-polish), then the error estimate
+    routines = [step["routine"] for step in gui_provenance["steps"]]
+    assert not defaults.no_polish and routines[-2:] == ["FullCalibration", "estimate_errors"]
+    # the rings were extracted again until converged, within the driver's round limit
+    assert 2 <= len(gui_provenance["extraction_rounds"]) <= defaults.max_rounds
 
     setup.method_combo.setCurrentText("FitCalibration")
     assert not setup.rounds_lineEdit.isEnabled()
