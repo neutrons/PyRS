@@ -282,9 +282,9 @@ class PeakFittingViewer(QMainWindow):
         write_nxstress_or_report(self, out_file_name, self._model.save_fit_result)
 
     def load_run_number(self):
-        runs = parse_integers(self.ui.lineEdit_expNumber.text())
-
         try:
+            # inside the try: a bad entry such as "abc" raises RuntimeError, which would escape the slot (#931)
+            runs = parse_integers(self.ui.lineEdit_expNumber.text())
             project_dir = [
                 get_input_project_file(run, preferredType=self.ui.comboBox_reduction.currentText()) for run in runs
             ]

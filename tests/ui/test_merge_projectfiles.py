@@ -79,6 +79,135 @@ def test_merged_projectfile_viewer(combine_projects_window, monkeypatch):
             os.remove(export_file)
 
 
+def _run_number_loader(window, monkeypatch, request, ipts):
+    """The run-number loader, with the IPTS lookup pointed at ``ipts``, pop-ups recorded and no model state.
+
+    The window is shared by the whole session: clearing the combination and the chosen files makes each
+    test depend only on what it loads itself.
+    """
+    messages = []
+    monkeypatch.setattr(
+        combine_runs_viewer,
+        "pop_message",
+        lambda parent, message, detail="", kind="info": messages.append((message, detail, kind)),
+    )
+    monkeypatch.setattr("pyrs.utilities.file_util.get_ipts_dir", lambda run_number: ipts)
+    monkeypatch.setattr(window.model, "_hidra_ws", None)
+    monkeypatch.setattr(window, "_project_files", None)
+    loader = window.fileLoading.file_load_run_number
+    monkeypatch.setattr(loader, "_auto_prompt_export", False)  # no blocking save dialog
+    typed_before = loader.lineEdit.text()
+    request.addfinalizer(lambda: loader.lineEdit.setText(typed_before))
+    return loader, messages
+
+
+def _link_runs(folder, runs):
+    """Make ``folder`` hold the test project files of ``runs`` (links: no copy needed)."""
+    folder.mkdir(parents=True)
+    for run in runs:
+        os.symlink(os.path.abspath(f"tests/data/HB2B_{run}.h5"), folder / f"HB2B_{run}.h5")
+
+
+def test_load_missing_run_number_reports(combine_projects_window, monkeypatch, request, tmp_path):
+    """A run that was never reduced shows the lookup's message; nothing is combined (#931)."""
+    # Arrange
+    window, _ = combine_projects_window
+    (tmp_path / "shared" / "manualreduce").mkdir(parents=True)
+    loader, messages = _run_number_loader(window, monkeypatch, request, tmp_path)
+    loader.lineEdit.setText("1327")
+
+    # Act
+    loader.loadRunNumbers()
+
+    # Assert
+    assert len(messages) == 1
+    _, detail, kind = messages[0]
+    assert kind == "error" and "HB2B_1327.h5" in detail and "reduced yet" in detail
+    assert window._project_files is None
+    assert window.model._hidra_ws is None
+
+
+@pytest.mark.parametrize(
+    "typed", ["13a7", "1327:", "1327:1330:1332"], ids=["not-a-number", "range-without-end", "3-ends"]
+)
+def test_load_bad_run_entry_reports(combine_projects_window, monkeypatch, request, tmp_path, typed):
+    """Input that is not a run list shows one error instead of escaping the Qt slot (#931)."""
+    # Arrange
+    window, _ = combine_projects_window
+    loader, messages = _run_number_loader(window, monkeypatch, request, tmp_path)
+    loader.lineEdit.setText(typed)
+
+    # Act
+    loader.loadRunNumbers()
+
+    # Assert
+    assert [kind for _, _, kind in messages] == ["error"]
+    assert window._project_files is None
+    assert window.model._hidra_ws is None
+
+
+def test_combine_by_run_number(combine_projects_window, monkeypatch, request, tmp_path):
+    """Run ranges load the runs' own files and combine them (#931: this never worked)."""
+    # Arrange
+    window, _ = combine_projects_window
+    manualreduce = tmp_path / "shared" / "manualreduce"
+    _link_runs(manualreduce, (1327, 1328, 1331, 1332))
+    loader, messages = _run_number_loader(window, monkeypatch, request, tmp_path)
+    # two ranges, so the range end is tested without depending on how single runs and ranges are ordered
+    loader.lineEdit.setText("1327:1328, 1331:1332")
+
+    # Act
+    loader.loadRunNumbers()
+
+    # Assert
+    assert window._project_files == [str(manualreduce / f"HB2B_{run}.h5") for run in (1327, 1328, 1331, 1332)]
+    # the test files are historic (no calibration record), which is reported as a warning
+    assert [(message, kind) for message, _, kind in messages] == [("Reduction not fully checked", "warning")]
+    assert window.model._hidra_ws.get_sub_runs().size == 362
+
+
+def test_single_run_does_not_offer_export(
+    combine_projects_window, monkeypatch, request, tmp_path, minimal_HidraWorkspace: Callable[..., HidraWorkspace]
+):
+    """One run combines nothing: the user is told, and neither export dialog is offered."""
+    # Arrange
+    window, _ = combine_projects_window
+    _link_runs(tmp_path / "shared" / "manualreduce", (1327,))
+    loader, messages = _run_number_loader(window, monkeypatch, request, tmp_path)
+    # a previous combination with geometry: both export prompts would fire if the guard regressed
+    monkeypatch.setattr(window.model, "_hidra_ws", minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True))
+    monkeypatch.setattr(loader, "_auto_prompt_export", True)
+    exports = []
+    monkeypatch.setattr(loader, "saveFileDialog", lambda: exports.append("h5"))
+    monkeypatch.setattr(loader, "saveFileDialogNXstress", lambda: exports.append("nxstress"))
+    loader.lineEdit.setText("1327")
+
+    # Act
+    loader.loadRunNumbers()
+
+    # Assert
+    assert [(message, kind) for message, _, kind in messages] == [("Select at least two runs to combine", "error")]
+    assert exports == []
+    assert window._project_files is None
+
+
+def test_browse_cancel_does_nothing(combine_projects_window, monkeypatch):
+    """Cancelling the Browse dialog (an empty list, not None) shows nothing and loads nothing (#931)."""
+    # Arrange
+    window, _ = combine_projects_window
+    messages = []
+    monkeypatch.setattr(combine_runs_viewer, "pop_message", lambda *args, **kwargs: messages.append(args))
+    monkeypatch.setattr(combine_runs_viewer.QFileDialog, "getOpenFileNames", lambda *args, **kwargs: ([], ""))
+    monkeypatch.setattr(window, "_project_files", ["previous.h5"])
+
+    # Act
+    window.fileLoading.file_load_dilg.openFileDialog()
+
+    # Assert
+    assert messages == []
+    assert window._project_files == ["previous.h5"]
+
+
 def test_save_file_dialog_nxstress_writes_valid_nxs_file(
     combine_projects_window: tuple, minimal_HidraWorkspace: Callable[..., HidraWorkspace]
 ) -> None:
@@ -143,10 +272,12 @@ def test_load_project_files_auto_prompt_calls_both_save_dialogs_in_order(
 
     original_load_combine_projects = window.controller.load_combine_projects
 
-    def fake_load_combine_projects(project_files: List[str]) -> None:
+    def fake_load_combine_projects(project_files: List[str]) -> int:
         window.model._hidra_ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
         # no warnings: a combine's warning would open a modal dialog
         window.model.warnings = []
+        # 1 = combined, as the real method returns; 0 would open the "select at least two runs" dialog (#931)
+        return 1
 
     window.controller.load_combine_projects = fake_load_combine_projects
 
@@ -233,3 +364,35 @@ def test_save_file_dialog_nxstress_failure_keeps_existing_file(
     assert messages == [("Failed to save 'out.nxs'", "error")]
     assert chosen.read_text() == "keep"
     assert sorted(p.name for p in tmp_path.iterdir()) == ["out.nxs"]
+
+
+@pytest.mark.parametrize("bad_kind", ["not-hdf5", "not-a-project-file"])
+def test_combine_bad_project_file_reports(combine_projects_window, monkeypatch, tmp_path, bad_kind):
+    """A chosen file that isn't a readable project file shows an error instead of escaping the slot (#931)."""
+    # Arrange
+    import h5py
+
+    window, _ = combine_projects_window
+    bad = tmp_path / "HB2B_9999.h5"
+    if bad_kind == "not-hdf5":
+        bad.write_text("not an HDF5 file")
+    else:
+        with h5py.File(bad, "w") as handle:
+            handle["x"] = [1, 2, 3]
+    messages = []
+    monkeypatch.setattr(
+        combine_runs_viewer,
+        "pop_message",
+        lambda parent, message, detail="", kind="info": messages.append((message, detail, kind)),
+    )
+    monkeypatch.setattr(window, "_project_files", [os.path.abspath("tests/data/HB2B_1327.h5"), str(bad)])
+    monkeypatch.setattr(window.model, "_hidra_ws", None)
+    loader = window.fileLoading.file_load_dilg
+    monkeypatch.setattr(loader, "_auto_prompt_export", False)
+
+    # Act
+    loader.load_project_files()
+
+    # Assert
+    assert [kind for _, _, kind in messages] == ["error"]
+    assert window._project_files is None

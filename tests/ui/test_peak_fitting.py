@@ -316,6 +316,31 @@ def test_remove_peak_range_row_drops_its_d0(monkeypatch, fit_peaks_window):
     assert fit_setup.list_fit_peak_d0 == [1.2]
 
 
+def test_load_run_number_never_reduced_reports(tmp_path, monkeypatch, request, fit_peaks_window):
+    """A run whose folders exist but hold no project file shows one error and loads nothing (#931)."""
+    # Arrange
+    window, _ = fit_peaks_window
+    for name in ("manualreduce", "autoreduce"):
+        (tmp_path / "shared" / name).mkdir(parents=True)
+    monkeypatch.setattr("pyrs.utilities.file_util.get_ipts_dir", lambda run_number: tmp_path)
+    shown = []
+    monkeypatch.setattr(
+        "pyrs.interface.peak_fitting.peak_fitting_viewer.pop_message", lambda *args, **kwargs: shown.append(args)
+    )
+    previous = window.current_hidra_file_name
+    typed_before = window.ui.lineEdit_expNumber.text()
+    request.addfinalizer(lambda: window.ui.lineEdit_expNumber.setText(typed_before))
+    window.ui.lineEdit_expNumber.setText("1234")
+
+    # Act
+    window.load_run_number()
+
+    # Assert
+    assert len(shown) == 1
+    assert "HB2B_1234.h5" in shown[0][2]
+    assert window.current_hidra_file_name == previous
+
+
 def test_nxstress_action_follows_workspace_geometry(fit_peaks_window: tuple) -> None:
     """*Save as NXstress...* is grayed out after loading a file without instrument
     geometry, and enabled after loading one with it."""
@@ -559,6 +584,28 @@ def test_save_nxstress_without_fit_refused(nxstress_ready_window, monkeypatch, t
     # Assert
     assert loaded.read_text() == "keep"
     assert messages == ["No fitted peaks to save"]
+
+
+def test_load_run_number_bad_entry_reports(monkeypatch, request, fit_peaks_window):
+    """Text that is not a run list shows one error instead of escaping the Qt slot (#931)."""
+    # Arrange
+    window, _ = fit_peaks_window
+    shown = []
+    monkeypatch.setattr(
+        "pyrs.interface.peak_fitting.peak_fitting_viewer.pop_message", lambda *args, **kwargs: shown.append(args)
+    )
+    previous = window.current_hidra_file_name
+    typed_before = window.ui.lineEdit_expNumber.text()
+    request.addfinalizer(lambda: window.ui.lineEdit_expNumber.setText(typed_before))
+    window.ui.lineEdit_expNumber.setText("abc")
+
+    # Act
+    window.load_run_number()
+
+    # Assert
+    assert len(shown) == 1
+    assert "abc" in shown[0][2]
+    assert window.current_hidra_file_name == previous
 
 
 @pytest.mark.parametrize("kind", ["garbage", "two_entries", "nxs_in_multi_select"])

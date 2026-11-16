@@ -10,20 +10,30 @@ import pytest
 MISSING_RUNNUMBER = 112123260
 
 
-def test_parse_integers():
-    """
-    test main
-    :return:
-    """
-    print(gui_helper.parse_integers("3, 4, 5"))
-    print(gui_helper.parse_integers("3:5, 4:10, 19"))
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("3, 4, 5", [3, 4, 5]),
+        ("1:4", [1, 2, 3, 4]),
+        ("3:5, 4:10, 19", [3, 4, 5, 6, 7, 8, 9, 10, 19]),
+        ("2-3", [2, 3]),
+    ],
+    ids=["list", "range-includes-end", "overlapping-ranges", "dash-range"],
+)
+def test_parse_integers(text, expected):
+    """Ranges include both ends (#931), as in combine runs and manual reduction; repeats are merged."""
+    # Act
+    integers = gui_helper.parse_integers(text)
 
-    try:
-        int_list = gui_helper.parse_integers("3.2, 4")
-    except RuntimeError as run_err:
-        print(run_err)
-    else:
-        raise AssertionError("Shall be failed but get {0}".format(int_list))
+    # Assert
+    assert integers == expected
+
+
+def test_parse_integers_not_integer_raises():
+    """A non-integer entry is refused."""
+    # Act / Assert
+    with pytest.raises(RuntimeError):
+        gui_helper.parse_integers("3.2, 4")
 
 
 @pytest.mark.skipif(not os.path.exists("/HFIR/HB2B/shared/"), reason="HFIR data archive is not mounted")
@@ -72,17 +82,16 @@ def test_get_default_output_dir():
 @pytest.mark.skipif(not os.path.exists("/HFIR/HB2B/shared/"), reason="HFIR data archive is not mounted")
 @pytest.mark.integration
 def test_get_input_project_file():
-    assert get_input_project_file(1060) == "/HFIR/HB2B/IPTS-22731/shared/manualreduce", (
-        "Output directory is not correct for run 1060"
-    )
+    # the folder returned holds the run's project file (#931); which reduction folder that is
+    # depends on the archive, so only its IPTS is checked
+    folder = get_input_project_file(1060)
+    assert folder.startswith("/HFIR/HB2B/IPTS-22731/shared/")
+    assert os.path.isfile(os.path.join(folder, "HB2B_1060.h5"))
 
     # Test no such run
     with pytest.raises(RuntimeError):
         get_input_project_file(MISSING_RUNNUMBER)
-
-    # Test bad preferred type
-    with pytest.raises(ValueError):
-        get_input_project_file(1060, preferredType="nonsense")
+    # an unknown preferred type is tested without the archive in test_input_project_file.py
 
 
 @pytest.mark.skipif(not os.path.exists("/HFIR/HB2B/shared/"), reason="HFIR data archive is not mounted")

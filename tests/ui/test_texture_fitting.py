@@ -192,6 +192,33 @@ def test_texture_fitting_viewer(texture_fitting_window):
     window.hide()
 
 
+@pytest.mark.parametrize("typed", [" 1599", "01599"])
+def test_load_run_number_padded_text(tmp_path, monkeypatch, request, texture_fitting_window, typed):
+    """A padded run number loads HB2B_1599.h5, the file the lookup checked (#931)."""
+    # Arrange
+    window, _ = texture_fitting_window
+    autoreduce = tmp_path / "shared" / "autoreduce"
+    autoreduce.mkdir(parents=True)
+    # only the lookup and the file name matter here (loading is stubbed), so an empty file will do
+    (autoreduce / "HB2B_1599.h5").write_bytes(b"")
+    monkeypatch.setattr("pyrs.utilities.file_util.get_ipts_dir", lambda run_number: tmp_path)
+    # the window is shared: keep its file name and typed text as they were
+    monkeypatch.setattr(window, "_project_file", window._project_file)
+    loader = window.fileLoading.file_load_run_number
+    typed_before = loader.lineEdit.text()
+    request.addfinalizer(lambda: loader.lineEdit.setText(typed_before))
+    loaded = []
+    # load_project_plot takes the file to load (since #1027): record what the lookup passes it
+    monkeypatch.setattr(loader, "load_project_plot", lambda project_file: loaded.append(project_file))
+    loader.lineEdit.setText(typed)
+
+    # Act
+    loader.loadRunNumber()
+
+    # Assert
+    assert loaded == [str(autoreduce / "HB2B_1599.h5")]
+
+
 def test_init_menu_actions_nxstress_enabled_legacy_disabled_matches_config(texture_fitting_window: tuple) -> None:
     r"""
     Confirm the new "Save as NXstress..." action exists, is wired, and its
