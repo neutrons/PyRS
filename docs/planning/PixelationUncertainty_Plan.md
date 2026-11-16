@@ -150,8 +150,12 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
 - [x] Sweep the count level and pixel grouping: 0.066 and 0.74 counts per pixel; 1×1, 1×4, 1×8.
       Grouping 1×4/1×8 brings production σ to pull 0.85–0.96. *Bin width and horizontal grouping
       were covered on real data in Phase 1.*
-- [ ] Model misfit (asymmetric peak, curved background): does production vs Poisson σ then shift
-      strain, as on real 3489 (+40 µε)?
+- [x] Model misfit (asymmetric peak, curved background): does production vs Poisson σ then shift
+      strain, as on real 3489 (+40 µε)? Background curvature: no. On 3489's own peaks, production
+      σ makes 24 % of weak-peak fits fail (sub-run 10; Poisson never). Sub-run 7's real +90 µε lies
+      far outside the simulated spread (0 ± 7.5 µε), so it is a real-data misfit, not statistics.
+- [ ] Find the peak-shape misfit in 3489 sub-run 7 (Poisson χ² 2.1): asymmetry, shoulder, or the
+      Si422-vanadium efficiency mismatch.
 - [ ] Other sub-runs or 2θ, several peaks in the window, η wedges.
 
 ### Phase 3 — Candidate treatments (study only) ([#1109](https://github.com/neutrons/PyRS/issues/1109))

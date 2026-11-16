@@ -1186,8 +1186,28 @@ noise-free expected pattern; it reproduces the input centre to within 0.8 µε. 
   to every bin, while the fit treats bin errors as independent. Relative intensities normalised by
   the same vanadium (texture) are unaffected, because the common factor cancels.
 
-Not covered: model misfit (asymmetric peaks or curved background), several peaks, η wedges, and
-other sub-runs or 2θ.
+**3489's own peaks (2026-11-16).** The Monte Carlo was repeated on 3489 sub-runs 7 (94.2°) and 10
+(107.7°), with their own real fit as the truth, their real count level (0.083 and 0.081 counts per
+pixel), vanadium 3446 resampled, and 400 realisations:
+- **Production σ makes some weak-peak fits fail.**
+  - **Sub-run 10:** 24 % of production-σ fits land more than 5 robust-σ from the truth (up to
+    867 µε), so the scatter is 260 µε against a reported 65 µε (pull width 4.3). Poisson σ never
+    does this: scatter 32 µε, reported 31 µε, pull width 1.03, bias +10 ± 1.6 µε. With 1 × 4
+    grouping, production σ still fails in 8 % of fits.
+  - **Sub-run 7:** neither fails; production σ pull width 0.65, Poisson 1.03.
+- **Real 3489 shifts compared with the simulation's production − Poisson spread.**
+  - **Sub-run 7: not statistical, so the real data hold a misfit the model lacks.** The simulated
+    difference is 0 ± 7.5 µε (1 × 1) and never reaches the real +90 µε (12σ). The real Poisson
+    χ² is 2.1. Candidates: peak asymmetry, a shoulder, or an efficiency mismatch (vanadium 3446 was
+    taken with the Si422 monochromator, 3489 with Si331).
+  - **Sub-run 10: consistent with one failed production-σ fit.** The real +113 µε is inside the
+    heavy-tailed simulated difference (P(|Δ| ≥ 113 µε) = 0.25).
+- **Background curvature is not the cause.** Refitting the real 3489 sub-runs with a quadratic
+  background leaves the production − Poisson shifts unchanged in 11 of 12 (mean +40 → +16 µε, the
+  change driven by one fit that went bad). On 5344 sub-run 7, the real fit's curvature moves a
+  linear-background fit by only 1.6 µε.
+
+Not covered: peak-shape misfit (asymmetry, shoulders), several peaks in the window, η wedges.
 
 ## HB2B detector: pixel orientation, vanadium dead area, and vertical wire-period stripes (2026-11-12)
 
