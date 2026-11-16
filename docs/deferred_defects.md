@@ -140,3 +140,14 @@ without renumbering.
   **Found during:** the parallel-test review for #1100.
   **Why it is deferred.** It changes what three integration tests check, which needs its own run against
   the gold files, outside the CI change.
+
+- **DD-27**, 2026-11-16: `TextureFittingViewer.save` and `saveas` (`pyrs/interface/texture_fitting/texture_fitting_viewer.py`)
+  read `self._parent.fit_summary`, but `TextureFittingViewer` never sets `_parent`; only its child widgets do. Either
+  would raise `AttributeError`. Both are unreachable: their legacy Save actions are disabled, and
+  `tests/ui/test_texture_fitting.py` checks they stay disabled. A TODO beside them already notes it. The fix is
+  `self.fit_summary.fit_table_operator.fit_result`, as `save_as_nxstress` uses.
+
+  **Found during:** the mypy failure after #1112: mypy saw it through PySide6's new type stubs, and the PySide6
+  override hides it again.
+  **Why it is deferred.** Unreachable today, and outside a lint fix. To be fixed with the scoped-enum change,
+  when the override is removed.
