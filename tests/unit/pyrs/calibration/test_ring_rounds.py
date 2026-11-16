@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 import copy
+import warnings
 
 from pyrs.calibration import ring_rounds
 from pyrs.calibration.pixel_pos_calibration import (
@@ -31,8 +32,42 @@ def workspace():
 
 
 @pytest.fixture(scope="module")
-def converged(workspace):
-    return calibrate_rings(workspace, MONO)
+def converged_run(workspace):
+    """The default calibration, and the diagnostics list it overwrote (seeded with a stale entry); one run
+    shared by every test that only inspects it (#1101)"""
+    diagnostics = ["stale"]
+    return calibrate_rings(workspace, MONO, diagnostics=diagnostics), diagnostics
+
+
+@pytest.fixture(scope="module")
+def converged(converged_run):
+    return converged_run[0]
+
+
+@pytest.fixture(scope="module")
+def unconverged(workspace):
+    """Three rounds that cannot converge, each refinement warning once: the round-limit warning and every
+    round's warnings in one run (#1101)"""
+    real_iterate = PixelCalibration.iterate
+
+    def warning_iterate(self, *args, **kwargs):
+        self.warning_log.append(f"warned with {len(self.ring_points)} points")
+        return real_iterate(self, *args, **kwargs)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(ring_rounds, "CONVERGENCE_FRACTION", 0.0)
+        patch.setattr(PixelCalibration, "iterate", warning_iterate)
+        # recorded, not asserted here: a missing warning then fails the test that checks it, not the fixture
+        with warnings.catch_warnings(record=True) as warned:
+            warnings.simplefilter("always")
+            calibration = calibrate_rings(workspace, MONO, max_rounds=3)
+    return calibration, warned
+
+
+@pytest.fixture(scope="module")
+def one_extraction(workspace):
+    """One extraction of the ring points, outside calibrate_rings (#1101: shared; each test takes a copy)"""
+    return extract_ring_points(workspace, MONO, strips=5)
 
 
 def test_rounds_stop_below_half_the_precision(converged):
@@ -75,10 +110,10 @@ def test_rounds_are_in_the_provenance(converged):
     assert provenance["extraction_rounds"] == converged.extraction_rounds
 
 
-def test_single_extraction_has_no_rounds_in_provenance(workspace):
+def test_single_extraction_has_no_rounds_in_provenance(one_extraction):
     """A calibration not made by calibrate_rings writes the provenance it wrote before"""
     # Arrange
-    calibration = PixelCalibration(extract_ring_points(workspace, MONO, strips=5), default_hb2b_geometry(), MONO)
+    calibration = PixelCalibration(copy.deepcopy(one_extraction), default_hb2b_geometry(), MONO)
 
     # Act
     calibration.iterate(passes=1)
@@ -97,43 +132,33 @@ def test_one_round_is_the_single_extraction(workspace):
     assert calibration.extraction_converged is None
 
 
-def test_round_limit_reached_warns(workspace, monkeypatch):
+def test_round_limit_reached_warns(unconverged):
     """P4: a calibration still moving at the round limit is flagged, not corrected"""
-    # Arrange - no round can converge
-    monkeypatch.setattr(ring_rounds, "CONVERGENCE_FRACTION", 0.0)
-
-    # Act
-    with pytest.warns(UserWarning, match="not converged after 3 rounds"):
-        calibration = calibrate_rings(workspace, MONO, max_rounds=3)
+    # Arrange - no round can converge (the fixture)
+    calibration, warned = unconverged
 
     # Assert - the warning stays with the result, e.g. for the GUI
+    assert any(
+        issubclass(record.category, UserWarning) and "not converged after 3 rounds" in str(record.message)
+        for record in warned
+    )
     assert len(calibration.extraction_rounds) == 3 and calibration.extraction_converged is False
     assert any("not converged after 3 rounds" in message for message in calibration.warning_log)
 
 
-def test_earlier_rounds_warnings_are_kept(workspace, monkeypatch):
-    # Arrange - every round's refinement warns once
-    real_iterate = PixelCalibration.iterate
+def test_earlier_rounds_warnings_are_kept(unconverged):
+    # Arrange - every round's refinement warned once (the fixture)
+    calibration, _ = unconverged
 
-    def warning_iterate(self, *args, **kwargs):
-        self.warning_log.append(f"warned with {len(self.ring_points)} points")
-        return real_iterate(self, *args, **kwargs)
-
-    monkeypatch.setattr(PixelCalibration, "iterate", warning_iterate)
-
-    # Act
-    calibration = calibrate_rings(workspace, MONO)
-
-    # Assert
-    assert len(calibration.warning_log) == len(calibration.extraction_rounds)
+    # Assert - one per round, all kept; besides them only the round-limit warning
+    per_round = [message for message in calibration.warning_log if message.startswith("warned with")]
+    assert len(per_round) == len(calibration.extraction_rounds) == 3
+    assert len(calibration.warning_log) == len(per_round) + 1
 
 
-def test_diagnostics_are_the_last_rounds(workspace):
-    # Arrange
-    diagnostics = ["stale"]
-
-    # Act
-    calibrate_rings(workspace, MONO, diagnostics=diagnostics)
+def test_diagnostics_are_the_last_rounds(converged_run):
+    # Arrange - the run was given a stale list (the fixture)
+    _, diagnostics = converged_run
 
     # Assert
     assert diagnostics and "stale" not in diagnostics
@@ -196,9 +221,9 @@ def test_zero_rounds_raises_before_extracting(workspace, monkeypatch):
         calibrate_rings(workspace, MONO, max_rounds=0)
 
 
-def test_precision_of_unrefined_calibration_raises(workspace):
+def test_precision_of_unrefined_calibration_raises(one_extraction):
     # Arrange
-    calibration = PixelCalibration(extract_ring_points(workspace, MONO, strips=5), default_hb2b_geometry(), MONO)
+    calibration = PixelCalibration(copy.deepcopy(one_extraction), default_hb2b_geometry(), MONO)
 
     # Act / Assert
     with pytest.raises(ValueError, match="not been refined"):

@@ -37,6 +37,52 @@ def workspace():
     return ws
 
 
+@pytest.fixture(scope="module", autouse=True)
+def shared_extraction():
+    """Most tests here start with ``extract_rings`` on the same run and then test something else (#1101).
+    The ring extraction under it is deterministic and takes 7-9 s, so the model's call to it is cached:
+    the first call with given inputs runs it, later identical calls get a copy of its points, its strip
+    fits and its warnings again. ``extract_rings`` itself still runs in every test. The key includes the
+    run's sy and 2theta logs, which a test may change. The re-extraction rounds (``ring_rounds``) are not
+    cached."""
+    import copy
+    import warnings
+
+    real = model_module.extract_ring_points
+    cache = {}
+
+    def key(workspace, wavelength, calibration=None, **kwargs):
+        logs = tuple(
+            tuple(np.asarray(workspace.get_sample_log_values(name), dtype=float).round(12))
+            for name in ("sy", "2theta")
+        )
+        mask = workspace.get_detector_mask(True)  # the default mask the extraction applies
+        mask_digest = None if mask is None else hash(np.asarray(mask).tobytes())
+        shift = None if calibration is None else tuple(from_shift(calibration))
+        options = tuple(sorted((k, tuple(v) if isinstance(v, (list, np.ndarray)) else v) for k, v in kwargs.items()))
+        return id(workspace), float(wavelength), shift, options, logs, mask_digest
+
+    def cached(workspace, wavelength, calibration=None, diagnostics=None, **kwargs):
+        k = key(workspace, wavelength, calibration, **kwargs)
+        if k not in cache:
+            fits = []
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                points = real(workspace, wavelength, calibration=calibration, diagnostics=fits, **kwargs)
+            # the workspace is kept with its entry, so its id cannot be reused by another while cached
+            cache[k] = (workspace, points, fits, [(w.message, w.category) for w in caught])
+        _, points, fits, raised = cache[k]
+        for message, category in raised:
+            warnings.warn(message, category)
+        if diagnostics is not None:
+            diagnostics.extend(copy.deepcopy(fits))
+        return copy.deepcopy(points)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(model_module, "extract_ring_points", cached)
+        yield
+
+
 def _model(workspace, method=METHOD_RING):
     """The GUI model over a loaded run (FitCalibration's object holds the converted run)"""
     gui_model = DetectorCalibrationModel(None)
@@ -226,7 +272,7 @@ def test_export_writes_the_shared_files(refined, tmp_path, shared):
         )
 
 
-def test_export_without_shared_flag_writes_only_folder(refined, tmp_path, shared):
+def test_export_folder_writes_no_shared_file(refined, tmp_path, shared):
     gui_model, _ = refined
     written = gui_model.export_calibration(str(tmp_path))
     assert len(written) == 1 and os.path.dirname(written[0]) == str(tmp_path)
@@ -444,8 +490,6 @@ def test_failed_stage_restores_the_calibration(workspace):
 def test_export_writes_archive_before_latest_atomically(refined, tmp_path, shared):
     # Arrange
     gui_model, _ = refined
-    user = tmp_path / "mine"
-    user.mkdir()
 
     # Act
     written = gui_model.export_calibration(latest=True, latest_mono=True, archive=True)
@@ -456,7 +500,7 @@ def test_export_writes_archive_before_latest_atomically(refined, tmp_path, share
         "shared/CALIBRATION/HB2B_Latest_Si422.json",
         "shared/CALIBRATION/HB2B_Latest.json",
     ]
-    for folder in (user, shared, shared / "Si422"):
+    for folder in (shared, shared / "Si422"):
         assert not [name for name in os.listdir(folder) if name.startswith(".")]
     # rw-rw-r--: anyone who may write the folder may replace it, everyone may read it
     assert all(os.stat(p).st_mode & 0o777 == 0o664 for p in written)
@@ -483,8 +527,6 @@ def test_export_replaces_a_read_only_latest(refined, tmp_path, shared):
 def test_export_read_only_folder_writes_no_shared_copy(refined, tmp_path, shared):
     # Arrange - a writable HB2B_Latest.json in a folder this user may not write: it cannot be replaced
     gui_model, _ = refined
-    user = tmp_path / "mine"
-    user.mkdir()
     latest = shared / "HB2B_Latest.json"
     latest.write_text("{}")
     latest.chmod(0o666)
@@ -625,8 +667,6 @@ def test_keep_list_length_must_match(workspace):
 def test_export_writes_the_same_provenance_to_every_file(refined, tmp_path, shared):
     # Arrange
     gui_model, _ = refined
-    user = tmp_path / "mine"
-    user.mkdir()
 
     # Act
     written = gui_model.export_calibration(latest=True, latest_mono=True, archive=True)
@@ -903,13 +943,18 @@ def test_export_writes_only_the_chosen_targets(refined, shared, targets, expecte
     assert sorted(os.listdir(shared)) == sorted(expected)
 
 
-def test_export_logs_the_files_written(refined, shared, monkeypatch):
-    """Decision 4: one log line per export, listing every file written"""
-    # Arrange
+def _capture_log(monkeypatch):
     lines = []
     monkeypatch.setattr(
         model_module, "_LOG", SimpleNamespace(notice=lines.append, warning=lines.append, error=lines.append)
     )
+    return lines
+
+
+def test_export_logs_the_files_written(refined, shared, monkeypatch):
+    """Decision 4: one log line per export, listing every file written"""
+    # Arrange
+    lines = _capture_log(monkeypatch)
 
     # Act
     written = refined[0].export_calibration(latest=True, archive=True)
@@ -918,19 +963,68 @@ def test_export_logs_the_files_written(refined, shared, monkeypatch):
     assert len(lines) == 1 and all(path in lines[0] for path in written)
 
 
-@needs_permissions
-def test_export_logs_the_targets_refused(refined, shared, monkeypatch):
-    # Arrange
-    lines = []
-    monkeypatch.setattr(
-        model_module, "_LOG", SimpleNamespace(notice=lines.append, warning=lines.append, error=lines.append)
-    )
-    shared.chmod(0o500)
+def test_unwritable_export_is_not_logged(refined, shared, monkeypatch):
+    """The guard for the user decision: the not-writable refusal once logged; it is only shown to the user"""
+    # Arrange - unwritable whoever runs the test (root bypasses a folder's mode)
+    lines = _capture_log(monkeypatch)
+    monkeypatch.setattr(model_module, "_writable", lambda target: False)
 
     # Act / Assert
-    try:
-        with pytest.raises(PermissionError):
-            refined[0].export_calibration(latest=True, archive=True)
-    finally:
-        shared.chmod(0o700)
-    assert len(lines) == 1 and "refused" in lines[0] and "HB2B_Latest.json" in lines[0]
+    with pytest.raises(PermissionError, match="HB2B_Latest.json"):
+        refined[0].export_calibration(latest=True, archive=True)
+    assert lines == [] and not os.listdir(shared)
+
+
+@pytest.mark.parametrize(
+    "targets, error",
+    [
+        ({}, ValueError),
+        ({"latest": True}, ValueError),
+        ({"folder": "/nonexistent/pyrs-export"}, FileNotFoundError),
+    ],
+    ids=["nothing", "latest-alone", "missing-folder"],
+)
+def test_refused_export_is_not_logged(refined, shared, monkeypatch, targets, error):
+    """User decision: a refusal is shown to the user (its error), not logged; nothing is written. These
+    refusals were never logged; test_unwritable_export_is_not_logged guards the one that was"""
+    # Arrange
+    lines = _capture_log(monkeypatch)
+
+    # Act / Assert
+    with pytest.raises(error):
+        refined[0].export_calibration(**targets)
+    assert lines == [] and not os.listdir(shared)
+
+
+def test_unrefined_export_is_not_logged(workspace, shared, monkeypatch):
+    # Arrange - nothing refined yet
+    lines = _capture_log(monkeypatch)
+
+    # Act / Assert
+    with pytest.raises(RuntimeError):
+        _model(workspace).export_calibration(archive=True)
+    assert lines == [] and not os.listdir(shared)
+
+
+def test_partial_write_names_what_was_written(refined, shared, monkeypatch):
+    """The archive is written, then HB2B_Latest.json fails: the error and the log name the archive"""
+    # Arrange
+    lines = _capture_log(monkeypatch)
+    real_write = model_module._write_atomically
+
+    def failing(*args, **kwargs):
+        if any(str(arg).endswith("HB2B_Latest.json") for arg in (*args, *kwargs.values())):
+            raise OSError("disk full")
+        real_write(*args, **kwargs)
+
+    monkeypatch.setattr(model_module, "_write_atomically", failing)
+
+    # Act
+    with pytest.raises(OSError, match="written so far") as failure:
+        refined[0].export_calibration(latest=True, latest_mono=True, archive=True)
+
+    # Assert - the archive and the monochromator's latest are named as written, the failed file is not; one error line
+    (archived,) = os.listdir(shared / "Si422")
+    for report in (str(failure.value).split("written so far:")[1], lines[0].split("written:")[1]):
+        assert archived in report and "HB2B_Latest_Si422.json" in report and "HB2B_Latest.json" not in report
+    assert not (shared / "HB2B_Latest.json").exists() and len(lines) == 1
