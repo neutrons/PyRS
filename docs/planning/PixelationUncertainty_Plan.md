@@ -129,6 +129,12 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
       biases narrow-η-wedge intensities (texture). Production vanadium 4501 vs same-day 5339:
       wedge-to-wedge intensity ratios spread 0.6–11.7 % per sub-run (fit error 1–4 %).
 
+- [x] Pixel rebinning test: group the 2D detector horizontally (2θ) and vertically (η) and
+      measure the effect on 1) zero-count pixels, 2) uncertainties, 3) strain/stress. Vertical
+      grouping (≤ 16 rows) removes the zeros and the σ inflation with strain shifts ≤ 8 µε;
+      horizontal grouping aliases the 2θ pattern without pixel splitting (33 µε at 2×, fails at 8×).
+- [ ] Horizontal grouping with 2θ bins at least as wide as the coarse pixel.
+
 ### Phase 2 — Monte Carlo validation ([#1108](https://github.com/neutrons/PyRS/issues/1108))
 - [ ] Synthetic generator: peak profile and background mapped onto the real
       HB2B pixel geometry, then Poisson-sampled at chosen count levels.

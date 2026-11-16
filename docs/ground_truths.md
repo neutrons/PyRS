@@ -1076,6 +1076,47 @@ PyRS's `FitPeaks` arguments.
   This is larger than the counting error. Whether the cause is time drift or the different
   collimator (C508 with collimator, against C511) is not separated.
 
+## Pixel grouping: group vertically, not horizontally (2026-11-16, #1107)
+
+Phase 1 of the pixelation study ([plan](planning/PixelationUncertainty_Plan.md)). No production code changed.
+The 5344 sub-runs were rebinned in software: counts and vanadium summed over g_x × g_y blocks, with
+x horizontal (2θ) and y vertical (η), and a coarse pixel kept only if all its fine pixels are
+unmasked. Each grouping was reduced by the current code on a coarse `DENEXDetectorGeometry`
+(pixels g·0.293 mm; coarse-pixel 2θ and η equal the block means to ≤ 10⁻⁵°), onto the native
+720 bins, and the strongest peak was fitted in the native window. The strain is relative to the
+1 × 1 fit (Δε = sin θ₁ₓ₁ / sin θ − 1), with σ_ε = ½ cot θ · σ₂θ. Medians over 12 sub-runs:
+
+| g_x × g_y | Zeros | Counts per pixel | σ_rep/σ_Poisson | σ_ε (µε) | Strain shift RMS (mean), µε | χ² |
+|---|---|---|---|---|---|---|
+| 1 × 1 | 61.5 % | 0.74 | 1.53 | 7.3 | — | 1.75 |
+| 1 × 2 | 40.6 % | 1.5 | 1.20 | 7.1 | 5.5 (−4.5) | 2.09 |
+| 1 × 4 | 18.0 % | 3.0 | 1.04 | 7.1 | 7.7 (−5.9) | 2.26 |
+| 1 × 8 | 3.7 % | 6.0 | 1.00 | 7.0 | 8.1 (−6.2) | 2.30 |
+| 1 × 16 | 0.3 % | 11.9 | 1.00 | 7.1 | 6.1 (−3.8) | 2.26 |
+| 2 × 1 | 41.3 % | 1.5 | 1.21 | 7.0 | 33 (+5.5) | 2.74 |
+| 4 × 1 | 21.1 % | 3.0 | 1.05 | 8.6 | 426 (−88) | 6.22 |
+| 8 × 1 | 6.9 % | 6.0 | 1.01 | fit fails (28 empty bins in window) | — | — |
+| 2 × 2 | 20.2 % | 3.0 | 1.05 | 6.9 | 34 (+3.8) | 2.97 |
+| 4 × 4 | 0.5 % | 11.9 | 1.00 | 8.6 | 494 (−109) | 6.31 |
+
+1. **Zero pixels** fall the same way in either direction, set only by the pixels per group
+   (λ × g): 61 % → ~20 % at 4 pixels, → < 7 % at 8.
+2. **Uncertainties.** Variance inflation and σ_rep/σ_Poisson reach ~1 at ≥ 4 pixels per group.
+   For this strong peak the strain error barely changes (7.3 → 7.0 µε, the ~5 % production-σ
+   excess). The intensity error falls from 0.91 % to 0.73 %. Grouping removes the σ artifact; it
+   adds no information.
+3. **Strain.**
+   - **Vertical grouping is safe** up to 16 rows (4.7 mm): shifts ≤ 8 µε RMS, about 1 σ_ε, with a
+     small common offset of −4 to −6 µε.
+   - **Horizontal grouping biases strain.** Reduction does not split pixels across 2θ bins, so once
+     a coarse pixel (0.034° at g_x = 2) is wider than a bin (0.0225°), its counts land in one bin
+     and the pattern aliases: χ² rises and the peak moves, by 33 µε RMS (4.6 σ) at g_x = 2 and
+     426 µε at g_x = 4. At g_x = 8 bins in the window are empty and the fit fails.
+   - **Stress** is a linear combination of strains along several directions, so these strain
+     shifts and errors carry into stress in proportion. (5344 is unstressed Si, so no stress
+     value was computed.)
+   - Not yet tested: horizontal grouping with 2θ bins at least as wide as the coarse pixel.
+
 ## HB2B detector: pixel orientation, vanadium dead area, and vertical wire-period stripes (2026-11-12)
 
 From Phase 0 of the pixelation study
