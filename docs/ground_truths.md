@@ -3056,8 +3056,9 @@ becomes this check), `PyRsCore`, and the calibration GUI's "From file…" overla
   refused when the calibration is read, before any reduction work: the chain is defined on those pixels. A
   `.nxs` that is not HDF5 raises `OSError`, as a malformed `.json` raises its JSON error.
 - **GUI:** the predicted-rings "From file…" dialog offers `*.json *.nxs`. So does Manual Reduction's calibration
-  browser (#1098). Since the Model-View-Presenter refactor it had offered `hdf5 (*hdf)`, which showed neither
-  JSON nor NeXus calibrations unless "All Files" was chosen. The window's **Load Calibration** (a
+  browser (#1098). It had offered `hdf5 (*hdf)` since the original manual-reduction UI (the Model-View-Presenter
+  refactor carried it over unchanged), which showed neither JSON nor NeXus calibrations unless "All Files" was
+  chosen. The window's **Load Calibration** (a
   starting calibration for the table) still reads JSON only (`_initalize_calibration` parses it directly);
   phase 3.
 - **Verified:**
