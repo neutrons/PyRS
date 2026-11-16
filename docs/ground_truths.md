@@ -3191,3 +3191,42 @@ A neutrons_standard upgrade that adds another would stop PyRS starting;
 fails first and names it. Before row 46, `validate_config` read only the keys
 `ConfigSchema` declares, so an unknown key, misspelled or left over from a removed
 setting, was silently ignored.
+
+## Parallel test tiers on CI (2026-11, #1100)
+
+CI runs the three test tiers as three jobs (`test-tier` matrix: `tests (unit)`, `tests (integration)`,
+`tests (gui)`), gathered by a `tests` job so the check name and `publish`'s needs are unchanged. The unit and
+integration tiers run with `pytest-xdist` (`-n auto --dist loadscope`); the GUI tier stays serial.
+
+**Measured** on this workstation, each run pinned to 4 cores (`taskset`, as a GitHub runner has), with
+coverage, at `b443d7a5`:
+
+| Tier | Serial | `-n 4` (default `load`) | `-n 4 --dist loadscope` |
+|---|---|---|---|
+| Unit (874 tests) | 11.0 min | 7.9 min | **5.9 min** |
+| Integration (135, 28 skipped) | 10.5 min | 5.1 min | **4.9 min** |
+| GUI (41) | 5.8 min | — | — (serial) |
+
+- **The one serial job took about 27 min** there (CI: about 12 min, as its cores are faster). **Three jobs take
+  about 6 min**, the slowest tier, plus about 1 min of setup each.
+- **Every test passes in parallel, and coverage is unchanged** (unit 52.76 vs 52.75%, integration 56.43%
+  both).
+- **`loadscope` matters for the unit tier.** Several ring-calibration modules share a module-scoped fixture
+  that runs a full calibration (30-40 s). Spread across workers (`load`), every worker rebuilds it.
+  `loadscope` sends a module's top-level test functions to one worker, but a test **class** is its own
+  scope: a module's classes can run on different workers at once, each building the module's fixtures
+  again. The expensive calibration modules have no classes. `--dist loadfile` would group whole modules.
+- **A worker that crashes mid-test fails the run** (xdist: "worker 'gw1' crashed while running ..."; exit 1),
+  and `run_tests.py`'s `os._exit` doesn't hide it. The per-test timeout fires inside a worker (verified).
+- **Why every tier job installs `xvfb`:** collecting `./tests` imports the GUI modules (matplotlib's `QtAgg`
+  backend), whatever tier is selected. With no display, collection fails for every tier.
+- **Why CI uses `test-ci-gui`, not `test-gui`:** `test-gui`'s `QT_QPA_PLATFORM=offscreen` would override
+  CI's `xvfb-run` and the `xcb` platform (see above). The `test-ci-*` tasks set no platform.
+- **Cost:** three runners from the shared `neutrons` pool instead of one. The tier jobs queue in parallel, so a
+  busy pool's wait is the longest of three queues, not their sum.
+- **Tests must not share fixed file names in the working folder.** The three `HB2B_CAL_Test.json` writers in
+  `test_peakfit_calibration.py` now use `tmp_path`. Others still write into the working folder under names no
+  other test uses.
+- **Codecov gets three uploads per commit** (flags `unit`, `integration`, `gui`), minutes apart. `codecov.yml`
+  makes its status and PR comment wait for all three (`after_n_builds: 3`), so the first upload alone never
+  shows as a coverage drop.

@@ -111,7 +111,7 @@ def print_out_json_diff(json_file1_name, json_file2_name):
     return
 
 
-def test_wavelength():
+def test_wavelength(tmp_path):
     """Main test for the script
 
     Returns
@@ -141,9 +141,8 @@ def test_wavelength():
     calibrator.print_calibration()
 
     # write out
-    if os.path.exists("HB2B_CAL_Test.json"):
-        os.remove("HB2B_CAL_Test.json")
-    file_name = os.path.join(os.getcwd(), "HB2B_CAL_Test.json")
+    # per test, not a fixed name in the working folder (#1100: safe under any xdist distribution)
+    file_name = str(tmp_path / "HB2B_CAL_Test.json")
     calibrator.write_calibration(file_name)
 
     t_stop = time.time()
@@ -154,13 +153,13 @@ def test_wavelength():
         # Same: remove file generated in test
         os.remove(file_name)
     else:
-        print_out_json_diff(goldfile, "HB2B_CAL_Test.json")
+        print_out_json_diff(goldfile, file_name)
         assert False, "Test output {} is different from gold file {}".format(file_name, goldfile)
 
     return
 
 
-def test_all_refinements():
+def test_all_refinements(tmp_path):
     """Main test for the script
 
     Returns
@@ -197,9 +196,8 @@ def test_all_refinements():
     calibrator.print_calibration()
 
     # write out
-    if os.path.exists("HB2B_CAL_Test.json"):
-        os.remove("HB2B_CAL_Test.json")
-    file_name = os.path.join(os.getcwd(), "HB2B_CAL_Test.json")
+    # per test, not a fixed name in the working folder (#1100: safe under any xdist distribution)
+    file_name = str(tmp_path / "HB2B_CAL_Test.json")
     calibrator.write_calibration(file_name)
 
     t_stop = time.time()
@@ -210,13 +208,13 @@ def test_all_refinements():
         # Same: remove file generated in test
         os.remove(file_name)
     else:
-        print_out_json_diff(goldfile, "HB2B_CAL_Test.json")
+        print_out_json_diff(goldfile, file_name)
         assert False, "Test output {} is different from gold file {}".format(file_name, goldfile)
 
     return
 
 
-def test_load_print_calibration():
+def test_load_print_calibration(tmp_path):
     """Main test for the script
 
     Returns
@@ -240,9 +238,8 @@ def test_load_print_calibration():
     calibrator._caliberr[7] = 0.0002695653586995683
 
     # write out
-    if os.path.exists("HB2B_CAL_Test.json"):
-        os.remove("HB2B_CAL_Test.json")
-    file_name = os.path.join(os.getcwd(), "HB2B_CAL_Test.json")
+    # per test, not a fixed name in the working folder (#1100: safe under any xdist distribution)
+    file_name = str(tmp_path / "HB2B_CAL_Test.json")
     calibrator.write_calibration(file_name)
 
     t_stop = time.time()
@@ -253,7 +250,7 @@ def test_load_print_calibration():
         # Same: remove file generated in test
         os.remove(file_name)
     else:
-        print_out_json_diff(goldfile, "HB2B_CAL_Test.json")
+        print_out_json_diff(goldfile, file_name)
         assert False, "Test output {} is different from gold file {}".format(file_name, goldfile)
 
     return
