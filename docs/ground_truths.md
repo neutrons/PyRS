@@ -1141,6 +1141,54 @@ unmasked. Each grouping was reduced by the current code on a coarse `DENEXDetect
    - 3489 used the earliest Si331 calibration (2024-02-09) and vanadium 3446 (2023-05-23, C501,
      Si422 monochromator).
 
+## Monte Carlo: no strain bias; Poisson σ gives honest errors, production σ over-reports them (2026-11-16, #1108)
+
+Phase 2 of the pixelation study ([plan](planning/PixelationUncertainty_Plan.md)). No production code changed.
+
+**Setup.** The truth is the real fit of 5344 sub-run 7: Si at 91.89°, pseudo-Voigt with FWHM 0.65°
+and mixing 0.56, on a linear background, evaluated with Mantid's own fit functions. It was placed
+on that sub-run's calibrated detector (2024-07-09 calibration, 2019 mask) as
+λᵢ = k · Vᵢ · R(2θᵢ) / V_max. Vᵢ is the same-day vanadium 5339, used both as the true per-pixel
+efficiency (stripes included) and for reduction. k sets the mean count per used pixel: 0.066 (weak,
+like 3489) or 0.74 (5344). Each Poisson realisation was reduced by the current production code
+onto the native 720 bins at 1 × 1, 1 × 4 and 1 × 8, and fitted with PyRS's `FitPeaks` arguments,
+once with production σ and once with Poisson σ. The truth for each grouping is the fit to its
+noise-free expected pattern; it reproduces the input centre to within 0.8 µε. With
+`--resample-vanadium`, a fresh Poisson vanadium is drawn for every realisation.
+
+**Weak level (0.066 counts per pixel), 600 realisations,** with fixed / resampled vanadium:
+
+| | Centre pull width | Strain scatter (µε) | Reported σ_ε (µε) | Intensity pull width | χ² |
+|---|---|---|---|---|---|
+| 1 × 1, production σ | 0.58 / 0.61 | 20.1 / 21.1 | 34.6 | 0.41 / 0.44 | 0.19 |
+| 1 × 1, Poisson σ | 0.96 / 1.01 | 19.1 / 19.9 | 19.8 | 0.99 / 1.05 | 0.98 |
+| 1 × 4, production σ | 0.85 / 0.89 | 19.3 / 20.2 | 22.5 | 0.67 / 0.71 | 0.50 |
+| 1 × 8, production σ | 0.92 / 0.96 | 19.1 / 19.9 | 20.7 | 0.80 / 0.84 | 0.68 |
+
+(With 1 × 4 or 1 × 8, Poisson σ gives the same results as at 1 × 1.)
+
+1. **No option biases strain.** Every strain bias is ≤ 1.8 ± 0.9 µε, and intensity biases are
+   ≤ 0.3 %, when the model matches the data. So the +40 µε production-vs-Poisson shift seen on real
+   3489 is not a statistical bias. It is the σ weighting interacting with the misfit of the
+   pseudo-Voigt + linear model to the measured peaks (the real χ² > 1).
+2. **Poisson σ gives honest errors** (pull width 0.96–1.05, χ² ≈ 1).
+3. **Production σ over-reports** the strain error 1.7× and the intensity error about 2.4×. It is
+   also slightly less precise: its strain scatter is ~5 % larger than with Poisson weighting.
+4. **Vertical grouping repairs production σ.** At 1 × 4 the centre pull width is 0.85–0.89, and at
+   1 × 8 it is 0.92–0.96, with the scatter at the Poisson optimum.
+
+**Strong level (0.74 counts per pixel), 300 realisations:** every option is close to honest.
+- **Centre pull width:** 0.87–0.90 with fixed vanadium, 0.93–0.95 when it is resampled. The
+  remaining few per cent come from reduction's σ including the vanadium's own counting noise
+  (1/ΣV + 1/V_max). That noise is real, but it does not appear when the same vanadium is reused.
+- **Integrated intensity, resampled vanadium:** pull width 1.18–1.19, i.e. the error is
+  under-reported by ~19 %. V_max is one normalisation constant for all bins, so its noise is common
+  to every bin, while the fit treats bin errors as independent. Relative intensities normalised by
+  the same vanadium (texture) are unaffected, because the common factor cancels.
+
+Not covered: model misfit (asymmetric peaks or curved background), several peaks, η wedges, and
+other sub-runs or 2θ.
+
 ## HB2B detector: pixel orientation, vanadium dead area, and vertical wire-period stripes (2026-11-12)
 
 From Phase 0 of the pixelation study

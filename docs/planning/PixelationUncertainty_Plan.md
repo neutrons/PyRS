@@ -139,15 +139,20 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
       vertical grouping.
 
 ### Phase 2 — Monte Carlo validation ([#1108](https://github.com/neutrons/PyRS/issues/1108))
-- [ ] Synthetic generator: peak profile and background mapped onto the real
+- [x] Synthetic generator: peak profile and background mapped onto the real
       HB2B pixel geometry, then Poisson-sampled at chosen count levels.
-      Reduction code is used **unchanged**.
-- [ ] Repeat for N realisations: reduce, fit, and collect the pull
+      Reduction code is used **unchanged**. (λᵢ = k·Vᵢ·R(2θᵢ)/V_max on 5344 sub-run 7, truth from
+      its real fit; optional fresh vanadium per realisation.)
+- [x] Repeat for N realisations: reduce, fit, and collect the pull
       distributions (fitted − true) / σ_reported for centre, FWHM, and
-      intensity.
-- [ ] Sweep the count level, 2θ bin width, and effective pixel size
-      (software 2×2 or 4×4 pixel grouping) to separate pixelation effects from
-      counting effects.
+      intensity. No strain bias in any option; Poisson σ honest (pull 0.96–1.05); production σ
+      pull 0.58–0.61 for weak peaks.
+- [x] Sweep the count level and pixel grouping: 0.066 and 0.74 counts per pixel; 1×1, 1×4, 1×8.
+      Grouping 1×4/1×8 brings production σ to pull 0.85–0.96. *Bin width and horizontal grouping
+      were covered on real data in Phase 1.*
+- [ ] Model misfit (asymmetric peak, curved background): does production vs Poisson σ then shift
+      strain, as on real 3489 (+40 µε)?
+- [ ] Other sub-runs or 2θ, several peaks in the window, η wedges.
 
 ### Phase 3 — Candidate treatments (study only) ([#1109](https://github.com/neutrons/PyRS/issues/1109))
 - [ ] Bin-level Poisson variance (σ²_bin = Σ Nᵢ, with an explicit rule for
