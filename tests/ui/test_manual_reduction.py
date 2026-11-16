@@ -150,3 +150,33 @@ def test_manual_reduction_subruns(tmpdir, manual_reduction_window):
         qtbot.wait(wait)
 
     window.hide()
+
+
+def test_browse_offers_json_and_nexus_calibrations(tmp_path, manual_reduction_window, monkeypatch):
+    """The calibration browser shows .json and .nxs calibrations, and the chosen one is reduced with (#1098)"""
+    from pyrs.interface.manual_reduction import manual_reduction_viewer
+
+    # Arrange - a NeXus calibration chosen in the browser; the reduction itself is recorded, not run
+    window, _ = manual_reduction_window
+    window.ui.checkBox_defaultCalibrationFile.setChecked(False)
+    chosen = str(tmp_path / "HB2B_CAL.nxs")
+    filters = []
+
+    def choose(*args, file_filter=None, **kwargs):
+        filters.append(file_filter)
+        return chosen
+
+    monkeypatch.setattr(manual_reduction_viewer, "browse_file", choose)
+    reduced = []
+    monkeypatch.setattr(window, "_build_reduction_jobs", lambda: [("1017", "HB2B_1017.nxs.h5")])
+    monkeypatch.setattr(window._ctrl, "reduce", lambda *args, **kwargs: reduced.append(kwargs) or [])
+    monkeypatch.setattr(window, "_populate_runs", lambda labels: None)
+
+    # Act
+    window.browse_calibration_file()
+    window.split_convert_save_nexus()
+
+    # Assert
+    assert filters == ["Calibration (*.json *.nxs)"]
+    assert window.ui.lineEdit_calibrationFile.text() == chosen
+    assert reduced[0]["calibration"] == chosen
