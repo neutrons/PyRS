@@ -3171,8 +3171,10 @@ User decisions, enforced by the model (`ValueError`) and the dialog alike:
   given.
 - The dialog **opens with only the folder ticked**, so shared targets are ticked deliberately. Live reduction
   on v1.8.1 applies `HB2B_Latest.json` without 2θ₀ and rotations, #1066.
-- **One log line per export** (mantid `Logger("PyRS detector calibration")`) lists the files written, or the
-  targets refused. The calibration's provenance is unchanged.
+- **One log line per export** (mantid `Logger("PyRS detector calibration")`) lists the files written. A write
+  that fails partway logs an error naming what was written. A **refused export is not logged** (user decision):
+  the window shows its reason in an "Export failed" dialog, and nothing is written. The calibration's provenance
+  is unchanged.
 
 Kept from #1045:
 - Every shared target is checked before anything is written. An unwritable one raises `PermissionError`, and
@@ -3180,6 +3182,9 @@ Kept from #1045:
 - The files are written archive → `HB2B_Latest_<mono>.json` → `HB2B_Latest.json`, each atomically.
 
 The preferred folder is remembered between sessions (`QSettings("neutrons", "PyRS")`, key
+`calibration/export_folder`) after a successful folder export. A remembered folder that has since been removed
+opens the current folder instead (`_remembered_export_folder`). The GUI tests redirect the setting to a scratch
+file through `detector_calibration_viewer._settings`, before the window is built (it reads the setting then).
 `calibration/export_folder`) after a successful folder export. The GUI tests redirect it to a scratch file
 through `detector_calibration_viewer._settings`.
 
@@ -3270,6 +3275,138 @@ A neutrons_standard upgrade that adds another would stop PyRS starting;
 fails first and names it. Before row 46, `validate_config` read only the keys
 `ConfigSchema` declares, so an unknown key, misspelled or left over from a removed
 setting, was silently ignored.
+
+## Pole-figure calculation: unit tests against the diffraction geometry (2026-11-12, #411)
+
+`PoleFigureCalculator.rotate_project_q` follows He, *Two-Dimensional X-ray Diffraction*, §8.3. The
+check below used He's own lecture slides, "Fundamentals of Two-dimensional X-ray Diffraction" (McMaster
+CMDW, 2023): slide 8 gives the transformation matrix, slide 9 the unit diffraction vector h₁, h₂, h₃,
+and slide 27 the pole angles. The ICDD PPXRD-9 talk (2010), slides 16 and 18, gives the same equations.
+- **h₁ and h₂** match He's, term for term and sign for sign, with ψ = χ.
+- **β** is He's: β = ±cos⁻¹(h₁/√(h₁²+h₂²)), with β ≥ 0 if h₂ ≥ 0 and β < 0 if h₂ < 0. So, from He's
+  equations: χ > 0 gives β = −90°, rocking ω past θ gives β = 180°, and turning φ by +x turns β by
+  +x (h₁ + i·h₂ is multiplied by e^{iφ}).
+
+PyRS's own conventions are **intended** (confirmed):
+- **α** is the pole's angle from the sample **normal**, 90° − He's α (from the sample plane), as MTEX's
+  `.jul` expects;
+- He's γ is **η + 270°**;
+- `calculate_pole_figure` uses **ω + 90°** for a negative ω;
+- **η**: with ω = θ and χ = φ = 0, cos α = sin²θ + cos²θ·cos η, and η > 0 tilts the pole to the same
+  side as χ > 0.
+
+Before #411 the only check was the texture GUI test (#831, 2023). It compares exported `.jul` files
+with reference files written by the same code, which catches changes but not a wrong projection. The
+2020 `broken_test_pole_figure_calculation` was never collected (no `test_` prefix), pointed at a
+missing `tests/testdata/` folder and asserted nothing; it was removed.
+
+`tests/unit/pyrs/core/test_polefigurecalculator.py` derives its expected values from the geometry:
+- **Symmetric Bragg position** (ω = θ, χ = 0, η = 0): the diffraction vector lies along the sample
+  normal, so α = 0.
+- **Tilting by χ** gives α = |χ| and β = ∓90°.
+- **Rocking ω** by δ gives α = |δ| and |β| = 180° or 0°.
+- **Turning φ** (about the normal) keeps α and shifts β by ±φ, with one sign throughout. A 360° turn
+  changes nothing.
+
+The calculator agrees with all of these. As a check that the tests can fail, returning He's α instead
+of 90° − α fails 11 of them, and dropping the 270° fails 12.
+
+Further tests pin η (closed form and sign), the φ direction (+φ), the ω < 0 rule against geometry,
+exporting several peaks, the calculator's bookkeeping and its input errors. Tests that can fail (each a
+deliberate mistake in the code, undone afterwards):
+- returning He's α instead of 90° − α fails 11 tests; dropping the 270° fails 12;
+- ignoring η fails 5; flipping η's sign fails 3;
+- flipping φ's direction fails 4.
+
+Found while testing; all four are fixed, see the next section ([deferred_defects.md](deferred_defects.md)):
+- **DD-22:** the ASCII export scrambles its rows, and puts every peak in each file.
+- **DD-23:** α = NaN at the rim.
+- **DD-24:** missing log names are not checked.
+- **DD-25:** the caller's data is changed in place, and a calculated pole figure goes stale.
+
+### Pole-figure defects fixed (2026-11-12, each approved)
+
+- **DD-22:** the ASCII pole-figure export was **removed**, at the maintainer's decision. It sorted each
+  column on its own, which scrambled rows, and wrote every peak to each file. MTEX (`.jul`) is the
+  only format, and any other `file_type` raises `ValueError`. Nothing in PyRS used it: the texture
+  window always exports MTEX.
+- **DD-23:** `rotate_project_q` clips `√(h₁²+h₂²)` to [0, 1] and `h₁/√(h₁²+h₂²)` to [−1, 1] before
+  `arccos`. Only rim poles change, from NaN to α = 90°. Everywhere else the clip doesn't apply, so
+  results are bit-for-bit unchanged.
+- **DD-24:** `add_input_data_set` refuses data missing any of chi, phi, omega, eta, center or intensity,
+  naming what's missing.
+- **DD-25:** `add_input_data_set` keeps a copy of the first data for a peak, and drops that peak's
+  calculated pole figure whenever data is added. `get_polefigure_array` then recalculates it, so it no
+  longer returns a stale result.
+
+Tests: `tests/unit/pyrs/core/test_polefigurecalculator.py`. Each new test fails without its fix.
+## Ring-calibration tests: shared runs and design-study tests removed (2026-11, #1101)
+
+- **The unit tier was 96% ring-calibration tests** by time: 12.2 of 12.7 min. The cost was tests each repeating a
+  full synthetic calibration to check one more fact, not the number of tests.
+- **Shared runs, every assertion kept:**
+  - `test_ring_rounds.py`, 3.8 → 1.8 min: `converged_run`, `unconverged`, `one_extraction` fixtures.
+  - `test_ring_calibration_method.py`, 5.1 → 2.4 min: the model's identical ring extractions are cached per
+    module. The cache keys on the inputs, the run's `sy` and `2theta` logs and its default mask, keeps each
+    workspace alive while cached, and replays the warnings and strip fits, so `extract_rings` still runs in
+    every test.
+  - `test_pyrs_pixel_calibration_driver.py`, 1.8 → 1.1 min: one shared default run, and `--max-rounds 1`
+    where the rounds are not the subject.
+- **Design-study tests removed** (user decision, 2026-11-12). They answered design questions while the method
+  was built. They guarded no workflow behaviour:
+  - `test_two_distances_recover_two_theta_0`: a second distance frees 2θ₀. HB2B never uses two distances
+    (#1090), and the result is recorded there. The helper `concatenate_ring_points` went with it.
+  - `test_refine_with_rot_y_fixed_recovers_all`, `test_estimate_errors_hold_rot_y_gives_tth0_error`,
+    `test_estimate_errors_hold_by_index_same_as_name`: holding Rot_y. The workflow holds 2θ₀ instead.
+  - `test_errors_at_current_match_estimate_errors_at_optimum`: two error formulas agree.
+  - `test_errors_shrink_with_more_points`: kept its partner `test_errors_cover_true_values`.
+  - `test_iterate_with_polish_reaches_true_map`: `test_extract_then_iterate_recovers_two_theta_map` is the
+    end-to-end check. It now also asserts that `iterate` ends with its `FullCalibration` polish (review).
+  - `test_points_independent_of_start_geometry`: extraction with a shifted `calibration=` is now covered
+    only indirectly, by the round tests (rounds 2 and later extract from the refined geometry;
+    `test_rounds_recover_the_true_geometry`). That catches gross errors, not a sub-pixel drift.
+  - `test_full_calibration_reproduces_two_theta_map` now checks one arm angle (120°, outside the measured
+    range), not three. 60° (below the range) is no longer checked.
+  - Integer indices in `estimate_errors(hold=...)` are no longer tested directly. `refine` shares the same
+    index handling.
+## Parallel test tiers on CI (2026-11, #1100)
+
+CI runs the three test tiers as three jobs (`test-tier` matrix: `tests (unit)`, `tests (integration)`,
+`tests (gui)`), gathered by a `tests` job so the check name and `publish`'s needs are unchanged. The unit and
+integration tiers run with `pytest-xdist` (`-n auto --dist loadscope`); the GUI tier stays serial.
+
+**Measured** on this workstation, each run pinned to 4 cores (`taskset`, as a GitHub runner has), with
+coverage, at `b443d7a5`:
+
+| Tier | Serial | `-n 4` (default `load`) | `-n 4 --dist loadscope` |
+|---|---|---|---|
+| Unit (874 tests) | 11.0 min | 7.9 min | **5.9 min** |
+| Integration (135, 28 skipped) | 10.5 min | 5.1 min | **4.9 min** |
+| GUI (41) | 5.8 min | — | — (serial) |
+
+- **The one serial job took about 27 min** there (CI: about 12 min, as its cores are faster). **Three jobs take
+  about 6 min**, the slowest tier, plus about 1 min of setup each.
+- **Every test passes in parallel, and coverage is unchanged** (unit 52.76 vs 52.75%, integration 56.43%
+  both).
+- **`loadscope` matters for the unit tier.** Several ring-calibration modules share a module-scoped fixture
+  that runs a full calibration (30-40 s). Spread across workers (`load`), every worker rebuilds it.
+  `loadscope` sends a module's top-level test functions to one worker, but a test **class** is its own
+  scope: a module's classes can run on different workers at once, each building the module's fixtures
+  again. The expensive calibration modules have no classes. `--dist loadfile` would group whole modules.
+- **A worker that crashes mid-test fails the run** (xdist: "worker 'gw1' crashed while running ..."; exit 1),
+  and `run_tests.py`'s `os._exit` doesn't hide it. The per-test timeout fires inside a worker (verified).
+- **Why every tier job installs `xvfb`:** collecting `./tests` imports the GUI modules (matplotlib's `QtAgg`
+  backend), whatever tier is selected. With no display, collection fails for every tier.
+- **Why CI uses `test-ci-gui`, not `test-gui`:** `test-gui`'s `QT_QPA_PLATFORM=offscreen` would override
+  CI's `xvfb-run` and the `xcb` platform (see above). The `test-ci-*` tasks set no platform.
+- **Cost:** three runners from the shared `neutrons` pool instead of one. The tier jobs queue in parallel, so a
+  busy pool's wait is the longest of three queues, not their sum.
+- **Tests must not share fixed file names in the working folder.** The three `HB2B_CAL_Test.json` writers in
+  `test_peakfit_calibration.py` now use `tmp_path`. Others still write into the working folder under names no
+  other test uses.
+- **Codecov gets three uploads per commit** (flags `unit`, `integration`, `gui`), minutes apart. `codecov.yml`
+  makes its status and PR comment wait for all three (`after_n_builds: 3`), so the first upload alone never
+  shows as a coverage drop.
 
 ### #931 second review: run lists and unreadable files (2026-11-11, each approved separately)
 
