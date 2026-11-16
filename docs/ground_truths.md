@@ -1190,6 +1190,9 @@ Data: 2019–2023 runs in `tests/data`, and 2025 runs 5339, 5340 and 5344 from I
   This holds in floods 931 (2019), 4501 (2024) and 5339 (2025). The x modulation is weak, 1.2 %
   relative std between columns, against 44–49 % between rows along y. It is why the vanadium's x
   profile looked smooth, and why the count-ratio residuals along x show a weak 3.29 px component.
-  Which plane is the anode and which the cathode is not established from the data.
+  **The y wires sit behind the x wires** in the 2D grid, farther from the sample (stated by the
+  user; not measurable from these data). So the rear plane carries the strong (44–49 %) stripe
+  pattern, the one that drifts with vanadium age. Which plane is the anode and which the cathode
+  is not established.
 - **Noise bias.** Raw per-pixel vanadium used as an efficiency over-predicts zeros by about
   1 + λ²σ²/2 (σ² ≈ 1/N_van). Average it along x before using it.
