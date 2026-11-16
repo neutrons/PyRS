@@ -3092,8 +3092,10 @@ User decisions, enforced by the model (`ValueError`) and the dialog alike:
   given.
 - The dialog **opens with only the folder ticked**, so shared targets are ticked deliberately. Live reduction
   on v1.8.1 applies `HB2B_Latest.json` without 2θ₀ and rotations, #1066.
-- **One log line per export** (mantid `Logger("PyRS detector calibration")`) lists the files written, or the
-  targets refused. The calibration's provenance is unchanged.
+- **One log line per export** (mantid `Logger("PyRS detector calibration")`) lists the files written. A write
+  that fails partway logs an error naming what was written. A **refused export is not logged** (user decision):
+  the window shows its reason in an "Export failed" dialog, and nothing is written. The calibration's provenance
+  is unchanged.
 
 Kept from #1045:
 - Every shared target is checked before anything is written. An unwritable one raises `PermissionError`, and
@@ -3101,6 +3103,9 @@ Kept from #1045:
 - The files are written archive → `HB2B_Latest_<mono>.json` → `HB2B_Latest.json`, each atomically.
 
 The preferred folder is remembered between sessions (`QSettings("neutrons", "PyRS")`, key
+`calibration/export_folder`) after a successful folder export. A remembered folder that has since been removed
+opens the current folder instead (`_remembered_export_folder`). The GUI tests redirect the setting to a scratch
+file through `detector_calibration_viewer._settings`, before the window is built (it reads the setting then).
 `calibration/export_folder`) after a successful folder export. The GUI tests redirect it to a scratch file
 through `detector_calibration_viewer._settings`.
 
