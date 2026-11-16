@@ -151,6 +151,46 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
       empty bins).
 - [ ] Model-based variance, or a Poisson-likelihood cost function, if
       `FitPeaks` supports it.
+- [ ] **Candidate: 1 × 4 vertical pixel grouping** (4 rows = 1.17 mm, finer than the 1.92 mm wire
+      pitch). On 5344 it cut zeros from 61 % to 18 % and σ_rep/σ_Poisson from 1.53 to 1.04, with
+      strain shifts of 7.7 µε RMS (see the pixel-grouping ground truth).
+- [ ] **Candidate: 1 × 8 vertical pixel grouping** (8 rows = 2.34 mm, close to the wire pitch). On
+      5344: zeros 3.7 %, σ ratio 1.00, strain shifts 8.1 µε RMS.
+- [ ] For both candidates, before scoring:
+  - [ ] low 2θ, where rings curve more (e.g. 3489 down to 59.6°): does the −4 to −6 µε offset grow?
+  - [ ] a strained sample, and weak peaks (where the σ inflation matters most);
+  - [ ] η-wedge (texture) intensities;
+  - [ ] pull distributions from Phase 2.
+- [ ] **Calibration impact of vertical grouping (1 × 4, 1 × 8).** This covers both calibration methods
+      on `next`: the ring calibration (`ring_extraction.extract_ring_points`, `PixelCalibration`, the
+      GUI default), which fits geometry to ring points located in strips of the raw image, and
+      `FitCalibration`, which fits peaks in η-wedge reductions.
+  - [x] **C1: a calibration applies unchanged to grouped pixels.** Already shown: coarse-pixel 2θ and
+        η from a given geometry equal the block means of the fine pixels to ≤ 10⁻⁵°.
+  - [ ] **C2: calibrate on grouped data.** Run both methods at 1 × 1, 1 × 4 and 1 × 8 on calibration
+        runs. Candidates: the IPTS-36131 Si422 long calibrations (5337, 5344, 5345), HB2B_4971 (Ni)
+        and HB2B_3510. Compare:
+    - the refined parameters and their errors: Rot_x, Rot_z, Shift_y (already only weakly
+      constrained, ±1 mm), Shift_z and λ, plus the degenerate Shift_x / Rot_y / TTH_0 line, compared
+      through the pixel 2θ map;
+    - the residual RMS, and the ring-point count and scatter;
+    - which strips and rings are found. Grouping changes the rows within each strip.
+  - [ ] **C3: pixel 2θ maps.** For each grouped calibration, take the RMS and maximum Δ2θ over the
+        detector against the native calibration, and convert them to strain at representative 2θ.
+  - [ ] **C4: cross-application.** Reduce and fit a strain reference with each combination: native
+        calibration + grouped reduction, grouped calibration + grouped reduction, and grouped
+        calibration + native reduction. Compare the strains.
+  - [ ] **Decision (proposal; the criteria need approval).**
+    - **Default: exclude grouping from detector calibration.** Calibrate at native resolution and
+      apply that calibration to grouped reductions. C1 makes this exact. Calibration runs are long,
+      so zero-count inflation matters less there. Native rows also keep the full vertical
+      ring-curvature information that constrains Shift_y, Rot_x and Rot_z.
+    - **Apply grouping to calibration too, only if** C2–C4 show that grouped calibration improves
+      parameter errors or residuals without moving the pixel 2θ map by more than the native
+      calibration's own propagated 2θ-map uncertainty (proposed criterion).
+    - **Either way,** the grouping used must be recorded in the calibration file's and the reduced
+      file's provenance, and a mismatch reported. That is a production change and part of the
+      proposal below.
 - [ ] Score each treatment by pull-distribution width (target: 1) and bias.
 - [ ] Write a proposal for any production change. **It needs separate
       approval** before any code in `pyrs/` changes.
