@@ -340,11 +340,11 @@ namespace_packages = true
 
 # pyside6 6.11.3 build _1 ships py.typed: through qtpy, mypy then checks PyRS against PySide6's scoped enums
 # and rejects the short forms qtpy provides at runtime (QMessageBox.Yes, ...). Treated as untyped, as before
-# that build, until the code uses the scoped names.
+# that build, until the code uses the scoped names (docs/ground_truths.md, "mypy and PySide6's type stubs").
 [[tool.mypy.overrides]]
-module = ["PySide6.*", "shiboken6.*"]
+module = ["PySide6.*"]
 follow_imports = "skip"
-follow_imports_for_stubs = true       # PySide6's types come from its .pyi stubs, which "skip" leaves alone otherwise
+follow_imports_for_stubs = true # PySide6's types come from its .pyi stubs, which "skip" leaves alone otherwise
 
 [tool.pytest.ini_options]
 # By-hand smoke-test scripts, never collected -- see tests/scripts/cis_tests/README.rst
