@@ -2,7 +2,7 @@ import numpy as np
 from numpy.testing import assert_array_equal, assert_array_almost_equal
 import pytest
 from pyrs.dataobjects.constants import HidraConstants, DEFAULT_POINT_RESOLUTION
-from pyrs.dataobjects.sample_logs import DirectionExtents, PointList, aggregate_point_lists, SampleLogs
+from pyrs.dataobjects.sample_logs import DirectionExtents, PointList, SubRuns, aggregate_point_lists, SampleLogs
 
 
 @pytest.fixture(scope="module")
@@ -464,6 +464,129 @@ def test_aggregate_point_list(sample_logs_mock):
     assert list(point_list.vx) == pytest.approx(list_x + list_x + list_x)
     assert list(point_list.vy) == pytest.approx(list_y + list_y + list_y)
     assert list(point_list.vz) == pytest.approx(list_z + list_z + list_z)
+
+
+class TestStringLogsAreTextInMemory:
+    """A string log's values are `str` in memory, whatever spelling they arrive in.
+
+    HDF5 hands string data back as `bytes` even when written through the
+    variable-length UTF-8 dtype, so without normalizing here the dtype of a log
+    would be an accident of provenance: `bytes` from `HidraProjectFile` or an
+    NXstress file, `str` from a workspace built in memory. Consumers then each
+    invented a policy -- some tolerant, some not -- and the intolerant ones
+    crashed on whichever case they had not met.
+
+    The other half of the pairing is that writers encode at the HDF5 boundary,
+    since h5py has no conversion path for numpy's `<U` dtype; see
+    `TestStringLogsAreBytesOnDisk` in `tests/unit/pyrs/projectfile/`.
+    """
+
+    @staticmethod
+    def _logs(values, *, as_object=False):
+        logs = SampleLogs()
+        logs[HidraConstants.SUB_RUNS] = list(range(len(values)))
+        if as_object:
+            # What HDF5 actually yields for the variable-length UTF-8 dtype, through
+            # both h5py and `nexusformat`: an *object* array of Python `bytes`, whose
+            # `dtype.kind` is "O". `np.array([b"11", ...])` gives `|S` instead and is
+            # NOT the shape a real file produces -- a normalization checked against
+            # `|S` alone passes that fixture and silently does nothing in production.
+            array = np.empty(len(values), dtype=object)
+            array[:] = values
+            logs["text"] = array
+        else:
+            logs["text"] = np.array(values)
+        return logs
+
+    def test_fixed_width_bytes_are_decoded_on_store(self):
+        # Arrange / Act
+        logs = self._logs([b"11", b"22", b"33"])
+
+        # Assert
+        assert logs["text"].dtype.kind == "U"
+        assert list(logs["text"]) == ["11", "22", "33"]
+
+    def test_an_object_array_of_bytes_is_decoded_on_store(self):
+        """The dtype a real HDF5 read produces -- the case that must not be missed."""
+        # Arrange / Act
+        logs = self._logs([b"11", b"22", b"33"], as_object=True)
+
+        # Assert
+        assert logs["text"].dtype.kind == "U"
+        assert list(logs["text"]) == ["11", "22", "33"]
+
+    def test_str_values_are_stored_unchanged(self):
+        # Arrange / Act
+        logs = self._logs(["11", "22", "33"])
+
+        # Assert
+        assert logs["text"].dtype.kind == "U"
+        assert list(logs["text"]) == ["11", "22", "33"]
+
+    def test_every_spelling_agrees(self):
+        """The point of normalizing: provenance must not change what a log holds."""
+        # Act
+        from_hdf5 = self._logs([b"a constant string"], as_object=True)
+        fixed_width = self._logs([b"a constant string"])
+        in_memory = self._logs(["a constant string"])
+
+        # Assert
+        assert_array_equal(from_hdf5["text"], in_memory["text"])
+        assert_array_equal(fixed_width["text"], in_memory["text"])
+
+    def test_numeric_logs_are_untouched(self):
+        """The normalization must not reach dtypes it has no business converting."""
+        # Arrange
+        logs = SampleLogs()
+        logs[HidraConstants.SUB_RUNS] = [0, 1, 2]
+
+        # Act
+        logs["numbers"] = np.array([1.5, 2.5, 3.5])
+        logs["counts"] = np.array([1, 2, 3])
+
+        # Assert
+        assert logs["numbers"].dtype.kind == "f"
+        assert logs["counts"].dtype.kind == "i"
+
+
+class TestSubRunOrdering:
+    """`SubRuns` requires strictly increasing values; only uniqueness is needed.
+
+    The xfail tests are the defects recorded under DD-2 in
+    `plans/PR_review/deferred-defects.md`, which recommends dropping the
+    ordering requirement. Each is strict, so it fails loudly once fixed.
+    """
+
+    def test_repeated_values_raise(self):
+        """Uniqueness is the real invariant, and must survive dropping the ordering."""
+        with pytest.raises(RuntimeError):
+            SubRuns([1, 2, 2])
+
+    @pytest.mark.xfail(reason="DD-2: the ordering requirement is arbitrary", raises=RuntimeError, strict=True)
+    def test_unique_unsorted_values_are_accepted(self):
+        assert SubRuns([3, 1, 2]).raw_copy().tolist() == [3, 1, 2]
+
+    @pytest.mark.xfail(
+        reason="DD-2: `get_indices` checks only a query's first and last values, then binary-searches",
+        raises=pytest.fail.Exception,
+        strict=True,
+    )
+    def test_get_indices_missing_interior_value_raises(self):
+        """Used to map the missing 3 to the position of 4, returning [0, 2, 2]."""
+        with pytest.raises(IndexError):
+            SubRuns([1, 2, 4]).get_indices([1, 3, 4])
+
+    @pytest.mark.xfail(
+        reason="DD-2: `get_indices` binary-searches, which needs a sorted axis", raises=AssertionError, strict=True
+    )
+    def test_get_indices_on_an_unsorted_axis(self):
+        """`append` skips the ordering check, so an unsorted axis is reachable today."""
+        # Arrange
+        subruns = SubRuns([4, 5, 6])
+        subruns.append(np.array([1, 2, 3]))
+
+        # Act / Assert -- used to return [6, 4]: past the end, and the position of 1
+        assert subruns.get_indices([5, 2]).tolist() == [1, 4]
 
 
 if __name__ == "__main__":

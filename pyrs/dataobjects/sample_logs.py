@@ -4,7 +4,7 @@ import numpy as np
 from scipy.cluster.hierarchy import fclusterdata
 from scipy.spatial import cKDTree
 from typing import Optional, Union, List, NamedTuple, Tuple
-from pyrs.utilities.convertdatatypes import to_int
+from pyrs.utilities.convertdatatypes import is_text_array, to_int, to_text_array
 from .constants import HidraConstants, DEFAULT_POINT_RESOLUTION  # type: ignore
 
 __all__ = ["SampleLogs", "SubRuns"]
@@ -165,6 +165,13 @@ class SubRuns(Iterable):
                     "Cannot change subruns when non-empty (previous={}, new={})".format(self._value, value)
                 )
         if not np.all(value[:-1] < value[1:]):
+            # `__init__` routes through here, so a non-monotonic array cannot be
+            # held at all -- which is why merging workspaces with interleaved scan
+            # points has to concatenate at the array level rather than building a
+            # merged workspace. `append` bypasses this check. See
+            # `docs/ground_truths.md`, "Two data-model limits that bite any
+            # multi-record NeXus write". Only uniqueness is actually needed: see
+            # DD-2 in `plans/PR_review/deferred-defects.md`.
             raise RuntimeError("subruns are not sorted in increasing order")
         self._value = value.astype(int)
 
@@ -367,6 +374,22 @@ class SampleLogs(MutableMapping):
         ValueError
             Attempt to insert/update the value of a log entry with a list of different length
             then the number of subruns
+
+        Notes
+        -----
+        A string log's values are **normalized to `str` here**, so that in memory a
+        log value is always text regardless of where the workspace came from. HDF5
+        hands string data back as `bytes` even when it was written through the
+        variable-length UTF-8 dtype, so without this the dtype of a log would be an
+        accident of provenance -- `bytes` from `HidraProjectFile` or an NXstress
+        file, `str` from a workspace built in memory -- and every consumer would
+        have to cope with both. Several did so, inconsistently; several did not, and
+        crashed on whichever case they had not met.
+
+        The pairing is `bytes` on disk, `str` in memory: writers encode at the HDF5
+        boundary (`HidraProjectFile.add_sample_log`,
+        `NXstress._sample._Sample._writable`), since h5py has no conversion path for
+        numpy's `<U` dtype at all. See `docs/ground_truths.md`.
         """
         if isinstance(key, str):
             log_name = key
@@ -391,6 +414,14 @@ class SampleLogs(MutableMapping):
                     )
             else:
                 raise RuntimeError("Must set subruns first")
+
+            # Normalize string values to text; see this method's Notes. Both file
+            # readers store through here, so neither has to decode for itself.
+            # A log may hold anything, so the predicate does the dispatch:
+            # `to_text_array` raises on a non-string array rather than passing it
+            # through, since a misdirected call there is a usage error.
+            if is_text_array(value):
+                value = to_text_array(value)
 
             self._data[log_name] = value
             self._units[log_name] = units

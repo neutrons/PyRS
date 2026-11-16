@@ -7,6 +7,7 @@ from pyrs.calibration.provenance import file_record
 from pyrs.projectfile import HidraProjectFile  # type: ignore
 from pyrs.projectfile.file_object import combine_reduction_records
 from pyrs.utilities.NXstress.NXstress import NXstress
+from pyrs.interface.gui_helper import is_nxstress_path
 
 
 class CombineRunsModel(QObject):
@@ -53,15 +54,18 @@ class CombineRunsModel(QObject):
         self.warnings = [record["warning"]] if record.get("warning") else []
 
     def export_project_files(self, fileout: str) -> None:
-        if Path(fileout).suffix == ".nxs":
-            # peakss is always [] for this viewer -- CombineRunsModel has no
-            # PeakCollection concept, only merges/exports raw/reduced diffraction
-            # data. Already a valid, no-op-safe input: _Peaks.validateNoDuplicatePeaks([])
-            # / _Fit.validateWorkspaceAndPeaksData(ws, []) both no-op, and
-            # _Peaks.init_group([], ...) / _Fit.init_group(ws, [], ...) both produce
-            # a valid, empty PEAKS/FIT group rather than raising.
+        if is_nxstress_path(fileout):
+            # The peak list is always `[[]]` for this viewer -- CombineRunsModel has
+            # no PeakCollection concept, only merges/exports raw/reduced diffraction
+            # data. That shape is supported rather than merely tolerated:
+            # `_Peaks.init_group` and `_Fit.init_group` write a valid empty
+            # PEAKS/FIT group, recording the writer's `UNDEFINED_PEAK_TAG` sentinel
+            # as the fit model, and `NXstress._rejectFitModelMismatch` has a branch
+            # for an entry carrying that sentinel -- such an entry cannot be
+            # appended to, because it records no discriminator values for the rows
+            # already in it.
             with NXstress(Path(fileout), "w") as nx:
-                nx.write(self._hidra_ws, [])
+                nx.write([self._hidra_ws], [[]])
             return
 
         export_project = HidraProjectFile(fileout, "w")

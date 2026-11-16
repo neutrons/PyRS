@@ -35,7 +35,7 @@ class PoleFigureCalculator:
         required = ["chi", "phi", "omega", "eta", "center", "intensity"]
         log_names = list(log_dict.keys())
         checkdatatypes.check_list("Pole figure motor names", log_names, required)
-        # check_list rejects unknown names only; a missing one used to fail later as a bare KeyError (DD-17)
+        # check_list rejects unknown names only; a missing one used to fail later as a bare KeyError (DD-24)
         missing = [name for name in required if name not in log_dict]
         if missing:
             raise RuntimeError("Pole figure log values are missing {}".format(", ".join(missing)))
@@ -46,10 +46,10 @@ class PoleFigureCalculator:
                     (self._peak_info_dict[peak_id][entry], log_dict[entry]), axis=0
                 )
         else:
-            # a copy: appending later must not rewrite the caller's arrays (DD-18)
+            # a copy: appending later must not rewrite the caller's arrays (DD-25)
             self._peak_info_dict[peak_id] = {entry: np.array(log_dict[entry], copy=True) for entry in required}
 
-        # the peak's points changed, so its pole figure is recalculated when next asked for (DD-18)
+        # the peak's points changed, so its pole figure is recalculated when next asked for (DD-25)
         self._pole_figure_dict.pop(peak_id, None)
 
     def calculate_pole_figure(self, peak_id_list=None):
@@ -130,7 +130,7 @@ class PoleFigureCalculator:
         exported the calculated pole figure
         :param detector_id_list: list of detector IDs to write the pole figure file
         :param file_name:
-        :param file_type: "mtex" (.jul), the only format; the ASCII export was removed (DD-15)
+        :param file_type: "mtex" (.jul), the only format; the ASCII export was removed (DD-22)
         :param file_header: for MTEX format
         :return:
         """
@@ -215,7 +215,7 @@ class PoleFigureCalculator:
         h2 = -st * (cp * sc * sw - sp * cw) - ct * cg * cp * cc + ct * sg * (cp * sc * cw + sp * sw)
         h_length = np.sqrt(np.square(h1) + np.square(h2))
 
-        # at the rim (alpha = 90 deg) rounding can put these just past 1, where arccos is NaN (DD-16)
+        # at the rim (alpha = 90 deg) rounding can put these just past 1, where arccos is NaN (DD-23)
         alpha = np.rad2deg(np.arccos(np.clip(h_length, 0.0, 1.0)))
         beta = np.rad2deg(np.arccos(np.clip(h1 / h_length, -1.0, 1.0)))
 

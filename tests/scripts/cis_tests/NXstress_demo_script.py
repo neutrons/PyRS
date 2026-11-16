@@ -434,7 +434,7 @@ print("=" * 60)
 print(f"Step 3: Writing NXstress file -> {OUTPUT_FILE}")
 
 with NXstress(OUTPUT_FILE, mode="w") as nxs:
-    nxs.write(ws, peak_collections)
+    nxs.write([ws], [peak_collections])
 
 print(f"  Written: {OUTPUT_FILE.resolve()}")
 
@@ -446,7 +446,7 @@ print("=" * 60)
 print("Step 4: Reading back from NXstress file")
 
 with NXstress(OUTPUT_FILE, mode="r") as nxs:
-    ws_back, peaks_back = nxs.read(entry_number=1)
+    (ws_back,), (peaks_back,) = nxs.read(entry_number=1)
 
 print(f"  sub-runs read back    : {len(ws_back.get_sub_runs())}")
 print(f"  PeakCollections read  : {len(peaks_back)}")

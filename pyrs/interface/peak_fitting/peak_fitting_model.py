@@ -30,6 +30,9 @@ from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
 from pyrs.peaks.peak_fit_engine import FitResult
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities.NXstress.NXstress import NXstress
+from pyrs.interface.nxstress_load import read_single_workspace
+from pyrs.interface.gui_helper import dotted, is_nxstress_path
+from pyrs.utilities.config import Config
 
 
 class PeakFittingModel(QObject):
@@ -91,18 +94,20 @@ class PeakFittingModel(QObject):
 
         # Checked across the whole selection, not just its first file: a `.nxs`
         # anywhere in it would otherwise reach the legacy multi-file loader.
-        nxs_files = [name for name in project_files_list if Path(name).suffix == ".nxs"]
+        nxs_files = [name for name in project_files_list if is_nxstress_path(name)]
         if nxs_files and len(project_files_list) > 1:
+            extension = dotted(Config["nxstress.extension"])
             raise ValueError(
-                f"An NXstress (.nxs) file must be loaded on its own: this selection of {len(project_files_list)} "
-                f"files includes {', '.join(Path(name).name for name in nxs_files)}.\n"
-                "  Select a single .nxs file, or only .h5 files."
+                f"An NXstress ({extension}) file must be loaded on its own: this selection of "
+                f"{len(project_files_list)} files includes {', '.join(Path(name).name for name in nxs_files)}.\n"
+                f"  Select a single {extension} file, or only .h5 files."
             )
 
         if nxs_files:
             nxs_file = project_files_list[0]
-            with NXstress(Path(nxs_file), "r") as nx:
-                ws, peaks = nx.read()
+            # This model holds one workspace. A file holding more is refused by
+            # name rather than silently truncated -- see `nxstress_load`.
+            ws, peaks = read_single_workspace(Path(nxs_file))
 
             self._set_up_project_name(project_files_list)
             self._curr_file_name = nxs_file
@@ -241,18 +246,18 @@ class PeakFittingModel(QObject):
         if isinstance(out_file_name, list):
             out_file_name = out_file_name[0]
 
-        if Path(out_file_name).suffix == ".nxs":
+        if is_nxstress_path(out_file_name):
             # No copy-then-patch step here, unlike the .h5 branch below -- there is
             # no "existing .nxs file to patch" concept; NXstress always writes fresh
             # from the in-memory workspace + fit result.
             with NXstress(Path(out_file_name), "w") as nx:
-                nx.write(self.hidra_workspace, fit_result.peakcollections)
+                nx.write([self.hidra_workspace], [fit_result.peakcollections])
             return
 
         # A legacy save copies the loaded file and patches the copy, which only
         # works when the loaded file is itself a legacy project file: refused for
         # now, rather than writing a broken file.
-        if Path(self._curr_file_name).suffix == ".nxs":
+        if is_nxstress_path(self._curr_file_name):
             raise ValueError(
                 "This project was loaded from an NXstress file and cannot be saved in the legacy .h5 format.\n"
                 "  Use File > Save as NXstress... instead."

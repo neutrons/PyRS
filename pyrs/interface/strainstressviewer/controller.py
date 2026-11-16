@@ -8,7 +8,8 @@ class Controller:
 
     def filesSelected(self, name, filenames):
         self._model.set_workspaces(name, filenames)
-        return getattr(self._model, name) is not None
+        # A refused load leaves an empty list, not None.
+        return bool(getattr(self._model, name))
 
     def peakSelected(self, name):
         if name != "":

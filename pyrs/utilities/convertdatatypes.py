@@ -1,6 +1,8 @@
 from typing import Any, Optional, Union
 
-__all__ = ["to_float", "to_int"]
+import numpy as np
+
+__all__ = ["is_text_array", "to_float", "to_int", "to_text", "to_text_array"]
 
 
 def __check_range(
@@ -92,3 +94,124 @@ def to_float(
     # verify valid range
     __check_range(name, value, min_value, max_value, min_inclusive, max_inclusive)
     return value
+
+
+def to_text(value: Any) -> str:
+    """A string value as `str`, whether it arrives as `str` or as `bytes`.
+
+    The single conversion for PyRS's "`bytes` on disk, `str` in memory" rule: a
+    caller that hand-rolls `isinstance(v, bytes)` drifts from the next one, and
+    nine such sites had drifted into four different behaviours -- some handling
+    `numpy.bytes_` and some not, some coercing the non-bytes branch to `str` and
+    some returning it untouched.
+
+    Args:
+        value: A `str`, `bytes`, `numpy.str_` or `numpy.bytes_`.
+
+    Returns:
+        The value as `str`.
+
+    Example:
+        >>> to_text(b"11"), to_text("11")
+        ('11', '11')
+    """
+    if isinstance(value, (bytes, np.bytes_)):
+        return bytes(value).decode("utf-8")
+    return str(value)
+
+
+def is_text_array(values: Any) -> bool:
+    """Whether `values` is a numpy array holding only string values.
+
+    The single definition of "array of strings", so that a caller handling a
+    mixture of log types asks one question rather than reimplementing the dtype
+    rules. Three dtypes qualify, and the third is the one that matters:
+
+    - `<U`, numpy's own text dtype.
+    - `|S`, fixed-width bytes. What `np.array([b"a", b"b"])` produces.
+    - `object`, holding only `bytes` or `str`. **What HDF5 actually yields** for
+      the variable-length UTF-8 dtype, through both h5py and `nexusformat`.
+
+    An `object` array has to be inspected element-wise, because its dtype says
+    nothing. One holding a mix of text and numbers is **not** a text array.
+
+    An **empty** `object` array *is* -- it has no values to misclassify, so the
+    only thing at stake is its dtype, and in this codebase it can have come from
+    nowhere but an empty variable-length string dataset: every other empty HDF5
+    dataset keeps its own dtype on read, and only vlen strings come back as
+    `object`. An empty string log is legitimate both on disk and in memory, and
+    refusing it would push emptiness back out to every caller as a special case.
+
+    An empty array whose dtype still says *numbers* is a different matter and
+    stays False: `float64` is not ambiguous just because it is empty.
+
+    Args:
+        values: Anything.
+
+    Returns:
+        True when `to_text_array` would convert it.
+
+    Example:
+        >>> is_text_array(np.array([b"11"])), is_text_array(np.array([1.5]))
+        (True, False)
+        >>> is_text_array(np.empty(0, dtype=object))   # an empty string column
+        True
+    """
+    if not isinstance(values, np.ndarray):
+        return False
+    if values.dtype.kind in ("U", "S"):
+        return True
+    if values.dtype.kind == "O":
+        # `all` over an empty array is True, which is the intended answer here.
+        return all(isinstance(v, (bytes, np.bytes_, str, np.str_)) for v in values.ravel())
+    return False
+
+
+def to_text_array(values: np.ndarray) -> np.ndarray:
+    """A string array as numpy text (`<U`), whatever spelling it arrives in.
+
+    See `is_text_array` for which dtypes count as strings and why the `object`
+    case is the one that matters.
+
+    Args:
+        values: An array of string values. Passing anything else is a usage
+            error, not a pass-through: a caller that may hold either text or
+            numbers asks `is_text_array` first, which is the whole reason that
+            predicate is public.
+
+    Returns:
+        A `<U` array with the same shape.
+
+    Raises:
+        TypeError: If `values` is not an array of strings. Returning it unchanged
+            instead would make a misdirected call look like a working one, and
+            the symptom would surface later as a `bytes` value in whichever
+            consumer did not expect one -- which is the exact failure this
+            conversion exists to end. An **empty** `object` array is accepted;
+            see `is_text_array`.
+
+    Example:
+        >>> to_text_array(np.array([b"11", b"22"])).dtype.kind
+        'U'
+        >>> obj = np.empty(2, dtype=object); obj[:] = [b"11", b"22"]
+        >>> to_text_array(obj).tolist()
+        ['11', '22']
+        >>> to_text_array(np.empty(0, dtype=object)).dtype.kind
+        'U'
+    """
+    if not is_text_array(values):
+        kind = f"{type(values).__name__}" if not isinstance(values, np.ndarray) else f"dtype {values.dtype!r}"
+        raise TypeError(
+            f"to_text_array expects an array of strings, got {kind}.\n"
+            "  Guard the call with `is_text_array(...)` if the value may be numeric, "
+            "heterogeneous, or an empty object array."
+        )
+    if values.dtype.kind == "U":
+        return values
+    if values.dtype.kind == "S":
+        return np.char.decode(values, "utf-8")
+    flat = values.ravel()
+    # `dtype=np.str_` is load-bearing for the empty case: `np.array([])` is
+    # `float64`, so an empty string column would come back as an empty array of
+    # numbers -- which is what the hand-rolled conversion this replaced did.
+    return np.array([to_text(v) for v in flat], dtype=np.str_).reshape(values.shape)

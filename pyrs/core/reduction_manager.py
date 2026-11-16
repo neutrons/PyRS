@@ -171,23 +171,41 @@ class HB2BReductionManager:
             raise RuntimeError("Call init_session to create a ReductionWorkspace")
 
         # PyRS HDF5
-        # Check permission of file to determine the RW mode of HidraProject file
-        if os.access(project_file_name, os.W_OK):
-            # Read/Write: Append mode
-            file_mode = HidraProjectFileMode.READWRITE
-        else:
-            # Read only
-            file_mode = HidraProjectFileMode.READONLY
+        # Choose the mode from what the operation does, never from what the
+        # filesystem permits -- `os.access(..., os.W_OK)` says a write is allowed,
+        # not that one is intended. See `docs/ground_truths.md`, "Loading a
+        # project file modified it on disk, because the mode came from
+        # permissions".
+        #
+        # Opened READONLY unconditionally: this method only ever reads, and it
+        # closes the handle before returning, so no caller can write through it.
+        # Every save path opens its own READWRITE handle by filename --
+        # `ReductionApp.save_diffraction_data` (in `powder_pattern.py`),
+        # `TextureFittingModel.save_fit_result` and `PeakFittingModel.save_fit_result`.
+        #
+        # It previously chose the mode from `os.access(..., os.W_OK)`, i.e. from
+        # the file's permissions rather than from what the operation needed, so
+        # loading any writable project file opened it in HDF5 append mode. That
+        # is not harmless: HDF5 marks the superblock on a read-write open, so
+        # merely loading a file modified it on disk until the handle was closed.
+        # Committed test fixtures showed up as modified in `git status` because
+        # of it -- see the regression test in
+        # `tests/integration/test_pyrscore.py`.
+        project_h5_file = HidraProjectFile(project_file_name, mode=HidraProjectFileMode.READONLY)
 
-        project_h5_file = HidraProjectFile(project_file_name, mode=file_mode)
+        # Load, closing the handle even if loading raises. Without the `finally`
+        # an unreadable file left an open handle behind, so the on-disk
+        # modification above persisted for as long as the traceback kept the
+        # frame alive -- which, under pytest, is the rest of the session.
+        try:
+            self._curr_workspace.load_hidra_project(
+                project_h5_file,
+                load_raw_counts=load_detectors_counts,
+                load_reduced_diffraction=load_reduced_diffraction,
+            )
+        finally:
+            project_h5_file.close()
 
-        # Load
-        self._curr_workspace.load_hidra_project(
-            project_h5_file, load_raw_counts=load_detectors_counts, load_reduced_diffraction=load_reduced_diffraction
-        )
-
-        # Close
-        project_h5_file.close()
         return self._curr_workspace
 
     def load_mask_file(self, mask_file_name):

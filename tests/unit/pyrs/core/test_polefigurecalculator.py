@@ -156,10 +156,10 @@ def test_full_phi_turn_gives_same_pole(calculator):
     assert _angle_difference(pole_360[1], pole_0[1]) == pytest.approx(0.0, abs=1e-9)
 
 
-@pytest.mark.parametrize("theta", [41.1, 74.4])  # each gave α = NaN before DD-16
+@pytest.mark.parametrize("theta", [41.1, 74.4])  # each gave α = NaN before DD-23
 @pytest.mark.parametrize("chi", [90.0, -90.0])
 def test_tilt_to_rim_gives_alpha_ninety(calculator, theta, chi):
-    """Tilting χ to ±90° puts the pole on the rim of the pole figure, α = 90°, at β = ∓90° (DD-16)."""
+    """Tilting χ to ±90° puts the pole on the rim of the pole figure, α = 90°, at β = ∓90° (DD-23)."""
     # Act
     alpha, beta = calculator.rotate_project_q(theta, theta, chi, 0.0, 0.0)
 
@@ -311,7 +311,7 @@ def test_add_negative_peak_id_raises(calculator):
 
 @pytest.mark.parametrize("missing", ["phi", "intensity"])
 def test_add_missing_log_name_raises(calculator, missing):
-    """Data missing a required log name is refused up front, naming it (DD-17)."""
+    """Data missing a required log name is refused up front, naming it (DD-24)."""
     # Arrange
     logs = _point_logs([2 * THETA], [THETA], [0.0], [0.0], [0.0], [1.0])
     del logs[missing]
@@ -322,7 +322,7 @@ def test_add_missing_log_name_raises(calculator, missing):
 
 
 def test_adding_does_not_change_callers_data(calculator):
-    """Appending to a peak leaves the arrays the caller passed in unchanged (DD-18)."""
+    """Appending to a peak leaves the arrays the caller passed in unchanged (DD-25)."""
     # Arrange
     first = _point_logs([2 * THETA], [THETA], [0.0], [0.0], [0.0], [1.0])
     calculator.add_input_data_set(1, first)
@@ -335,7 +335,7 @@ def test_adding_does_not_change_callers_data(calculator):
 
 
 def test_refused_add_leaves_peak_unchanged(calculator):
-    """Data refused for a missing log name changes none of the peak's points (DD-17)."""
+    """Data refused for a missing log name changes none of the peak's points (DD-24)."""
     # Arrange
     calculator.add_input_data_set(1, _point_logs([2 * THETA], [THETA], [30.0], [0.0], [0.0], [1.0]))
     bad = _point_logs([2 * THETA], [THETA], [0.0], [0.0], [0.0], [2.0])
@@ -350,7 +350,7 @@ def test_refused_add_leaves_peak_unchanged(calculator):
 
 
 def test_changing_callers_data_later_has_no_effect(calculator):
-    """The calculator keeps its own copy: changing the caller's array afterwards changes nothing (DD-18)."""
+    """The calculator keeps its own copy: changing the caller's array afterwards changes nothing (DD-25)."""
     # Arrange
     logs = _point_logs([2 * THETA], [THETA], [0.0], [0.0], [0.0], [1.0])
     calculator.add_input_data_set(1, logs)
@@ -363,7 +363,7 @@ def test_changing_callers_data_later_has_no_effect(calculator):
 
 
 def test_pole_figure_updates_after_adding(calculator):
-    """A pole figure asked for after more data is added includes the new points (DD-18)."""
+    """A pole figure asked for after more data is added includes the new points (DD-25)."""
     # Arrange
     calculator.add_input_data_set(1, _point_logs([2 * THETA], [THETA], [0.0], [0.0], [0.0], [1.0]))
     calculator.get_polefigure_array(1)  # calculates, and keeps, peak 1's one-point pole figure
@@ -420,7 +420,7 @@ def test_export_mtex_writes_one_file_per_peak(calculator, tmp_path):
 
 @pytest.mark.parametrize("file_type", ["ascii", "txt"])
 def test_export_other_than_mtex_raises(calculator, tmp_path, file_type):
-    """Only MTEX (.jul) is written; the ASCII export, which scrambled its rows, was removed (DD-15)."""
+    """Only MTEX (.jul) is written; the ASCII export, which scrambled its rows, was removed (DD-22)."""
     # Arrange
     calculator.add_input_data_set(1, _point_logs([2 * THETA], [THETA], [0.0], [0.0], [0.0], [1.0]))
     calculator.calculate_pole_figure()

@@ -2,11 +2,18 @@
 Integration test for workflow used in manual reduction UI
 """
 
+from pathlib import Path
 import numpy as np
 import os
 import pytest
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController, reduce_hidra_workflow
 import h5py
+
+
+#: Absolute, so the module does not depend on the process working directory.
+#: Resolved from `__file__` rather than a fixture because these paths are used in
+#: `@pytest.mark.parametrize`, which is evaluated at collection time.
+DATA_DIR = f"{Path(__file__).resolve().parents[2] / 'tests' / 'data'}/"
 
 
 @pytest.mark.integration
@@ -31,18 +38,18 @@ def test_default_calibration_file():
 @pytest.mark.parametrize(
     "nexus_file, calibration_file, mask_file, gold_file",
     [
-        ("/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5", None, None, "tests/data/HB2B_1017_NoMask_Gold.h5"),
+        ("/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5", None, None, DATA_DIR + "HB2B_1017_NoMask_Gold.h5"),
         (
             "/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5",
             None,
-            "tests/data/HB2B_Mask_12-18-19.xml",
-            "tests/data/HB2B_1017_NoMask_Gold.h5",
+            DATA_DIR + "HB2B_Mask_12-18-19.xml",
+            DATA_DIR + "HB2B_1017_NoMask_Gold.h5",
         ),
         (
             "/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5",
-            "tests/data/HB2B_CAL_Si333.json",
-            "tests/data/HB2B_Mask_12-18-19.xml",
-            "tests/data/HB2B_1017_NoMask_Gold.h5",
+            DATA_DIR + "HB2B_CAL_Si333.json",
+            DATA_DIR + "HB2B_Mask_12-18-19.xml",
+            DATA_DIR + "HB2B_1017_NoMask_Gold.h5",
         ),
     ],
     ids=("HB2B_1017_NoCal_NoMask", "HB2B_1017_NoCal_Mask", "HB2B_1017_Cal_Mask"),
@@ -115,9 +122,9 @@ def test_reduction_with_vanadium():
     """
     # Set up
     nexus_file = "/HFIR/HB2B/IPTS-22731/nexus/HB2B_1017.nxs.h5"
-    calibration_file = "tests/data/HB2B_CAL_Si333.json"
-    mask_file = "tests/data/HB2B_Mask_12-18-19.xml"
-    vanadium_file = "tests/data/HB2B_931.h5"
+    calibration_file = DATA_DIR + "HB2B_CAL_Si333.json"
+    mask_file = DATA_DIR + "HB2B_Mask_12-18-19.xml"
+    vanadium_file = DATA_DIR + "HB2B_931.h5"
     output_dir = os.getcwd()
     target_file_path = "HB2B_1017_Cal_Mask_Van.h5"
 
@@ -148,7 +155,7 @@ def test_load_split():
 
     """
     # Init load/split service instance
-    nexus_file = "tests/data/HB2B_1017.nxs.h5"
+    nexus_file = DATA_DIR + "HB2B_1017.nxs.h5"
     if os.path.exists(nexus_file) is False:
         pytest.skip("Unable to access {}".format(nexus_file))
 

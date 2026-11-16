@@ -19,16 +19,14 @@ wait = 500
 plot_wait = 100
 
 
-@pytest.fixture(scope="session")
-def combine_projects_window(my_qtbot):
-    r"""
-    Fixture for the detector calibration window. Creating the window with a session scope and reusing it for all tests.
-    This is done to avoid the segmentation fault error that occurs when the window is created with a function scope.
-    """
+@pytest.fixture
+def combine_projects_window(qtbot):
+    """A fresh combine-projects window for each test, closed afterwards (see `tests/ui/conftest.py`)."""
     model = CombineRunsModel()
     ctrl = CombineRunsCrtl(model)
     window = CombineRunsViewer(model, ctrl)
-    return window, my_qtbot
+    qtbot.addWidget(window)
+    return window, qtbot
 
 
 def test_merged_projectfile_viewer(combine_projects_window, monkeypatch):
@@ -97,7 +95,7 @@ def test_save_file_dialog_nxstress_writes_valid_nxs_file(
     window, qtbot = combine_projects_window
     export_file = "test_export.nxs"
 
-    window.model._hidra_ws = minimal_HidraWorkspace(with_instrument=True, with_masks=True)
+    window.model._hidra_ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
     window._project_files = ["placeholder"]
 
     try:
@@ -146,8 +144,8 @@ def test_load_project_files_auto_prompt_calls_both_save_dialogs_in_order(
     original_load_combine_projects = window.controller.load_combine_projects
 
     def fake_load_combine_projects(project_files: List[str]) -> None:
-        window.model._hidra_ws = minimal_HidraWorkspace(with_instrument=True)
-        # the window is shared: an earlier test's combine leaves a warning, which would open a modal dialog
+        window.model._hidra_ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
+        # no warnings: a combine's warning would open a modal dialog
         window.model.warnings = []
 
     window.controller.load_combine_projects = fake_load_combine_projects
@@ -165,7 +163,7 @@ def test_load_project_files_auto_prompt_calls_both_save_dialogs_in_order(
 
 
 def _refused_export_setup(window, *, minimal_HidraWorkspace, monkeypatch, chosen: Path) -> List[tuple]:
-    """The shared window holding a workspace with geometry, its save dialogs
+    """The window holding a workspace with geometry, its save dialogs
     answering `chosen`, and message boxes recorded instead of shown."""
     messages: List[tuple] = []
 
@@ -177,7 +175,9 @@ def _refused_export_setup(window, *, minimal_HidraWorkspace, monkeypatch, chosen
     monkeypatch.setattr(
         combine_runs_viewer.QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (str(chosen), ""))
     )
-    monkeypatch.setattr(window.model, "_hidra_ws", minimal_HidraWorkspace(with_instrument=True, with_masks=True))
+    monkeypatch.setattr(
+        window.model, "_hidra_ws", minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
+    )
     monkeypatch.setattr(window, "_project_files", ["placeholder"])
     return messages
 

@@ -78,7 +78,9 @@ platforms = ["linux-64"]
 [tool.pixi.dependencies]
 python = "*"
 pip = "*"
-mantidworkbench = ">=6.16.0,<6.17"
+# <7.1, not <6.17: the dev feature (in default and dev) takes Mantid nightlies, which are 7.0 only since
+# 2026-11. prod and qa keep <6.17 in their features, and the published package keeps it in run-dependencies.
+mantidworkbench = ">=6.16.0,<7.1"
 qtpy = "*"
 uncertainties = "*"
 libarchive = "*"
