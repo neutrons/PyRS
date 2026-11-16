@@ -1106,16 +1106,40 @@ unmasked. Each grouping was reduced by the current code on a coarse `DENEXDetect
    excess). The intensity error falls from 0.91 % to 0.73 %. Grouping removes the σ artifact; it
    adds no information.
 3. **Strain.**
-   - **Vertical grouping is safe** up to 16 rows (4.7 mm): shifts ≤ 8 µε RMS, about 1 σ_ε, with a
-     small common offset of −4 to −6 µε.
-   - **Horizontal grouping biases strain.** Reduction does not split pixels across 2θ bins, so once
-     a coarse pixel (0.034° at g_x = 2) is wider than a bin (0.0225°), its counts land in one bin
-     and the pattern aliases: χ² rises and the peak moves, by 33 µε RMS (4.6 σ) at g_x = 2 and
-     426 µε at g_x = 4. At g_x = 8 bins in the window are empty and the fit fails.
+   - **Vertical grouping itself does not move strain.** With Poisson σ at every grouping, the
+     shift against 1 × 1 is ≤ 0.6 µε RMS up to 1 × 8 on 5344 (2.1 µε at 1 × 16). It is ≤ 2 µε mean
+     and ≤ 5.6 µε RMS up to 1 × 16 on the sparse 3489 (Si331, peaks at 73–108°, 0.066 counts per
+     pixel). The −4 to −6 µε offset in the table is the σ artifact below, not the grouping.
+   - **Production σ moves weak-peak strains (2026-11-16).** Fitting the native data with Poisson σ
+     instead of production σ changes the strain by −5.7 µε mean (7.9 RMS) on 5344, and by
+     **+40 µε mean (56 µε RMS)** on 3489. With production σ, grouping removes zeros and so moves the
+     result step by step toward the Poisson one: +5, +14, +26, +34 µε at 1 × 2, 4, 8, 16 on 3489.
+     Which weighting is unbiased is for the Phase 2 Monte Carlo; Poisson σ is the correct
+     statistical weight.
+   - **Production σ over-reports weak-peak strain errors about 2×.** On 3489, σ_ε is 62 µε with
+     production σ and 30 µε with Poisson σ. Grouping brings the production value to 37 (1 × 4),
+     32 (1 × 8) and 31 µε (1 × 16), while the Poisson value stays at 30 µε for every grouping:
+     grouping fixes the reported error and adds no information. The intensity error falls from
+     9.7 % to 5.1 % (1 × 4) and 3.9 % (1 × 8).
+   - **Horizontal grouping biases strain unless the 2θ bin is at least as wide as the coarse
+     pixel.** Reduction does not split pixels across 2θ bins, so a coarse pixel's counts land in one
+     bin and a too-fine binning aliases the pattern: χ² rises and the peak moves. Strain shift, RMS,
+     with Poisson σ:
+
+     | g_x (pixel width) | 720 bins (0.0225°) | 360 bins (0.045°) | 180 bins (0.09°) |
+     |---|---|---|---|
+     | 2 (0.034°) | 34.5 µε | 3.6 µε | 3.7 µε |
+     | 4 (0.068°) | 490 µε | 83 µε | 9.1 µε |
+     | 8 (0.137°) | fit fails | 390 µε | 1,040 µε |
+
+     Even when it works, horizontal grouping gains nothing. The native strain error is 7.3–7.4 µε
+     at every bin width, while wider bins sample the peak more coarsely and raise χ² (1.75 → 2.85 →
+     5.61). Vertical grouping removes the zeros without this constraint.
    - **Stress** is a linear combination of strains along several directions, so these strain
-     shifts and errors carry into stress in proportion. (5344 is unstressed Si, so no stress
-     value was computed.)
-   - Not yet tested: horizontal grouping with 2θ bins at least as wide as the coarse pixel.
+     shifts and errors carry into stress in proportion. (5344 and 3489 are unstressed Si, so no
+     stress value was computed.)
+   - 3489 used the earliest Si331 calibration (2024-02-09) and vanadium 3446 (2023-05-23, C501,
+     Si422 monochromator).
 
 ## HB2B detector: pixel orientation, vanadium dead area, and vertical wire-period stripes (2026-11-12)
 

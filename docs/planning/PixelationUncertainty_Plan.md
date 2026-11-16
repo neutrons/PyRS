@@ -133,7 +133,9 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
       measure the effect on 1) zero-count pixels, 2) uncertainties, 3) strain/stress. Vertical
       grouping (≤ 16 rows) removes the zeros and the σ inflation with strain shifts ≤ 8 µε;
       horizontal grouping aliases the 2θ pattern without pixel splitting (33 µε at 2×, fails at 8×).
-- [ ] Horizontal grouping with 2θ bins at least as wide as the coarse pixel.
+- [x] Horizontal grouping with 2θ bins at least as wide as the coarse pixel. Works only then
+      (2×1 with ≥ 0.045° bins: 3.6 µε RMS; 4×1 with 0.09° bins: 9 µε), and gains nothing over
+      vertical grouping.
 
 ### Phase 2 — Monte Carlo validation ([#1108](https://github.com/neutrons/PyRS/issues/1108))
 - [ ] Synthetic generator: peak profile and background mapped onto the real
@@ -157,8 +159,11 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
 - [ ] **Candidate: 1 × 8 vertical pixel grouping** (8 rows = 2.34 mm, close to the wire pitch). On
       5344: zeros 3.7 %, σ ratio 1.00, strain shifts 8.1 µε RMS.
 - [ ] For both candidates, before scoring:
-  - [ ] low 2θ, where rings curve more (e.g. 3489 down to 59.6°): does the −4 to −6 µε offset grow?
-  - [ ] a strained sample, and weak peaks (where the σ inflation matters most);
+  - [x] low 2θ, where rings curve more (e.g. 3489 down to 59.6°): does the −4 to −6 µε offset grow?
+        No. With Poisson σ, vertical grouping shifts ≤ 2 µε mean (≤ 5.6 RMS) at 73–108° on 3489;
+        the offset was the production-σ artifact (+40 µε mean on weak-peak 3489).
+  - [ ] a strained sample, and weak peaks (where the σ inflation matters most). Weak peaks:
+        3489 done (production σ_ε 62 µε against Poisson 30; 1 × 4 → 37, 1 × 8 → 32).
   - [ ] η-wedge (texture) intensities;
   - [ ] pull distributions from Phase 2.
 - [ ] **Calibration impact of vertical grouping (1 × 4, 1 × 8).** This covers both calibration methods
