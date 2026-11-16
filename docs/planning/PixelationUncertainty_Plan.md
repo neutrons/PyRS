@@ -110,8 +110,9 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
 - [x] Per 2θ bin and per η wedge: *n*, *n₀*, Σ Nᵢ, and the inflation ratio
       (Σ Nᵢ + n₀) / Σ Nᵢ. On 5344 (autoreduction settings) it equals the Poisson prediction;
       background σ is reported 1.5–1.8× too large, peaks unaffected, the same in 3° η wedges.
-- [ ] Confirm which wire plane encodes y. Results are labelled by detector axis. *Not in the data
-      or the instrument definition (only a 1024 × 1024 grid); needs detector documentation.*
+- [x] Confirm which wire plane encodes y. The x plane (horizontal) has about half the pitch of the
+      y plane: 0.963 mm against 1.933 mm (3.29 against 6.60 px), the same in 2019, 2024 and 2025. The
+      x modulation is weak (1.2 %, against 44–49 % along y).
 
 ### Phase 1 — Quantify the current treatment ([#1107](https://github.com/neutrons/PyRS/issues/1107))
 - [x] Find out whether Mantid `FitPeaks` scales parameter errors by reduced

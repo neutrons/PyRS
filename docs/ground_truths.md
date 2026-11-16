@@ -1184,5 +1184,12 @@ Data: 2019–2023 runs in `tests/data`, and 2025 runs 5339, 5340 and 5344 from I
     (≤ 0.3 %).
   - **Cause not separated:** 4501 and these runs used different collimators (C508 with collimator,
     against C511), so the extra ~3 % cannot be split between time drift and collimator.
+- **Wire planes (2026-11-16, confirmed by the user).** The x (horizontal) coordinate is encoded by
+  a wire plane with about half the pitch of the y plane. Detrended vanadium column means show a
+  period of **3.29 px = 0.963 mm along x**, against **6.60 px = 1.933 mm along y** (ratio 2.007).
+  This holds in floods 931 (2019), 4501 (2024) and 5339 (2025). The x modulation is weak, 1.2 %
+  relative std between columns, against 44–49 % between rows along y. It is why the vanadium's x
+  profile looked smooth, and why the count-ratio residuals along x show a weak 3.29 px component.
+  Which plane is the anode and which the cathode is not established from the data.
 - **Noise bias.** Raw per-pixel vanadium used as an efficiency over-predicts zeros by about
   1 + λ²σ²/2 (σ² ≈ 1/N_van). Average it along x before using it.
