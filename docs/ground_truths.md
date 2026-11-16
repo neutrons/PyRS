@@ -986,9 +986,12 @@ For a uniform Poisson mean λ per pixel, the reported variance is (1 + e^(−λ)
 variance, i.e. 3.2× σ at λ = 0.1 and 1.17× at λ = 1.
 
 **Measured (2026-11-12, Phase 0, [#1106](https://github.com/neutrons/PyRS/issues/1106)).** Run 5344
-(Si422 arm scan, 12 sub-runs, 0.5–1.1 counts per pixel) was reduced the way autoreduction reduced it:
-2024-07-09 calibration, 2019-11-18 mask, vanadium 4501, 720 bins (~0.023°, ~1,270 pixels per bin;
-~230 per 3° η wedge). Production's own `reduce_to_2theta_histogram` supplied the intensities and σ,
+(Si422 arm scan, 12 sub-runs, 0.5–1.1 counts per pixel) was reduced by the current reduction code with
+the IPTS-36131 autoreduction settings: 2024-07-09 calibration, 2019-11-18 mask, vanadium 4501, 720 bins
+(~0.023°, ~1,270 pixels per bin; ~230 per 3° η wedge). The stored autoreduced file
+(`shared/autoreduce/HB2B_5344.h5`, made in 2025-09 by an older PyRS) is *not* reproduced by today's
+code: its 2θ axis is wider (78.02–95.24° in 0.0239° steps for sub-run 7, against 78.90–95.08° in
+0.0225°), and its intensities differ by ~2 % (median). Production's own `reduce_to_2theta_histogram` supplied the intensities and σ,
 and the formula σ²_rel = (ΣN + n₀)/ΣN² + 1/ΣV + 1/V_max reproduces that σ to 4×10⁻¹⁶.
 - **The inflation is exactly the Poisson prediction.** Per bin, observed (ΣN + n₀)/ΣN over
   1 + Σe^(−λᵢ)/Σλᵢ has a median of 0.996–1.005 in every sub-run and wedge, where λᵢ comes from the
@@ -998,7 +1001,9 @@ and the formula σ²_rel = (ΣN + n₀)/ΣN² + 1/ΣV + 1/V_max reproduces that 
   **σ is reported 1.5–1.8× too large**. **Peak bins** (top 1 % by λ̄, λ̄ ≈ 3–15): 1.00–1.03. Over all bins, the median σ_reported / σ_Poisson is
   1.4–1.6 (90th percentile 1.7–1.9, max 2–4.5). 80–94 % of bins have variance inflated above 1.5×.
 - **η wedges** (3°, centres 0, ±3, ±6) show the same inflation as the full detector, confirming
-  that it is set by λ, not by the number of pixels.
+  that it is set by λ, not by the number of pixels. So does the bin width: with 360, 720 and
+  1,440 bins (2,532 to 634 pixels per bin) the median inflation is 2.39–2.40, and the median
+  σ_reported / σ_Poisson 1.53–1.54.
 - **The vanadium terms barely matter:** σ_reported / σ_Poisson ≈ √((ΣN + n₀)/ΣN), because ΣV is large.
 - Consequence for fitting (Phase 1, [#1107](https://github.com/neutrons/PyRS/issues/1107)): the fit
   weights background bins 2–3× too little relative to peak bins.
@@ -1009,6 +1014,67 @@ with the logged sign mirrors the pixel 2θ map along x (column 0 then reads 78.6
 61.35° at a 70° arm) and puts η near ±180°, so reduction's η wedges (centred on 0°) select no pixels.
 The Phase 0 zero-count results in the next entry were rechecked with the correct sign: observed/expected zeros
 moved by ≤ 0.002, and the row/column mismatches by ≤ 0.3 %.
+
+## `FitPeaks` reports unscaled covariance errors; zero-count inflation enlarges weak-peak errors (2026-11-12, #1107)
+
+Phase 1 of the pixelation study ([plan](planning/PixelationUncertainty_Plan.md)). No production code changed.
+This was tested on 300 Poisson realisations of a Gaussian on a linear background (5344's bin width
+0.0226°, 4° window, 172 dof). The fits used the `FitPeaks` arguments of `MantidPeakFitEngine.fit_peaks`
+(`HighBackground=True`, `RawPeakParameters=True`, default least-squares cost, 500 iterations).
+
+- **Parameter errors are not rescaled by the reduced χ².** Doubling every σ (`DataE`) doubles every
+  reported error. With σ = 1 everywhere, the errors fall to ~1 % of the real scatter. The errors
+  are √(diag covariance) for the σ supplied, so **any error in σ passes straight into the reported
+  peak uncertainties**.
+- **The `chi2` column is the reduced χ²:** 1.00 with σ = √N, 0.25 with 2√N.
+- **With σ = √N, the errors are right:** reported error over the real scatter is 0.96–1.05 for
+  centre, height, width and background.
+- **With reduction's σ = √(N + n₀)** (background 0.63 counts per pixel, 1,268 pixels per bin, as
+  in 5344), the fitted values do not change: scatter and bias are within 1 % of the Poisson fit. But
+  the reduced χ² drops to 0.57–0.68, and the errors grow as the peak weakens:
+
+  | Peak top, counts per pixel | Centre | Height | Width | Background |
+  |---|---|---|---|---|
+  | 10 | 1.05 | 0.97 | 1.05 | 1.33 |
+  | 2.2 | 1.15 | 1.04 | 1.18 | 1.37 |
+  | 0.95 | 1.27 | 1.20 | 1.28 | 1.36 |
+
+  The table gives reported error over the real scatter. Strong peaks carry their information in bins
+  where the inflation is ~1. Weak peaks rely on the background bins, where σ is inflated 1.5–1.8×.
+  Peak-centre (strain) uncertainties of weak peaks are therefore over-reported by up to ~30 %.
+- **Real data shift the fitted values (2026-11-16).** Each 5344 sub-run's strongest peak (Si, 2θ
+  75–98°) was refitted with PyRS's `FitPeaks` arguments (pseudo-Voigt, mixing start 0.6, linear
+  background). The fits used the intensities reduced as in the previous entry, once with
+  production σ and once with Poisson σ (σ²_data = ΣN). Changing σ from production to Poisson
+  moves every sub-run the same way:
+  - peak centre +0.65 ± 0.19 mdeg on average (11 of 12 positive; 0.1–1.7 σ each; ≈ 6 µε at 90°);
+  - FWHM smaller in all 12 (−0.3 to −0.95 σ);
+  - integrated intensity larger in all 12 (+0.5 to +2.1 %, +0.6 to +1.7 σ);
+  - centre and FWHM errors 2–9 % smaller, intensity errors 13–29 % smaller;
+  - reduced χ² 0.8–3.4 → 1.3–4.2.
+
+  On the synthetic peaks above, the values did not move. The difference is that χ² > 1 here: the
+  pseudo-Voigt + linear model does not fully describe the measured peaks, so re-weighting the
+  background moves the best fit. Since `FitPeaks` does not rescale by χ², the Poisson-σ errors are
+  themselves too small by √χ² for this model misfit; production's inflated σ partly masks that.
+
+## A stale vanadium biases η-wedge (texture) intensities by up to ~10 % (2026-11-16, #1107)
+
+Phase 1 of the pixelation study ([plan](planning/PixelationUncertainty_Plan.md)). No production code changed.
+Each 5344 sub-run was reduced into 3° η wedges (centres 0, ±3, ±6°) by the current reduction code
+(2024-07-09 calibration, 2019 mask, 720 bins), once with the production vanadium 4501 (2024-07) and
+once with the same-day flood 5339. The sub-run's strongest peak was fitted in each wedge with
+PyRS's `FitPeaks` arguments.
+
+- **The wedge-to-wedge ratio I₄₅₀₁ / I₅₃₃₉, divided by its wedge mean, spreads by 0.6–11.7 %
+  (relative std) depending on the sub-run.** The fit's own error is 1–4 %; both fits share the same
+  counts, so that is an upper bound on the noise in the ratio. The worst sub-runs show a
+  pattern symmetric in η: the central wedge reads low and the ±6° wedges high, e.g. 0.83 → 1.17
+  (sub-run 12) and 0.84 → 1.12 (sub-run 5). Others (4, 6, 11) stay within ±1–3 %.
+- **For texture** (pole figures from η-resolved intensities), a vanadium that does not match the
+  sample's vertical efficiency pattern therefore distorts relative intensities by up to ~10–17 %.
+  This is larger than the counting error. Whether the cause is time drift or the different
+  collimator (C508 with collimator, against C511) is not separated.
 
 ## HB2B detector: pixel orientation, vanadium dead area, and vertical wire-period stripes (2026-11-12)
 
@@ -1044,5 +1110,14 @@ Data: 2019–2023 runs in `tests/data`, and 2025 runs 5339, 5340 and 5344 from I
   sub-run.
 - **Production mask, 2025.** `HB2B_Mask_Latest.xml` (2026-10-13) covers all but 353 of the
   94,541 pixels dead in vanadium 5339.
+- **The production vanadium for IPTS-36131 is 4501** (2024-07-23, C508 with collimator, 8 h,
+  28 counts per live pixel), 14 months before the runs, per `shared/hb2b_autoreduction.ini`.
+  - **Dead pixels:** 19,466 pixels live in 4501 are dead in 5339 (and 3,216 the reverse). All but
+    395 lie inside the 2019 mask that autoreduction uses, so they barely affect production.
+  - **Fit to the 2025 runs:** with the newly dead pixels excluded, 4501 matches rows to 3.3–3.7 %
+    (5344 sub-runs, 5340), against 1.2–1.9 % for the same-day 5339. Columns match either way
+    (≤ 0.3 %).
+  - **Cause not separated:** 4501 and these runs used different collimators (C508 with collimator,
+    against C511), so the extra ~3 % cannot be split between time drift and collimator.
 - **Noise bias.** Raw per-pixel vanadium used as an efficiency over-predicts zeros by about
   1 + λ²σ²/2 (σ² ≈ 1/N_van). Average it along x before using it.

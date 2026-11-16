@@ -103,25 +103,31 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
       dead-pixel mask.
 - [x] Repeat on recent runs with a vanadium taken close in time (IPTS-36131: vanadium 5339,
       runs 5340 and 5344): row mismatch ~2 %, the floor.
-- [ ] Apply a vanadium from another cycle to the 2025 runs, to measure the drift directly.
+- [x] Apply a vanadium from another cycle to the 2025 runs, to measure the drift directly. The
+      production vanadium 4501 (2024-07) matches rows to 3.3–3.7 % against 1.2–1.9 % same-day;
+      time drift and collimator difference (C508 vs C511) not separated.
 - [x] Per sub-run rather than whole-run sums (`--per-sub-run`). Needed for arm scans.
 - [x] Per 2θ bin and per η wedge: *n*, *n₀*, Σ Nᵢ, and the inflation ratio
       (Σ Nᵢ + n₀) / Σ Nᵢ. On 5344 (autoreduction settings) it equals the Poisson prediction;
       background σ is reported 1.5–1.8× too large, peaks unaffected, the same in 3° η wedges.
-- [ ] Confirm which wire plane encodes y. Results are labelled by detector axis.
+- [ ] Confirm which wire plane encodes y. Results are labelled by detector axis. *Not in the data
+      or the instrument definition (only a 1024 × 1024 grid); needs detector documentation.*
 
 ### Phase 1 — Quantify the current treatment ([#1107](https://github.com/neutrons/PyRS/issues/1107))
-- [ ] Find out whether Mantid `FitPeaks` scales parameter errors by reduced
-      χ², and record the answer as a ground truth.
-- [ ] Refit selected sub-runs with σ²_bin = Σ Nᵢ, a study-only variant run
+- [x] Find out whether Mantid `FitPeaks` scales parameter errors by reduced
+      χ², and record the answer as a ground truth. **No**: errors follow σ directly. On synthetic
+      peaks the inflated σ leaves fitted values unchanged, but over-reports weak-peak centre and
+      width errors by up to ~30 % (strong peaks ~5 %).
+- [x] Refit selected sub-runs with σ²_bin = Σ Nᵢ, a study-only variant run
       outside production code. Compare fitted centre, FWHM, and intensity,
-      their errors, and χ².
-- [ ] Show how the inflation ratio changes with 2θ bin width and η-wedge
-      size. *Phase 0 shows R depends on counts per pixel, not on the number of pixels in a
-      bin. Bin width can matter only by mixing pixels of different λ (e.g. on peak flanks);
-      the vanadium terms are negligible.*
-- [ ] Measure how much a stale vanadium (wrong vertical stripe pattern)
-      biases narrow-η-wedge intensities (texture).
+      their errors, and χ². All 12 5344 sub-runs move the same way: centre +0.65 mdeg, FWHM
+      smaller, intensity +0.5–2.1 %, errors 2–29 % smaller; χ² > 1 (model misfit).
+- [x] Show how the inflation ratio changes with 2θ bin width and η-wedge
+      size. It doesn't: 360/720/1,440 bins and 3° wedges give the same median inflation
+      (2.39–2.40); it is set by counts per pixel.
+- [x] Measure how much a stale vanadium (wrong vertical stripe pattern)
+      biases narrow-η-wedge intensities (texture). Production vanadium 4501 vs same-day 5339:
+      wedge-to-wedge intensity ratios spread 0.6–11.7 % per sub-run (fit error 1–4 %).
 
 ### Phase 2 — Monte Carlo validation ([#1108](https://github.com/neutrons/PyRS/issues/1108))
 - [ ] Synthetic generator: peak profile and background mapped onto the real
