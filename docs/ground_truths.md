@@ -3328,3 +3328,20 @@ coverage, at `b443d7a5`:
 - **Codecov gets three uploads per commit** (flags `unit`, `integration`, `gui`), minutes apart. `codecov.yml`
   makes its status and PR comment wait for all three (`after_n_builds: 3`), so the first upload alone never
   shows as a coverage drop.
+
+## mypy and PySide6's type stubs (2026-11-16)
+
+- **Symptom:** after the lockfile update #1112, `next`'s **lint job failed**, and `publish` / `deploy-dev` were skipped.
+  The tests all passed. `pixi run mypy pyrs scripts tests` reported 14 `attr-defined` errors on Qt enum short forms:
+  `QMessageBox.Yes/No`, `QFileDialog.DontUseNativeDialog`, `Qt.AlignRight/AlignVCenter/Vertical`.
+- **Cause:** `pyside6` 6.11.3 changed from build `_0` to `_1`, which ships `py.typed`; `qtpy`, `pyqt6` and `mypy` were
+  unchanged.
+  - PyRS imports Qt through `qtpy`, and mypy follows every binding branch in `qtpy`.
+  - PySide6 is the only binding with type information (PyQt6 has none), so mypy checks PyRS against PySide6's
+    stubs. Those only have the scoped names, e.g. `QMessageBox.StandardButton.Yes`.
+  - At runtime the binding is **PyQt6**, and `qtpy` provides the short forms, so the code works.
+- **Fix (for now):** a `[[tool.mypy.overrides]]` for `PySide6.*` and `shiboken6.*` with `follow_imports = "skip"`
+  **and** `follow_imports_for_stubs = true`. "skip" alone does not apply to stub files, and PySide6's types come
+  from its `.pyi` stubs. PySide6 is untyped for mypy again, as before build `_1`.
+- **Proper fix (planned):** use the scoped enum names, which work with every binding `qtpy` supports. Then
+  remove the override.
