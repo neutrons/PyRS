@@ -70,3 +70,24 @@ without renumbering.
   **Found during:** the review of the NXstress hookup, phase 2, when the GUI tier was run without `os._exit()`.
   **Why it is deferred.** Finding the source means auditing every viewer, and confirming the CI crash needs
   `xvfb-run`; both are outside that PR's scope.
+
+- **DD-20**, 2026-11-12: integration tests write fixed file names into the working folder instead of
+  `tmp_path`, and several leave them behind. `test_reduction.py` (several `HB2B_*.h5`, some never
+  removed), `test_manual_reduction_ui.py` (`output_dir = os.getcwd()`; `test_reduction_with_vanadium`
+  never removes its output), `test_project_file_rw.py` (both outputs left behind), and `test_file_object.py`,
+  `test_write_stress_csv.py`, `test_peak_fitting.py` and `test_calibration_file_io.py` (removed only on
+  success). No two modules share a name today, so parallel runs don't collide.
+
+  **Found during:** the parallel-test review for #1100.
+  **Why it is deferred.** No collision exists under `--dist loadscope`. Moving every writer to `tmp_path`
+  touches seven modules outside the CI change. CLAUDE.md now asks new and changed tests to use `tmp_path`.
+
+- **DD-21**, 2026-11-12: `test_peakfit_calibration.py`'s gold-file comparison passes its arguments in the
+  wrong order. `are_equivalent_jsons(test_json_name, gold_json_name, atol)` loops over the keys of its
+  second argument, but the three tests call it as `are_equivalent_jsons(goldfile, file_name, ...)`. So it
+  loops over the written file's keys, and a key in the gold file that is missing from the written
+  calibration is never detected.
+
+  **Found during:** the parallel-test review for #1100.
+  **Why it is deferred.** It changes what three integration tests check, which needs its own run against
+  the gold files, outside the CI change.
