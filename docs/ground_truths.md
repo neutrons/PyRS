@@ -1915,7 +1915,8 @@ The Detector Calibration window can run the ring-based calibration (user-approve
 - **Checked:**
   - With the driver's settings (strips 5, "iterate", trf, the same mask and starting
     calibration), the window's calibration file on HB2B_3510 is **identical** to
-    `pyrs-pixel-calibration`'s (`test_ring_based_calibration_matches_driver`).
+    `pyrs-pixel-calibration`'s. Checked by `test_ring_based_calibration_matches_driver` until #1101, which
+    stopped it running the driver (`test_ring_based_calibration_uses_driver_defaults`; see #1101's section).
   - The same holds headless on a synthetic run.
 
 **Export, for both methods:**
@@ -3290,6 +3291,20 @@ Tests: `tests/unit/pyrs/core/test_polefigurecalculator.py`. Each new test fails 
     range), not three. 60° (below the range) is no longer checked.
   - Integer indices in `estimate_errors(hold=...)` are no longer tested directly. `refine` shares the same
     index handling.
+- **The GUI window = driver test no longer runs the driver** (user decision). It is renamed
+  `test_ring_based_calibration_uses_driver_defaults`. From the written file's provenance, it checks that the
+  window ran with what the driver uses:
+  - the parser's strips, passes, polish and round limit;
+  - `PixelCalibration`'s default method;
+  - every sub-run kept;
+  - the nominal start at the run's wavelength.
+
+  It also checks the window's max nfev of 300 reached the refinement. The driver sets none, and on HB2B_3510 the
+  cap does not bind: the files were bit-identical while the test ran the driver. It still checks the ring
+  marks, the rounds and the method switch. 79 → 46 s on this workstation.
+  - **What is lost:** the bit-for-bit comparison on real data. `test_ring_path_equals_the_driver` compares
+    the window's model with the driver bit for bit, but on synthetic data. Real data is checked by
+    `test_driver_rounds_agree_with_the_reference` (integration) against the reference calibration.
 ## Parallel test tiers on CI (2026-11, #1100)
 
 CI runs the three test tiers as three jobs (`test-tier` matrix: `tests (unit)`, `tests (integration)`,

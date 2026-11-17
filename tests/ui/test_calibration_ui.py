@@ -6,6 +6,7 @@ from pyrs.core import pyrscore
 from matplotlib.contour import ContourSet
 from qtpy import QtCore, QtWidgets
 import functools
+import inspect
 import json
 import os
 
@@ -172,8 +173,8 @@ def test_detector_calibration(calibration_window, tmp_path, export_settings):
     window.hide()
 
 
-def test_ring_based_calibration_matches_driver(calibration_window, tmp_path):
-    """#1045: the window's ring-based calibration gives exactly the pyrs-pixel-calibration driver's result"""
+def test_ring_based_calibration_uses_driver_defaults(calibration_window, tmp_path):
+    """#1045: the window's ring-based calibration runs with what the pyrs-pixel-calibration driver uses"""
     import importlib.util
     import json
     from pathlib import Path
@@ -186,8 +187,7 @@ def test_ring_based_calibration_matches_driver(calibration_window, tmp_path):
     qtbot.wait(wait)
     setup = window.peak_lines_setup
 
-    # Arrange - the driver's settings; the session window keeps the first test's recipe (max nfev 3,
-    # only sub-run 1 kept), which the window rightly applies to the ring-based calibration too
+    # Arrange - the driver's settings, set explicitly so the checks below test the window's wiring
     window.calib_summary.method_combo_box.setCurrentText("trf")
     window.calib_summary.neval_lineEdit.setText("300")
     for row in range(setup.calibrant_table.rowCount()):
@@ -236,29 +236,41 @@ def test_ring_based_calibration_matches_driver(calibration_window, tmp_path):
     folder.mkdir()
     written = window.calib_summary.write_calibration(str(folder))
 
-    # Assert - the same file as the driver, with the window's mask (none without /HFIR) and wavelength
+    # Assert - the window ran with what the driver uses (#1101): its command-line defaults (read from its
+    # parser) and PixelCalibration's defaults, which the driver does not override. This no longer runs the
+    # driver: the bit-for-bit window = driver comparison is test_ring_path_equals_the_driver, at the model
+    # level on synthetic data. This test checks the viewer's wiring to the model on real data.
+    from pyrs.calibration.pixel_refinement import PixelCalibration
+    from pyrs.interface.detector_calibration import detector_calibration_model
+
     spec = importlib.util.spec_from_file_location(
         "pyrs_pixel_calibration", Path(__file__).resolve().parents[2] / "scripts" / "pyrs_pixel_calibration.py"
     )
     driver = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(driver)
-    driver_file = str(tmp_path / "driver.json")
-    driver.run_calibration(nexus, driver_file, mask_file=window.model.mask_file)
-    gui_json, driver_json = json.load(open(written[0])), json.load(open(driver_file))
-    # the provenance differs only in its time and who ran it (#1053): the calibration and its steps match
-    gui_provenance, driver_provenance = gui_json.pop("provenance"), driver_json.pop("provenance")
-    assert gui_json == driver_json
-    varying = {"created", "user", "host", "inputs", "start"}  # the start: same values, says who set it
-    assert gui_provenance["start"]["values"] == driver_provenance["start"]["values"]
-    # so does the first extraction round's start (#1038): compared without who set it
-    for provenance in (gui_provenance, driver_provenance):
-        provenance["extraction_rounds"][0]["start"].pop("source")
-    assert {k: v for k, v in gui_provenance.items() if k not in varying} == {
-        k: v for k, v in driver_provenance.items() if k not in varying
-    }
-
-    # the rings were extracted again until converged, as the driver does (compared above with the provenance)
-    assert len(gui_provenance["extraction_rounds"]) >= 2
+    defaults = driver.build_parser().parse_args([nexus, "-o", "calibration.json", "--no-mask"])
+    refinement_defaults = inspect.signature(PixelCalibration).parameters
+    gui_provenance = json.load(open(written[0]))["provenance"]
+    inputs = gui_provenance["inputs"]
+    assert inputs["extraction"]["strips"] == defaults.strips
+    assert inputs["recipes"][-1][:1] == ["iterate"]
+    assert detector_calibration_model.ITERATE_PASSES == defaults.passes
+    assert inputs["refinement"]["method"] == refinement_defaults["method"].default
+    # max nfev: the window's 300 reached the refinement. The driver sets none; on HB2B_3510 the cap does not
+    # bind (the files were bit-identical while this test still ran the driver)
+    assert inputs["refinement"]["max_nfev"] == 300
+    # every sub-run kept, from the nominal geometry at the run's wavelength, as the driver starts
+    all_sub_runs = [int(s) for s in window.model._calibration_obj._hidra_ws.get_sub_runs()]
+    assert sorted(inputs["extraction"]["sub_runs"] or all_sub_runs) == all_sub_runs
+    first_start = gui_provenance["extraction_rounds"][0]["start"]["values"]  # later rounds start where one ended
+    assert first_start == pytest.approx([0.0] * 7 + [window.controller.get_wavelength()])
+    # iterate ends with its joint polish (no --no-polish by default), then the error estimate
+    assert not defaults.no_polish
+    routines = [step["routine"] for step in gui_provenance["steps"]]
+    assert routines[-2:] == ["FullCalibration", "estimate_errors"]
+    # the rings were extracted again until converged, with the driver's round limit
+    assert window.model.max_rounds == defaults.max_rounds
+    assert 2 <= len(gui_provenance["extraction_rounds"]) <= defaults.max_rounds
 
     setup.method_combo.setCurrentText("FitCalibration")
     assert not setup.rounds_lineEdit.isEnabled()
