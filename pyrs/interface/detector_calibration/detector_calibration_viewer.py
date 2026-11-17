@@ -61,7 +61,7 @@ rcParams["savefig.dpi"] = 200
 
 def save_json_file(self):
     filename, _ = QFileDialog.getSaveFileName(
-        self, "Export Calibration", "JSON (*.json)", options=QFileDialog.DontUseNativeDialog
+        self, "Save Calibration Recipe", "", "JSON (*.json)", options=QFileDialog.DontUseNativeDialog
     )
 
     if not filename:
@@ -751,7 +751,11 @@ class PeakLinesSetupView(QGroupBox):
 
     def load_json(self):
         filename, _ = QFileDialog.getOpenFileName(
-            self, "Load Calibration Recipe", "JSON (*.json);;All Files (*)", options=QFileDialog.DontUseNativeDialog
+            self,
+            "Load Calibration Recipe",
+            "",
+            "JSON (*.json);;All Files (*)",
+            options=QFileDialog.DontUseNativeDialog,
         )
         if not filename:
             return

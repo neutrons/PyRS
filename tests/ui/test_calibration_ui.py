@@ -411,3 +411,31 @@ def test_removed_export_folder_falls_back(tmp_path):
     assert _remembered_export_folder(str(tmp_path)) == str(tmp_path)
     assert _remembered_export_folder(str(gone)) == os.getcwd()
     assert _remembered_export_folder(None) == os.getcwd()
+
+
+@pytest.mark.parametrize("dialog", ["save", "load"])
+def test_recipe_dialogs_filter_json(calibration_window, monkeypatch, dialog):
+    """The recipe dialogs pass their filter as the filter, not as the starting folder (DD-26)."""
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+
+    # Arrange - record what the dialog is given; cancel it
+    window, _ = calibration_window
+    calls = []
+
+    def record(parent, caption, directory="", file_filter="", **kwargs):
+        calls.append((directory, file_filter))
+        return "", ""
+
+    name = "getSaveFileName" if dialog == "save" else "getOpenFileName"
+    monkeypatch.setattr(viewer_module.QFileDialog, name, record)
+
+    # Act
+    if dialog == "save":
+        viewer_module.save_json_file(window)
+    else:
+        window.peak_lines_setup.load_json()
+
+    # Assert - one dialog, with no starting folder or file name, and a first (default) filter for .json files
+    ((directory, file_filter),) = calls
+    assert directory == ""
+    assert "*.json" in file_filter.split(";;")[0]
