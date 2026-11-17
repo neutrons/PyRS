@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>271</width>
-    <height>192</height>
+    <height>222</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -72,6 +72,13 @@
      <widget class="QPushButton" name="pushButton_launchStrainStressCalculation">
       <property name="text">
        <string>Strain/Stress Calculation</string>
+      </property>
+     </widget>
+    </item>
+    <item row="6" column="0">
+     <widget class="QPushButton" name="pushButton_poleFigures">
+      <property name="text">
+       <string>Path-Length-Corrected Pole Figures</string>
       </property>
      </widget>
     </item>

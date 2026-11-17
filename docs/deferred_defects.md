@@ -151,3 +151,6 @@ without renumbering.
   override hides it again.
   **Why it is deferred.** Unreachable today, and outside a lint fix. To be fixed with the scoped-enum change,
   when the override is removed.
+- **DD-28**, 2026-11-17: Manual Reduction fails under PyQt5 (the `prod` environment, Mantid 6.16). `ManualReductionViewer` (`pyrs/interface/manual_reduction/manual_reduction_viewer.py`) reads `state.value` from a `Qt.CheckState`, which only Qt6 enums have, so opening the window raises `AttributeError: 'CheckState' object has no attribute 'value'`. `test_launcher` and both `test_manual_reduction` tests fail in `prod` before any change. CI runs the Qt6 environment only, so it does not see it.
+  **Found during:** the pole-figure launcher PR, running the GUI tier in `prod`.
+  **Why it is deferred.** Outside that PR. Reported to the maintainers in its description.

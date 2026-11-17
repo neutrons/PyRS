@@ -1,3 +1,5 @@
+import importlib.util
+
 from qtpy.QtWidgets import QMainWindow  # type:ignore
 from pyrs.utilities import load_ui  # type: ignore
 from pyrs.core import pyrscore
@@ -32,6 +34,15 @@ from pyrs.interface.combine_runs.combine_runs_viewer import CombineRunsViewer  #
 from pyrs.interface.combine_runs.combine_runs_model import CombineRunsModel  # noqa: E402
 from pyrs.interface.combine_runs.combine_runs_crtl import CombineRunsCrtl  # noqa: E402
 
+#: Optional add-on package that provides the path-length-corrected pole-figure window
+POLE_FIGURE_PACKAGE = "hidra_pathlength_polefigs"
+POLE_FIGURE_DISTRIBUTION = "hidra-pathlength-polefigs"
+
+
+def pole_figures_available() -> bool:
+    """Return True if the optional pole-figure package is installed."""
+    return importlib.util.find_spec(POLE_FIGURE_PACKAGE) is not None
+
 
 class PyRSLauncher(QMainWindow):
     """
@@ -52,6 +63,12 @@ class PyRSLauncher(QMainWindow):
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_launch_fit_peak_window)
         self.ui.pushButton_fitTexture.clicked.connect(self.do_launch_fit_texture_window)
         self.ui.pushButton_launchStrainStressCalculation.clicked.connect(self.do_launch_strain_stress_window)
+        self.ui.pushButton_poleFigures.clicked.connect(self.do_launch_pole_figure_window)
+        if not pole_figures_available():
+            self.ui.pushButton_poleFigures.setEnabled(False)
+            self.ui.pushButton_poleFigures.setToolTip(
+                f"Needs the optional package {POLE_FIGURE_DISTRIBUTION} (not installed)"
+            )
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionCalibration.triggered.connect(self.do_launch_calibration_window)
@@ -63,6 +80,7 @@ class PyRSLauncher(QMainWindow):
         self.strain_stress_window = None
         self.texture_fit_window = None
         self.combine_run_window = None
+        self.pole_figure_window = None
 
     def do_launch_fit_texture_window(self):
         """
@@ -145,6 +163,16 @@ class PyRSLauncher(QMainWindow):
         # launch
         self.strain_stress_window.show()
 
+    def do_launch_pole_figure_window(self) -> None:
+        """Open the path-length-corrected pole-figure window, or bring the open one to the front."""
+        if self.pole_figure_window is not None and self.pole_figure_window.isVisible():
+            self.pole_figure_window.raise_()
+            self.pole_figure_window.activateWindow()
+            return
+        from hidra_pathlength_polefigs.gui import open_window
+
+        self.pole_figure_window = open_window(self)
+
     def do_quit(self):
         """
         close window
@@ -159,5 +187,8 @@ class PyRSLauncher(QMainWindow):
 
         if self.strain_stress_window is not None:
             self.strain_stress_window.close()
+
+        if self.pole_figure_window is not None:
+            self.pole_figure_window.close()
 
         self.close()

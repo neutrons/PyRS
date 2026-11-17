@@ -18,7 +18,7 @@ you should be able to see pyRS's MainWindow:
   :width: 400
   :alt: pyrsplot startup window
 
-As listed in the MainWindow, pyrsplot can run 3 different usage modes as described in the next sections.
+As listed in the MainWindow, pyrsplot can run several different usage modes as described in the next sections.
 
 Data Manual Reduction
 =====================
@@ -98,6 +98,27 @@ After defining the Materials properties and d0, the user can now visualize the d
   .. image:: ../figures/Stress_Final.png
     :width: 800
     :alt: visualize stress strain
+
+Path-Length-Corrected Pole Figures
+==================================
+
+The last button of the MainWindow, **Path-Length-Corrected Pole Figures**, opens the pole figure tool in its own
+window. The tool predicts how the beam path inside the sample changes the measured intensity at every chi and phi,
+from a 3D model of the sample (an STL file). It plans table scans from the prediction, corrects measured pole
+figures for the path length, and fits an orientation distribution function (ODF) with MTEX for Python.
+
+.. image:: ../figures/pole_figures_button.png
+  :width: 300
+  :alt: MainWindow with the Path-Length-Corrected Pole Figures button
+
+The tool is the separate package ``hidra-pathlength-polefigs``. The button is gray when the package is not
+installed. The user guide goes through every step with the IPTS-38962 example data (an IN718 slab, runs 6494 to
+6497):
+
+* :download:`Path-length-corrected pole figures user guide (PDF) <../_static/pole_figures/HIDRA_PathLength_PoleFigs_PyRS_User_Guide.pdf>`
+
+In the tool, the **?** button at the right end of the tab bar, or F1, opens the same guide at the page of the
+current tab.
 
 Detector Calibration
 ====================
