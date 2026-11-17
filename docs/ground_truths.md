@@ -3,6 +3,26 @@
 Key findings recorded here for future reference. Link to this file from related
 documentation and code comments when relevant.
 
+## Upgrade to Mantid 7.0 (2026-11)
+
+Mantid 7.0.0 (released on `mantid/label/main`; 7.0 nightlies on
+`mantid/label/nightly`) is built **only for Python 3.13** and moves Qt 5 → Qt 6.11.
+As of 2026-11-17 the ORNL channels (`mantid-ornl/label/main`, `/rc`) stop at
+6.16.1.x — there is no 7.x build there yet. Consequences:
+
+- `requires-python` is `>=3.13`, and every pin (base, `prod`, `qa`, `dev`, package
+  run-dependencies) is `mantidworkbench >=7.0.0,<7.1`.
+- The `qa` feature temporarily takes Mantid from `mantid/label/main` instead of
+  `mantid-ornl/label/rc`. Switch it back once ORNL publishes a 7.x RC.
+- CI's `pkg-install` `extra-channels` lists `mantid` **before** any `mantid-ornl`
+  label. Under strict channel priority a higher-priority channel that carries
+  *any* `mantidworkbench` hides every build of it in lower channels, so
+  `mantid-ornl/label/rc` first makes `>=7.0` unsatisfiable.
+- Mantid 7 deprecates (does not remove) `MatrixWorkspace.readX/readY/readE/dataX/...`
+  in favour of `x()/y()/e()` and `mutableX()/...`. PyRS still calls `readX`/`readY`
+  (peak fitting, UI controllers); they emit `DeprecationWarning` but work. See
+  [deferred_defects.md](deferred_defects.md).
+
 ## Mantid ecosystem moved to Python 3.12 across all channels (2026-07)
 
 As of early July 2026, every Mantid conda channel used by this project —

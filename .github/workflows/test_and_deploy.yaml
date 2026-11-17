@@ -136,7 +136,7 @@ jobs:
           package-name: ${{ env.PKG_NAME }}
           local-channel: ${{ runner.temp }}/local-channel/
           post-cleanup: none
-          extra-channels: mantid-ornl/label/rc neutrons mantid
+          extra-channels: mantid neutrons  # mantid first: mantid-ornl has no 7.x yet (docs/ground_truths.md)
 
       - name: Verify conda package
         uses: neutrons/gh-actions/pkg-verify@46e28a74c8872901c571e0493d26871afe2662fb # v2.1
