@@ -150,3 +150,41 @@ def test_manual_reduction_subruns(tmpdir, manual_reduction_window):
         qtbot.wait(wait)
 
     window.hide()
+
+
+def test_browse_offers_json_and_nexus_calibrations(tmp_path, manual_reduction_window, monkeypatch):
+    """The calibration browser shows .json and .nxs calibrations, and the chosen one is reduced with (#1098)"""
+    import fnmatch
+    import re
+
+    from pyrs.interface import gui_helper
+
+    # Arrange - the file dialog picks a NeXus calibration; a run file to reduce; the reduction is recorded
+    window, _ = manual_reduction_window
+    window.ui.checkBox_defaultCalibrationFile.setChecked(False)
+    assert window.ui.pushButton_browseCalibrationFile.isEnabled()  # unticking the default allows browsing
+    chosen = str(tmp_path / "HB2B_CAL.nxs")
+    filters = []
+
+    def choose(parent, caption, directory, file_filter, **kwargs):
+        filters.append(file_filter)
+        return chosen, file_filter
+
+    monkeypatch.setattr(gui_helper.QFileDialog, "getOpenFileName", choose)
+    run_file = tmp_path / "HB2B_1017.nxs.h5"
+    run_file.write_bytes(b"")  # only its name and existence are checked before the (recorded) reduction
+    window.ui.lineEdit_runNumber.setText(str(run_file))
+    reduced = []
+    monkeypatch.setattr(window._ctrl, "reduce", lambda *args, **kwargs: reduced.append(kwargs) or [])
+
+    # Act
+    window.browse_calibration_file()
+    window.split_convert_save_nexus()
+
+    # Assert - the dialog's first (default) filter takes both calibration formats, and not raw hdf files
+    patterns = re.findall(r"\(([^)]*)\)", filters[0].split(";;")[0])[0].split()
+    assert any(fnmatch.fnmatch("HB2B_CAL.nxs", p) for p in patterns)
+    assert any(fnmatch.fnmatch("HB2B_Latest.json", p) for p in patterns)
+    assert not any(fnmatch.fnmatch("HB2B_1017.hdf", p) for p in patterns)
+    assert window.ui.lineEdit_calibrationFile.text() == chosen
+    assert reduced[0]["calibration"] == chosen

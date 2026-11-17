@@ -145,7 +145,7 @@ class ManualReductionViewer(QMainWindow):
             self,
             caption="Choose and set up the calibration file",
             default_dir=self._model.get_default_calibration_dir(),
-            file_filter="hdf5 (*hdf)",
+            file_filter="Calibration (*.json *.nxs)",  # reduction reads either (#1054); "All Files" is added
             file_list=False,
             save_file=False,
         )
