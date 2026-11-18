@@ -1337,7 +1337,8 @@ Phase 2 of the pixelation study ([plan](planning/PixelationUncertainty_Plan.md))
 - **Only Ni is usable on this holder.** At λ ≈ 1.53 Å, Fe 211 and Fe 220 coincide with Al 222 and
   Al 400 (within 0.4°), so every Fe sub-run was dropped.
 - **Every Ni peak has a high-angle tail**: A = +0.005 to +0.154 on the full detector, both below and
-  above 2θ = 90°. Axial divergence would flip the sign at 90°, so it is not the cause. The split
+  above 2θ = 90°. **It is not axial divergence** (confirmed by the user, 2026-11-18): that would flip
+  the sign at 90°. The split
   profile lowers χ² from 1.7–3.0 to 1.1–1.5 where A is large.
 - **The same reflection changes shape with where it lands on the detector.** Its asymmetry grows as
   the ring moves to the high-2θ (right) side. For 5344 at ring offsets 2θ_Bragg − arm of −6.1°,
@@ -1361,7 +1362,9 @@ Phase 2 of the pixelation study ([plan](planning/PixelationUncertainty_Plan.md))
     a few hundred µε.
 
 **Interpretation (not established).** An asymmetry that varies with both detector coordinates, and
-does not change sign at 90°, points to the detector's position response, e.g. parallax from
+does not change sign at 90°, and appears alike with 2 × 15 mm and 3 × 10 mm incident slits, with
+and without a radial collimator (4971 / 5344), points to the detector's position response, e.g.
+parallax from
 conversion depth in the ³He gas volume at oblique incidence, rather than to the beam. That fits
 `next`'s open item that the detector position response still has to be measured (slit scan,
 `calibration-diagnostics`). The 3489 sub-run 7 shoulder was an Al container reflection and is a
