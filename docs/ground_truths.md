@@ -1442,6 +1442,24 @@ Phase 3 of the pixelation study ([plan](planning/PixelationUncertainty_Plan.md))
   - **None reaches the noise level** (single-fit precision ~20–30 µε). One likely reason: the
     calibration's strip fits are symmetric, so its geometry is tuned to symmetric centres. A fair
     judgement needs the calibration done with the same profile.
+- **Recalibration with split Pearson VII strip fits makes it worse (2026-11-18).** The study replaced
+  `ring_extraction._fit_band_histograms` (on the imported module; `next` unchanged) with a split
+  Pearson VII + linear fit (same histograms and σ; centre = peak top), and recalibrated 5344 otherwise
+  exactly as the driver does.
+  - **The calibration moves well beyond its errors:** λ 1.53259 → 1.53204 Å (−360 µε, ~4σ); Rot_z
+    0.260 → 0.043° (~13σ); Shift_z −59.0 → −60.5 mm; Rot_y 2.39 → 2.06°. The residual RMS rises from
+    0.0066° to 0.0101°.
+  - **The d spread across detector positions grows for every profile:** symmetric 100 → 171 µε,
+    AsymmetricPearsonVII 91 → 167, split PV 72 → 97, split Pearson VII 57 → 95 µε.
+  - **Likely reasons, not established:**
+    - per-strip split fits (8 parameters on low-count strips) locate the peak top poorly, hence the
+      higher RMS;
+    - the stand-in significance (height / error) may admit weak fits;
+    - with symmetric strip fits, the bottom-to-top change of asymmetry shifts the fitted centre
+      strip by strip, which the refinement can absorb as detector spin. So the standard Rot_z ≈ 0.26°
+      may partly be a peak-shape artefact.
+  - **Next:** take each ring's shape from the high-count all-strips fit and fix it, fitting only
+    position, height and background per strip.
 - **Implication:** the bias that changes with position (up to ~400 µε) is far larger than the split
   profile's extra scatter (~15–50 µε). A profile whose asymmetry is fixed in advance, as an instrument
   parameter determined from the standards as a function of detector position and η, could keep the

@@ -255,9 +255,14 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
         Pearson VII fit equally well (χ²/dof 1.02); split Pearson VII gives the most position-consistent
         d (57 µε spread, against 72 split PV, 91 Mantid AsymmetricPearsonVII, 100 symmetric). Mantid's
         AsymmetricPearsonVII (one width) is in between. Candidates kept: split PV and split Pearson VII.
-  - [ ] **Calibration with the same profile:** redo the ring calibration with the asymmetric profile
-        in its strip fits, then repeat the position-consistency test. The symmetric calibration
-        likely leaves part of the remaining 57–72 µε spread.
+  - [x] **Calibration with the same profile:** redo the ring calibration with the asymmetric profile
+        in its strip fits, then repeat the position-consistency test. Done with free split Pearson VII
+        strip fits on 5344. It made things worse: RMS 0.0066 → 0.0101°, d spread 57 → 95 µε (split
+        PVII) and 100 → 171 µε (symmetric). The calibration also moved beyond its errors (λ −360 µε,
+        Rot_z 0.26 → 0.04°).
+  - [ ] **Calibration with a per-ring fixed shape:** take each ring's split Pearson VII shape from the
+        all-strips fit and fit only position, height and background per strip. Then repeat the
+        consistency test, and check whether Rot_z ≈ 0.26° is partly a peak-shape artefact.
   - [ ] **Next candidate: split PV with its asymmetry fixed** as a function of detector position and
         η, determined once from the standards (a new instrument parameter, which needs approval). Test
         whether it keeps the zero bias at close to the symmetric profile's precision.
