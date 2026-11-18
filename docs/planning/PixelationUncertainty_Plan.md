@@ -242,9 +242,14 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
         from Bragg on 5344). An asymmetric profile for sample fits must also be used, or its effect
         checked, in calibration; otherwise calibration and sample fits measure different points of the
         peak.
-  - [ ] **Monte Carlo.** Use the real split-profile fits (5344, 4971) as the truth, then fit with the
+  - [x] **Monte Carlo.** Use the real split-profile fits (5344, 4971) as the truth, then fit with the
         symmetric pseudo-Voigt and each candidate. Report bias against the true peak position, pull
-        widths and failure rates, at the weak and strong count levels.
+        widths and failure rates, at the weak and strong count levels. Done on 5344: the symmetric
+        bias grows with A (−20 → −414 µε); the split PV is unbiased (|bias| ≤ 7 µε, pulls 0.77–0.96)
+        but 2–2.6× noisier; `AsymmetricPearsonVII` removes only 10–15 % of the bias and is dropped.
+  - [ ] **Next candidate: split PV with its asymmetry fixed** as a function of detector position and
+        η, determined once from the standards (a new instrument parameter, which needs approval). Test
+        whether it keeps the zero bias at close to the symmetric profile's precision.
   - [ ] **Real data.** Fit the same reflection at its different ring positions and η wedges. A better
         profile should shrink the spread of d across positions; today it is ~350 µε. Also report
         χ², and the effect on texture-wedge intensities.

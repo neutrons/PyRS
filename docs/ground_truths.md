@@ -1367,6 +1367,45 @@ conversion depth in the ³He gas volume at oblique incidence, rather than to the
 `calibration-diagnostics`). The 3489 sub-run 7 shoulder was an Al container reflection and is a
 separate effect.
 
+## Peak-profile Monte Carlo: a split pseudo-Voigt removes the asymmetry bias; the symmetric fit does not (2026-11-18, #1109)
+
+Phase 3 of the pixelation study ([plan](planning/PixelationUncertainty_Plan.md)). No production code changed.
+
+**Setup.**
+- **Truth:** real split pseudo-Voigt fits (Poisson σ) of four Ni peaks in 5344, reduced with its new
+  `next` ring calibration and vanadium 5339: Ni 220 in sub-run 3 (A = +0.005) and sub-run 1
+  (+0.092), Ni 311 in sub-run 7 (+0.077), Ni 222 in sub-run 8 (+0.154).
+- **Simulation:** each truth placed on its sub-run's detector, λᵢ = k·Vᵢ·R(2θᵢ)/V_max, at the real
+  count level (0.58–1.06 counts per pixel) and at a weak 0.066; 200 Poisson realisations each, reduced
+  by production code.
+- **Fits** with Poisson σ: the symmetric pseudo-Voigt with PyRS's `FitPeaks` arguments, a split
+  pseudo-Voigt (scipy), and Mantid's `AsymmetricPearsonVII` through `FitPeaks`.
+- **Measure:** bias against the true peak top (the split profile's mode).
+
+| Truth (A) | Level | Symmetric PV: bias, scatter | Split PV: bias, scatter | AsymmetricPearsonVII: bias |
+|---|---|---|---|---|
+| Ni 220 (+0.005) | real / weak | −20, 10 / −15, 59 µε | +1, 27 / +13 ± 6, 78 µε | −17 / −16 µε |
+| Ni 311 (+0.077) | real / weak | −237, 7.5 / −228, 23 µε | +3, 16 / −1, 58 µε | −210 / −207 µε |
+| Ni 220 (+0.092) | real / weak | −377, 14 / −367, 56 µε | −2, 27 / +7, 73 µε | −325 / −318 µε |
+| Ni 222 (+0.154) | real / weak | −414, 9 / −406, 45 µε | +3, 22 / +4, 70 µε | −376 / −373 µε |
+
+- **The symmetric fit's bias grows with the peak's asymmetry**, from −20 to −414 µε. It reproduces the
+  real-data offsets (−19 to −408 µε), so they are a profile effect. Because A changes with ring position
+  on the detector, the symmetric fit gives a **position-dependent strain error of up to ~400 µε**,
+  against a single-measurement scatter of 7–14 µε (real counts). For weak peaks its pull width is
+  1.4–1.9, i.e. heavy tails and errors under-reported.
+- **The split pseudo-Voigt is unbiased** (|bias| ≤ 7 µε in every case but one: +13 ± 6 µε for the
+  nearly symmetric weak peak), with honest errors (pull width 0.77–0.96, reported errors slightly
+  conservative). **Its price is precision:** the extra width parameter makes one measurement 2–2.6×
+  noisier (16–27 µε at real counts, 58–78 µε weak).
+- **`AsymmetricPearsonVII` does not fix it:** it removes only 10–15 % of the bias, and its pull width
+  reaches 2.6–2.75. Not a candidate.
+- **Implication:** the bias that changes with position (up to ~400 µε) is far larger than the split
+  profile's extra scatter (~15–50 µε). A profile whose asymmetry is fixed in advance, as an instrument
+  parameter determined from the standards as a function of detector position and η, could keep the
+  split profile's zero bias at close to the symmetric profile's precision. That is not yet tested, and
+  a new instrument parameter needs approval.
+
 ## HB2B detector: pixel orientation, vanadium dead area, and vertical wire-period stripes (2026-11-12)
 
 From Phase 0 of the pixelation study
