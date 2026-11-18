@@ -188,7 +188,8 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
       `FitCalibration`, which fits peaks in η-wedge reductions.
   - [x] **C1: a calibration applies unchanged to grouped pixels.** Already shown: coarse-pixel 2θ and
         η from a given geometry equal the block means of the fine pixels to ≤ 10⁻⁵°.
-  - [ ] **C2: calibrate on grouped data.** Run both methods at 1 × 1, 1 × 4 and 1 × 8 on calibration
+  - [x] **C2: calibrate on grouped data.** Done for the ring calibration on 3510 and 4971 (results in
+        the ground truths). `FitCalibration` and the IPTS-36131 runs are not yet done. Run both methods at 1 × 1, 1 × 4 and 1 × 8 on calibration
         runs. Candidates: the IPTS-36131 Si422 long calibrations (5337, 5344, 5345), HB2B_4971 (Ni)
         and HB2B_3510. Compare:
     - the refined parameters and their errors: Rot_x, Rot_z, Shift_y (already only weakly
@@ -196,12 +197,16 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
       through the pixel 2θ map;
     - the residual RMS, and the ring-point count and scatter;
     - which strips and rings are found. Grouping changes the rows within each strip.
-  - [ ] **C3: pixel 2θ maps.** For each grouped calibration, take the RMS and maximum Δ2θ over the
+  - [x] **C3: pixel 2θ maps.** Grouping changes the strain map by ≤ 7.5 µε RMS (4971) and ≤ 49 µε
+        (3510, 1 × 4), within each calibration's own uncertainty (32–247 µε). For each grouped calibration, take the RMS and maximum Δ2θ over the
         detector against the native calibration, and convert them to strain at representative 2θ.
   - [ ] **C4: cross-application.** Reduce and fit a strain reference with each combination: native
         calibration + grouped reduction, grouped calibration + grouped reduction, and grouped
         calibration + native reduction. Compare the strains.
   - [ ] **Decision (proposal; the criteria need approval).**
+    - *Result so far (ring calibration on 3510 and 4971): supports the default. No gain, no shift beyond
+      the calibration's own uncertainty, and non-converged extraction on grouped 3510. Awaiting the
+      user's decision.*
     - **Default: exclude grouping from detector calibration.** Calibrate at native resolution and
       apply that calibration to grouped reductions. C1 makes this exact. Calibration runs are long,
       so zero-count inflation matters less there. Native rows also keep the full vertical

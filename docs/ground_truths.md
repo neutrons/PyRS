@@ -1241,6 +1241,45 @@ pixel), vanadium 3446 resampled, and 400 realisations:
 
 Not covered: several peaks in the window, η wedges.
 
+## Ring calibration with vertical pixel grouping: no gain, sometimes no convergence (2026-11-18, #1109)
+
+Phase 3, tests C2 and C3 of the pixelation plan ([plan](planning/PixelationUncertainty_Plan.md)). No
+production code changed. The ring calibration of `next` (snapshot `2944d0d6`: `calibrate_rings` +
+`estimate_errors` with TTH_0 held, as `scripts/pyrs_pixel_calibration.py` runs it, latest mask) was run
+on HB2B_3510 and HB2B_4971 at 1 × 1, 1 × 4 and 1 × 8. For the grouped cases, each sub-run's counts
+were summed over blocks, the default mask kept a coarse pixel only if all its pixels were kept, the
+instrument setup became the coarse `DENEXDetectorGeometry`, and the extraction's `edge` was scaled
+from 40 to 40/g_y rows (same detector area).
+
+- **C2: parameters and fit quality.**
+  - **4971:** every parameter agrees with 1 × 1 within 0.7 σ; 65 ring points / 13 rings and RMS
+    0.0065–0.0067° at all three groupings; the errors are the same within 3 %.
+  - **3510:** 1 × 8 agrees with 1 × 1. At 1 × 4, Shift_x moved by +2.9 mm (10.9 σ) and the held TTH_0
+    by −0.18°, roughly along the exact Shift_x / Rot_y / TTH_0 degeneracy (Rot_y did not follow it).
+    RMS is 0.0166–0.0170° and ring points 58–59 at all groupings.
+  - **Convergence:** 3510's ring extraction converged in 4 rounds at 1 × 1, but **stopped at the
+    10-round limit without converging** at both 1 × 4 and 1 × 8. 4971 converged in 3–4 rounds at all
+    groupings.
+- **C3: pixel 2θ maps.** Each calibration was evaluated on the native 1024 × 1024 grid at arms
+  60–120°, and its difference from the 1 × 1 calibration converted to strain per unmasked pixel,
+  Δε = Δλ/λ − cot θ·Δθ. This is compared with each calibration's own uncertainty: covariance draws
+  (TTH_0 held) propagated to the same strain map.
+
+  | Run | Grouping | Δε vs 1 × 1, RMS at 60 / 90 / 120° | Own uncertainty, RMS at 60 / 90 / 120° |
+  |---|---|---|---|
+  | 4971 | 1 × 4 | 6.2 / 1.7 / 1.6 µε | 84 / 29 / 34 µε |
+  | 4971 | 1 × 8 | 7.5 / 3.2 / 1.6 µε | 92 / 34 / 35 µε |
+  | 3510 | 1 × 4 | 49 / 39 / 42 µε | 229 / 85 / 94 µε |
+  | 3510 | 1 × 8 | 7.2 / 3.5 / 3.4 µε | 247 / 89 / 90 µε |
+
+  The native calibrations' own uncertainty is 87 / 32 / 33 µε (4971) and 246 / 91 / 91 µε (3510).
+- **Conclusion.** Grouping never moves the calibration beyond its own uncertainty (≤ 0.1 of it on
+  4971, ≤ 0.5 on 3510). It does not improve the errors or residuals: calibration runs carry their
+  information in the rings, where zero counts are rare. On 3510 it can stop the iteration
+  converging. This supports the default in the decision plan: **calibrate at native resolution and
+  apply that calibration to grouped reductions** (exact, by C1). Whether that becomes the rule is
+  a user decision; C4 (cross-application on a strained reference) has not been run.
+
 ## HB2B detector: pixel orientation, vanadium dead area, and vertical wire-period stripes (2026-11-12)
 
 From Phase 0 of the pixelation study
