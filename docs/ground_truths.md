@@ -1136,10 +1136,18 @@ unmasked. Each grouping was reduced by the current code on a coarse `DENEXDetect
      at every bin width, while wider bins sample the peak more coarsely and raise χ² (1.75 → 2.85 →
      5.61). Vertical grouping removes the zeros without this constraint.
    - **Stress** is a linear combination of strains along several directions, so these strain
-     shifts and errors carry into stress in proportion. (5344 and 3489 are unstressed Si, so no
-     stress value was computed.)
+     shifts and errors carry into stress in proportion. No stress value was computed: 5344 and 3489
+     are calibration runs of unstressed powder standards (see the sample note below).
    - 3489 used the earliest Si331 calibration (2024-02-09) and vanadium 3446 (2023-05-23, C501,
      Si422 monochromator).
+   - **Sample note (2026-11-18).** "Si422" / "Si331" in these run titles are the **monochromator**,
+     not the sample.
+     - **3489** is a calibration run of **Ni powder in a sealed Al tube** (IPTS-25855). Its fitted
+       "strongest peaks" are Al 220 (73.5–73.9°, sub-runs 1–3), Ni 220 (87.1–87.5°, 4–6), **Al 222**
+       (94.2–94.8°, 7–9) and Ni 311 (107.7–108.4°, 10–12) at λ = 1.719 Å.
+     - **5344** is the "Powder Standards Assembly" (calibration powders in the Al rack). Its peaks are
+       Ni 220, 311 and 222, and Fe 211 (81.6°), which at λ = 1.531 Å nearly coincides with Al 222
+       (81.7°).
 
 ## Monte Carlo: no strain bias; Poisson σ gives honest errors, production σ over-reports them (2026-11-16, #1108)
 
@@ -1221,6 +1229,12 @@ pixel), vanadium 3446 resampled, and 400 realisations:
 - **Not a wrong geometry by itself.** Placing simulated rings with the 2023 calibration and
   reducing with the nominal geometry doubles the spread of the production − Poisson difference
   (9 → 17 µε) but gives no mean shift (+0.4 ± 1.0 µε).
+- **What sub-run 7 is.** It is **Al 222 from the sample's Al tube**, not a Ni reflection (see the
+  sample note in the pixel-grouping entry). A tube scatters from two walls at different distances
+  from the instrument centre, so its peaks are doubled or asymmetric and their apparent 2θ shifts
+  with arm angle. That is the most likely source of the "shoulder", and of the drift 94.43° →
+  94.77° over sub-runs 7–9, rather than an instrument-profile asymmetry. Sub-runs 4 and 10 (Ni 220,
+  Ni 311) also needed a second component (21 % and 75 %), cause not established.
 - **Peak asymmetry, yes.**
   - **Residuals:** the real residuals oscillate across the peak, with excess on the low-2θ flank.
     A second, low-angle pseudo-Voigt (a shoulder 0.28–0.54° below the peak, 10–75 % of the main
@@ -1233,9 +1247,10 @@ pixel), vanadium 3446 resampled, and 400 realisations:
 - **Both single-peak fits are far from the main component.** Relative to the main peak of the
   two-component truth, the single pseudo-Voigt is off by +156 / +218 µε (sub-run 7, production /
   Poisson σ), +329 / +365 µε (sub-run 4) and +313 / +460 µε (sub-run 10). The shoulder varies
-  between sub-runs, so this offset does not cancel between arm positions. Whether the shoulder is
-  a separate contribution or part of an asymmetric instrument profile is a modelling choice, but
-  peak-shape misfit, not counting statistics, dominates these real-data shifts.
+  between sub-runs, so this offset does not cancel between arm positions. For sub-run 7 the
+  shoulder is most likely the second wall of the Al tube. In any case, peak-shape misfit, not
+  counting statistics, dominates these real-data shifts. Container peaks are not a valid strain
+  reference.
 - **IPTS-36131's autoreduction calibration** (`Si422/HB2B_CAL_2024-07-09T12:10.json`) has all
   geometry parameters at 0 with `Status` 3; only λ (1.5306 Å) was refined.
 

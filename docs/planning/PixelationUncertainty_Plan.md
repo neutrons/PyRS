@@ -161,7 +161,8 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
       +150–460 µε from the main component.
 - [ ] Peak profile: decide how asymmetric HB2B peaks should be modelled (instrument asymmetry
       against a separate shoulder), and check whether a better geometry calibration removes it.
-      This links to the #1109 calibration study.
+      This links to the #1109 calibration study. *Note: the 3489 sub-run 7 peak is Al 222 from the
+      sample's Al tube (two walls), so redo this on standard (Ni/Fe) reflections only.*
 - [ ] Other sub-runs or 2θ, several peaks in the window, η wedges.
 
 ### Phase 3 — Candidate treatments (study only) ([#1109](https://github.com/neutrons/PyRS/issues/1109))
