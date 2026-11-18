@@ -204,10 +204,10 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
   - [ ] **C4: cross-application.** Reduce and fit a strain reference with each combination: native
         calibration + grouped reduction, grouped calibration + grouped reduction, and grouped
         calibration + native reduction. Compare the strains.
-  - [ ] **Decision (proposal; the criteria need approval).**
-    - *Result so far (ring calibration on 3510 and 4971): supports the default. No gain, no shift beyond
-      the calibration's own uncertainty, and non-converged extraction on grouped 3510. Awaiting the
-      user's decision.*
+  - [x] **Decision (user, 2026-11-18): detector calibration operates on the native 1 × 1 grid**;
+        grouped reductions apply that calibration (exact by C1). The study showed no gain from grouped
+        calibration: parameter errors unchanged or 1–3 % larger, shifts within the calibration's own
+        uncertainty, and non-converged extraction on grouped 3510. The options considered were:
     - **Default: exclude grouping from detector calibration.** Calibrate at native resolution and
       apply that calibration to grouped reductions. C1 makes this exact. Calibration runs are long,
       so zero-count inflation matters less there. Native rows also keep the full vertical

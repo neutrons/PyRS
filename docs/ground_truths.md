@@ -1291,9 +1291,12 @@ from 40 to 40/g_y rows (same detector area).
 - **Conclusion.** Grouping never moves the calibration beyond its own uncertainty (≤ 0.1 of it on
   4971, ≤ 0.5 on 3510). It does not improve the errors or residuals: calibration runs carry their
   information in the rings, where zero counts are rare. On 3510 it can stop the iteration
-  converging. This supports the default in the decision plan: **calibrate at native resolution and
-  apply that calibration to grouped reductions** (exact, by C1). Whether that becomes the rule is
-  a user decision; C4 (cross-application on a strained reference) has not been run.
+  converging. Grouping does not reduce the refined parameters' errors either: they grow by 1 % (1 × 4)
+  and 3 % (1 × 8) on 4971, all by the same factor as the residual RMS (0.0065 → 0.0067°), and agree
+  within ±2 % on 3510.
+- **Decision (user, 2026-11-18): detector calibration operates on the native 1 × 1 grid.** A
+  grouped reduction applies that native calibration, which is exact by C1. C4 (cross-application on
+  a strained reference) has not been run.
 
 ## HB2B detector: pixel orientation, vanadium dead area, and vertical wire-period stripes (2026-11-12)
 
