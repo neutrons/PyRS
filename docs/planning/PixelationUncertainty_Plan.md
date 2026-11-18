@@ -190,7 +190,8 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
   - [x] **C1: a calibration applies unchanged to grouped pixels.** Already shown: coarse-pixel 2θ and
         η from a given geometry equal the block means of the fine pixels to ≤ 10⁻⁵°.
   - [x] **C2: calibrate on grouped data.** Done for the ring calibration on 3510 and 4971 (results in
-        the ground truths). `FitCalibration` and the IPTS-36131 runs are not yet done. Run both methods at 1 × 1, 1 × 4 and 1 × 8 on calibration
+        the ground truths). *`FitCalibration` and the IPTS-36131 runs: not needed (user, 2026-11-18),
+        because calibration runs on the 1 × 1 grid.* Run both methods at 1 × 1, 1 × 4 and 1 × 8 on calibration
         runs. Candidates: the IPTS-36131 Si422 long calibrations (5337, 5344, 5345), HB2B_4971 (Ni)
         and HB2B_3510. Compare:
     - the refined parameters and their errors: Rot_x, Rot_z, Shift_y (already only weakly
@@ -201,7 +202,8 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
   - [x] **C3: pixel 2θ maps.** Grouping changes the strain map by ≤ 7.5 µε RMS (4971) and ≤ 49 µε
         (3510, 1 × 4), within each calibration's own uncertainty (32–247 µε). For each grouped calibration, take the RMS and maximum Δ2θ over the
         detector against the native calibration, and convert them to strain at representative 2θ.
-  - [ ] **C4: cross-application.** Reduce and fit a strain reference with each combination: native
+  - [x] **C4: cross-application.** *Not needed (user, 2026-11-18): calibration runs on the 1 × 1 grid, and
+        C1 shows that applying it to grouped reductions is exact.* Planned as: Reduce and fit a strain reference with each combination: native
         calibration + grouped reduction, grouped calibration + grouped reduction, and grouped
         calibration + native reduction. Compare the strains.
   - [x] **Decision (user, 2026-11-18): detector calibration operates on the native 1 × 1 grid**;
