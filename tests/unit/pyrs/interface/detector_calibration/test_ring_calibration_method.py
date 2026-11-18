@@ -110,15 +110,9 @@ def refined(workspace):
 
 
 def _driver():
-    import importlib.util
-    from pathlib import Path
+    from pyrs.calibration import ring_driver
 
-    spec = importlib.util.spec_from_file_location(
-        "pyrs_pixel_calibration", Path(__file__).resolve().parents[5] / "scripts" / "pyrs_pixel_calibration.py"
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return ring_driver
 
 
 def test_ring_path_equals_the_driver(workspace, refined, tmp_path, monkeypatch):
@@ -153,7 +147,7 @@ def test_ring_path_equals_the_driver(workspace, refined, tmp_path, monkeypatch):
         k: v for k, v in driver_provenance.items() if k not in varying
     }
     assert gui_provenance["inputs"]["interface"] == "PyRS detector calibration GUI"
-    assert driver_provenance["inputs"]["driver"] == "scripts/pyrs_pixel_calibration.py"
+    assert driver_provenance["inputs"]["driver"] == "pyrs.calibration.ring_driver"
     assert rmse == driver.stages[-1].rmse and errors[-1][6] == -1.0
 
 

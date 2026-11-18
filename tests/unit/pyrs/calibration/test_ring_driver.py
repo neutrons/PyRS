@@ -1,10 +1,9 @@
-"""Unit tests for the ring-calibration driver (scripts/pyrs_pixel_calibration.py), on a synthetic run
+"""Unit tests for the ring-calibration driver (pyrs.calibration.ring_driver, behind pyrs-pixel-calibration), on a synthetic run
 
 The NeXus conversion is replaced by a synthetic workspace, so everything after it (ring extraction,
 refinement, error estimate, the calibration file and the summary) runs for real without data files.
 """
 
-import importlib.util
 import json
 from pathlib import Path
 
@@ -12,6 +11,7 @@ import numpy as np
 import pytest
 
 from pyrs.calibration.pixel_pos_calibration import DEFAULT_MAX_ROUNDS
+from pyrs.calibration import ring_driver
 from pyrs.calibration.powder_standards import HB2B_STANDARDS
 from pyrs.utilities.calibration_file_io import read_calibration_json_file
 from tests.util.instrument_helpers import default_hb2b_geometry
@@ -23,13 +23,7 @@ TRUE_PARAMS = np.array([0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.656, 1.5308])
 
 @pytest.fixture(scope="module")
 def driver():
-    # loaded by path: importing it as scripts.pyrs_pixel_calibration makes mypy see the file twice
-    spec = importlib.util.spec_from_file_location(
-        "pyrs_pixel_calibration", REPO / "scripts" / "pyrs_pixel_calibration.py"
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return ring_driver
 
 
 @pytest.fixture(scope="module")

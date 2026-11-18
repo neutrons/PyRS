@@ -9,8 +9,8 @@ readme = "README.rst"
 
 [project.scripts]
 pyrsplot = "scripts.pyrsplot:main"
-pyrs-calibration = "scripts.pyrs_calibration:main"
-pyrs-pixel-calibration = "scripts.pyrs_pixel_calibration:main"
+pyrs-calibration = "pyrs.calibration.peakfit_driver:main"
+pyrs-pixel-calibration = "pyrs.calibration.ring_driver:main"
 pyrs-calibration-correlation = "scripts.pyrs_calibration_correlation:main"
 create-mask = "scripts.create_mask:main"
 
