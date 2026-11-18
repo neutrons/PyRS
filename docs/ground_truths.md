@@ -1207,7 +1207,39 @@ pixel), vanadium 3446 resampled, and 400 realisations:
   change driven by one fit that went bad). On 5344 sub-run 7, the real fit's curvature moves a
   linear-background fit by only 1.6 µε.
 
-Not covered: peak-shape misfit (asymmetry, shoulders), several peaks in the window, η wedges.
+**The real 3489 shifts come from peak shape (2026-11-17).**
+- **Calibration.** The earlier 3489 reductions used `Si331/HB2B_CAL_2024-02-09T16:20.json`, which is
+  **uncalibrated** (all shifts and rotations 0, `Status` −1). The calibration made on 3489's own
+  date is `PreC509/HB2B_Si331_2023-05-30T17-28.json` (Rot_z 1.87°, λ 1.7190 Å; read correctly, with
+  `two_theta_0` mapped to `TTH_0`). With it, sub-run 7's Poisson χ² falls from 2.12 to 1.27, but the
+  production − Poisson shift remains: +39.6 µε mean (48 RMS) over the 12 sub-runs, and +32 / +34 µε
+  even where χ² ≈ 1. The same reflection still moves with arm angle (94.43° → 94.55° → 94.77° in
+  sub-runs 7–9), so even this calibration is not exact.
+- **Not the vanadium.** The Si331 flood 3744 gives the same shift as the Si422 flood 3446 (+83 to
+  +97 µε for sub-run 7 under the nominal geometry). **Not the fit window** (±1.0° to ±2.0°: +80 to
+  +97 µε).
+- **Not a wrong geometry by itself.** Placing simulated rings with the 2023 calibration and
+  reducing with the nominal geometry doubles the spread of the production − Poisson difference
+  (9 → 17 µε) but gives no mean shift (+0.4 ± 1.0 µε).
+- **Peak asymmetry, yes.**
+  - **Residuals:** the real residuals oscillate across the peak, with excess on the low-2θ flank.
+    A second, low-angle pseudo-Voigt (a shoulder 0.28–0.54° below the peak, 10–75 % of the main
+    intensity) removes the misfit: sub-run 7's χ² falls to 0.93–1.04.
+  - **Simulation:** taking that two-component fit as the truth and fitting it with PyRS's single
+    pseudo-Voigt reproduces the real shifts: sub-run 7 +62.0 ± 0.6 µε simulated against +62.6 µε
+    real, sub-run 4 +36.1 ± 3.1 against +32.0. Sub-run 10 is heavy-tailed (failed production fits).
+  - **Mechanism:** production σ down-weights the low-count tails relative to Poisson σ, so the two
+    weightings balance core and tails differently when the shape is wrong.
+- **Both single-peak fits are far from the main component.** Relative to the main peak of the
+  two-component truth, the single pseudo-Voigt is off by +156 / +218 µε (sub-run 7, production /
+  Poisson σ), +329 / +365 µε (sub-run 4) and +313 / +460 µε (sub-run 10). The shoulder varies
+  between sub-runs, so this offset does not cancel between arm positions. Whether the shoulder is
+  a separate contribution or part of an asymmetric instrument profile is a modelling choice, but
+  peak-shape misfit, not counting statistics, dominates these real-data shifts.
+- **IPTS-36131's autoreduction calibration** (`Si422/HB2B_CAL_2024-07-09T12:10.json`) has all
+  geometry parameters at 0 with `Status` 3; only λ (1.5306 Å) was refined.
+
+Not covered: several peaks in the window, η wedges.
 
 ## HB2B detector: pixel orientation, vanadium dead area, and vertical wire-period stripes (2026-11-12)
 

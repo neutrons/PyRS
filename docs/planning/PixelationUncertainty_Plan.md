@@ -154,8 +154,14 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
       strain, as on real 3489 (+40 µε)? Background curvature: no. On 3489's own peaks, production
       σ makes 24 % of weak-peak fits fail (sub-run 10; Poisson never). Sub-run 7's real +90 µε lies
       far outside the simulated spread (0 ± 7.5 µε), so it is a real-data misfit, not statistics.
-- [ ] Find the peak-shape misfit in 3489 sub-run 7 (Poisson χ² 2.1): asymmetry, shoulder, or the
-      Si422-vanadium efficiency mismatch.
+- [x] Find the peak-shape misfit in 3489 sub-run 7 (Poisson χ² 2.1): asymmetry, shoulder, or the
+      Si422-vanadium efficiency mismatch. A low-angle shoulder (peak asymmetry), not the vanadium;
+      the first reduction also used an uncalibrated file. A simulated two-component truth reproduces
+      the real production − Poisson shift (+62.0 ± 0.6 against +62.6 µε). Single-peak fits sit
+      +150–460 µε from the main component.
+- [ ] Peak profile: decide how asymmetric HB2B peaks should be modelled (instrument asymmetry
+      against a separate shoulder), and check whether a better geometry calibration removes it.
+      This links to the #1109 calibration study.
 - [ ] Other sub-runs or 2θ, several peaks in the window, η wedges.
 
 ### Phase 3 — Candidate treatments (study only) ([#1109](https://github.com/neutrons/PyRS/issues/1109))
