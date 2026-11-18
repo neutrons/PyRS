@@ -1479,6 +1479,27 @@ Phase 3 of the pixelation study ([plan](planning/PixelationUncertainty_Plan.md))
     reflections become very consistent (16–30 µε) while others worsen (up to 175 µε). A like-for-like
     test (strip level, or narrow η wedges, on 5345 / 5346 with 5344's calibration) is needed before
     choosing.
+- **Like-for-like test (2026-11-18): the asymmetric profile does not improve the calibration.**
+  - **Strip level.** Ring points were extracted from 5344 / 5345 / 5346 at each calibration's geometry,
+    with either strip profile. Their residuals against Bragg were evaluated with the calibration held
+    fixed. RMS for 5344 / 5345 / 5346, with the ring-to-ring spread of mean residuals in brackets:
+    - symmetric calibration + symmetric strips: 60 (55) / 61 (54) / 73 (60) µε, mean ≈ 0;
+    - two-stage calibration + fixed-shape split strips: 81 (78) / 80 (69) / 72 (53) µε, mean −27 to 0;
+    - mismatched pairs: about **±300 µε mean offset** (symmetric calibration + split strips +280 µε;
+      two-stage + symmetric −300 µε).
+
+    Single-point precision is 17 / 26 / 36 µε.
+  - **η wedges (3°, matched pairs):** the d spread across ring positions is 100 µε (median 112) for
+    symmetric + symmetric, with single-fit error 36 µε. For two-stage + split Pearson VII it is 130 µε,
+    but that fit's own error is 150 µε, so it is noise-limited and inconclusive.
+  - **Conclusions.**
+    1. **Calibration and peak fitting must use the same profile;** otherwise d is offset by ~±300 µε
+       (absorbed into λ). The full-detector 57 µε "best" above was such a mismatched pair.
+    2. **Matched, the symmetric approach is as consistent as the split one or better,** and far more
+       precise in narrow wedges.
+    3. **A systematic position dependence of ~55 µε (strips) to ~100 µε (wedges) remains with every
+       profile,** well above the noise, so it is not a peak-profile effect. It is more likely in the
+       geometry model or the detector's position response (cf. `next`'s open slit-scan item).
 - **Implication:** the bias that changes with position (up to ~400 µε) is far larger than the split
   profile's extra scatter (~15–50 µε). A profile whose asymmetry is fixed in advance, as an instrument
   parameter determined from the standards as a function of detector position and η, could keep the

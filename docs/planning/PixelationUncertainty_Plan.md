@@ -264,9 +264,14 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
         split Pearson VII fine tune). RMS 0.0084°; λ −250 µε, Shift_z −1.65 mm. Rot_z stays at 0.27°
         (real). The full-detector d spread is still worse than with the symmetric calibration
         (98 against 57 µε), but that test mixes estimators.
-  - [ ] **Like-for-like consistency test:** apply each calibration (symmetric, two-stage) to 5345 and
+  - [x] **Like-for-like consistency test:** apply each calibration (symmetric, two-stage) to 5345 and
         5346 at strip level (ring points against Bragg) and in narrow η wedges, with the same profile
-        as the calibration.
+        as the calibration. Matched symmetric is as consistent as two-stage or better (strip RMS
+        61–73 against 72–80 µε; wedges 100 µε against noise-limited 130). Mismatched profiles offset d
+        by ~±300 µε. A ~55–100 µε systematic position dependence remains with every profile.
+  - [ ] **Remaining position dependence (~55–100 µε):** look for its cause in the geometry model
+        or the detector position response (pixel pitch / linearity, the slit scan on `next`), not
+        in the peak profile.
   - [ ] **Next candidate: split PV with its asymmetry fixed** as a function of detector position and
         η, determined once from the standards (a new instrument parameter, which needs approval). Test
         whether it keeps the zero bias at close to the symmetric profile's precision.
