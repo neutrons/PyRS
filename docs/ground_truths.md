@@ -3265,6 +3265,44 @@ Found while testing; all four are fixed, see the next section ([deferred_defects
   longer returns a stale result.
 
 Tests: `tests/unit/pyrs/core/test_polefigurecalculator.py`. Each new test fails without its fix.
+## Calibration drivers in the package; one shared ring calibration for the unit tier (2026-11-18, #1101)
+
+**Drivers moved into the package** (user decision): `scripts/pyrs_pixel_calibration.py` and
+`scripts/pyrs_calibration.py` held the workflows themselves.
+- Their tests sat in `tests/unit/scripts/`, which mirrors no package, and five test files loaded the ring driver
+  by file path.
+- The workflows are now `pyrs/calibration/ring_driver.py` and `pyrs/calibration/peakfit_driver.py`. The scripts
+  are thin command-line wrappers, and the entry points name the package modules.
+- Commands and options are unchanged.
+- The ring calibration's provenance now records `"driver": "pyrs.calibration.ring_driver"` (it was
+  `"scripts/pyrs_pixel_calibration.py"`).
+
+**One shared ring calibration:**
+- **The repeated run:** the ring-rounds, driver, window-model and diagnostics tests each ran the same full ring
+  calibration of the same synthetic run, 25–30 s each time.
+- **Computed once:** `tests/util/ring_calibration_helpers.converged_synthetic_calibration()` computes it once
+  per test process (cached) and hands out copies.
+- **For tests of what a caller passes on or does around the calibration:** `use_cached_calibrate_rings`
+  answers `calibrate_rings` from that cache, and records each call's settings.
+- **The window comparison is still real on both sides:** the window's own ring path (extraction, rounds, error
+  estimate, Export) runs for real, against the driver given the cached calibration.
+- **Bookkeeping tests of the round loop** run on six of the eleven sub-runs (`SMALL_ARMS`): the round-limit
+  warning, warnings kept, one round, the start recorded, a second call, and the sub-run selection.
+  - With 4 sub-runs (25 ring points), Rot_y stops at its bound.
+- **Moved:** the driver's sub-run check moved to `test_ring_rounds.py`, because it tests `calibrate_rings`.
+
+**Measured** on `next`, serial, no coverage:
+
+| | Before | After |
+|---|---|---|
+| Unit tier | 6 min 5 s | **3 min 52 s** |
+| `test_ring_calibration_method.py` | 112 s | 62 s |
+| `test_ring_rounds.py` | 96 s | 50 s |
+| ring driver tests | 54 s | 8 s |
+| `test_calibration_diagnostics.py` | 24 s | 33 s (it computes the shared run first when run serially) |
+
+Coverage of `pyrs` is identical: 8,791 lines before and after, with no line losing coverage.
+
 ## Ring-calibration tests: shared runs and design-study tests removed (2026-11, #1101)
 
 - **The unit tier was 96% ring-calibration tests** by time: 12.2 of 12.7 min. The cost was tests each repeating a

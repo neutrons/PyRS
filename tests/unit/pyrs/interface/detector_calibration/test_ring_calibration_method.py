@@ -24,10 +24,16 @@ from pyrs.interface.detector_calibration.detector_calibration_model import (
 )
 from pyrs.utilities.calibration_file_io import read_calibration_json_file
 from tests.util.instrument_helpers import default_hb2b_geometry
-from tests.util.ring_calibration_helpers import synthetic_calibration_workspace
+from tests.util.ring_calibration_helpers import (
+    SYNTHETIC_MONO,
+    SYNTHETIC_TRUE_PARAMS,
+    converged_synthetic_calibration,
+    synthetic_calibration_workspace,
+    use_cached_calibrate_rings,
+)
 
-TRUE_PARAMS = np.array([0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.656, 1.5308])
-MONO_WAVELENGTH = 1.540
+TRUE_PARAMS = np.array(SYNTHETIC_TRUE_PARAMS)
+MONO_WAVELENGTH = SYNTHETIC_MONO
 
 
 @pytest.fixture(scope="module")
@@ -115,7 +121,23 @@ def _driver():
     return ring_driver
 
 
+def _rounds_from_cache(monkeypatch):
+    """Make the window's "iterate" rounds return the shared real calibration of this run, for tests of what the
+    window does around them (#1101): what the rounds do is test_ring_rounds.py's"""
+
+    def cached_rounds(calibration, workspace, diagnostics=None, **kwargs):
+        result, fits = converged_synthetic_calibration()
+        if diagnostics is not None:
+            diagnostics[:] = fits
+        return result
+
+    monkeypatch.setattr(model_module, "continue_rounds", cached_rounds)
+
+
 def test_ring_path_equals_the_driver(workspace, refined, tmp_path, monkeypatch):
+    """The window's own ring path (extraction, "iterate" rounds, error estimate, Export) against the driver,
+    whose ring calibration of the same run is the shared real one (#1101)"""
+
     # Arrange - the real driver, with the NeXus conversion replaced by the synthetic run
     class _Converter:
         def __init__(self, nexus_file, mask_file=None):
@@ -125,10 +147,12 @@ def test_ring_path_equals_the_driver(workspace, refined, tmp_path, monkeypatch):
             return workspace
 
     monkeypatch.setattr("pyrs.core.nexus_conversion.NeXusConvertingApp", _Converter)
+    calls = use_cached_calibrate_rings(monkeypatch)
     nexus = tmp_path / "HB2B_0001.nxs.h5"
     nexus.write_bytes(b"")
     driver_file = tmp_path / "driver.json"
     driver = _driver().run_calibration(str(nexus), str(driver_file), mask_file=None)
+    assert [call["cached"] for call in calls] == [True]
 
     # Act
     gui_model, (values, errors, r_sum, rmse) = refined
@@ -410,6 +434,7 @@ def test_new_run_clears_ring_state(workspace, monkeypatch, tmp_path):
     # Arrange - a ring-based result from run A, then load run B
     gui_model = _model(workspace)
     gui_model.extract_rings(3)
+    _rounds_from_cache(monkeypatch)
     gui_model.calibrate_detector(["iterate"])
     monkeypatch.setattr(model_module, "FitCalibration", lambda **kwargs: _stand_in(workspace))
 
@@ -833,6 +858,8 @@ def test_failed_recipe_after_iterate_restores_all(workspace, monkeypatch, rounds
     gui_model.set_max_rounds(rounds)
     gui_model.extract_rings(DEFAULT_STRIPS)
     before = _ring_state(gui_model)
+    if rounds > 1:  # several rounds change the plots' state too; the one-round case runs for real
+        _rounds_from_cache(monkeypatch)
 
     def failing(self, *args, **kwargs):
         raise RuntimeError("error estimate failed")

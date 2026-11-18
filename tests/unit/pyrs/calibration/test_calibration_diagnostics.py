@@ -8,14 +8,14 @@ import numpy as np
 import pytest
 
 from pyrs.calibration import pixel_refinement
-from pyrs.calibration.pixel_pos_calibration import PixelCalibration, calibrate_rings
+from pyrs.calibration.pixel_pos_calibration import PixelCalibration
 from pyrs.calibration.mantid_peakfit_calibration import FitCalibration
 from pyrs.calibration.powder_standards import PowderStandard
 from pyrs.calibration.pixel_refinement import UNDETERMINED, _parameter_errors, _parameter_errors_and_covariance
 from pyrs.utilities.calibration_file_io import read_calibration_file
 from pyrs.utilities.calibration_nexus import read_calibration_nexus_diagnostics, write_calibration_nexus
 from tests.util.instrument_helpers import default_hb2b_geometry
-from tests.util.ring_calibration_helpers import synthetic_calibration_workspace, synthetic_ring_points
+from tests.util.ring_calibration_helpers import converged_synthetic_calibration, synthetic_ring_points
 
 TRUE_PARAMS = np.array([0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.656, 1.5308])
 
@@ -122,9 +122,8 @@ def test_ring_covariance_is_the_last_stage():
 
 @pytest.fixture(scope="module")
 def ring_with_fits():
-    workspace = synthetic_calibration_workspace(default_hb2b_geometry(), TRUE_PARAMS)
-    fits = []
-    calibration = calibrate_rings(workspace, 1.54, max_rounds=2, diagnostics=fits)
+    """The shared real ring calibration of the synthetic run, with its strip fits (#1101)"""
+    calibration, fits = converged_synthetic_calibration()
     calibration.estimate_errors()
     return calibration, fits
 
