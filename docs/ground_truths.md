@@ -3367,3 +3367,55 @@ coverage, at `b443d7a5`:
   DD-27. Then remove the override; mypy should then report nothing. qtpy's documented alternative is mypy
   `always_true = ["PYQT6"]`, `always_false = ["PYQT5", "PYSIDE2", "PYSIDE6"]`, so that mypy never follows the
   PySide6 branch.
+
+## 2θ₀ held at 0 in single-run calibrations (2026-11, #1090 step a)
+
+**Rule (user decisions, #1090):**
+- HB2B never calibrates at more than one sample–detector distance. At one distance, 2θ₀ trades **exactly**
+  against Rot_y and Shift_x, so a single run cannot determine it.
+- **A single-run calibration holds 2θ₀ at 0**, in both methods and every recipe. Only a joint fit over several
+  monochromators frees it, with the 2θ₀ values constrained to average 0 (#1090 step b).
+
+**Implementation:** `PixelCalibration(..., hold_two_theta_0=True)` and `FitCalibration(..., hold_two_theta_0=True)`,
+both defaults.
+- Every stage drops 2θ₀ from its free parameters, and every error estimate (`estimate_errors`, `errors_at_current`)
+  keeps it fixed. Its error is written −1 (not refined), and the provenance's refinement settings say
+  `"two_theta_0": "held at 0 (#1090)"`.
+- Anything that would refine 2θ₀ raises `ValueError`: `calibrate_tth0`, `PixelCalibration.refine` or
+  `FitCalibration.FitDetector` with TTH_0 free, an initial guess that includes it, `set_two_theta_0(≠ 0)`. The
+  calibration window refuses a recipe containing "tth0" before any routine runs.
+- **A start with 2θ₀ ≠ 0** (a loaded file, the window's table, `calibrate_rings(start=...)`) is re-expressed at
+  2θ₀ = 0 with the exact hand-back (`DetectorModel.with_two_theta_0`). No pixel's 2θ changes, and the start's
+  `source` records it.
+- **The λ + 2θ₀ stage** (`calibrate_wave_shift`, the third stage of every "iterate" pass) refines **Shift_x,
+  Rot_y and λ** while 2θ₀ is held: the directions 2θ₀ trades against. With λ alone, the staged passes did not
+  converge without the joint polish. On synthetic data:
+
+  | Third stage, no polish | 3 passes | Until converged |
+  |---|---|---|
+  | λ alone | 737 mdeg | 304 mdeg, 50 passes |
+  | Shift_x + Rot_y + λ | **0.48 mdeg** | **5·10⁻⁴ mdeg, 6 passes** |
+  | (2θ₀ + λ, with 2θ₀ freed) | | 0.03 mdeg, 13 passes |
+
+- **Rot_y's bound is ±10°** (it was ±5°) in CalibrateRotation, CalibrateGeometry, FullCalibration, the held λ stage and
+  the span `estimate_errors` takes from FullCalibration. Shift_x keeps ±0.05 m (user decision). With 2θ₀ held,
+  Rot_y carries the monochromator's 2θ₀ offset as well as the detector's tilt: about 7° on HB2B_3489 (Si331). At
+  ±5° it stopped at the bound in every stage, and only `estimate_errors`, whose bounds are relative, moved it.
+
+**Measured** with `pyrs-pixel-calibration` (`run_calibration`, mask `HB2B_Mask_12-18-19.xml`), the branch against
+`next` (2θ₀ refined, Rot_y ±5°):
+
+| Run | Pixel-2θ change | Precision | rms | λ change |
+|---|---|---|---|---|
+| HB2B_3510 (Si422) | 0.00 mdeg | 6.3 mdeg | 17.03 mdeg, unchanged | 6·10⁻¹² Å |
+| HB2B_3489 (Si331) | 0.14 mdeg | 10.6 mdeg | 29.03 mdeg, unchanged | 1·10⁻⁶ Å |
+| HB2B_4971 (Si422) | 0.00 mdeg | 2.3 mdeg | 6.54 mdeg, unchanged | 1·10⁻¹² Å |
+
+- Rot_y and Shift_x now carry 2θ₀'s share. Every geometry parameter gets a real error after the polish; before,
+  Shift_x, Rot_y and 2θ₀ were flagged −2.
+- Refined 2θ₀ was 0.86° and 1.47° (Si422) and 2.30° (Si331), consistent with a per-monochromator offset.
+- **Tests:**
+  - those that check the degeneracy itself run with `hold_two_theta_0=False`;
+  - the FitCalibration gold-file smoke test `test_all_refinements` also runs with 2θ₀ freed, as its gold file
+    was made;
+  - the others compare with the truth re-expressed at 2θ₀ = 0.

@@ -31,17 +31,17 @@ Typical workflow:
 2. Refine the geometry with :meth:`PixelCalibration.iterate` (repeated ``CalibrateShift`` ->
    ``CalibrateRotation`` -> ``calibrate_wave_shift`` passes, then a joint polish), or with
    individual stage methods.
-3. Optionally fix the 2theta_0 / detector-pose split with :meth:`PixelCalibration.set_two_theta_0`:
-   at one sample-detector distance the ring fit cannot determine it (2theta_0 is a virtual swing
-   of the detector, see docs/ground_truths.md).
+3. 2theta_0 is held at 0 (#1090): at one sample-detector distance the ring fit cannot determine it
+   (2theta_0 is a virtual swing of the detector, see docs/ground_truths.md), so Shift_x and Rot_y
+   carry it. ``hold_two_theta_0=False`` frees it; :meth:`PixelCalibration.set_two_theta_0` then
+   re-expresses the result at a chosen 2theta_0.
 4. Read the result from ``calibration_array`` / ``calibration_error_array``.
 
 Example::
 
     ring_points = extract_ring_points(hidra_ws, wavelength=1.54)   # e.g. from NeXusConvertingApp
     calibration = PixelCalibration(ring_points, hidra_ws.get_instrument_setup(), wavelength=1.54)
-    calibration.iterate(passes=3)            # Shift -> Rotation -> lambda+2theta_0, x3, then polish
-    calibration.set_two_theta_0(0.0)         # optional: same detector, described with 2theta_0 = 0
+    calibration.iterate(passes=3)            # Shift -> Rotation -> Shift_x+Rot_y+lambda, x3, then polish
     shift_x, shift_y, shift_z, rot_x, rot_y, rot_z, two_theta_0, wavelength = calibration.calibration_array
 """
 
