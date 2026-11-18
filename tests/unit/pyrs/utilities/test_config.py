@@ -174,7 +174,6 @@ class TestDiscriminatorConfigKeys:
             config_module.validate_config()
 
     def test_validate_config_accepts_a_well_formed_field_list(self, default_config: "_Config", tmp_path: Path) -> None:
-
         import pyrs.utilities.config as config_module
 
         override_file = tmp_path / "override.yml"

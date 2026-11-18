@@ -77,10 +77,12 @@ def test_calibrate_wave_length_recovers_wavelength(hb2b):
     assert calibration.calibration_array[7] == pytest.approx(1.5308, abs=1e-7)
 
 
-def _held_truth(hb2b):
-    """TRUE_PARAMS re-expressed with 2theta_0 = 0 (#1090): the same detector, the geometry a held fit finds"""
+def _held_truth(hb2b, rings):
+    """TRUE_PARAMS re-expressed with 2theta_0 = 0 (#1090) at the rings' median L2, as PixelCalibration does: the same
+    detector, the geometry a held fit finds"""
     model = DetectorModel(hb2b)
-    return np.r_[from_shift(model.with_two_theta_0(to_shift(TRUE_PARAMS[:7]), 0.0, 0.985)), TRUE_PARAMS[7]]
+    l2 = float(np.median(rings.l2))
+    return np.r_[from_shift(model.with_two_theta_0(to_shift(TRUE_PARAMS[:7]), 0.0, l2)), TRUE_PARAMS[7]]
 
 
 def test_full_calibration_recovers_identifiable_params(hb2b, true_rings):
@@ -93,7 +95,7 @@ def test_full_calibration_recovers_identifiable_params(hb2b, true_rings):
     # Assert - with 2theta_0 held at 0 (#1090) nothing is degenerate: every geometry parameter is the truth
     # re-expressed at 2theta_0 = 0, and gets a real error. Shift_y is weak (a vertical shift moves 2theta only to
     # second order), so tolerances follow each parameter's sensitivity
-    fitted, truth = calibration.calibration_array, _held_truth(hb2b)
+    fitted, truth = calibration.calibration_array, _held_truth(hb2b, true_rings)
     assert stage.rmse < 1e-5
     np.testing.assert_allclose(fitted[:3], truth[:3], atol=1e-4)  # shifts, m
     np.testing.assert_allclose(fitted[3:6], truth[3:6], atol=2e-3)  # rotations, deg
@@ -460,8 +462,8 @@ def test_ring_points_num_rings_counts_sub_run_reflections():
 
 
 def test_set_two_theta_0_keeps_fit(hb2b, true_rings):
-    # Arrange
-    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+    # Arrange - freed, so the start keeps its 2theta_0 = 0.656 and the re-expression does something
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH, hold_two_theta_0=False)
     calibration.set_calibration_array(TRUE_PARAMS)
     before = calibration.residual(TRUE_PARAMS)
 
@@ -738,9 +740,15 @@ def test_two_theta_0_is_held_by_default(hb2b, true_rings):
 
 
 def test_held_calibrate_tth0_raises(hb2b, true_rings):
+    # Arrange
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+    before = calibration.calibration_array
+
     # Act / Assert
     with pytest.raises(ValueError, match="2theta_0 is held"):
-        PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH).calibrate_tth0()
+        calibration.calibrate_tth0()
+    assert calibration.stages == []
+    np.testing.assert_array_equal(calibration.calibration_array, before)
 
 
 def test_held_start_is_re_expressed_at_zero(hb2b, true_rings):
@@ -755,7 +763,7 @@ def test_held_start_is_re_expressed_at_zero(hb2b, true_rings):
     # Assert
     values = calibration.calibration_array
     assert values[6] == 0.0
-    np.testing.assert_allclose(values, _held_truth(hb2b), atol=1e-12)
+    np.testing.assert_allclose(values, _held_truth(hb2b, true_rings), atol=1e-12)
     np.testing.assert_allclose(
         _two_theta_map(model, values, 90.0), _two_theta_map(model, TRUE_PARAMS, 90.0), atol=1e-9
     )
@@ -790,3 +798,43 @@ def test_freed_two_theta_0_is_refined(hb2b, true_rings):
     # Assert
     assert calibration.stages[-1].free_parameters == ("TTH_0", "Lambda")
     assert calibration.provenance()["inputs"]["refinement"]["two_theta_0"] == "refined"
+
+
+def test_held_set_two_theta_0_nonzero_raises(hb2b, true_rings):
+    # Arrange
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+
+    # Act / Assert - a held calibration is never re-expressed away from 2theta_0 = 0
+    with pytest.raises(ValueError, match="2theta_0 is held"):
+        calibration.set_two_theta_0(1.0)
+    assert calibration.calibration_array[6] == 0.0
+
+
+@pytest.mark.parametrize("stage", ["CalibrateGeometry", "FullCalibration"])
+def test_held_guess_with_two_theta_0_raises(hb2b, true_rings, stage):
+    """An initial guess that includes 2theta_0 is refused while it is held, not silently cut (#1090)"""
+    # Arrange
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+    guess = list(TRUE_PARAMS[:7]) if stage == "CalibrateGeometry" else list(TRUE_PARAMS)
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="initial guess"):
+        getattr(calibration, stage)(guess)
+    assert calibration.stages == []
+
+
+def test_freed_estimate_errors_breaks_the_degeneracy(hb2b):
+    """The joint-fit path (#1090 step b): a freed FullCalibration flags the degenerate set, estimate_errors holding
+    2theta_0 gives the rest real errors"""
+    # Arrange
+    rings = synthetic_ring_points(hb2b, TRUE_PARAMS, strips=20, noise_deg=0.01, rng=np.random.default_rng(5))
+    calibration = PixelCalibration(rings, hb2b, wavelength=NOMINAL_WAVELENGTH, hold_two_theta_0=False)
+    calibration.FullCalibration()
+    assert np.all(calibration.calibration_error_array[[0, 4, 6]] == -2.0)
+
+    # Act
+    calibration.estimate_errors()
+
+    # Assert
+    errors = calibration.calibration_error_array
+    assert errors[6] == -1.0 and np.all(errors[[0, 1, 2, 3, 4, 5, 7]] > 0)

@@ -174,7 +174,7 @@ def test_all_refinements(tmp_path):
     t_start = time.time()
 
     # Initalize calibration - with 2theta_0 freed, as when the gold file was made: this runs every routine once
-    # against recorded numbers; the routines with 2theta_0 held (#1090) are covered by the unit tests
+    # against recorded numbers; test_held_refinement_on_a_real_run runs them with 2theta_0 held (#1090)
     calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file=nexus_file, hold_two_theta_0=False)
 
     # Setup test constraints
@@ -407,3 +407,29 @@ def test_nexus_file_carries_the_fitted_peaks(tmp_path):
     assert np.sqrt(matrix[0, 0]) == pytest.approx(from_json[3], rel=1e-12)
     # the reduced patterns at the solution, one per eta slice of the kept sub-run
     assert sorted(diagnostics["patterns"]) == sorted(f"sub_run_{int(calibrator.sub_runs[0])}_{m}" for m in masks)
+
+
+def test_held_refinement_on_a_real_run():
+    """The default (#1090): 2theta_0 held at 0; the held routines refine their free parameters on a real run"""
+    # Arrange
+    calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file="tests/data/calibration_tests/HB2B_3510.nxs.h5")
+    calibrator._keep_subrun_list = [False] * calibrator.sy.size
+    calibrator._keep_subrun_list[0] = True
+    calibrator.set_max_nfev(3)
+    start = calibrator.get_calib().copy()
+    rmse_start = np.sqrt(np.mean(calibrator.get_alignment_residual(start) ** 2))
+
+    # Act
+    calibrator.calibrate_wave_shift()
+    calibrator.FullCalibration()
+
+    # Assert
+    values = calibrator.get_calib()
+    assert calibrator.two_theta_0_held
+    assert [step["free_parameters"] for step in calibrator.steps] == [
+        ["Shift_x", "Rot_y", "Lambda"],
+        ["Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "Lambda"],
+    ]
+    assert values[6] == 0.0 and calibrator._caliberr[6] == -1.0
+    assert np.all(values[[0, 4]] != start[[0, 4]])
+    assert calibrator.steps[-1]["rmse_deg"] <= rmse_start

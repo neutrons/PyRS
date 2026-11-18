@@ -126,8 +126,24 @@ class FitCalibration:
             raise RuntimeError("a starting 2theta_0 can only be re-expressed at 0 with the run's detector geometry")
         original = values[6]
         model = DetectorModel(geometry)
-        values[:7] = from_shift(model.with_two_theta_0(to_shift(values), 0.0, geometry.arm_length))
+        values[:7] = from_shift(model.with_two_theta_0(to_shift(values), 0.0, self._run_l2(geometry)))
         return values, f"re-expressed at 2theta_0 = 0 (was {original:g} deg; held, #1090)"
+
+    def _run_l2(self, geometry):
+        """The run's median L2 (m): each sub-run's L2 log, else the arm length, as the reduction and the ring
+        extraction take it."""
+        workspace = getattr(self, "_hidra_ws", None)
+        sub_runs = [] if workspace is None else list(workspace.get_sub_runs())
+        l2 = [workspace.get_l2(sub_run) for sub_run in sub_runs]
+        return float(np.median([geometry.arm_length if v is None else v for v in l2] or [geometry.arm_length]))
+
+    def _refuse_held_guess(self, routine, initial_guess):
+        """Refuse an initial guess for a routine whose guess would include 2theta_0 while it is held (#1090)."""
+        if self.two_theta_0_held and initial_guess is not None:
+            raise ValueError(
+                f"{routine}: 2theta_0 is held at 0 (#1090), so an initial guess that includes it is not taken; set "
+                "the starting values with set_calibration_array instead"
+            )
 
     def _refine_free(self, free, lower, upper, routine):
         """Refine the parameters ``free`` (indices) of the calibration vector from their current values."""
@@ -886,7 +902,8 @@ class FitCalibration:
         return
 
     def CalibrateGeometry(self, initalGuess=None):
-        if self.two_theta_0_held and initalGuess is None:
+        self._refuse_held_guess("CalibrateGeometry", initalGuess)
+        if self.two_theta_0_held:
             lower, upper = [-0.05, -0.05, -0.05, -5.0, -10.0, -5.0], [0.05, 0.05, 0.05, 5.0, 10.0, 5.0]
             self._refine_free(range(6), lower, upper, "CalibrateGeometry")
             return
@@ -907,7 +924,8 @@ class FitCalibration:
         return
 
     def FullCalibration(self, initalGuess=None):
-        if self.two_theta_0_held and initalGuess is None:
+        self._refuse_held_guess("FullCalibration", initalGuess)
+        if self.two_theta_0_held:
             lam = self._calib[7]
             lower = [-0.05, -0.05, -0.15, -5.0, -10.0, -5.0, lam - 0.05]
             upper = [0.05, 0.05, 0.15, 5.0, 10.0, 5.0, lam + 0.05]

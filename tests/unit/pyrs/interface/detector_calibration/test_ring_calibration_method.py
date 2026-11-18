@@ -1036,8 +1036,6 @@ def test_tth0_routine_is_refused(workspace, method):
     before any routine runs"""
     # Arrange
     gui_model = _model(workspace, method)
-    if method == METHOD_RING:
-        gui_model.extract_rings(3)
     before = gui_model.current_calibration_array
 
     # Act / Assert

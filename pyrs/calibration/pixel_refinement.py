@@ -456,8 +456,13 @@ class PixelCalibration:
             A :class:`StageResult` recorded in :attr:`stages` (no refinement, ``nfev = 0``).
 
         Raises:
-            ValueError: If the new rotation is within 1 degree of Rot_y = +/-90 degrees.
+            ValueError: If 2theta_0 is held at 0 (#1090, the default) and ``two_theta_0`` is not 0, or if the new
+                rotation is within 1 degree of Rot_y = +/-90 degrees.
         """
+        if self._hold_tth0 and two_theta_0 != 0.0:
+            raise ValueError(
+                f"2theta_0 is held at 0 in a single-run calibration (#1090); cannot re-express it at {two_theta_0} deg"
+            )
         if l2 is None:
             l2 = float(np.median(self.ring_points.l2))
         calibration = self._model.with_two_theta_0(to_shift(self._calib), two_theta_0, l2)
@@ -628,6 +633,11 @@ class PixelCalibration:
                 "values with set_calibration_array instead of an initial guess"
             )
         if self._hold_tth0 and _TTH0 in free:
+            if initial_guess is not None:
+                raise ValueError(
+                    f"{name}: 2theta_0 is held at 0 (#1090), so an initial guess that includes it is not taken; set "
+                    "the starting values with set_calibration_array instead"
+                )
             if free == [_TTH0]:
                 raise ValueError(
                     f"{name}: 2theta_0 is held at 0 in a single-run calibration (#1090); it is refined only in a "
@@ -636,8 +646,6 @@ class PixelCalibration:
             keep = [k for k, index in enumerate(free) if index != _TTH0]
             free = [free[k] for k in keep]
             lower, upper = lower[keep], upper[keep]
-            if initial_guess is not None:
-                initial_guess = [list(initial_guess)[k] for k in keep]
         return self.refine(name, free, lower, upper, initial_guess)
 
     def calibrate_wave_length(self, initial_guess: Optional[Sequence[float]] = None) -> StageResult:
@@ -957,8 +965,9 @@ class PixelCalibration:
         """Run a staged recipe repeatedly, then optionally one joint refinement of everything.
 
         This is the iterative calibration workflow: e.g. shifts, then rotations, then wavelength and
-        2theta_0, repeated. Each stage holds the others' parameters, so later passes re-identify the
-        shifts and rotations after 2theta_0 and the wavelength have moved. The final ``polish``
+        2theta_0 (while 2theta_0 is held, #1090: Shift_x, Rot_y and the wavelength), repeated. Each stage
+        holds the others' parameters, so later passes re-identify the shifts and rotations after the
+        wavelength has moved. The final ``polish``
         (:meth:`FullCalibration`) settles directions the stages only creep along.
 
         Args:

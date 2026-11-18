@@ -8,6 +8,8 @@ import pytest
 
 from pyrs.calibration import mantid_peakfit_calibration as mpc
 from pyrs.calibration.pixel_refinement import RANK_DEFICIENT
+from pyrs.core.detector_model import DetectorModel, to_shift
+from tests.util.instrument_helpers import default_hb2b_geometry
 
 
 @pytest.fixture
@@ -318,3 +320,91 @@ def test_held_calibrate_tth0_raises(calibration):
     with pytest.raises(ValueError, match="2theta_0 is held"):
         calibration.calibrate_tth0()
     assert calibration.steps == []
+
+
+@pytest.mark.parametrize("routine, size", [("CalibrateGeometry", 7), ("FullCalibration", 8)])
+def test_held_guess_with_two_theta_0_raises(calibration, routine, size):
+    """An initial guess that includes 2theta_0 is refused while it is held (#1090), as in PixelCalibration"""
+    # Act / Assert
+    with pytest.raises(ValueError, match="initial guess"):
+        getattr(calibration, routine)(np.zeros(size))
+    assert calibration.steps == []
+
+
+@pytest.mark.parametrize("logs, expected", [([None, None], 0.985), ([0.95, 0.97], 0.96)])
+def test_held_start_uses_run_l2(calibration, logs, expected):
+    """The re-expression is exact at the L2 the reduction uses: each sub-run's L2 log, else the arm length"""
+    # Arrange
+    calibration._hidra_ws = SimpleNamespace(get_sub_runs=lambda: [1, 2], get_l2=lambda sub_run: logs[sub_run - 1])
+
+    # Act
+    l2 = calibration._run_l2(SimpleNamespace(arm_length=0.985))
+
+    # Assert
+    assert l2 == pytest.approx(expected)
+
+
+def _with_geometry(fit):
+    """``fit`` with a run stand-in that knows the detector geometry and has no L2 log (the arm length is used)"""
+    geometry = default_hb2b_geometry()
+    fit._hidra_ws = SimpleNamespace(
+        get_instrument_setup=lambda: geometry, get_sub_runs=lambda: [1, 2], get_l2=lambda sub_run: None
+    )
+    return geometry
+
+
+def test_held_start_is_re_expressed_at_zero(calibration):
+    """A start with 2theta_0 != 0 is the same detector at 2theta_0 = 0 (#1090): no pixel's 2theta changes"""
+    # Arrange
+    model = DetectorModel(_with_geometry(calibration))
+    start = np.array([0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.656, 1.5308])
+    pixels = np.meshgrid(np.arange(0, 1024, 64), np.arange(0, 1024, 64), indexing="ij")
+
+    # Act
+    calibration.set_calibration_array(start)
+
+    # Assert
+    values = calibration.get_calib()
+    assert values[6] == 0.0 and values[7] == start[7]
+    for arm in (76.0, 90.0, 103.0):
+        np.testing.assert_allclose(
+            model.two_theta(*pixels, -arm, None, to_shift(values[:7])),
+            model.two_theta(*pixels, -arm, None, to_shift(start[:7])),
+            atol=1e-9,
+        )
+    assert "re-expressed at 2theta_0 = 0 (was 0.656 deg" in calibration._start["source"]
+
+
+def test_freed_start_keeps_two_theta_0(calibration):
+    # Arrange
+    _with_geometry(calibration)
+    calibration._hold_tth0 = False
+    start = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.656, 1.54])
+
+    # Act
+    calibration.set_calibration_array(start)
+
+    # Assert
+    np.testing.assert_array_equal(calibration.get_calib(), start)
+    assert calibration._start["source"] == "set_calibration_array"
+
+
+def test_held_start_without_geometry_raises(calibration):
+    # Arrange
+    calibration._hidra_ws = None
+
+    # Act / Assert
+    with pytest.raises(RuntimeError, match="detector geometry"):
+        calibration.set_calibration_array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.54])
+
+
+@pytest.mark.parametrize("hold, expected", [(True, "held at 0 (#1090)"), (False, "refined")])
+def test_provenance_records_the_hold(calibration, hold, expected):
+    # Arrange
+    _with_inputs(calibration)._hold_tth0 = hold
+
+    # Act
+    refinement = calibration.provenance()["inputs"]["refinement"]
+
+    # Assert
+    assert refinement["two_theta_0"] == expected
