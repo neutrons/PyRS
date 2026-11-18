@@ -1316,6 +1316,57 @@ from 40 to 40/g_y rows (same detector area).
   grouped reduction applies that native calibration, which is exact by C1. C4 (cross-application on
   a strained reference) has not been run.
 
+## HB2B peaks are asymmetric, and the asymmetry depends on where they land on the detector (2026-11-18, #1108)
+
+Phase 2 of the pixelation study ([plan](planning/PixelationUncertainty_Plan.md)). No production code changed.
+
+**Setup.**
+- **Calibration:** HB2B_5344 (2025, powder-standards assembly) and HB2B_4971 (2024) were calibrated with
+  `next`'s driver `pyrs-pixel-calibration`, snapshot `bca6d8eb`, with 2θ₀ held at 0 per #1090. Both
+  converged in 3 rounds:
+  - 5344: 70 points / 14 rings, RMS 0.0066°, λ 1.53259 ± 0.00008 Å, Shift_z −59.0 mm, Rot_y 2.39°;
+  - 4971: 65 / 13, RMS 0.0065°, λ 1.53133 ± 0.00008 Å, Rot_y 0.63°.
+- **Reduction:** each sub-run was reduced with its new calibration, the latest mask and a vanadium
+  (5339 for 5344, 4501 for 4971), for the full detector and for 3° η wedges.
+- **Reflections:** the standard was identified from the sub-run's time-averaged `sy`, using only its
+  own reflections. Reflections within 0.4° of an Al reflection (holder) were dropped.
+- **Fits:** each reflection was fitted with Poisson σ twice: a symmetric pseudo-Voigt (as PyRS fits)
+  and a split pseudo-Voigt (left / right widths). Asymmetry A = (w_R − w_L)/(w_R + w_L).
+
+**Results.**
+- **Only Ni is usable on this holder.** At λ ≈ 1.53 Å, Fe 211 and Fe 220 coincide with Al 222 and
+  Al 400 (within 0.4°), so every Fe sub-run was dropped.
+- **Every Ni peak has a high-angle tail**: A = +0.005 to +0.154 on the full detector, both below and
+  above 2θ = 90°. Axial divergence would flip the sign at 90°, so it is not the cause. The split
+  profile lowers χ² from 1.7–3.0 to 1.1–1.5 where A is large.
+- **The same reflection changes shape with where it lands on the detector.** Its asymmetry grows as
+  the ring moves to the high-2θ (right) side. For 5344 at ring offsets 2θ_Bragg − arm of −6.1°,
+  −0.1° and +5.9°:
+  - Ni 220: A = +0.005, +0.041, +0.092;
+  - Ni 311 (offsets −6.7°, −0.7°, +5.3°): +0.049, +0.063, +0.077.
+
+  4971 shows the same trend (Ni 220 +0.048 at −4.2° offset, +0.152 at −0.2°; Ni 311 +0.009 to
+  +0.097).
+- **The asymmetry also falls from the bottom of the detector to the top.** In 3° wedges on 5344 it
+  decreases steadily from η = −6° to +6° in almost every reflection (e.g. Ni 220 at arm 82°: +0.086
+  → −0.067). Axial divergence would be symmetric in ±η. 4971 has fewer counts per wedge but shows
+  the same sign.
+- **Consequence for strain.** The symmetric pseudo-Voigt centre lies 20–410 µε (in strain) away from
+  the split-profile peak. That offset changes by about 350 µε for the same reflection as it moves
+  across the detector (5344 Ni 220: −19 µε on the left, −377 µε on the right).
+  - The ring calibration fits symmetric pseudo-Voigts per strip, so part of the offset is absorbed
+    into the geometry: symmetric centres sit −164 to +191 µε from Bragg; split peaks sit +72 to
+    +398 µε.
+  - **A peak's apparent strain therefore depends on where it falls on the detector,** at the level of
+    a few hundred µε.
+
+**Interpretation (not established).** An asymmetry that varies with both detector coordinates, and
+does not change sign at 90°, points to the detector's position response, e.g. parallax from
+conversion depth in the ³He gas volume at oblique incidence, rather than to the beam. That fits
+`next`'s open item that the detector position response still has to be measured (slit scan,
+`calibration-diagnostics`). The 3489 sub-run 7 shoulder was an Al container reflection and is a
+separate effect.
+
 ## HB2B detector: pixel orientation, vanadium dead area, and vertical wire-period stripes (2026-11-12)
 
 From Phase 0 of the pixelation study
