@@ -1460,6 +1460,25 @@ Phase 3 of the pixelation study ([plan](planning/PixelationUncertainty_Plan.md))
       may partly be a peak-shape artefact.
   - **Next:** take each ring's shape from the high-count all-strips fit and fix it, fitting only
     position, height and background per strip.
+- **Two-stage calibration (user's approach, 2026-11-18).** Stage 1 is the symmetric calibration;
+  stage 2 starts from it and re-extracts with **fixed-shape** split Pearson VII strip fits. Each ring's
+  shape comes from its free all-strips fit; per strip only the peak top, height and background are
+  fitted. Refinement is as in `next`.
+  - **Convergence:** 2 rounds, 70 points / 14 rings, RMS 0.0084° (symmetric 0.0066°, free split
+    0.0101°).
+  - **Parameters:** λ 1.53259 → 1.53221 ± 0.00010 Å (−250 µε); Shift_z −59.0 → −60.65 ± 0.26 mm; Rot_y
+    2.39 → 2.11 ± 0.22°. **Rot_z stays at 0.268 ± 0.013°,** so the detector spin is real; the free
+    split fit's 0.04° came from unstable strip fits.
+  - **Ring shapes:** the right side is always wider (w_R 0.67–0.78° against w_L 0.57–0.64°), with
+    exponents ~3–5.
+  - **Full-detector d spread across positions:** split Pearson VII 98, split PV 102, symmetric 178 µε.
+    That is worse than with the symmetric calibration (57 / 72 / 100 µε).
+  - **The test may be unfair to the split calibrations.** The calibration locates peak tops in narrow
+    strips, but the test fits the full-detector pattern. With asymmetry that changes bottom to top,
+    that pattern is a blend whose top is not the strips' average. Under the split calibrations some
+    reflections become very consistent (16–30 µε) while others worsen (up to 175 µε). A like-for-like
+    test (strip level, or narrow η wedges, on 5345 / 5346 with 5344's calibration) is needed before
+    choosing.
 - **Implication:** the bias that changes with position (up to ~400 µε) is far larger than the split
   profile's extra scatter (~15–50 µε). A profile whose asymmetry is fixed in advance, as an instrument
   parameter determined from the standards as a function of detector position and η, could keep the

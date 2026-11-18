@@ -260,9 +260,13 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
         strip fits on 5344. It made things worse: RMS 0.0066 → 0.0101°, d spread 57 → 95 µε (split
         PVII) and 100 → 171 µε (symmetric). The calibration also moved beyond its errors (λ −360 µε,
         Rot_z 0.26 → 0.04°).
-  - [ ] **Calibration with a per-ring fixed shape:** take each ring's split Pearson VII shape from the
-        all-strips fit and fit only position, height and background per strip. Then repeat the
-        consistency test, and check whether Rot_z ≈ 0.26° is partly a peak-shape artefact.
+  - [x] **Calibration with a per-ring fixed shape** (two-stage: symmetric first pass, fixed-shape
+        split Pearson VII fine tune). RMS 0.0084°; λ −250 µε, Shift_z −1.65 mm. Rot_z stays at 0.27°
+        (real). The full-detector d spread is still worse than with the symmetric calibration
+        (98 against 57 µε), but that test mixes estimators.
+  - [ ] **Like-for-like consistency test:** apply each calibration (symmetric, two-stage) to 5345 and
+        5346 at strip level (ring points against Bragg) and in narrow η wedges, with the same profile
+        as the calibration.
   - [ ] **Next candidate: split PV with its asymmetry fixed** as a function of detector position and
         η, determined once from the standards (a new instrument parameter, which needs approval). Test
         whether it keeps the zero bias at close to the symmetric profile's precision.
