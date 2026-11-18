@@ -1361,6 +1361,22 @@ Phase 2 of the pixelation study ([plan](planning/PixelationUncertainty_Plan.md))
   - **A peak's apparent strain therefore depends on where it falls on the detector,** at the level of
     a few hundred µε.
 
+**Vertical incident-slit scan (2026-11-18): the asymmetry does not depend on beam height.** HB2B_5344,
+5345 and 5346 are identical (12 arm angles, `sy`, `sx`, `sz`, ω, horizontal gap 3.0 mm, ISD 100 mm,
+no receiving optic) except for the incident slit's vertical gap: 10, 5 and 3 mm.
+- **Calibration:** each run was calibrated with `next`'s driver. All parameters agree within their
+  errors: Shift_x −2.59 / −2.52 / −2.55 mm, Rot_y 2.39 / 2.33 / 2.31°, Rot_z 0.260 / 0.262 / 0.258°,
+  λ 1.53259 / 1.53254 / 1.53257 Å; RMS 0.0066 / 0.0064 / 0.0080°, with fewer counts at 3 mm.
+- **Peak shape,** reduced with 5344's calibration and vanadium 5339 (10 / 5 / 3 mm):
+  - the asymmetry A of each reflection at each arm agrees within the scatter (e.g. Ni 222 at arm
+    93°: +0.154 / +0.155 / +0.151; Ni 311 at arm 93°: +0.063 / +0.063 / +0.059);
+  - the symmetric − split offset is unchanged (e.g. Ni 222: −408 / −393 / −386 µε);
+  - the mean FWHM is unchanged (0.64–0.71°);
+  - the bottom-to-top change A(η = −6°) − A(η = +6°) stays at about +0.10 to +0.16.
+- **Conclusion:** the incident beam's vertical extent does not affect the peak asymmetry or the
+  calibration. The horizontal gap, sample position, sample transparency and the absence of a
+  receiving optic were held constant, so they are not yet tested.
+
 **Interpretation (not established).** An asymmetry that varies with both detector coordinates, and
 does not change sign at 90°, and appears alike with 2 × 15 mm and 3 × 10 mm incident slits, with
 and without a radial collimator (4971 / 5344), points to the detector's position response, e.g.

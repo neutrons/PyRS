@@ -164,6 +164,9 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
       grows towards the high-2θ side of the detector and falls from bottom to top. A symmetric fit
       sits 20–410 µε from the split-profile peak, varying ~350 µε with position: a
       detector-position response, not axial divergence. (Fe is unusable on the Al holder at 1.53 Å.)
+- [x] Vertical incident-slit scan (5344 / 5345 / 5346 = 10 / 5 / 3 mm, all else equal): asymmetry,
+      symmetric − split offset, FWHM, η gradient and calibration are all independent of the
+      vertical gap. Not yet varied: horizontal gap, sample position, receiving optic.
 - [ ] Peak profile, next: an asymmetric profile (split or position-dependent) as a Phase 3
       candidate. Check against a measured detector position response (slit scan,
       `calibration-diagnostics` on `next`) and a holder without Al overlaps, so Fe can be used.
