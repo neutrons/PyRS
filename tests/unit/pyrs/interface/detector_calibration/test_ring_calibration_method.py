@@ -1059,3 +1059,17 @@ def test_partial_write_names_what_was_written(refined, shared, monkeypatch):
     for report in (str(failure.value).split("written so far:")[1], lines[0].split("written:")[1]):
         assert archived in report and "HB2B_Latest_Si422.json" in report and "HB2B_Latest.json" not in report
     assert not (shared / "HB2B_Latest.json").exists() and len(lines) == 1
+
+
+@pytest.mark.parametrize("method", [METHOD_RING, METHOD_FITCALIBRATION])
+def test_tth0_routine_is_refused(workspace, method):
+    """2theta_0 is held at 0 in a single-run calibration (#1090): a recipe asking to refine it alone is refused
+    before any routine runs"""
+    # Arrange
+    gui_model = _model(workspace, method)
+    before = gui_model.current_calibration_array
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="2theta_0, which is held at 0"):
+        gui_model.calibrate_detector(["shifts", "tth0"])
+    np.testing.assert_array_equal(gui_model.current_calibration_array, before)

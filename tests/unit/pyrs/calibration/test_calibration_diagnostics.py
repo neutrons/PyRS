@@ -114,7 +114,8 @@ def test_ring_covariance_is_the_last_stage():
     names, matrix = calibration.covariance
 
     # Assert
-    assert names == calibration.stages[-1].free_parameters and matrix.shape == (8, 8)
+    # 2theta_0 held (#1090): FullCalibration frees the other seven
+    assert names == calibration.stages[-1].free_parameters and matrix.shape == (7, 7) and "TTH_0" not in names
     errors = calibration.stages[-1].errors
     determined = errors != UNDETERMINED
     np.testing.assert_allclose(np.sqrt(np.diag(matrix)[determined]), errors[determined], rtol=1e-12)

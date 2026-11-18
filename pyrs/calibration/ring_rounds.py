@@ -177,6 +177,7 @@ def continue_rounds(
             max_nfev=calibration.max_nfev,
             method=calibration.method,
             diff_step=calibration.diff_step,
+            hold_two_theta_0=calibration.two_theta_0_held,
         )
         refined.set_calibration_array(values, source=f"round {number - 1} of the ring extraction")
         refined.warning_log.extend(calibration.warning_log)  # a round's warnings stay with the result

@@ -74,13 +74,17 @@ def test_fit_quality_labels_every_ring_point(refined):
 
 
 def test_degenerate_set_is_undetermined_with_its_reason(refined):
-    """After FullCalibration, Shift_x / Rot_y / TTH_0 are exactly degenerate at one L2; Shift_y, Shift_z
-    and Rot_z share the null move slightly, so the rank test flags them too (docs/ground_truths.md)"""
+    """With 2theta_0 freed (a joint fit), Shift_x / Rot_y / TTH_0 are exactly degenerate at one L2 after
+    FullCalibration; Shift_y, Shift_z and Rot_z share the null move slightly, so the rank test flags them too
+    (docs/ground_truths.md)"""
     # Arrange
-    refined.FullCalibration()
+    freed = PixelCalibration(
+        refined.ring_points, refined.model.instrument_setup, refined.calibration_array[7], hold_two_theta_0=False
+    )
+    freed.FullCalibration()
 
     # Act
-    block = refined.provenance()
+    block = freed.provenance()
 
     # Assert
     undetermined = {entry["parameter"]: entry["reason"] for entry in block["undetermined"]}

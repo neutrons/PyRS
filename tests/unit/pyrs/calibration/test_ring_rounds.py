@@ -196,7 +196,11 @@ def test_start_is_recorded_after_several_rounds(small_workspace):
     # Assert
     assert len(calibration.extraction_rounds) >= 2
     first = calibration.extraction_rounds[0]["start"]
-    assert first["source"] == "given starting calibration" and first["values"] == pytest.approx(list(start))
+    # 2theta_0 held (#1090): the given start, re-expressed at 2theta_0 = 0 (the same detector)
+    l2 = float(np.median(calibration.ring_points.l2))
+    expected = np.r_[from_shift(calibration.model.with_two_theta_0(to_shift(start[:7]), 0.0, l2)), start[7]]
+    assert first["source"].startswith("given starting calibration; re-expressed at 2theta_0 = 0")
+    assert first["values"] == pytest.approx(list(expected))
     assert calibration.provenance()["extraction_rounds"][0]["start"] == first
 
 
@@ -313,3 +317,19 @@ def test_later_rounds_keep_the_sub_run_selection(small_workspace):
     assert len(calibration.extraction_rounds) == 2
     assert set(calibration.ring_points.sub_run.tolist()) == {1, 3, 4, 5, 6}
     assert not [message for message in calibration.warning_log if "bound" in message]
+
+
+def test_freed_two_theta_0_stays_freed_in_later_rounds(small_workspace, one_extraction):
+    """continue_rounds builds each round's calibration with the first one's hold (#1090)"""
+    # Arrange
+    calibration = PixelCalibration(
+        copy.deepcopy(one_extraction), small_workspace.get_instrument_setup(), wavelength=MONO, hold_two_theta_0=False
+    )
+
+    # Act - one short pass per round: only the second round's object matters
+    result = continue_rounds(calibration, small_workspace, passes=1, polish=False, max_rounds=2)
+
+    # Assert
+    assert len(result.extraction_rounds) == 2 and result is not calibration
+    assert not result.two_theta_0_held
+    assert any("TTH_0" in stage.free_parameters for stage in result.stages)

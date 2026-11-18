@@ -47,7 +47,8 @@ CALIBRATION_METHODS = (METHOD_RING, METHOD_FITCALIBRATION)
 DEFAULT_STRIPS = 5
 
 # recipe routine -> stage method; both calibrations have these methods. "iterate" is ring-based only:
-# repeated Shift -> Rotation -> wavelength + 2theta_0 passes, then a joint refinement
+# repeated Shift -> Rotation -> wavelength + 2theta_0 passes, then a joint refinement. While 2theta_0 is held (#1090,
+# the default) "wavelength_tth0" refines Shift_x, Rot_y and the wavelength, and "tth0" is refused
 RECIPE_STAGES = {
     "wavelength": "calibrate_wave_length",
     "wavelength_tth0": "calibrate_wave_shift",
@@ -71,6 +72,8 @@ CALIBRATION_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 # a recipe ending with one of these has refined every parameter jointly: its errors come from
 # estimate_errors (2theta_0 held), as the driver's; after other recipes no value may move again
 JOINT_ROUTINES = (ITERATE_ROUTINE, "full")
+# routines that refine 2theta_0 alone: refused while it is held at 0 in a single-run calibration (#1090)
+TWO_THETA_0_ROUTINES = ("tth0",)
 
 # geometries the 2D view can draw predicted rings for (#1039)
 RING_GEOMETRY_NOMINAL = "Nominal"
@@ -546,7 +549,8 @@ class DetectorCalibrationModel(QObject):
             self._ring_recipes = []  # a new start: earlier recipes are not part of this calibration
             return
         self._calibration_obj.set_calibration_array(params_list)
-        self._calibration_obj.set_inst_shifts_wl(params_list)
+        # the start as set: re-expressed at 2theta_0 = 0 while it is held (#1090), so the peaks shown are its
+        self._calibration_obj.set_inst_shifts_wl(self._calibration_obj.get_calib())
         self._fit_recipes = []  # a new start: earlier recipes are not part of this calibration
 
     def extract_rings(self, strips: int = DEFAULT_STRIPS) -> Tuple[int, int, float, float]:
@@ -660,6 +664,13 @@ class DetectorCalibrationModel(QObject):
         return _x, self._calibration_obj._calibration[y_item, 1:]
 
     def calibrate_detector(self, fit_recipe):
+        held = [routine for routine in fit_recipe if routine in TWO_THETA_0_ROUTINES]
+        if held:
+            # refused before any routine runs, so nothing is half-done
+            raise ValueError(
+                f"{held} refine 2theta_0, which is held at 0 in a single-run calibration (#1090): it trades exactly "
+                "against Rot_y and Shift_x at one sample-detector distance"
+            )
         if self.method == METHOD_RING:
             return self._calibrate_rings(fit_recipe)
         if self._calibration_obj is not None:
