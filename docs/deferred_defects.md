@@ -151,3 +151,19 @@ without renumbering.
   override hides it again.
   **Why it is deferred.** Unreachable today, and outside a lint fix. To be fixed with the scoped-enum change,
   when the override is removed.
+
+- **DD-28**, 2026-11-18: `pyrs-calibration` (`pyrs/calibration/peakfit_driver.py:main`, until #1101
+  `scripts/pyrs_calibration.py`) raises `UnboundLocalError` unless the input JSON sets every optional key.
+  - **Cause:** `main()` assigns `REFINE_METHOD`, `nexus_file`, `CalibName`, `KEEP_SUB_RUNS`,
+    `INSTRUMENT_CALIBRATION`, `DATA_MASK`, `SAVE_CALIB`, `WRITE_LATEST` and `HFIR_CYCLE` inside its loop over the
+    JSON keys. Python therefore treats them as locals of `main()`, and the module-level defaults are never read.
+  - **Reproduced:** `{"powder scan": 3510, "method": "full"}` stops at `if nexus_file is None:` before reading any
+    data. The template the tool writes (`template.json`) fails the same way, and so does any input without a
+    `"method"` key, at `if "+" in REFINE_METHOD`.
+  - **Since:** the code dates from 7a6068b5 (2023-07-18).
+  - **Untested:** `test_peakfit_driver.py` checks only the usage text, so no test catches this.
+  - **Fix:** start `main()` from a settings dict made from the defaults and update it from the JSON. Add a unit test
+    that runs `main()` on a minimal JSON with `FitCalibration` replaced by a stand-in.
+
+  **Found during:** the code review of #1101, which moved the file unchanged.
+  **Why it is deferred.** A production change, outside a pure move. It needs its own approval.

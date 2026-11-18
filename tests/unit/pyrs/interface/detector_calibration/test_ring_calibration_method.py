@@ -8,10 +8,12 @@ HB2B_Latest_<Si...>.json and <Si...>/HB2B_CAL_<time>.json.
 import json
 import os
 from types import SimpleNamespace
+from typing import Any, Optional
 
 import numpy as np
 import pytest
 
+from pyrs.calibration.pixel_refinement import PixelCalibration
 from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.detector_model import from_shift
 from pyrs.interface.detector_calibration import detector_calibration_model as model_module
@@ -121,11 +123,15 @@ def _driver():
     return ring_driver
 
 
-def _rounds_from_cache(monkeypatch):
+def _rounds_from_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     """Make the window's "iterate" rounds return the shared real calibration of this run, for tests of what the
-    window does around them (#1101): what the rounds do is test_ring_rounds.py's"""
+    window does around them (#1101): what the rounds do is test_ring_rounds.py's. The calibration handed in is
+    refined once, as the real rounds refine it in place, so a restore of it is a real restore."""
 
-    def cached_rounds(calibration, workspace, diagnostics=None, **kwargs):
+    def cached_rounds(
+        calibration: PixelCalibration, workspace: Any, diagnostics: Optional[list] = None, **kwargs: Any
+    ) -> PixelCalibration:
+        calibration.iterate(passes=1, polish=False)
         result, fits = converged_synthetic_calibration()
         if diagnostics is not None:
             diagnostics[:] = fits
@@ -152,6 +158,7 @@ def test_ring_path_equals_the_driver(workspace, refined, tmp_path, monkeypatch):
     nexus.write_bytes(b"")
     driver_file = tmp_path / "driver.json"
     driver = _driver().run_calibration(str(nexus), str(driver_file), mask_file=None)
+    # precondition: the driver asked for exactly the shared calibration (any drift in its settings fails here)
     assert [call["cached"] for call in calls] == [True]
 
     # Act

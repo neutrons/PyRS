@@ -130,7 +130,8 @@ def test_main_passes_its_options_on(driver, monkeypatch, synthetic_run, nexus_fi
         args + ["--sub-runs", "1", "2", "3", "4", "--no-polish", "--passes", "2", "--max-rounds", "2"]
     )
 
-    # Assert
+    # Assert - the file's rounds are the cached default calibration's (the cache ignores the settings here), so
+    # only what the driver passed on and recorded is checked
     assert status == 0
     assert calls == [
         dict(
@@ -262,7 +263,8 @@ def test_main_one_round_asks_for_one_round(driver, monkeypatch, synthetic_run, n
     )
 
     # Assert
-    assert status == 0 and [call["max_rounds"] for call in calls] == [1]
+    assert status == 0
+    assert [call["max_rounds"] for call in calls] == [1]
     assert json.loads(output.read_text())["provenance"]["inputs"]["extraction"]["max_rounds"] == 1
 
 
@@ -354,20 +356,22 @@ def test_main_nxs_output_holds_the_strip_fits(driver, monkeypatch, synthetic_run
     from pyrs.utilities.calibration_nexus import read_calibration_nexus_diagnostics
 
     _stub_conversion(monkeypatch, synthetic_run)
-    use_cached_calibrate_rings(monkeypatch)
+    calls = use_cached_calibrate_rings(monkeypatch)
     output = tmp_path / "cal.nxs"
 
     # Act
     status = driver.main([str(nexus_file), "-o", str(output), "--no-mask", "--wavelength", "1.54"])
 
     # Assert
-    assert status == 0 and "strip_fits" in read_calibration_nexus_diagnostics(str(output))["tables"]
+    assert [call["cached"] for call in calls] == [True]
+    assert status == 0
+    assert "strip_fits" in read_calibration_nexus_diagnostics(str(output))["tables"]
 
 
 def test_ring_points_option_is_deprecated(driver, monkeypatch, synthetic_run, nexus_file, tmp_path):
     # Arrange
     _stub_conversion(monkeypatch, synthetic_run)
-    use_cached_calibrate_rings(monkeypatch)
+    calls = use_cached_calibrate_rings(monkeypatch)
 
     # Act / Assert - still written, with a warning pointing to --nexus
     with pytest.warns(FutureWarning, match="--nexus"):
@@ -379,3 +383,4 @@ def test_ring_points_option_is_deprecated(driver, monkeypatch, synthetic_run, ne
             ring_points_file=str(tmp_path / "rings.npz"),
         )
     assert (tmp_path / "rings.npz").is_file()
+    assert [call["cached"] for call in calls] == [True]
