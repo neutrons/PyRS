@@ -173,8 +173,9 @@ def test_all_refinements(tmp_path):
 
     t_start = time.time()
 
-    # Initalize calibration
-    calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file=nexus_file)
+    # Initalize calibration - with 2theta_0 freed, as when the gold file was made: this runs every routine once
+    # against recorded numbers; the routines with 2theta_0 held (#1090) are covered by the unit tests
+    calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file=nexus_file, hold_two_theta_0=False)
 
     # Setup test constraints
     calibrator._keep_subrun_list = [False] * calibrator.sy.size

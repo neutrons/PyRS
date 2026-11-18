@@ -71,6 +71,8 @@ CALIBRATION_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 # a recipe ending with one of these has refined every parameter jointly: its errors come from
 # estimate_errors (2theta_0 held), as the driver's; after other recipes no value may move again
 JOINT_ROUTINES = (ITERATE_ROUTINE, "full")
+# routines that refine 2theta_0 alone: refused while it is held at 0 in a single-run calibration (#1090)
+TWO_THETA_0_ROUTINES = ("tth0",)
 
 # geometries the 2D view can draw predicted rings for (#1039)
 RING_GEOMETRY_NOMINAL = "Nominal"
@@ -660,6 +662,13 @@ class DetectorCalibrationModel(QObject):
         return _x, self._calibration_obj._calibration[y_item, 1:]
 
     def calibrate_detector(self, fit_recipe):
+        held = [routine for routine in fit_recipe if routine in TWO_THETA_0_ROUTINES]
+        if held:
+            # refused before any routine runs, so nothing is half-done
+            raise ValueError(
+                f"{held} refine 2theta_0, which is held at 0 in a single-run calibration (#1090): it trades exactly "
+                "against Rot_y and Shift_x at one sample-detector distance"
+            )
         if self.method == METHOD_RING:
             return self._calibrate_rings(fit_recipe)
         if self._calibration_obj is not None:

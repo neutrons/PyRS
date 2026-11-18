@@ -14,6 +14,7 @@ from pyrs.calibration.pixel_refinement import (
     _parameter_errors_and_covariance,
 )
 from pyrs.core import MonoSetting  # type: ignore
+from pyrs.core.detector_model import DetectorModel, from_shift, to_shift
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
 from pyrs.utilities.calibration_nexus import write_calibration_nexus
@@ -50,6 +51,7 @@ class FitCalibration:
         pow_lines=None,
         max_nfev=None,
         method="trf",
+        hold_two_theta_0=True,
     ):
         """
         Initialization
@@ -66,6 +68,9 @@ class FitCalibration:
             list of dspace for reflections in the field of view during the experiment
         single_material : bool
             Flag if powder data are from a single material
+        hold_two_theta_0 : bool
+            hold 2theta_0 at 0 in every routine (#1090, the default): at one sample-detector distance it
+            trades exactly against Rot_y and Shift_x, so a single-run calibration cannot determine it
 
         """
 
@@ -96,6 +101,7 @@ class FitCalibration:
         self.fitted_ws = None
         self._max_nfev = max_nfev
         self._ref_method = method
+        self._hold_tth0 = bool(hold_two_theta_0)
 
         # calibration powders (name, structure, lattice constant, sy position), shared with the ring-based
         # calibration; the lattice constants are the 2020 set (#1022, docs/ground_truths.md)
@@ -103,6 +109,41 @@ class FitCalibration:
 
         if pow_lines is None:
             self.get_powder_lines()
+
+    @property
+    def two_theta_0_held(self):
+        """Whether the routines hold 2theta_0 at 0 (#1090; the default, also for an object built without __init__)."""
+        return getattr(self, "_hold_tth0", True)
+
+    def _held_start(self, values):
+        """``values`` re-expressed at 2theta_0 = 0 while it is held (the same detector, #1090), and a note saying so;
+        unchanged and None otherwise."""
+        values = np.array(values, dtype=float)
+        if not self.two_theta_0_held or values[6] == 0.0:
+            return values, None
+        geometry = self._calibration_geometry()
+        if geometry is None:
+            raise RuntimeError("a starting 2theta_0 can only be re-expressed at 0 with the run's detector geometry")
+        original = values[6]
+        model = DetectorModel(geometry)
+        values[:7] = from_shift(model.with_two_theta_0(to_shift(values), 0.0, geometry.arm_length))
+        return values, f"re-expressed at 2theta_0 = 0 (was {original:g} deg; held, #1090)"
+
+    def _refine_free(self, free, lower, upper, routine):
+        """Refine the parameters ``free`` (indices) of the calibration vector from their current values."""
+        free = list(free)
+
+        def cost(x, ReturnScalar=False, i_index=2):
+            values = np.copy(self._calib)
+            values[free] = x
+            residual = self.get_alignment_residual(values)
+            return np.sqrt(np.mean(residual**2)) if ReturnScalar else residual
+
+        out = self.FitDetector(cost, np.copy(self._calib[free]), bounds=(lower, upper), free=free, routine=routine)
+        self._calib[free] = out[0][:]
+        self._caliberr[free] = out[1][:]
+        self._calibstatus = out[2]
+        return out
 
     @property
     def sy(self):
@@ -147,13 +188,14 @@ class FitCalibration:
         The errors and the status are reset to -1 (not refined), as in the ring calibration: they described
         the previous values, so new values must not be written with them (#1060).
         """
-        self._calib = np.array(params)
+        values, note = self._held_start(params)
+        self._calib = values
         self._caliberr = np.full(8, -1.0)
         self._calibstatus = -1
         # steps before this start belong to an earlier attempt: the provenance lists only later ones
         self._start = {
-            "source": "set_calibration_array",
-            "values": np.array(params, dtype=float),
+            "source": "set_calibration_array" if note is None else f"set_calibration_array; {note}",
+            "values": values.copy(),
             "first_step": len(getattr(self, "steps", [])),
         }
         self._final_residual = None
@@ -689,6 +731,16 @@ class FitCalibration:
 
         """
 
+        if self.two_theta_0_held:
+            # Shift_x and Rot_y take 2theta_0's place: the directions it trades against at one distance (#1090)
+            if initial_guess is not None:
+                raise ValueError("calibrate_wave_shift: while 2theta_0 is held it refines Shift_x, Rot_y and Lambda")
+            lam = self._calib[7]
+            self._refine_free(
+                [0, 4, 7], [-0.05, -10.0, lam - 0.025], [0.05, 10.0, lam + 0.025], "calibrate_wave_shift"
+            )
+            return
+
         if initial_guess is None:
             initial_guess = np.concatenate((self.get_tth0(), self.get_wavelength()))
 
@@ -782,6 +834,11 @@ class FitCalibration:
         -------
 
         """
+        if self.two_theta_0_held:
+            raise ValueError(
+                "calibrate_tth0: 2theta_0 is held at 0 in a single-run calibration (#1090); it is refined only in a "
+                "joint fit over several monochromators"
+            )
 
         if initial_guess is None:
             initial_guess = np.array([self.get_calib()[6]])
@@ -819,7 +876,7 @@ class FitCalibration:
         out = self.FitDetector(
             self.peak_alignment_rotation,
             initalGuess,
-            bounds=([-5.0, -5.0, -5.0], [5.0, 5.0, 5.0]),
+            bounds=([-5.0, -10.0, -5.0], [5.0, 10.0, 5.0]),  # Rot_y +/-10: it carries 2theta_0's offset (#1090)
             free=[3, 4, 5],
             routine="CalibrateRotation",
         )
@@ -829,13 +886,18 @@ class FitCalibration:
         return
 
     def CalibrateGeometry(self, initalGuess=None):
+        if self.two_theta_0_held and initalGuess is None:
+            lower, upper = [-0.05, -0.05, -0.05, -5.0, -10.0, -5.0], [0.05, 0.05, 0.05, 5.0, 10.0, 5.0]
+            self._refine_free(range(6), lower, upper, "CalibrateGeometry")
+            return
+
         if initalGuess is None:
             initalGuess = self.get_calib()[:7]
 
         out = self.FitDetector(
             self.peak_alignment_geometry,
             initalGuess,
-            bounds=([-0.05, -0.05, -0.05, -5.0, -5.0, -5.0, -5.0], [0.05, 0.05, 0.05, 5.0, 5.0, 5.0, 5.0]),
+            bounds=([-0.05, -0.05, -0.05, -5.0, -10.0, -5.0, -5.0], [0.05, 0.05, 0.05, 5.0, 10.0, 5.0, 5.0]),
             free=list(range(7)),
             routine="CalibrateGeometry",
         )
@@ -845,6 +907,13 @@ class FitCalibration:
         return
 
     def FullCalibration(self, initalGuess=None):
+        if self.two_theta_0_held and initalGuess is None:
+            lam = self._calib[7]
+            lower = [-0.05, -0.05, -0.15, -5.0, -10.0, -5.0, lam - 0.05]
+            upper = [0.05, 0.05, 0.15, 5.0, 10.0, 5.0, lam + 0.05]
+            self._refine_free([0, 1, 2, 3, 4, 5, 7], lower, upper, "FullCalibration")
+            return
+
         if initalGuess is None:
             initalGuess = self.get_calib()
 
@@ -852,8 +921,8 @@ class FitCalibration:
             self.peaks_alignment_all,
             initalGuess,
             bounds=(
-                [-0.05, -0.05, -0.15, -5.0, -5.0, -5.0, -5.0, self._calib[7] - 0.05],
-                [0.05, 0.05, 0.15, 5.0, 5.0, 5.0, 5.0, self._calib[7] + 0.05],
+                [-0.05, -0.05, -0.15, -5.0, -10.0, -5.0, -5.0, self._calib[7] - 0.05],
+                [0.05, 0.05, 0.15, 5.0, 10.0, 5.0, 5.0, self._calib[7] + 0.05],
             ),
             free=list(range(8)),
             routine="FullCalibration",
@@ -1025,9 +1094,13 @@ class FitCalibration:
             for i in range(len(keys)):
                 self._calib[i] = CalibData[keys[i]]
 
+        self._calib, note = self._held_start(self._calib)
         self._calib_start = np.copy(self._calib)
+        source = _provenance.file_record(file_name)
+        if note is not None:
+            source = dict(source, re_expressed=note)
         self._start = {
-            "source": _provenance.file_record(file_name),
+            "source": source,
             "values": self._calib.copy(),
             "first_step": len(getattr(self, "steps", [])),
         }
@@ -1138,7 +1211,11 @@ class FitCalibration:
                 ),
                 "monochromator": None if mono is None else mono.name,
                 "reduction": {"two_theta_bins": self.bins, "eta_slice_deg": self.eta_slices},
-                "refinement": {"method": self._ref_method, "max_nfev": self._max_nfev},
+                "refinement": {
+                    "method": self._ref_method,
+                    "max_nfev": self._max_nfev,
+                    "two_theta_0": "held at 0 (#1090)" if self.two_theta_0_held else "refined",
+                },
             }
         )
         steps = self.steps[min(self._start.get("first_step", 0), len(self.steps)) :]

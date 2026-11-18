@@ -12,6 +12,7 @@ from pyrs.calibration.pixel_pos_calibration import (
     PixelCalibration,
     RingPoints,
 )
+from pyrs.core.detector_model import from_shift, to_shift
 from pyrs.core.instrument_geometry import DENEXDetectorShift
 from pyrs.core.reduce_hb2b_pyrs import ResidualStressInstrument
 from pyrs.utilities.calibration_file_io import check_calibration_status, read_calibration_json_file
@@ -76,6 +77,12 @@ def test_calibrate_wave_length_recovers_wavelength(hb2b):
     assert calibration.calibration_array[7] == pytest.approx(1.5308, abs=1e-7)
 
 
+def _held_truth(hb2b):
+    """TRUE_PARAMS re-expressed with 2theta_0 = 0 (#1090): the same detector, the geometry a held fit finds"""
+    model = DetectorModel(hb2b)
+    return np.r_[from_shift(model.with_two_theta_0(to_shift(TRUE_PARAMS[:7]), 0.0, 0.985)), TRUE_PARAMS[7]]
+
+
 def test_full_calibration_recovers_identifiable_params(hb2b, true_rings):
     # Arrange
     calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
@@ -83,20 +90,21 @@ def test_full_calibration_recovers_identifiable_params(hb2b, true_rings):
     # Act
     stage = calibration.FullCalibration()
 
-    # Assert - Shift_x, Rot_y and TTH_0 are exactly degenerate as a set (see the refine() note), and
-    # Shift_y is weak (a vertical shift moves 2theta only to second order), so the noise-free fit
-    # stops on the optimizer's tolerance along it: tolerances follow each parameter's sensitivity
-    fitted = calibration.calibration_array
+    # Assert - with 2theta_0 held at 0 (#1090) nothing is degenerate: every geometry parameter is the truth
+    # re-expressed at 2theta_0 = 0, and gets a real error. Shift_y is weak (a vertical shift moves 2theta only to
+    # second order), so tolerances follow each parameter's sensitivity
+    fitted, truth = calibration.calibration_array, _held_truth(hb2b)
     assert stage.rmse < 1e-5
-    assert fitted[1] == pytest.approx(TRUE_PARAMS[1], abs=1e-4)  # Shift_y, m
-    assert fitted[2] == pytest.approx(TRUE_PARAMS[2], abs=1e-4)  # Shift_z, m
-    np.testing.assert_allclose(fitted[[3, 5]], TRUE_PARAMS[[3, 5]], atol=2e-3)  # Rot_x, Rot_z, deg
-    assert fitted[7] == pytest.approx(TRUE_PARAMS[7], abs=1e-6)  # Lambda, A
+    np.testing.assert_allclose(fitted[:3], truth[:3], atol=1e-4)  # shifts, m
+    np.testing.assert_allclose(fitted[3:6], truth[3:6], atol=2e-3)  # rotations, deg
+    assert fitted[6] == 0.0 and fitted[7] == pytest.approx(TRUE_PARAMS[7], abs=1e-6)  # TTH_0 held; Lambda, A
+    errors = calibration.calibration_error_array
+    assert errors[6] == -1.0 and np.all(errors[[0, 1, 2, 3, 4, 5, 7]] > 0)
 
 
 def test_degenerate_errors_flagged_not_nan(hb2b, true_rings):
-    # Arrange
-    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+    # Arrange - 2theta_0 freed, as in a joint multi-monochromator fit: the degeneracy exists only then
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH, hold_two_theta_0=False)
 
     # Act
     calibration.FullCalibration()
@@ -142,8 +150,8 @@ def test_parameter_stopped_at_bound_flagged(hb2b):
 
 
 def test_parameter_inside_bounds_not_flagged(hb2b, true_rings):
-    # Arrange
-    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+    # Arrange - 2theta_0 freed, so the true start (2theta_0 = 0.656) is kept as given
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH, hold_two_theta_0=False)
     calibration.set_calibration_array(np.r_[TRUE_PARAMS[:5], 0.0, TRUE_PARAMS[6:]])
 
     # Act
@@ -200,7 +208,7 @@ def test_stages_record_history(hb2b, true_rings):
         "CalibrateRotation",
         "calibrate_wave_shift",
     ]
-    assert calibration.stages[-1].free_parameters == ("TTH_0", "Lambda")
+    assert calibration.stages[-1].free_parameters == ("Shift_x", "Rot_y", "Lambda")  # 2theta_0 held (#1090)
     assert calibration.residual_rmse == sorted(calibration.residual_rmse, reverse=True)
     assert len(calibration.residual_sum) == 3
     assert calibration.calibration_status == calibration.stages[-1].status
@@ -209,7 +217,8 @@ def test_stages_record_history(hb2b, true_rings):
 def test_errors_cover_true_values(hb2b):
     # Arrange
     rings = synthetic_ring_points(hb2b, TRUE_PARAMS, strips=20, noise_deg=0.01, rng=np.random.default_rng(1))
-    calibration = PixelCalibration(rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+    # 2theta_0 freed: this checks calibrate_wave_shift's errors for 2theta_0 and the wavelength
+    calibration = PixelCalibration(rings, hb2b, wavelength=NOMINAL_WAVELENGTH, hold_two_theta_0=False)
     calibration.set_calibration_array(np.r_[TRUE_PARAMS[:6], 0.0, NOMINAL_WAVELENGTH])
 
     # Act
@@ -246,7 +255,9 @@ def test_init_nonpositive_diff_step_raises(hb2b, true_rings):
 
 def test_lm_method_ignores_bounds(hb2b, true_rings):
     # Arrange
-    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH, method="lm")
+    calibration = PixelCalibration(
+        true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH, method="lm", hold_two_theta_0=False
+    )  # 2theta_0 freed: calibrate_wave_shift refines 2theta_0 and the wavelength
     calibration.set_calibration_array(np.r_[TRUE_PARAMS[:6], 0.0, NOMINAL_WAVELENGTH])
 
     # Act
@@ -302,23 +313,45 @@ def test_refine_lower_not_below_upper_raises(hb2b, true_rings):
         calibration.refine("bad", ["Shift_x"], [0.0], [0.0])
 
 
+_GEOMETRY_HELD = ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z")
+
+
 @pytest.mark.parametrize(
-    "stage, free, lower, upper",
+    "hold, stage, free, lower, upper",
     [
-        ("calibrate_wave_shift", ("TTH_0", "Lambda"), [-5.0, 1.54 - 0.025], [5.0, 1.54 + 0.025]),
-        ("CalibrateShift", ("Shift_x", "Shift_y", "Shift_z"), [-0.05, -0.05, -0.15], [0.05, 0.05, 0.15]),
-        ("CalibrateGeometry", PARAMETER_NAMES[:7], [-0.05] * 3 + [-5.0] * 4, [0.05] * 3 + [5.0] * 4),
+        # 2theta_0 held (the default, #1090): the wavelength + 2theta_0 stage refines Shift_x, Rot_y and the wavelength
+        (True, "calibrate_wave_shift", ("Shift_x", "Rot_y", "Lambda"), [-0.05, -10.0, 1.515], [0.05, 10.0, 1.565]),
+        (True, "CalibrateShift", ("Shift_x", "Shift_y", "Shift_z"), [-0.05, -0.05, -0.15], [0.05, 0.05, 0.15]),
+        (True, "CalibrateRotation", ("Rot_x", "Rot_y", "Rot_z"), [-5.0, -10.0, -5.0], [5.0, 10.0, 5.0]),
+        (True, "CalibrateGeometry", _GEOMETRY_HELD, [-0.05] * 3 + [-5.0, -10.0, -5.0], [0.05] * 3 + [5.0, 10.0, 5.0]),
         (
+            True,
+            "FullCalibration",
+            _GEOMETRY_HELD + ("Lambda",),
+            [-0.05, -0.05, -0.15, -5.0, -10.0, -5.0, 1.49],
+            [0.05, 0.05, 0.15, 5.0, 10.0, 5.0, 1.59],
+        ),
+        # 2theta_0 freed (a joint fit): FitCalibration's stages, with Rot_y +/-10 deg
+        (False, "calibrate_wave_shift", ("TTH_0", "Lambda"), [-5.0, 1.515], [5.0, 1.565]),
+        (
+            False,
+            "CalibrateGeometry",
+            PARAMETER_NAMES[:7],
+            [-0.05] * 3 + [-5.0, -10.0, -5.0, -5.0],
+            [0.05] * 3 + [5.0, 10.0, 5.0, 5.0],
+        ),
+        (
+            False,
             "FullCalibration",
             PARAMETER_NAMES,
-            [-0.05, -0.05, -0.15] + [-5.0] * 4 + [1.49],
-            [0.05, 0.05, 0.15] + [5.0] * 4 + [1.59],
+            [-0.05, -0.05, -0.15, -5.0, -10.0, -5.0, -5.0, 1.49],
+            [0.05, 0.05, 0.15, 5.0, 10.0, 5.0, 5.0, 1.59],
         ),
     ],
 )
-def test_stage_bounds_follow_fitcalibration(hb2b, true_rings, monkeypatch, stage, free, lower, upper):
+def test_stage_bounds_follow_fitcalibration(hb2b, true_rings, monkeypatch, hold, stage, free, lower, upper):
     # Arrange - capture what the stage hands to refine()
-    calibration = PixelCalibration(true_rings, hb2b, wavelength=1.54)
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=1.54, hold_two_theta_0=hold)
     seen = {}
     monkeypatch.setattr(calibration, "refine", lambda name, f, lo, up, guess=None: seen.update(f=f, lo=lo, up=up))
 
@@ -513,7 +546,8 @@ def test_estimate_errors_holds_two_theta_0(refined_noisy):
     # Arrange
     calibration = refined_noisy
     before = calibration.calibration_array
-    assert np.all(calibration.calibration_error_array[[0, 4, 6]] == -2.0)  # the degenerate set after FullCalibration
+    # after FullCalibration with 2theta_0 held (#1090): no degenerate set, 2theta_0 not refined
+    assert calibration.calibration_error_array[6] == -1.0 and np.all(calibration.calibration_error_array[[0, 4]] > 0)
 
     # Act
     stage = calibration.estimate_errors()
@@ -686,3 +720,73 @@ def test_worst_status_remembers_an_unconverged_stage(hb2b, true_rings):
     assert calibration.calibration_status > 0 and calibration.worst_status == 0
     calibration.set_calibration_array(calibration.calibration_array)
     assert calibration.worst_status == -1
+
+
+# ---------------------------------------------------------------- 2theta_0 held in a single-run calibration (#1090)
+
+
+def test_two_theta_0_is_held_by_default(hb2b, true_rings):
+    # Act
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+    calibration.iterate(passes=3)
+
+    # Assert - no stage freed 2theta_0; it stays 0, not refined
+    assert calibration.two_theta_0_held
+    assert not any("TTH_0" in stage.free_parameters for stage in calibration.stages)
+    assert calibration.calibration_array[6] == 0.0 and calibration.calibration_error_array[6] == -1.0
+    assert calibration.provenance()["inputs"]["refinement"]["two_theta_0"] == "held at 0 (#1090)"
+
+
+def test_held_calibrate_tth0_raises(hb2b, true_rings):
+    # Act / Assert
+    with pytest.raises(ValueError, match="2theta_0 is held"):
+        PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH).calibrate_tth0()
+
+
+def test_held_start_is_re_expressed_at_zero(hb2b, true_rings):
+    """A start with 2theta_0 != 0 is the same detector re-expressed at 2theta_0 = 0: no pixel moves"""
+    # Arrange
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+    model = DetectorModel(hb2b)
+
+    # Act
+    calibration.set_calibration_array(TRUE_PARAMS, source="test start")
+
+    # Assert
+    values = calibration.calibration_array
+    assert values[6] == 0.0
+    np.testing.assert_allclose(values, _held_truth(hb2b), atol=1e-12)
+    np.testing.assert_allclose(
+        _two_theta_map(model, values, 90.0), _two_theta_map(model, TRUE_PARAMS, 90.0), atol=1e-9
+    )
+    assert "re-expressed at 2theta_0 = 0" in calibration.start["source"]
+
+
+def test_held_stages_converge_without_polish(hb2b, true_rings):
+    """With 2theta_0 held, the staged passes alone reach the true 2theta map (the wavelength stage frees Shift_x
+    and Rot_y): with the wavelength alone they did not converge in 50 passes"""
+    # Arrange
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+    model = DetectorModel(hb2b)
+
+    # Act
+    n_pass = calibration.iterate(polish=False)
+
+    # Assert
+    assert n_pass < 20
+    for arm in (76.0, 103.0):
+        np.testing.assert_allclose(
+            _two_theta_map(model, calibration.calibration_array, arm),
+            _two_theta_map(model, TRUE_PARAMS, arm),
+            atol=1e-5,
+        )
+
+
+def test_freed_two_theta_0_is_refined(hb2b, true_rings):
+    # Act
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH, hold_two_theta_0=False)
+    calibration.calibrate_wave_shift()
+
+    # Assert
+    assert calibration.stages[-1].free_parameters == ("TTH_0", "Lambda")
+    assert calibration.provenance()["inputs"]["refinement"]["two_theta_0"] == "refined"

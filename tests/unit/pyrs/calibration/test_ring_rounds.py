@@ -175,7 +175,11 @@ def test_start_is_recorded_after_several_rounds(workspace):
     # Assert
     assert len(calibration.extraction_rounds) >= 2
     first = calibration.extraction_rounds[0]["start"]
-    assert first["source"] == "given starting calibration" and first["values"] == pytest.approx(list(start))
+    # 2theta_0 held (#1090): the given start, re-expressed at 2theta_0 = 0 (the same detector)
+    l2 = float(np.median(calibration.ring_points.l2))
+    expected = np.r_[from_shift(calibration.model.with_two_theta_0(to_shift(start[:7]), 0.0, l2)), start[7]]
+    assert first["source"].startswith("given starting calibration; re-expressed at 2theta_0 = 0")
+    assert first["values"] == pytest.approx(list(expected))
     assert calibration.provenance()["extraction_rounds"][0]["start"] == first
 
 

@@ -44,21 +44,29 @@ def test_diff_step_values():
 
 
 @pytest.mark.parametrize(
-    "stage, expected",
+    "hold, stage, expected",
     [
-        ("calibrate_shiftx", [SHIFT]),
-        ("calibrate_shifty", [SHIFT]),
-        ("calibrate_distance", [SHIFT]),
-        ("calibrate_tth0", [ANGLE]),
-        ("calibrate_wave_length", [WAVELENGTH]),
-        ("calibrate_wave_shift", [ANGLE, WAVELENGTH]),
-        ("CalibrateShift", [SHIFT] * 3),
-        ("CalibrateRotation", [ANGLE] * 3),
-        ("CalibrateGeometry", [SHIFT] * 3 + [ANGLE] * 4),
-        ("FullCalibration", [SHIFT] * 3 + [ANGLE] * 4 + [WAVELENGTH]),
+        (True, "calibrate_shiftx", [SHIFT]),
+        (True, "calibrate_shifty", [SHIFT]),
+        (True, "calibrate_distance", [SHIFT]),
+        (True, "calibrate_wave_length", [WAVELENGTH]),
+        # 2theta_0 held (the default, #1090): Shift_x, Rot_y and the wavelength in the wavelength stage
+        (True, "calibrate_wave_shift", [SHIFT, ANGLE, WAVELENGTH]),
+        (True, "CalibrateShift", [SHIFT] * 3),
+        (True, "CalibrateRotation", [ANGLE] * 3),
+        (True, "CalibrateGeometry", [SHIFT] * 3 + [ANGLE] * 3),
+        (True, "FullCalibration", [SHIFT] * 3 + [ANGLE] * 3 + [WAVELENGTH]),
+        # 2theta_0 freed (a joint fit)
+        (False, "calibrate_tth0", [ANGLE]),
+        (False, "calibrate_wave_shift", [ANGLE, WAVELENGTH]),
+        (False, "CalibrateGeometry", [SHIFT] * 3 + [ANGLE] * 4),
+        (False, "FullCalibration", [SHIFT] * 3 + [ANGLE] * 4 + [WAVELENGTH]),
     ],
 )
-def test_stage_passes_per_parameter_steps(calibration, stage, expected):
+def test_stage_passes_per_parameter_steps(calibration, hold, stage, expected):
+    # Arrange
+    calibration._hold_tth0 = hold
+
     # Act
     getattr(calibration, stage)()
 

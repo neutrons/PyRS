@@ -50,7 +50,9 @@ _TOLERANCE_UNITS = np.array([1e3, 1e3, 1e3, 1.0, 1.0, 1.0, 1.0, 1e3])
 # Stage methods of PixelCalibration: free parameters and bound half-widths, following
 # FitCalibration. Bounds are +/- the half-width about zero for the shifts (m) and angles (deg), and
 # about the current value for the wavelength (A). CalibrateGeometry's +/-0.05 m on Shift_z (the other
-# stages allow 0.15 m) is FitCalibration's.
+# stages allow 0.15 m) is FitCalibration's. Rot_y allows +/-10 deg: with 2theta_0 held at 0 (#1090) it
+# carries the monochromator's 2theta_0 offset as well as the detector's tilt (7 deg on HB2B_3489).
+_ROT_Y_HALF_WIDTH = 10.0
 _STAGES: Dict[str, Tuple[Tuple[int, ...], Tuple[float, ...]]] = {
     "calibrate_wave_length": ((7,), (0.025,)),
     "calibrate_wave_shift": ((6, 7), (5.0, 0.025)),
@@ -59,9 +61,17 @@ _STAGES: Dict[str, Tuple[Tuple[int, ...], Tuple[float, ...]]] = {
     "calibrate_distance": ((2,), (0.1,)),
     "calibrate_tth0": ((6,), (5.0,)),
     "CalibrateShift": ((0, 1, 2), (0.05, 0.05, 0.15)),
-    "CalibrateRotation": ((3, 4, 5), (5.0, 5.0, 5.0)),
-    "CalibrateGeometry": ((0, 1, 2, 3, 4, 5, 6), (0.05, 0.05, 0.05, 5.0, 5.0, 5.0, 5.0)),
-    "FullCalibration": (tuple(range(8)), (0.05, 0.05, 0.15, 5.0, 5.0, 5.0, 5.0, 0.05)),
+    "CalibrateRotation": ((3, 4, 5), (5.0, _ROT_Y_HALF_WIDTH, 5.0)),
+    "CalibrateGeometry": ((0, 1, 2, 3, 4, 5, 6), (0.05, 0.05, 0.05, 5.0, _ROT_Y_HALF_WIDTH, 5.0, 5.0)),
+    "FullCalibration": (tuple(range(8)), (0.05, 0.05, 0.15, 5.0, _ROT_Y_HALF_WIDTH, 5.0, 5.0, 0.05)),
+}
+_TTH0 = PARAMETER_NAMES.index("TTH_0")
+# While 2theta_0 is held (#1090), the wavelength + 2theta_0 stage refines the wavelength with Shift_x and Rot_y,
+# the two parameters a 2theta_0 change trades against at one distance. With the wavelength alone the staged
+# passes do not converge without the joint polish: on synthetic data 3 passes leave 737 mdeg and 50 passes
+# 304 mdeg of pixel-2theta error, while Shift_x + Rot_y + wavelength leaves 0.48 mdeg after 3 and 5e-4 after 6.
+_HELD_STAGES: Dict[str, Tuple[Tuple[int, ...], Tuple[float, ...]]] = {
+    "calibrate_wave_shift": ((0, 4, 7), (0.05, _ROT_Y_HALF_WIDTH, 0.025)),
 }
 
 
@@ -227,6 +237,7 @@ class PixelCalibration:
         max_nfev: Optional[int] = None,
         method: str = "trf",
         diff_step: Optional[float] = None,
+        hold_two_theta_0: bool = True,
     ) -> None:
         """
         Args:
@@ -238,6 +249,9 @@ class PixelCalibration:
             diff_step: Relative finite-difference step for the Jacobian (absolute step
                 ``diff_step * max(1, |x|)``); None uses scipy's default. The default is accurate
                 because the rotation matrices are float64 (see docs/ground_truths.md).
+            hold_two_theta_0: Hold 2theta_0 at 0 in every stage (#1090, the default): at one
+                sample-detector distance it trades exactly against Rot_y and Shift_x, so a single-run
+                calibration cannot determine it. Only a joint fit over several monochromators frees it.
 
         Raises:
             TypeError: If ``ring_points`` is not a :class:`RingPoints`.
@@ -259,6 +273,7 @@ class PixelCalibration:
         self._max_nfev = max_nfev
         self._method = method
         self._diff_step = diff_step
+        self._hold_tth0 = bool(hold_two_theta_0)
 
         self._calib = np.zeros(8)
         self._calib[7] = wavelength
@@ -320,6 +335,11 @@ class PixelCalibration:
         return self._method
 
     @property
+    def two_theta_0_held(self) -> bool:
+        """Whether the stages hold 2theta_0 at 0 (#1090)."""
+        return self._hold_tth0
+
+    @property
     def diff_step(self) -> Optional[float]:
         """Relative finite-difference step for the Jacobian (None: scipy's default)."""
         return self._diff_step
@@ -358,11 +378,18 @@ class PixelCalibration:
         is not written with errors of values it no longer has. ``source`` says where the values came
         from, for the provenance (#1053).
         """
-        values = np.asarray(params, dtype=float)
+        values = np.asarray(params, dtype=float).copy()
         if values.shape != (8,):
             raise ValueError(f"calibration array must have 8 values, got shape {values.shape}")
         if not values[7] > 0:
             raise ValueError(f"wavelength must be positive, got {values[7]}")
+        if self._hold_tth0 and values[_TTH0] != 0.0:
+            # the same detector described with 2theta_0 = 0 (#1090): no pixel's 2theta changes
+            original = values[_TTH0]
+            values[:7] = from_shift(
+                self._model.with_two_theta_0(to_shift(values), 0.0, float(np.median(self.ring_points.l2)))
+            )
+            source = f"{source}; re-expressed at 2theta_0 = 0 (was {original:g} deg; held, #1090)"
         self._calib = values.copy()
         # stages before this start belong to an earlier attempt: the provenance lists only later ones
         self._start = {"source": str(source), "values": values.copy(), "first_stage": len(self.stages)}
@@ -580,22 +607,49 @@ class PixelCalibration:
     # Stage methods: names, free parameters and default bounds follow FitCalibration (see _STAGES).
     # ``initalGuess`` (sic) is FitCalibration's keyword, kept so the two are drop-in comparable.
 
+    def _stage_definition(self, name: str) -> Tuple[Tuple[int, ...], Tuple[float, ...]]:
+        """Free parameters and bound half-widths of stage ``name``, for the current 2theta_0 setting."""
+        if self._hold_tth0 and name in _HELD_STAGES:
+            return _HELD_STAGES[name]
+        return _STAGES[name]
+
     def _stage_bounds(self, name: str) -> Tuple[np.ndarray, np.ndarray]:
         """Default bounds of stage ``name``: about 0 for shifts and angles, about the current wavelength."""
-        free, half_width = _STAGES[name]
+        free, half_width = self._stage_definition(name)
         centre = np.where(np.asarray(free) == 7, self._calib[7], 0.0)
         return centre - np.asarray(half_width), centre + np.asarray(half_width)
 
     def _run_stage(self, name: str, initial_guess: Optional[Sequence[float]] = None) -> StageResult:
+        free = list(self._stage_definition(name)[0])
         lower, upper = self._stage_bounds(name)
-        return self.refine(name, _STAGES[name][0], lower, upper, initial_guess)
+        if self._hold_tth0 and name in _HELD_STAGES and initial_guess is not None:
+            raise ValueError(
+                f"{name}: while 2theta_0 is held it refines {[PARAMETER_NAMES[i] for i in free]}; set their starting "
+                "values with set_calibration_array instead of an initial guess"
+            )
+        if self._hold_tth0 and _TTH0 in free:
+            if free == [_TTH0]:
+                raise ValueError(
+                    f"{name}: 2theta_0 is held at 0 in a single-run calibration (#1090); it is refined only in a "
+                    "joint fit over several monochromators"
+                )
+            keep = [k for k, index in enumerate(free) if index != _TTH0]
+            free = [free[k] for k in keep]
+            lower, upper = lower[keep], upper[keep]
+            if initial_guess is not None:
+                initial_guess = [list(initial_guess)[k] for k in keep]
+        return self.refine(name, free, lower, upper, initial_guess)
 
     def calibrate_wave_length(self, initial_guess: Optional[Sequence[float]] = None) -> StageResult:
         """Refine the wavelength within +/-0.025 A of its current value."""
         return self._run_stage("calibrate_wave_length", initial_guess)
 
     def calibrate_wave_shift(self, initial_guess: Optional[Sequence[float]] = None) -> StageResult:
-        """Refine 2theta_0 (+/-5 deg) and the wavelength (+/-0.025 A)."""
+        """Refine 2theta_0 (+/-5 deg) and the wavelength (+/-0.025 A).
+
+        While 2theta_0 is held (#1090) it refines Shift_x (+/-0.05 m), Rot_y (+/-10 deg) and the wavelength
+        instead: the directions a 2theta_0 change trades against at one distance (see ``_HELD_STAGES``).
+        """
         return self._run_stage("calibrate_wave_shift", initial_guess)
 
     def calibrate_shiftx(self, initial_guess: Optional[Sequence[float]] = None) -> StageResult:
@@ -611,7 +665,11 @@ class PixelCalibration:
         return self._run_stage("calibrate_distance", initial_guess)
 
     def calibrate_tth0(self, initial_guess: Optional[Sequence[float]] = None) -> StageResult:
-        """Refine the 2theta offset (+/-5 deg)."""
+        """Refine the 2theta offset (+/-5 deg).
+
+        Raises:
+            ValueError: While 2theta_0 is held (:attr:`two_theta_0_held`, #1090).
+        """
         return self._run_stage("calibrate_tth0", initial_guess)
 
     def CalibrateShift(
@@ -623,15 +681,17 @@ class PixelCalibration:
         return self.refine("CalibrateShift", _STAGES["CalibrateShift"][0], bounds[0], bounds[1], initalGuess)
 
     def CalibrateRotation(self, initalGuess: Optional[Sequence[float]] = None) -> StageResult:
-        """Refine the X, Y, Z rotations (+/-5 deg)."""
+        """Refine the X, Y, Z rotations (+/-5, +/-10, +/-5 deg)."""
         return self._run_stage("CalibrateRotation", initalGuess)
 
     def CalibrateGeometry(self, initalGuess: Optional[Sequence[float]] = None) -> StageResult:
-        """Refine shifts (+/-0.05 m), rotations and 2theta_0 (+/-5 deg); the wavelength is held."""
+        """Refine shifts (+/-0.05 m), rotations (Rot_y +/-10 deg, the others +/-5) and 2theta_0 (+/-5 deg, unless held);
+        the wavelength is held."""
         return self._run_stage("CalibrateGeometry", initalGuess)
 
     def FullCalibration(self, initalGuess: Optional[Sequence[float]] = None) -> StageResult:
-        """Refine all 8 parameters (shifts +/-0.05/0.05/0.15 m, angles +/-5 deg, wavelength +/-0.05 A)."""
+        """Refine all 8 parameters, or 7 while 2theta_0 is held (shifts +/-0.05/0.05/0.15 m, Rot_y +/-10 deg, the other
+        angles +/-5 deg, wavelength +/-0.05 A)."""
         return self._run_stage("FullCalibration", initalGuess)
 
     def estimate_errors(self, hold: Sequence[Union[int, str]] = ("TTH_0",)) -> StageResult:
@@ -757,7 +817,12 @@ class PixelCalibration:
             {
                 "powders": sorted({str(powder) for powder in points.powder}),
                 "ring_points": len(points),
-                "refinement": {"method": self._method, "max_nfev": self._max_nfev, "diff_step": self._diff_step},
+                "refinement": {
+                    "method": self._method,
+                    "max_nfev": self._max_nfev,
+                    "diff_step": self._diff_step,
+                    "two_theta_0": "held at 0 (#1090)" if self._hold_tth0 else "refined",
+                },
             }
         )
         extra: Dict[str, Any] = {"held_parameters": list(held)}
