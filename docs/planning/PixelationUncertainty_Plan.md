@@ -249,7 +249,15 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
         symmetric pseudo-Voigt and each candidate. Report bias against the true peak position, pull
         widths and failure rates, at the weak and strong count levels. Done on 5344: the symmetric
         bias grows with A (−20 → −414 µε); the split PV is unbiased (|bias| ≤ 7 µε, pulls 0.77–0.96)
-        but 2–2.6× noisier; `AsymmetricPearsonVII` removes only 10–15 % of the bias and is dropped.
+        but 2–2.6× noisier; `AsymmetricPearsonVII` removes only 10–15 % of the bias. *That MC used a split-PV truth and is
+        not a fair test of other profiles (user).*
+  - [x] **Real-data profile comparison** (no synthetic truth; 5344 / 5345 / 5346): split PV and split
+        Pearson VII fit equally well (χ²/dof 1.02); split Pearson VII gives the most position-consistent
+        d (57 µε spread, against 72 split PV, 91 Mantid AsymmetricPearsonVII, 100 symmetric). Mantid's
+        AsymmetricPearsonVII (one width) is in between. Candidates kept: split PV and split Pearson VII.
+  - [ ] **Calibration with the same profile:** redo the ring calibration with the asymmetric profile
+        in its strip fits, then repeat the position-consistency test. The symmetric calibration
+        likely leaves part of the remaining 57–72 µε spread.
   - [ ] **Next candidate: split PV with its asymmetry fixed** as a function of detector position and
         η, determined once from the standards (a new instrument parameter, which needs approval). Test
         whether it keeps the zero bias at close to the symmetric profile's precision.

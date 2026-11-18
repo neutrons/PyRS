@@ -1417,8 +1417,31 @@ Phase 3 of the pixelation study ([plan](planning/PixelationUncertainty_Plan.md))
   nearly symmetric weak peak), with honest errors (pull width 0.77–0.96, reported errors slightly
   conservative). **Its price is precision:** the extra width parameter makes one measurement 2–2.6×
   noisier (16–27 µε at real counts, 58–78 µε weak).
-- **`AsymmetricPearsonVII` does not fix it:** it removes only 10–15 % of the bias, and its pull width
-  reaches 2.6–2.75. Not a candidate.
+- **`AsymmetricPearsonVII` removes only 10–15 % of the bias in this Monte Carlo,** with pull widths up
+  to 2.6–2.75. **This is not a fair test** (user, 2026-11-18): the truth was itself a split
+  pseudo-Voigt, so the Monte Carlo favours that profile by construction. See the real-data
+  comparison below.
+- **Real-data comparison, no synthetic truth (2026-11-18).** 24 Ni fits in 5344 / 5345 / 5346 (5344's
+  calibration, vanadium 5339, Poisson σ):
+
+  | Profile (free parameters) | χ²/dof median (max) | AIC mean rank | d spread across detector positions | run-to-run |
+  |---|---|---|---|---|
+  | Mantid PseudoVoigt, PyRS's arguments (6) | 1.55 (2.97) | 4.4 | 100 µε | 10 µε |
+  | symmetric pseudo-Voigt, scipy (6) | 1.55 (2.97) | 3.6 | 100 µε | 10 µε |
+  | Mantid AsymmetricPearsonVII: one width, left / right exponent (7) | 1.15 (2.12) | 3.1 | 91 µε | 8 µε |
+  | split pseudo-Voigt: left / right width (7) | 1.02 (1.45) | 1.9 | 72 µε | 16 µε |
+  | split Pearson VII: left / right width and exponent (8) | 1.02 (1.43) | 2.0 | 57 µε | 23 µε |
+
+  The "d spread" is the std of d for the same reflection measured at its 3 ring positions within a
+  run, averaged over reflections and runs.
+  - **Fit quality:** the split pseudo-Voigt and the split Pearson VII describe the peaks equally well.
+    Mantid's AsymmetricPearsonVII, with one width for both sides, improves on the symmetric fit but
+    not to their level.
+  - **Consistency:** the split Pearson VII gives the most position-consistent d, then the split
+    pseudo-Voigt.
+  - **None reaches the noise level** (single-fit precision ~20–30 µε). One likely reason: the
+    calibration's strip fits are symmetric, so its geometry is tuned to symmetric centres. A fair
+    judgement needs the calibration done with the same profile.
 - **Implication:** the bias that changes with position (up to ~400 µε) is far larger than the split
   profile's extra scatter (~15–50 µε). A profile whose asymmetry is fixed in advance, as an instrument
   parameter determined from the standards as a function of detector position and η, could keep the
