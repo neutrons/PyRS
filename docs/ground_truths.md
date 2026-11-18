@@ -1139,7 +1139,25 @@ unmasked. Each grouping was reduced by the current code on a coarse `DENEXDetect
      shifts and errors carry into stress in proportion. No stress value was computed: 5344 and 3489
      are calibration runs of unstressed powder standards (see the sample note below).
    - 3489 used the earliest Si331 calibration (2024-02-09) and vanadium 3446 (2023-05-23, C501,
-     Si422 monochromator).
+     Si422 monochromator). **That calibration file turned out to be uncalibrated (all zero); the
+     re-check below supersedes the 3489 numbers above.**
+   - **Re-check on Ni reflections with the matching calibration (2026-11-18).** 3489 was rerun with
+     `PreC509/HB2B_Si331_2023-05-30T17-28.json` and summarised over the Ni sub-runs only (4–6
+     Ni 220, 10–12 Ni 311; 1–3 and 7–9 are Al tube peaks). Each cell gives 1 × 2 / 1 × 4 / 1 × 8 /
+     1 × 16:
+     - grouping strain shift with Poisson σ, mean (RMS): +1.2 (3.6) / −0.3 (3.7) / +0.4 (5.4) /
+       **−10.5 (11.7)** µε;
+     - with production σ: +3.4 (4.6) / +8.9 (12.2) / +17.4 (25.7) / +13.8 (27.1) µε;
+     - σ_ε with production σ: 62.5 / 48.7 / 41.4 / 38.3 µε (native 85.0). With Poisson σ: 37.1 /
+       37.2 / 37.2 / 37.1 µε (native 37.3), so production σ over-reports 2.3× at 1 × 1;
+     - intensity error with production σ: 13.6 / 10.3 / 8.4 / 7.5 % (native 18.7 %);
+     - native production → Poisson shift: +27.6 µε mean (40.7 RMS) on Ni; +39.6 (47.9) over all 12
+       sub-runs.
+
+     The conclusions hold for 1 × 4 and 1 × 8. **New: 1 × 16 is not safe with this calibration.**
+     It rotates the detector by Rot_z = 1.87° in its own plane, so rings cross the rows at an angle
+     and averaging 16 rows (4.7 mm) shifts the fitted 2θ. The uncalibrated file had Rot_z = 0, which
+     hid this. The safe group height therefore depends on Rot_z.
    - **Sample note (2026-11-18).** "Si422" / "Si331" in these run titles are the **monochromator**,
      not the sample.
      - **3489** is a calibration run of **Ni powder in a sealed Al tube** (IPTS-25855). Its fitted
