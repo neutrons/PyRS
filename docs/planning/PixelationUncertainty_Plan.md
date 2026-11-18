@@ -173,10 +173,11 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
 - [ ] Other sub-runs or 2θ, several peaks in the window, η wedges.
 
 ### Phase 3 — Candidate treatments (study only) ([#1109](https://github.com/neutrons/PyRS/issues/1109))
-- [ ] Bin-level Poisson variance (σ²_bin = Σ Nᵢ, with an explicit rule for
-      empty bins).
-- [ ] Model-based variance, or a Poisson-likelihood cost function, if
-      `FitPeaks` supports it.
+- [x] Bin-level Poisson variance (σ²_bin = Σ Nᵢ, with an explicit rule for
+      empty bins). Scored below; this is the recommended treatment.
+- [x] Model-based variance, or a Poisson-likelihood cost function, if
+      `FitPeaks` supports it. **It does not:** `FitPeaks`' `CostFunction` offers only
+      "Least squares", "Rwp" and "Unweighted least squares". Not feasible with PyRS's fitting engine.
 - [ ] **Candidate: 1 × 4 vertical pixel grouping** (4 rows = 1.17 mm, finer than the 1.92 mm wire
       pitch). On 5344 it cut zeros from 61 % to 18 % and σ_rep/σ_Poisson from 1.53 to 1.04, with
       strain shifts of 7.7 µε RMS (see the pixel-grouping ground truth).
@@ -278,13 +279,64 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
   - [ ] **Real data.** Fit the same reflection at its different ring positions and η wedges. A better
         profile should shrink the spread of d across positions; today it is ~350 µε. Also report
         χ², and the effect on texture-wedge intensities.
-  - [ ] **Decision (proposal; criteria need approval).** Choose the profile that minimises the
-        position-dependent spread of d with honest pulls and no extra bias. Any change to PyRS's
+  - [x] **Decision (2026-11-18): the asymmetric profile is not proposed for production.** Matched with
+        its own calibration, it is no more consistent than the symmetric approach and costs precision.
+        The remaining ~55–100 µε position dependence is not a profile effect; it moves to the item
+        above (geometry / detector response). Original criterion: choose the profile that minimises
+        the position-dependent spread of d with honest pulls and no extra bias. Any change to PyRS's
         peak functions, to calibration extraction or to defaults is a production change and needs
         its own approval.
-- [ ] Score each treatment by pull-distribution width (target: 1) and bias.
-- [ ] Write a proposal for any production change. **It needs separate
-      approval** before any code in `pyrs/` changes.
+- [x] Score each treatment by pull-distribution width (target: 1) and bias. Monte Carlo on the real
+      geometry (5344 sub-run 7 truth, weak 0.066 counts per pixel, 600 realisations, fixed /
+      resampled vanadium), plus 3489 sub-run 10 for fit failures:
+
+      | Treatment | centre pull width | intensity pull width | strain scatter | bias | failed fits (3489 s10) |
+      |---|---|---|---|---|---|
+      | production σ, 1 × 1 (today) | 0.58 / 0.61 | 0.41 / 0.44 | 20.1 / 21.1 µε | ≤ 1.8 µε | 24 % |
+      | **Poisson σ, 1 × 1** | **0.96 / 1.01** | **0.99 / 1.05** | **19.1 / 19.9 µε** | ≤ 1 µε | **0 %** |
+      | production σ, 1 × 4 grouping | 0.85 / 0.89 | 0.67 / 0.71 | 19.3 / 20.2 µε | ≤ 1 µε | 8 % |
+      | production σ, 1 × 8 grouping | 0.92 / 0.96 | 0.80 / 0.84 | 19.1 / 19.9 µε | ≤ 1 µε | — |
+      | Poisson σ with 1 × 4 / 1 × 8 | same as Poisson σ 1 × 1 | | | | |
+
+      At strong counts (0.74 per pixel) every treatment is close to honest (pull width 0.87–0.95).
+- [ ] **Proposal for a production change (needs approval).** See "Proposal" below.
+- [x] Write a proposal for any production change. **It needs separate
+      approval** before any code in `pyrs/` changes. Written below.
+
+#### Proposal: Poisson bin variance in reduction (awaiting approval)
+
+**Change.** In `PyHB2BReduction.histogram_by_numpy` (`pyrs/core/reduce_hb2b_pyrs.py`), stop replacing a
+zero-count pixel's σ = 0 by 1 (`pixel_var_array[pixel_var_array == 0.0] = 1.0`). A 2θ bin then gets
+σ²_bin = Σ Nᵢ, the Poisson variance. **Empty-bin rule:** unchanged. A bin with Σ Nᵢ = 0 keeps
+intensity 0 and σ = 1 (the existing `zero_count_mask` branch), so Mantid never sees σ = 0. The
+vanadium σ, normalisation and pixel selection are unchanged. Calibration stays on the native 1 × 1
+grid (user decision).
+
+**Expected effect on results** (ground truths; current code, autoreduction settings):
+- **Reported uncertainties become honest.** `FitPeaks` does not rescale errors by χ², so σ passes
+  straight into them: Monte Carlo pull widths go from 0.58–0.61 to 0.96–1.01.
+  - background-bin σ: smaller by a factor 1.5–1.8 (5344);
+  - strong-peak strain errors: ~5 % smaller;
+  - weak-peak strain errors: ~2.3× smaller (3489 Ni: 85 → 37 µε median);
+  - weak-peak intensity errors: ~2.4× smaller.
+- **Fitted values** are unbiased in both versions when the peak model fits (Monte Carlo ≤ 1–2 µε).
+  On real data, where the pseudo-Voigt does not fully describe the peaks, they move by −5.7 µε mean
+  (5344, strong peaks) and +27.6 µε mean (3489 Ni, weak). Precision improves ~5 %.
+- **Fewer failed fits on weak peaks:** 24 % of production-σ fits failed in the 3489 sub-run 10 Monte
+  Carlo, against none with Poisson σ.
+- **Reduced χ²** rises from ≪ 1 (0.19 on weak data) to ≈ 1. It becomes a usable goodness-of-fit
+  measure.
+- **Stored files:** every newly reduced pattern's σ array changes. Intensities are unchanged.
+
+**Not proposed:**
+- vertical pixel grouping. It is no longer needed with Poisson σ (it gives the same pulls), though
+  it is a fallback if this proposal is declined (1 × 4 / 1 × 8 safe; 1 × 16 not, with Rot_z ≈ 0.26°);
+- the asymmetric peak profile (no gain when matched with its own calibration);
+- a Poisson-likelihood cost (not available in `FitPeaks`).
+
+**Tests that would accompany it:** a unit test that a bin of n pixels, n₀ of them empty, gets
+σ² = Σ Nᵢ, not Σ Nᵢ + n₀; that empty bins keep σ = 1; and a regression check on a reference reduction
+(σ changes, intensity identical).
 
 ### Phase 4 — Propagate to strain and stress ([#1110](https://github.com/neutrons/PyRS/issues/1110))
 - [ ] Carry the Phase 2 and 3 results through d-spacing, strain, and stress,
