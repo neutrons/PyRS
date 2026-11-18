@@ -508,7 +508,14 @@ class FitCalibration:
     def FitDetector(self, fun, x0, jac="3-point", bounds=[], i_index=2, Brute=False, free=None, routine="FitDetector"):
         """Refine ``x0`` with ``least_squares``; ``free`` are the indices of the refined parameters in
         the calibration vector, which select their finite-difference steps from ``DIFF_STEP``
-        (None: scipy's default step). ``routine`` names the refinement in the provenance (#1053)."""
+        (None: scipy's default step). ``routine`` names the refinement in the provenance (#1053).
+
+        Raises ValueError if ``free`` includes 2theta_0 (index 6) while it is held (#1090)."""
+        if self.two_theta_0_held and free is not None and 6 in list(free):
+            raise ValueError(
+                f"{routine}: 2theta_0 is held at 0 in a single-run calibration (#1090); it is refined only in a "
+                "joint fit over several monochromators"
+            )
         diff_step = None if free is None else DIFF_STEP[list(free)]
         if Brute:
             BOUNDS = []
@@ -736,7 +743,11 @@ class FitCalibration:
         return
 
     def calibrate_wave_shift(self, initial_guess=None):
-        """Calibrate wave length
+        """Calibrate the wavelength with 2theta_0 (+/-5 deg)
+
+        While 2theta_0 is held at 0 (#1090, the default), refine Shift_x (+/-0.05 m), Rot_y (+/-10 deg) and the
+        wavelength (+/-0.025 A) instead, the parameters a 2theta_0 change trades against; an initial guess is then
+        refused (ValueError).
 
         Parameters
         ----------
@@ -840,7 +851,7 @@ class FitCalibration:
         return
 
     def calibrate_tth0(self, initial_guess=None):
-        """Calibrate Detector Distance
+        """Calibrate 2theta_0 alone; refused (ValueError) while it is held at 0 (#1090, the default)
 
         Parameters
         ----------

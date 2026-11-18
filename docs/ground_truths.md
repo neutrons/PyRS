@@ -3360,10 +3360,12 @@ coverage, at `b443d7a5`:
 
 **Implementation:** `PixelCalibration(..., hold_two_theta_0=True)` and `FitCalibration(..., hold_two_theta_0=True)`,
 both defaults.
-- Every stage drops 2θ₀ from its free parameters. Its error is written −1 (not refined), and the provenance's
-  refinement settings say `"two_theta_0": "held at 0 (#1090)"`.
-- `calibrate_tth0` raises `ValueError`. The calibration window refuses a recipe containing "tth0" before any
-  routine runs.
+- Every stage drops 2θ₀ from its free parameters, and every error estimate (`estimate_errors`, `errors_at_current`)
+  keeps it fixed. Its error is written −1 (not refined), and the provenance's refinement settings say
+  `"two_theta_0": "held at 0 (#1090)"`.
+- Anything that would refine 2θ₀ raises `ValueError`: `calibrate_tth0`, `PixelCalibration.refine` or
+  `FitCalibration.FitDetector` with TTH_0 free, an initial guess that includes it, `set_two_theta_0(≠ 0)`. The
+  calibration window refuses a recipe containing "tth0" before any routine runs.
 - **A start with 2θ₀ ≠ 0** (a loaded file, the window's table, `calibrate_rings(start=...)`) is re-expressed at
   2θ₀ = 0 with the exact hand-back (`DetectorModel.with_two_theta_0`). No pixel's 2θ changes, and the start's
   `source` records it.
@@ -3377,7 +3379,8 @@ both defaults.
   | Shift_x + Rot_y + λ | **0.48 mdeg** | **5·10⁻⁴ mdeg, 6 passes** |
   | (2θ₀ + λ, with 2θ₀ freed) | | 0.03 mdeg, 13 passes |
 
-- **Rot_y's bound is ±10°** (it was ±5°) in CalibrateRotation, CalibrateGeometry and FullCalibration. With 2θ₀ held,
+- **Rot_y's bound is ±10°** (it was ±5°) in CalibrateRotation, CalibrateGeometry, FullCalibration, the held λ stage and
+  the span `estimate_errors` takes from FullCalibration. Shift_x keeps ±0.05 m (user decision). With 2θ₀ held,
   Rot_y carries the monochromator's 2θ₀ offset as well as the detector's tilt: about 7° on HB2B_3489 (Si331). At
   ±5° it stopped at the bound in every stage, and only `estimate_errors`, whose bounds are relative, moved it.
 

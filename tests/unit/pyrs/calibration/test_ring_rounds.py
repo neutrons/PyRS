@@ -283,15 +283,15 @@ def test_step_is_the_larger_change(converged):
         assert record["step_deg"] == max(record["pixel_step_deg"], record["ring_step_deg"])
 
 
-def test_freed_two_theta_0_stays_freed_in_later_rounds(workspace):
+def test_freed_two_theta_0_stays_freed_in_later_rounds(workspace, one_extraction):
     """continue_rounds builds each round's calibration with the first one's hold (#1090)"""
     # Arrange
     calibration = PixelCalibration(
-        extract_ring_points(workspace, MONO), workspace.get_instrument_setup(), wavelength=MONO, hold_two_theta_0=False
+        copy.deepcopy(one_extraction), workspace.get_instrument_setup(), wavelength=MONO, hold_two_theta_0=False
     )
 
-    # Act
-    result = continue_rounds(calibration, workspace, max_rounds=2)
+    # Act - one short pass per round: only the second round's object matters
+    result = continue_rounds(calibration, workspace, passes=1, polish=False, max_rounds=2)
 
     # Assert
     assert len(result.extraction_rounds) == 2 and result is not calibration

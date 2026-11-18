@@ -515,7 +515,8 @@ class PixelCalibration:
         """Refine any subset of the calibration vector, holding the others at their current values.
 
         The fixed stage methods (``CalibrateShift`` etc.) call this; use it directly to explore
-        other combinations, e.g. ``refine("no rot_y", ["Shift_x", "TTH_0", "Lambda"], lo, hi)``.
+        other combinations, e.g. ``refine("no rot_y", ["Shift_x", "Lambda"], lo, hi)``. TTH_0 can be
+        refined only with ``hold_two_theta_0=False`` (#1090).
 
         Note:
             Shift_x, Rot_y and TTH_0 are degenerate as a set: turning the arm about the sample,
@@ -534,10 +535,16 @@ class PixelCalibration:
             The stage's :class:`StageResult`; the calibration vector and errors are updated.
 
         Raises:
-            ValueError: On unknown parameters, mismatched lengths, a lower bound not below its upper
-                bound, a starting value outside the bounds, or no more ring points than free parameters.
+            ValueError: On unknown parameters, TTH_0 while it is held (#1090), mismatched lengths, a lower
+                bound not below its upper bound, a starting value outside the bounds, or no more ring points
+                than free parameters.
         """
         free = _parameter_indices(free_parameters, name)
+        if self._hold_tth0 and _TTH0 in free:
+            raise ValueError(
+                f"{name}: 2theta_0 is held at 0 in a single-run calibration (#1090); it is refined only in a "
+                "joint fit over several monochromators"
+            )
         lower_bounds = np.asarray(lower, dtype=float)
         upper_bounds = np.asarray(upper, dtype=float)
         x0 = self._calib[free] if initial_guess is None else np.asarray(initial_guess, dtype=float)
@@ -713,7 +720,8 @@ class PixelCalibration:
         choice along the degenerate set, not a measurement (docs/ground_truths.md).
 
         Args:
-            hold: Parameters (indices or :data:`PARAMETER_NAMES`) kept fixed; default 2theta_0.
+            hold: Parameters (indices or :data:`PARAMETER_NAMES`) kept fixed; default 2theta_0, which is
+                kept fixed whatever ``hold`` says while it is held (#1090).
 
         Returns:
             The :class:`StageResult` of the error refinement, recorded in :attr:`stages`.
@@ -721,7 +729,7 @@ class PixelCalibration:
         Raises:
             ValueError: On an unknown parameter in ``hold``.
         """
-        held = _parameter_indices(hold, "estimate_errors")
+        held = self._with_held_tth0(_parameter_indices(hold, "estimate_errors"))
         free = [i for i in range(8) if i not in held]
         # FullCalibration's widths about the current values: the start is inside, and they do not bind
         span = np.asarray(_STAGES["FullCalibration"][1])[free]
@@ -731,6 +739,10 @@ class PixelCalibration:
         stage = replace(stage, held_parameters=tuple(PARAMETER_NAMES[i] for i in held))
         self.stages[-1] = stage
         return stage
+
+    def _with_held_tth0(self, held: np.ndarray) -> np.ndarray:
+        """``held`` with TTH_0 added while 2theta_0 is held (#1090): an error estimate never frees it."""
+        return np.union1d(held, [_TTH0]).astype(int) if self._hold_tth0 else held
 
     def errors_at_current(self, hold: Sequence[Union[int, str]] = ("TTH_0",)) -> StageResult:
         """Uncertainties of every parameter except ``hold`` at the current values, without refining.
@@ -743,7 +755,7 @@ class PixelCalibration:
         Raises:
             ValueError: On an unknown parameter in ``hold``.
         """
-        held = _parameter_indices(hold, "errors_at_current")
+        held = self._with_held_tth0(_parameter_indices(hold, "errors_at_current"))
         free = np.array([i for i in range(8) if i not in held], dtype=int)
         values = self._calib.copy()
 

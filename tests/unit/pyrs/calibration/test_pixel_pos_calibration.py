@@ -751,25 +751,6 @@ def test_held_calibrate_tth0_raises(hb2b, true_rings):
     np.testing.assert_array_equal(calibration.calibration_array, before)
 
 
-def test_held_start_is_re_expressed_at_zero(hb2b, true_rings):
-    """A start with 2theta_0 != 0 is the same detector re-expressed at 2theta_0 = 0: no pixel moves"""
-    # Arrange
-    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
-    model = DetectorModel(hb2b)
-
-    # Act
-    calibration.set_calibration_array(TRUE_PARAMS, source="test start")
-
-    # Assert
-    values = calibration.calibration_array
-    assert values[6] == 0.0
-    np.testing.assert_allclose(values, _held_truth(hb2b, true_rings), atol=1e-12)
-    np.testing.assert_allclose(
-        _two_theta_map(model, values, 90.0), _two_theta_map(model, TRUE_PARAMS, 90.0), atol=1e-9
-    )
-    assert "re-expressed at 2theta_0 = 0" in calibration.start["source"]
-
-
 def test_held_stages_converge_without_polish(hb2b, true_rings):
     """With 2theta_0 held, the staged passes alone reach the true 2theta map (the wavelength stage frees Shift_x
     and Rot_y): with the wavelength alone they did not converge in 50 passes"""
@@ -838,3 +819,24 @@ def test_freed_estimate_errors_breaks_the_degeneracy(hb2b):
     # Assert
     errors = calibration.calibration_error_array
     assert errors[6] == -1.0 and np.all(errors[[0, 1, 2, 3, 4, 5, 7]] > 0)
+
+
+def test_held_refine_with_two_theta_0_raises(hb2b, true_rings):
+    # Arrange
+    calibration = PixelCalibration(true_rings, hb2b, wavelength=NOMINAL_WAVELENGTH)
+
+    # Act / Assert - the choke point every refinement goes through
+    with pytest.raises(ValueError, match="2theta_0 is held"):
+        calibration.refine("explore", ["Shift_x", "TTH_0"], [-0.05, -5.0], [0.05, 5.0])
+    assert calibration.stages == []
+
+
+@pytest.mark.parametrize("method", ["estimate_errors", "errors_at_current"])
+def test_held_error_estimate_keeps_two_theta_0(refined_noisy, method):
+    """An error estimate asked to hold nothing still holds 2theta_0 while it is held (#1090)"""
+    # Act
+    stage = getattr(refined_noisy, method)(hold=())
+
+    # Assert
+    assert "TTH_0" not in stage.free_parameters and stage.held_parameters == ("TTH_0",)
+    assert refined_noisy.calibration_array[6] == 0.0 and refined_noisy.calibration_error_array[6] == -1.0

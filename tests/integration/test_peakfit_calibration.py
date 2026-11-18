@@ -7,6 +7,7 @@ import os
 import json
 import numpy as np
 from pyrs.calibration import mantid_peakfit_calibration
+from pyrs.core.detector_model import DetectorModel, to_shift
 
 
 try:
@@ -410,7 +411,8 @@ def test_nexus_file_carries_the_fitted_peaks(tmp_path):
 
 
 def test_held_refinement_on_a_real_run():
-    """The default (#1090): 2theta_0 held at 0; the held routines refine their free parameters on a real run"""
+    """The default (#1090): 2theta_0 held at 0; the held wavelength stage refines Shift_x, Rot_y and the wavelength on
+    a real run (the other held routines share its _refine_free; their free sets and bounds are unit-tested)"""
     # Arrange
     calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file="tests/data/calibration_tests/HB2B_3510.nxs.h5")
     calibrator._keep_subrun_list = [False] * calibrator.sy.size
@@ -421,15 +423,40 @@ def test_held_refinement_on_a_real_run():
 
     # Act
     calibrator.calibrate_wave_shift()
-    calibrator.FullCalibration()
 
     # Assert
     values = calibrator.get_calib()
     assert calibrator.two_theta_0_held
-    assert [step["free_parameters"] for step in calibrator.steps] == [
-        ["Shift_x", "Rot_y", "Lambda"],
-        ["Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "Lambda"],
-    ]
-    assert values[6] == 0.0 and calibrator._caliberr[6] == -1.0
+    assert [step["free_parameters"] for step in calibrator.steps] == [["Shift_x", "Rot_y", "Lambda"]]
+    assert values[6] == 0.0 and calibrator.calibration_error_array[6] == -1.0
     assert np.all(values[[0, 4]] != start[[0, 4]])
     assert calibrator.steps[-1]["rmse_deg"] <= rmse_start
+
+
+def test_archived_start_with_two_theta_0_is_re_expressed():
+    """A real calibration file with 2theta_0 = 1.39 deg (the ring reference of HB2B_3510) loaded as the start while
+    2theta_0 is held (#1090): the same detector at 2theta_0 = 0, so no pixel's 2theta changes"""
+    # Arrange
+    reference = "tests/data/calibration_tests/HB2B_3510_ring_reference.json"
+    with open(reference) as handle:
+        stored = json.load(handle)
+    keys = ["Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda"]
+    original = np.array([stored[key] for key in keys])
+    calibrator = mantid_peakfit_calibration.FitCalibration(nexus_file="tests/data/calibration_tests/HB2B_3510.nxs.h5")
+    geometry = calibrator._calibration_geometry()
+    model = DetectorModel(geometry)
+    pixels = np.meshgrid(np.arange(0, 1024, 32), np.arange(0, 1024, 32), indexing="ij")
+
+    # Act
+    calibrator.get_archived_calibration(reference)
+
+    # Assert
+    values = calibrator.get_calib()
+    assert original[6] != 0.0 and values[6] == 0.0 and values[7] == original[7]
+    for arm in (76.0, 90.0, 103.0):
+        np.testing.assert_allclose(
+            model.two_theta(*pixels, -arm, geometry.arm_length, to_shift(values[:7])),
+            model.two_theta(*pixels, -arm, geometry.arm_length, to_shift(original[:7])),
+            atol=1e-9,
+        )
+    assert calibrator.provenance()["start"]["source"]["re_expressed"].startswith("re-expressed at 2theta_0 = 0")
