@@ -128,6 +128,7 @@ def ring_with_fits():
     return calibration, fits
 
 
+@pytest.mark.ring_calibration
 def test_ring_diagnostics_round_trip(ring_with_fits, tmp_path):
     """The NeXus file holds the ring points, their residuals, the strip fits and the covariance"""
     # Arrange

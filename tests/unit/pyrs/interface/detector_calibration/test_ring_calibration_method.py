@@ -34,6 +34,9 @@ from tests.util.ring_calibration_helpers import (
     use_cached_calibrate_rings,
 )
 
+# a full ring calibration of the synthetic run: its own serial tier (#1101)
+pytestmark = pytest.mark.ring_calibration
+
 TRUE_PARAMS = np.array(SYNTHETIC_TRUE_PARAMS)
 MONO_WAVELENGTH = SYNTHETIC_MONO
 

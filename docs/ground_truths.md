@@ -3303,6 +3303,29 @@ Tests: `tests/unit/pyrs/core/test_polefigurecalculator.py`. Each new test fails 
 
 Coverage of `pyrs` is identical: 8,791 lines before and after, with no line losing coverage.
 
+**Parallel, `pixi run test-unit`:**
+- **Wall time:** 3 min 30 s on `next`, 2 min 40 s after the restructure.
+- **Why the parallel gain is smaller:** `--dist loadscope` gives the four modules that use the shared calibration
+  their own workers, and each worker computes it (about 60 s each, with eight workers competing for the CPU).
+
+**A separate tier** (user decision): the tests that run or use a full ring calibration carry
+`@pytest.mark.ring_calibration`.
+- `pixi run test-ring-calibration` runs them in one process, so the shared calibration is computed once.
+- `test-unit` leaves them out.
+- CI runs the tier as its own job, `tests (ring-calibration)`.
+- **Measured:**
+
+  | Tier | Tests | Wall time |
+  |---|---|---|
+  | `test-unit` | 1231 | **52 s** |
+  | `test-ring-calibration` | 97 | 2 min 45 s |
+
+- Every test is in exactly one tier: 1328 tests, as before the split.
+- **Rejected alternatives:**
+  - one `xdist_group` in the unit tier computes the calibration once, but runs the four modules one after another,
+    so `test-unit` stays at about 2.5 min;
+  - a calibration shared through a locked file on disk saves only 20–30 s, for more infrastructure.
+
 ## Ring-calibration tests: shared runs and design-study tests removed (2026-11, #1101)
 
 - **The unit tier was 96% ring-calibration tests** by time: 12.2 of 12.7 min. The cost was tests each repeating a

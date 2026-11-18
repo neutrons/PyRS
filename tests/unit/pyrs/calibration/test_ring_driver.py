@@ -82,6 +82,7 @@ def default_run(driver, synthetic_run, tmp_path_factory):
     return {"status": status, "seen": seen, "calls": calls, "nexus_file": nexus_file, "out": out.getvalue(), **files}
 
 
+@pytest.mark.ring_calibration
 def test_main_writes_calibration(default_run):
     # Arrange - the shared default run (the fixture)
     status, seen, output, rings = (default_run[key] for key in ("status", "seen", "output", "rings"))
@@ -116,6 +117,7 @@ def test_main_writes_calibration(default_run):
     assert raw["provenance"]["inputs"]["extraction"]["max_rounds"] == DEFAULT_MAX_ROUNDS
 
 
+@pytest.mark.ring_calibration
 def test_main_passes_its_options_on(driver, monkeypatch, synthetic_run, nexus_file, tmp_path):
     """Every option reaches the ring calibration; that the re-extraction keeps the sub-run selection is
     test_ring_rounds.py::test_later_rounds_keep_the_sub_run_selection"""
@@ -249,6 +251,7 @@ def test_summary_flags_unconverged_result(driver):
     assert "WARNING: the last stage stopped at max_nfev before converging" in driver._summary(calibration)
 
 
+@pytest.mark.ring_calibration
 def test_main_one_round_asks_for_one_round(driver, monkeypatch, synthetic_run, nexus_file, tmp_path):
     """--max-rounds 1 (the workflow before #1038) reaches the ring calibration, which then extracts once
     (test_ring_rounds.py::test_one_round_is_the_single_extraction)"""
@@ -305,6 +308,7 @@ def test_bad_max_rounds_is_refused(driver, rounds):
         driver.build_parser().parse_args(["run.nxs.h5", "-o", "cal.json", "--max-rounds", rounds])
 
 
+@pytest.mark.ring_calibration
 def test_main_nexus_writes_the_diagnostics(default_run):
     """--nexus (#1054): the same calibration as the JSON, with ring points, strip fits and covariance"""
     from pyrs.utilities.calibration_file_io import read_calibration_file
@@ -351,6 +355,7 @@ def test_main_nexus_same_as_output_is_refused(driver, monkeypatch, synthetic_run
     assert status == 1 and "--nexus" in capsys.readouterr().err and not output.exists()
 
 
+@pytest.mark.ring_calibration
 def test_main_nxs_output_holds_the_strip_fits(driver, monkeypatch, synthetic_run, nexus_file, tmp_path):
     # Arrange
     from pyrs.utilities.calibration_nexus import read_calibration_nexus_diagnostics
@@ -368,6 +373,7 @@ def test_main_nxs_output_holds_the_strip_fits(driver, monkeypatch, synthetic_run
     assert "strip_fits" in read_calibration_nexus_diagnostics(str(output))["tables"]
 
 
+@pytest.mark.ring_calibration
 def test_ring_points_option_is_deprecated(driver, monkeypatch, synthetic_run, nexus_file, tmp_path):
     # Arrange
     _stub_conversion(monkeypatch, synthetic_run)

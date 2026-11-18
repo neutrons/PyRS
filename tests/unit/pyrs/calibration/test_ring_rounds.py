@@ -28,6 +28,9 @@ from tests.util.ring_calibration_helpers import (
     synthetic_calibration_workspace,
 )
 
+# a full ring calibration of the synthetic run: its own serial tier (#1101)
+pytestmark = pytest.mark.ring_calibration
+
 TRUE_PARAMS = np.array(SYNTHETIC_TRUE_PARAMS)
 MONO = 1.54
 
