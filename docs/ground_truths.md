@@ -3317,10 +3317,12 @@ Coverage of `pyrs` is identical: 8,791 lines before and after, with no line losi
 
   | Tier | Tests | Wall time |
   |---|---|---|
-  | `test-unit` | 1231 | **52 s** |
-  | `test-ring-calibration` | 97 | 2 min 45 s |
+  | `test-unit` | 1270 | **36 s** |
+  | `test-ring-calibration` | 104 | 2 min 48 s |
 
-- Every test is in exactly one tier: 1328 tests, as before the split.
+  Measured after merging `next` with #1120. Every test is in exactly one tier: unit, ring-calibration,
+  integration and gui collect 1637 tests in total, the whole suite.
+- **Codecov:** `codecov.yml` now waits for 4 uploads, one per tier.
 - **Rejected alternatives:**
   - one `xdist_group` in the unit tier computes the calibration once, but runs the four modules one after another,
     so `test-unit` stays at about 2.5 min;

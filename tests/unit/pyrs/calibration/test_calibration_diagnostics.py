@@ -154,6 +154,7 @@ def test_ring_diagnostics_round_trip(ring_with_fits, tmp_path):
     np.testing.assert_array_equal(matrix, expected)
 
 
+@pytest.mark.ring_calibration
 def test_nexus_and_json_hold_the_same_calibration(ring_with_fits, tmp_path):
     # Arrange
     calibration, _ = ring_with_fits
@@ -170,6 +171,7 @@ def test_nexus_and_json_hold_the_same_calibration(ring_with_fits, tmp_path):
     assert (from_json[2], from_json[3], int(from_json[4])) == (from_nexus[2], from_nexus[3], from_nexus[4])
 
 
+@pytest.mark.ring_calibration
 def test_other_extension_is_written_as_json(ring_with_fits, tmp_path):
     """Only .nxs goes to NeXus: any other name is JSON, as before #1054 (review)"""
     # Arrange
@@ -183,6 +185,7 @@ def test_other_extension_is_written_as_json(ring_with_fits, tmp_path):
     assert json.loads(path.read_text())["Lambda"] == calibration.calibration_array[7]
 
 
+@pytest.mark.ring_calibration
 def test_json_file_carries_no_diagnostics(ring_with_fits, tmp_path):
     """The JSON is unchanged: the diagnostics go only into the NeXus file"""
     # Arrange
@@ -197,6 +200,7 @@ def test_json_file_carries_no_diagnostics(ring_with_fits, tmp_path):
     assert "strip_fits" not in text and "covariance" not in text and "two_theta_model" not in text
 
 
+@pytest.mark.ring_calibration
 def test_failed_diagnostics_still_write_the_calibration(ring_with_fits, tmp_path, monkeypatch):
     # Arrange
     calibration, _ = ring_with_fits

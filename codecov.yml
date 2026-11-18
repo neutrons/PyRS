@@ -1,7 +1,7 @@
-# CI uploads coverage once per test tier (unit, integration, gui; #1100): report only once all
-# three have arrived, so the first upload alone never shows as a coverage drop
+# CI uploads coverage once per test tier (unit, ring-calibration, integration, gui; #1100, #1101):
+# report only once all four have arrived, so an early upload alone never shows as a coverage drop
 codecov:
   notify:
-    after_n_builds: 3
+    after_n_builds: 4
 comment:
-  after_n_builds: 3
+  after_n_builds: 4
