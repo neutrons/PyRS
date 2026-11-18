@@ -224,6 +224,34 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
     - **Either way,** the grouping used must be recorded in the calibration file's and the reduced
       file's provenance, and a mismatch reported. That is a production change and part of the
       proposal below.
+- [ ] **Candidate: asymmetric peak profile** (highest impact). A symmetric fit sits 20–410 µε from
+      the peak of HB2B's asymmetric Ni peaks, varying ~350 µε with the ring's position on the
+      detector. That is far more than σ treatment or grouping (≲ 40 µε); see the peak-shape ground
+      truth.
+  - [ ] **Options.**
+    - (a) **Split pseudo-Voigt** (left / right FWHM, one mixing). It describes the data (χ² 1.7–3.0
+      → 1.1–1.5) but is not a Mantid function: it needs a PyRS fit function or a Mantid user
+      function.
+    - (b) **Mantid `AsymmetricPearsonVII`.** `FitPeaks` accepts it with PyRS's arguments, but it has
+      one width and left / right *shapes* only. On a noise-free split-width test peak its centre
+      came out 0.044° off, so it must be validated.
+    - (c) **A position-dependent profile from the detector's response** (e.g. parallax). This needs
+      the response measured (slit scan, `calibration-diagnostics` on `next`).
+  - [ ] **Calibration consistency.** The ring calibration locates rings with symmetric pseudo-Voigt
+        strip fits, so its geometry absorbs part of the offset (symmetric centres −164 to +191 µε
+        from Bragg on 5344). An asymmetric profile for sample fits must also be used, or its effect
+        checked, in calibration; otherwise calibration and sample fits measure different points of the
+        peak.
+  - [ ] **Monte Carlo.** Use the real split-profile fits (5344, 4971) as the truth, then fit with the
+        symmetric pseudo-Voigt and each candidate. Report bias against the true peak position, pull
+        widths and failure rates, at the weak and strong count levels.
+  - [ ] **Real data.** Fit the same reflection at its different ring positions and η wedges. A better
+        profile should shrink the spread of d across positions; today it is ~350 µε. Also report
+        χ², and the effect on texture-wedge intensities.
+  - [ ] **Decision (proposal; criteria need approval).** Choose the profile that minimises the
+        position-dependent spread of d with honest pulls and no extra bias. Any change to PyRS's
+        peak functions, to calibration extraction or to defaults is a production change and needs
+        its own approval.
 - [ ] Score each treatment by pull-distribution width (target: 1) and bias.
 - [ ] Write a proposal for any production change. **It needs separate
       approval** before any code in `pyrs/` changes.
