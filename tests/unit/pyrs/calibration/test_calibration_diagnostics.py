@@ -8,14 +8,14 @@ import numpy as np
 import pytest
 
 from pyrs.calibration import pixel_refinement
-from pyrs.calibration.pixel_pos_calibration import PixelCalibration, calibrate_rings
+from pyrs.calibration.pixel_pos_calibration import PixelCalibration
 from pyrs.calibration.mantid_peakfit_calibration import FitCalibration
 from pyrs.calibration.powder_standards import PowderStandard
 from pyrs.calibration.pixel_refinement import UNDETERMINED, _parameter_errors, _parameter_errors_and_covariance
 from pyrs.utilities.calibration_file_io import read_calibration_file
 from pyrs.utilities.calibration_nexus import read_calibration_nexus_diagnostics, write_calibration_nexus
 from tests.util.instrument_helpers import default_hb2b_geometry
-from tests.util.ring_calibration_helpers import synthetic_calibration_workspace, synthetic_ring_points
+from tests.util.ring_calibration_helpers import converged_synthetic_calibration, synthetic_ring_points
 
 TRUE_PARAMS = np.array([0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.656, 1.5308])
 
@@ -123,13 +123,13 @@ def test_ring_covariance_is_the_last_stage():
 
 @pytest.fixture(scope="module")
 def ring_with_fits():
-    workspace = synthetic_calibration_workspace(default_hb2b_geometry(), TRUE_PARAMS)
-    fits = []
-    calibration = calibrate_rings(workspace, 1.54, max_rounds=2, diagnostics=fits)
+    """The shared real ring calibration of the synthetic run, with its strip fits (#1101)"""
+    calibration, fits = converged_synthetic_calibration()
     calibration.estimate_errors()
     return calibration, fits
 
 
+@pytest.mark.ring_calibration
 def test_ring_diagnostics_round_trip(ring_with_fits, tmp_path):
     """The NeXus file holds the ring points, their residuals, the strip fits and the covariance"""
     # Arrange
@@ -154,6 +154,7 @@ def test_ring_diagnostics_round_trip(ring_with_fits, tmp_path):
     np.testing.assert_array_equal(matrix, expected)
 
 
+@pytest.mark.ring_calibration
 def test_nexus_and_json_hold_the_same_calibration(ring_with_fits, tmp_path):
     # Arrange
     calibration, _ = ring_with_fits
@@ -170,6 +171,7 @@ def test_nexus_and_json_hold_the_same_calibration(ring_with_fits, tmp_path):
     assert (from_json[2], from_json[3], int(from_json[4])) == (from_nexus[2], from_nexus[3], from_nexus[4])
 
 
+@pytest.mark.ring_calibration
 def test_other_extension_is_written_as_json(ring_with_fits, tmp_path):
     """Only .nxs goes to NeXus: any other name is JSON, as before #1054 (review)"""
     # Arrange
@@ -183,6 +185,7 @@ def test_other_extension_is_written_as_json(ring_with_fits, tmp_path):
     assert json.loads(path.read_text())["Lambda"] == calibration.calibration_array[7]
 
 
+@pytest.mark.ring_calibration
 def test_json_file_carries_no_diagnostics(ring_with_fits, tmp_path):
     """The JSON is unchanged: the diagnostics go only into the NeXus file"""
     # Arrange
@@ -197,6 +200,7 @@ def test_json_file_carries_no_diagnostics(ring_with_fits, tmp_path):
     assert "strip_fits" not in text and "covariance" not in text and "two_theta_model" not in text
 
 
+@pytest.mark.ring_calibration
 def test_failed_diagnostics_still_write_the_calibration(ring_with_fits, tmp_path, monkeypatch):
     # Arrange
     calibration, _ = ring_with_fits

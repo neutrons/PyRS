@@ -18,16 +18,16 @@ env:
   CONDA_ORG: neutrons
 
 jobs:
-  # The three test tiers (CLAUDE.md) run as parallel jobs, unit and integration each with
-  # pytest-xdist (#1100); `tests` below gathers them, so the check name and `publish`'s needs
-  # are unchanged.
+  # The four test tiers (CLAUDE.md) run as parallel jobs, unit and integration each with
+  # pytest-xdist (#1100); ring-calibration is serial, so its shared calibration is computed once
+  # (#1101). `tests` below gathers them, so the check name and `publish`'s needs are unchanged.
   test-tier:
     name: tests (${{ matrix.tier }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        tier: [unit, integration, gui]
+        tier: [unit, ring-calibration, integration, gui]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -89,7 +89,7 @@ jobs:
     steps:
       - name: every test tier passed
         run: |
-          echo "unit, integration and gui: ${{ needs.test-tier.result }}"
+          echo "unit, ring-calibration, integration and gui: ${{ needs.test-tier.result }}"
           test "${{ needs.test-tier.result }}" = "success"
 
   lint:

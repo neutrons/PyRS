@@ -205,13 +205,14 @@ test_init_strain_without_filenames_raises
 
 ### Test tiers, markers, and locations
 
-Tests are split into three tiers so the fast ones can be run without waiting on
-real data or being interrupted by GUI pop-ups. **Put every new test in the tier
+Tests are split into four tiers so the fast ones can be run without waiting on
+real data, a full ring calibration, or GUI pop-ups. **Put every new test in the tier
 matching what it actually touches, and apply the marker that tier requires.**
 
 | Tier | Location | Marker | Run with |
 |---|---|---|---|
 | Unit | `tests/unit/<module-path>/`, mirroring the `pyrs/` package layout | *none* | `pixi run test-unit` |
+| Ring calibration | `tests/unit/<module-path>/`, beside the unit tests | `@pytest.mark.ring_calibration` | `pixi run test-ring-calibration` |
 | Integration | `tests/integration/` (flat) | `@pytest.mark.integration` | `pixi run test-integration` |
 | GUI | `tests/ui/` | `@pytest.mark.gui` **and** `@pytest.mark.integration` | `pixi run test-gui` |
 | By-hand scripts | `tests/scripts/` | *n/a — never collected* | run the file directly |
@@ -220,6 +221,12 @@ Marker definitions, registered in `pyproject.toml`:
 
 - **`integration`** — exercises real file I/O (`tests/data`, the `/HFIR`
   archive) or a multi-component workflow.
+- **`ring_calibration`** — runs a full ring calibration of the synthetic run, or
+  uses the shared one (`tests/util/ring_calibration_helpers.py`:
+  `converged_synthetic_calibration`, `use_cached_calibrate_rings`). That
+  calibration takes ~30 s and is cached per process, so the tier runs serially
+  and computes it once; in the parallel unit tier every worker would compute it
+  again (#1101).
 - **`gui`** — requires a display (xvfb or offscreen). Constructing or driving a
   Qt widget is the usual reason, but it is not the only one: taking the `qapp`
   fixture is enough on its own (it builds a real `QApplication`, which aborts
@@ -254,8 +261,9 @@ Notes:
   built once). The GUI tier stays serial: its tests share one window per module.
   So a test must not depend on another test's order or write a fixed file name
   into the working folder; use `tmp_path`. To debug with `--pdb` or `-s`, run
-  serially: `pixi run test-unit -n 0`. CI runs each tier as its own job
-  (`test-ci-unit`, `test-ci-integration`, `test-ci-gui`, under `xvfb-run`, #1100).
+  serially: `pixi run test-unit -n 0`. The ring-calibration tier is serial (see its marker). CI runs
+  each tier as its own job (`test-ci-unit`, `test-ci-ring-calibration`, `test-ci-integration`,
+  `test-ci-gui`, under `xvfb-run`, #1100, #1101).
 - **Every test has a 300-second timeout** (`timeout`/`timeout_method` in
   `pyproject.toml`, via `pytest-timeout`). A hang is a failure, not an infinite
   wait. `timeout_method = "thread"` is deliberate: a test blocked inside Qt's C++

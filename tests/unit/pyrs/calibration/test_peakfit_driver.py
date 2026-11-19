@@ -1,20 +1,13 @@
 """The pyrs-calibration (FitCalibration) usage text names the default it actually uses (#1079)"""
 
-import importlib.util
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
+from pyrs.calibration import peakfit_driver
 
 
 @pytest.fixture(scope="module")
 def driver():
-    # loaded by path: importing it as scripts.pyrs_calibration makes mypy see the file twice
-    spec = importlib.util.spec_from_file_location("pyrs_calibration", REPO / "scripts" / "pyrs_calibration.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return peakfit_driver
 
 
 def test_usage_names_the_default_method(driver):

@@ -1,35 +1,33 @@
-"""Unit tests for the ring-calibration driver (scripts/pyrs_pixel_calibration.py), on a synthetic run
+"""Unit tests for the ring-calibration driver (pyrs.calibration.ring_driver, behind pyrs-pixel-calibration)
 
-The NeXus conversion is replaced by a synthetic workspace, so everything after it (ring extraction,
-refinement, error estimate, the calibration file and the summary) runs for real without data files.
+The NeXus conversion is replaced by a synthetic run. ``calibrate_rings`` is answered by the one shared real
+calibration of that run (``use_cached_calibrate_rings``, #1101): what the driver adds (its options, the
+error estimate, the files and the summary) runs for real; what ``calibrate_rings`` does with the options is
+tested in test_ring_rounds.py, and the driver on a real run in tests/integration.
 """
 
-import importlib.util
 import json
-from pathlib import Path
 
 import numpy as np
 import pytest
 
 from pyrs.calibration.pixel_pos_calibration import DEFAULT_MAX_ROUNDS
+from pyrs.calibration import ring_driver
 from pyrs.calibration.powder_standards import HB2B_STANDARDS
 from pyrs.utilities.calibration_file_io import read_calibration_json_file
 from tests.util.instrument_helpers import default_hb2b_geometry
-from tests.util.ring_calibration_helpers import synthetic_calibration_workspace
+from tests.util.ring_calibration_helpers import (
+    SYNTHETIC_TRUE_PARAMS,
+    synthetic_calibration_workspace,
+    use_cached_calibrate_rings,
+)
 
-REPO = Path(__file__).resolve().parents[3]
-TRUE_PARAMS = np.array([0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.656, 1.5308])
+TRUE_PARAMS = np.array(SYNTHETIC_TRUE_PARAMS)
 
 
 @pytest.fixture(scope="module")
 def driver():
-    # loaded by path: importing it as scripts.pyrs_pixel_calibration makes mypy see the file twice
-    spec = importlib.util.spec_from_file_location(
-        "pyrs_pixel_calibration", REPO / "scripts" / "pyrs_pixel_calibration.py"
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return ring_driver
 
 
 @pytest.fixture(scope="module")
@@ -62,7 +60,7 @@ def nexus_file(tmp_path):
 @pytest.fixture(scope="module")
 def default_run(driver, synthetic_run, tmp_path_factory):
     """One run of the driver with its default rounds, writing the JSON, the NeXus file and the ring points:
-    shared by the tests that check what a default run writes and prints (#1101: one 30-40 s calibration)"""
+    shared by the tests that check what a default run writes and prints"""
     import contextlib
     import io
     import warnings
@@ -74,15 +72,17 @@ def default_run(driver, synthetic_run, tmp_path_factory):
     out = io.StringIO()
     with pytest.MonkeyPatch.context() as patch:
         seen = _stub_conversion(patch, synthetic_run)
+        calls = use_cached_calibrate_rings(patch)
         with contextlib.redirect_stdout(out), warnings.catch_warnings():
             warnings.simplefilter("ignore", FutureWarning)  # --ring-points' deprecation, tested on its own
             status = driver.main(
                 [str(nexus_file), "-o", str(files["output"]), "--no-mask", "--wavelength", "1.54"]
                 + ["--ring-points", str(files["rings"]), "--nexus", str(files["nexus"])]
             )
-    return {"status": status, "seen": seen, "nexus_file": nexus_file, "out": out.getvalue(), **files}
+    return {"status": status, "seen": seen, "calls": calls, "nexus_file": nexus_file, "out": out.getvalue(), **files}
 
 
+@pytest.mark.ring_calibration
 def test_main_writes_calibration(default_run):
     # Arrange - the shared default run (the fixture)
     status, seen, output, rings = (default_run[key] for key in ("status", "seen", "output", "rings"))
@@ -90,6 +90,19 @@ def test_main_writes_calibration(default_run):
     # Assert - a complete file reduction reads, 2theta_0 held, the true wavelength recovered
     assert status == 0
     assert seen == [(str(default_run["nexus_file"]), None)]
+    # the driver's defaults, passed on to the ring calibration
+    assert default_run["calls"] == [
+        dict(
+            wavelength=1.54,
+            start=None,
+            strips=5,
+            sub_runs=None,
+            passes=3,
+            polish=True,
+            max_rounds=DEFAULT_MAX_ROUNDS,
+            cached=True,
+        )
+    ]
     raw = json.loads(output.read_text())
     assert raw["error_TTH_0"] == -1.0
     assert all(raw[f"error_{name}"] > 0 for name in ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z"))
@@ -104,23 +117,38 @@ def test_main_writes_calibration(default_run):
     assert raw["provenance"]["inputs"]["extraction"]["max_rounds"] == DEFAULT_MAX_ROUNDS
 
 
-def test_main_sub_runs_and_no_polish(driver, monkeypatch, synthetic_run, nexus_file, tmp_path):
+@pytest.mark.ring_calibration
+def test_main_passes_its_options_on(driver, monkeypatch, synthetic_run, nexus_file, tmp_path):
+    """Every option reaches the ring calibration; that the re-extraction keeps the sub-run selection is
+    test_ring_rounds.py::test_later_rounds_keep_the_sub_run_selection"""
     # Arrange
     _stub_conversion(monkeypatch, synthetic_run)
-    output, rings = tmp_path / "cal.json", tmp_path / "rings.npz"
-    args = [str(nexus_file), "-o", str(output), "--no-mask", "--wavelength", "1.54", "--ring-points", str(rings)]
+    calls = use_cached_calibrate_rings(monkeypatch, any_settings=True)
+    output = tmp_path / "cal.json"
+    args = [str(nexus_file), "-o", str(output), "--no-mask", "--wavelength", "1.5", "--strips", "7"]
 
     # Act
-    # two rounds: the saved points are the last round's, so a re-extraction must keep the sub-run selection
     status = driver.main(
         args + ["--sub-runs", "1", "2", "3", "4", "--no-polish", "--passes", "2", "--max-rounds", "2"]
     )
 
-    # Assert
-    from pyrs.calibration.pixel_pos_calibration import RingPoints
-
+    # Assert - the file's rounds are the cached default calibration's (the cache ignores the settings here), so
+    # only what the driver passed on and recorded is checked
     assert status == 0
-    assert set(RingPoints.load(rings).sub_run.tolist()) <= {1, 2, 3, 4}
+    assert calls == [
+        dict(
+            wavelength=1.5,
+            start=None,
+            strips=7,
+            sub_runs=[1, 2, 3, 4],
+            passes=2,
+            polish=False,
+            max_rounds=2,
+            cached=True,
+        )
+    ]
+    extraction = json.loads(output.read_text())["provenance"]["inputs"]["extraction"]
+    assert extraction == {"strips": 7, "sub_runs": [1, 2, 3, 4], "max_rounds": 2}
 
 
 def test_main_no_ring_points_returns_1(driver, monkeypatch, nexus_file, tmp_path, capsys):
@@ -223,10 +251,13 @@ def test_summary_flags_unconverged_result(driver):
     assert "WARNING: the last stage stopped at max_nfev before converging" in driver._summary(calibration)
 
 
-def test_main_one_round_extracts_once(driver, monkeypatch, synthetic_run, nexus_file, tmp_path, capsys):
-    """--max-rounds 1 is the workflow before #1038"""
+@pytest.mark.ring_calibration
+def test_main_one_round_asks_for_one_round(driver, monkeypatch, synthetic_run, nexus_file, tmp_path):
+    """--max-rounds 1 (the workflow before #1038) reaches the ring calibration, which then extracts once
+    (test_ring_rounds.py::test_one_round_is_the_single_extraction)"""
     # Arrange
     _stub_conversion(monkeypatch, synthetic_run)
+    calls = use_cached_calibrate_rings(monkeypatch, any_settings=True)
     output = tmp_path / "cal.json"
 
     # Act
@@ -236,8 +267,8 @@ def test_main_one_round_extracts_once(driver, monkeypatch, synthetic_run, nexus_
 
     # Assert
     assert status == 0
-    assert len(json.loads(output.read_text())["provenance"]["extraction_rounds"]) == 1
-    assert "ring extraction rounds: 1" in capsys.readouterr().out
+    assert [call["max_rounds"] for call in calls] == [1]
+    assert json.loads(output.read_text())["provenance"]["inputs"]["extraction"]["max_rounds"] == 1
 
 
 def test_summary_flags_unconverged_rounds(driver):
@@ -277,6 +308,7 @@ def test_bad_max_rounds_is_refused(driver, rounds):
         driver.build_parser().parse_args(["run.nxs.h5", "-o", "cal.json", "--max-rounds", rounds])
 
 
+@pytest.mark.ring_calibration
 def test_main_nexus_writes_the_diagnostics(default_run):
     """--nexus (#1054): the same calibration as the JSON, with ring points, strip fits and covariance"""
     from pyrs.utilities.calibration_file_io import read_calibration_file
@@ -323,25 +355,29 @@ def test_main_nexus_same_as_output_is_refused(driver, monkeypatch, synthetic_run
     assert status == 1 and "--nexus" in capsys.readouterr().err and not output.exists()
 
 
+@pytest.mark.ring_calibration
 def test_main_nxs_output_holds_the_strip_fits(driver, monkeypatch, synthetic_run, nexus_file, tmp_path):
     # Arrange
     from pyrs.utilities.calibration_nexus import read_calibration_nexus_diagnostics
 
     _stub_conversion(monkeypatch, synthetic_run)
+    calls = use_cached_calibrate_rings(monkeypatch)
     output = tmp_path / "cal.nxs"
 
-    # Act - one round: the strip-fit table exists after the first extraction (#1101)
-    status = driver.main(
-        [str(nexus_file), "-o", str(output), "--no-mask", "--wavelength", "1.54", "--max-rounds", "1"]
-    )
+    # Act
+    status = driver.main([str(nexus_file), "-o", str(output), "--no-mask", "--wavelength", "1.54"])
 
     # Assert
-    assert status == 0 and "strip_fits" in read_calibration_nexus_diagnostics(str(output))["tables"]
+    assert [call["cached"] for call in calls] == [True]
+    assert status == 0
+    assert "strip_fits" in read_calibration_nexus_diagnostics(str(output))["tables"]
 
 
+@pytest.mark.ring_calibration
 def test_ring_points_option_is_deprecated(driver, monkeypatch, synthetic_run, nexus_file, tmp_path):
     # Arrange
     _stub_conversion(monkeypatch, synthetic_run)
+    calls = use_cached_calibrate_rings(monkeypatch)
 
     # Act / Assert - still written, with a warning pointing to --nexus
     with pytest.warns(FutureWarning, match="--nexus"):
@@ -351,6 +387,6 @@ def test_ring_points_option_is_deprecated(driver, monkeypatch, synthetic_run, ne
             mask_file=None,
             wavelength=1.54,
             ring_points_file=str(tmp_path / "rings.npz"),
-            max_rounds=1,
         )
     assert (tmp_path / "rings.npz").is_file()
+    assert [call["cached"] for call in calls] == [True]

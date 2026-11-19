@@ -175,9 +175,7 @@ def test_detector_calibration(calibration_window, tmp_path, export_settings):
 
 def test_ring_based_calibration_uses_driver_defaults(calibration_window, tmp_path):
     """#1045: the window's ring-based calibration runs with what the pyrs-pixel-calibration driver uses"""
-    import importlib.util
     import json
-    from pathlib import Path
 
     window, qtbot = calibration_window
     window.show()
@@ -243,11 +241,8 @@ def test_ring_based_calibration_uses_driver_defaults(calibration_window, tmp_pat
     from pyrs.calibration.pixel_refinement import PixelCalibration
     from pyrs.interface.detector_calibration import detector_calibration_model
 
-    spec = importlib.util.spec_from_file_location(
-        "pyrs_pixel_calibration", Path(__file__).resolve().parents[2] / "scripts" / "pyrs_pixel_calibration.py"
-    )
-    driver = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(driver)
+    from pyrs.calibration import ring_driver as driver
+
     defaults = driver.build_parser().parse_args([nexus, "-o", "calibration.json", "--no-mask"])
     refinement_defaults = inspect.signature(PixelCalibration).parameters
     gui_provenance = json.load(open(written[0]))["provenance"]

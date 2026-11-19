@@ -70,15 +70,9 @@ def test_rounds_recover_from_a_poor_start(run_3489, reference):
 
 def test_driver_records_every_round(tmp_path):
     """pyrs-pixel-calibration on HB2B_3510: converged by the rule, every round in the file's provenance"""
-    import importlib.util
-    from pathlib import Path
+    from pyrs.calibration import ring_driver as driver
 
     # Arrange
-    spec = importlib.util.spec_from_file_location(
-        "pyrs_pixel_calibration", Path(__file__).resolve().parents[2] / "scripts" / "pyrs_pixel_calibration.py"
-    )
-    driver = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(driver)
     output = tmp_path / "HB2B_3510.json"
 
     # Act

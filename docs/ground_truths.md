@@ -3265,6 +3265,69 @@ Found while testing; all four are fixed, see the next section ([deferred_defects
   longer returns a stale result.
 
 Tests: `tests/unit/pyrs/core/test_polefigurecalculator.py`. Each new test fails without its fix.
+## Calibration drivers in the package; one shared ring calibration for the unit tier (2026-11-18, #1101)
+
+**Drivers moved into the package** (user decision): `scripts/pyrs_pixel_calibration.py` and
+`scripts/pyrs_calibration.py` held the workflows themselves.
+- Their tests sat in `tests/unit/scripts/`, which mirrors no package, and five test files loaded the ring driver
+  by file path.
+- The workflows are now `pyrs/calibration/ring_driver.py` and `pyrs/calibration/peakfit_driver.py`. The scripts
+  are thin command-line wrappers, and the entry points name the package modules.
+- Commands and options are unchanged.
+- The ring calibration's provenance now records `"driver": "pyrs.calibration.ring_driver"` (it was
+  `"scripts/pyrs_pixel_calibration.py"`).
+
+**One shared ring calibration:**
+- **The repeated run:** the ring-rounds, driver, window-model and diagnostics tests each ran the same full ring
+  calibration of the same synthetic run, 25–30 s each time.
+- **Computed once:** `tests/util/ring_calibration_helpers.converged_synthetic_calibration()` computes it once
+  per test process (cached) and hands out copies.
+- **For tests of what a caller passes on or does around the calibration:** `use_cached_calibrate_rings`
+  answers `calibrate_rings` from that cache, and records each call's settings.
+- **The window comparison is still real on both sides:** the window's own ring path (extraction, rounds, error
+  estimate, Export) runs for real, against the driver given the cached calibration.
+- **Bookkeeping tests of the round loop** run on six of the eleven sub-runs (`SMALL_ARMS`): the round-limit
+  warning, warnings kept, one round, the start recorded, a second call, and the sub-run selection.
+  - With 4 sub-runs (25 ring points), Rot_y stops at its bound.
+- **Moved:** the driver's sub-run check moved to `test_ring_rounds.py`, because it tests `calibrate_rings`.
+
+**Measured** on `next`, serial, no coverage:
+
+| | Before | After |
+|---|---|---|
+| Unit tier | 6 min 5 s | **3 min 52 s** |
+| `test_ring_calibration_method.py` | 112 s | 62 s |
+| `test_ring_rounds.py` | 96 s | 50 s |
+| ring driver tests | 54 s | 8 s |
+| `test_calibration_diagnostics.py` | 24 s | 33 s (it computes the shared run first when run serially) |
+
+Coverage of `pyrs` is identical: 8,791 lines before and after, with no line losing coverage.
+
+**Parallel, `pixi run test-unit`:**
+- **Wall time:** 3 min 30 s on `next`, 2 min 40 s after the restructure.
+- **Why the parallel gain is smaller:** `--dist loadscope` gives the four modules that use the shared calibration
+  their own workers, and each worker computes it (about 60 s each, with eight workers competing for the CPU).
+
+**A separate tier** (user decision): the tests that run or use a full ring calibration carry
+`@pytest.mark.ring_calibration`.
+- `pixi run test-ring-calibration` runs them in one process, so the shared calibration is computed once.
+- `test-unit` leaves them out.
+- CI runs the tier as its own job, `tests (ring-calibration)`.
+- **Measured:**
+
+  | Tier | Tests | Wall time |
+  |---|---|---|
+  | `test-unit` | 1270 | **36 s** |
+  | `test-ring-calibration` | 104 | 2 min 48 s |
+
+  Measured after merging `next` with #1120. Every test is in exactly one tier: unit, ring-calibration,
+  integration and gui collect 1637 tests in total, the whole suite.
+- **Codecov:** `codecov.yml` now waits for 4 uploads, one per tier.
+- **Rejected alternatives:**
+  - one `xdist_group` in the unit tier computes the calibration once, but runs the four modules one after another,
+    so `test-unit` stays at about 2.5 min;
+  - a calibration shared through a locked file on disk saves only 20–30 s, for more infrastructure.
+
 ## Ring-calibration tests: shared runs and design-study tests removed (2026-11, #1101)
 
 - **The unit tier was 96% ring-calibration tests** by time: 12.2 of 12.7 min. The cost was tests each repeating a

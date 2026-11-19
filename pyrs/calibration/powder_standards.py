@@ -9,7 +9,7 @@ that every calibration uses the same reference values. Typical use:
 2. Get its expected d-spacings with :meth:`PowderStandard.d_spacings`, or its expected peak
    positions for a wavelength with :meth:`PowderStandard.two_theta`.
 
-Lattice constants are the 2020 set (commit d6cd5e04, ``scripts/pyrs_calibration.py``), which
+Lattice constants are the 2020 set (commit d6cd5e04, ``scripts/pyrs_calibration.py``, now ``pyrs/calibration/peakfit_driver.py``), which
 appear to be standard room-temperature reference values (Ni 3.5238, alpha-Fe 2.8664, Mo 3.1472 A).
 They differ from the values ``FitCalibration`` uses since 2023 (3.526314 / 2.865579 / 3.147664,
 fitted from HB2B data), whose Fe/Ni ratio is ~0.1 % off the ratio HB2B_3510 shows; see

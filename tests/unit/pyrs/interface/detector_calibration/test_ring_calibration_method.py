@@ -8,10 +8,12 @@ HB2B_Latest_<Si...>.json and <Si...>/HB2B_CAL_<time>.json.
 import json
 import os
 from types import SimpleNamespace
+from typing import Any, Optional
 
 import numpy as np
 import pytest
 
+from pyrs.calibration.pixel_refinement import PixelCalibration
 from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.detector_model import from_shift
 from pyrs.interface.detector_calibration import detector_calibration_model as model_module
@@ -24,10 +26,19 @@ from pyrs.interface.detector_calibration.detector_calibration_model import (
 )
 from pyrs.utilities.calibration_file_io import read_calibration_json_file
 from tests.util.instrument_helpers import default_hb2b_geometry
-from tests.util.ring_calibration_helpers import synthetic_calibration_workspace
+from tests.util.ring_calibration_helpers import (
+    SYNTHETIC_MONO,
+    SYNTHETIC_TRUE_PARAMS,
+    converged_synthetic_calibration,
+    synthetic_calibration_workspace,
+    use_cached_calibrate_rings,
+)
 
-TRUE_PARAMS = np.array([0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.656, 1.5308])
-MONO_WAVELENGTH = 1.540
+# a full ring calibration of the synthetic run: its own serial tier (#1101)
+pytestmark = pytest.mark.ring_calibration
+
+TRUE_PARAMS = np.array(SYNTHETIC_TRUE_PARAMS)
+MONO_WAVELENGTH = SYNTHETIC_MONO
 
 
 @pytest.fixture(scope="module")
@@ -110,18 +121,32 @@ def refined(workspace):
 
 
 def _driver():
-    import importlib.util
-    from pathlib import Path
+    from pyrs.calibration import ring_driver
 
-    spec = importlib.util.spec_from_file_location(
-        "pyrs_pixel_calibration", Path(__file__).resolve().parents[5] / "scripts" / "pyrs_pixel_calibration.py"
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return ring_driver
+
+
+def _rounds_from_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make the window's "iterate" rounds return the shared real calibration of this run, for tests of what the
+    window does around them (#1101): what the rounds do is test_ring_rounds.py's. The calibration handed in is
+    refined once, as the real rounds refine it in place, so a restore of it is a real restore."""
+
+    def cached_rounds(
+        calibration: PixelCalibration, workspace: Any, diagnostics: Optional[list] = None, **kwargs: Any
+    ) -> PixelCalibration:
+        calibration.iterate(passes=1, polish=False)
+        result, fits = converged_synthetic_calibration()
+        if diagnostics is not None:
+            diagnostics[:] = fits
+        return result
+
+    monkeypatch.setattr(model_module, "continue_rounds", cached_rounds)
 
 
 def test_ring_path_equals_the_driver(workspace, refined, tmp_path, monkeypatch):
+    """The window's own ring path (extraction, "iterate" rounds, error estimate, Export) against the driver,
+    whose ring calibration of the same run is the shared real one (#1101)"""
+
     # Arrange - the real driver, with the NeXus conversion replaced by the synthetic run
     class _Converter:
         def __init__(self, nexus_file, mask_file=None):
@@ -131,10 +156,13 @@ def test_ring_path_equals_the_driver(workspace, refined, tmp_path, monkeypatch):
             return workspace
 
     monkeypatch.setattr("pyrs.core.nexus_conversion.NeXusConvertingApp", _Converter)
+    calls = use_cached_calibrate_rings(monkeypatch)
     nexus = tmp_path / "HB2B_0001.nxs.h5"
     nexus.write_bytes(b"")
     driver_file = tmp_path / "driver.json"
     driver = _driver().run_calibration(str(nexus), str(driver_file), mask_file=None)
+    # precondition: the driver asked for exactly the shared calibration (any drift in its settings fails here)
+    assert [call["cached"] for call in calls] == [True]
 
     # Act
     gui_model, (values, errors, r_sum, rmse) = refined
@@ -153,7 +181,7 @@ def test_ring_path_equals_the_driver(workspace, refined, tmp_path, monkeypatch):
         k: v for k, v in driver_provenance.items() if k not in varying
     }
     assert gui_provenance["inputs"]["interface"] == "PyRS detector calibration GUI"
-    assert driver_provenance["inputs"]["driver"] == "scripts/pyrs_pixel_calibration.py"
+    assert driver_provenance["inputs"]["driver"] == "pyrs.calibration.ring_driver"
     assert rmse == driver.stages[-1].rmse and errors[-1][6] == -1.0
 
 
@@ -416,6 +444,7 @@ def test_new_run_clears_ring_state(workspace, monkeypatch, tmp_path):
     # Arrange - a ring-based result from run A, then load run B
     gui_model = _model(workspace)
     gui_model.extract_rings(3)
+    _rounds_from_cache(monkeypatch)
     gui_model.calibrate_detector(["iterate"])
     monkeypatch.setattr(model_module, "FitCalibration", lambda **kwargs: _stand_in(workspace))
 
@@ -839,6 +868,8 @@ def test_failed_recipe_after_iterate_restores_all(workspace, monkeypatch, rounds
     gui_model.set_max_rounds(rounds)
     gui_model.extract_rings(DEFAULT_STRIPS)
     before = _ring_state(gui_model)
+    if rounds > 1:  # several rounds change the plots' state too; the one-round case runs for real
+        _rounds_from_cache(monkeypatch)
 
     def failing(self, *args, **kwargs):
         raise RuntimeError("error estimate failed")
