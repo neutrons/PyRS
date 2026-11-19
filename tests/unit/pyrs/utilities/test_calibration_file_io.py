@@ -397,3 +397,33 @@ def test_json_without_wavelength_is_refused(tmp_path):
         HidraSetup(DENEXDetectorGeometry(1024, 1024, 0.3 / 1024, 0.3 / 1024, 0.985, False)).load_calibration_file(path)
     with pytest.raises(calibration_file_io.IncompleteCalibrationError, match="Lambda"):
         calibration_file_io.read_calibration_values(path)
+
+
+@pytest.mark.parametrize("wavelength", [0, -1.5, "nan", None], ids=["zero", "negative", "nan", "null"])
+def test_unusable_wavelength_is_refused(tmp_path, wavelength):
+    """A wavelength reduction cannot apply is refused like a missing one (user decision, #1098); a start may still
+    read it, as the window asks about it"""
+    # Arrange
+    path = _json_without(tmp_path)
+    stored = json.loads(open(path).read())
+    stored["Lambda"] = float(wavelength) if wavelength == "nan" else wavelength
+    with open(path, "w") as handle:
+        handle.write(json.dumps(stored))
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="unusable wavelength"):
+        calibration_file_io.read_calibration_file(path)
+    with pytest.raises(ValueError, match="unusable wavelength"):
+        calibration_file_io.calibration_from_dict(stored, path)
+
+
+def test_record_with_zero_wavelength_is_refused():
+    """A project file reduced from a Lambda-less file before #1098 stores Lambda 0.0: reducing it again from that
+    record is refused too"""
+    # Arrange
+    record = {name: 0.0 for name in _PARAMETERS}
+    record.update({f"error_{name}": -1.0 for name in _PARAMETERS}, Status=1)
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="unusable wavelength"):
+        calibration_file_io.calibration_from_dict(record, "the project file's record")

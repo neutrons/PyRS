@@ -491,3 +491,14 @@ def test_calibration_values_same_from_json_and_nexus(tmp_path):
 def test_calibration_values_of_raw_run_raises(tmp_path):
     with pytest.raises(ValueError, match="raw event data"):
         calibration_file_io.read_calibration_values(str(tmp_path / "HB2B_3510.nxs.h5"))
+
+
+def test_nexus_with_zero_wavelength_is_refused(tmp_path):
+    """The NeXus reader refuses an unusable wavelength for reduction as the JSON one does (#1098)"""
+    # Arrange
+    path = str(tmp_path / "cal.nxs")
+    write_calibration_nexus(path, SHIFT, ERROR, 0.0, WAVELENGTH_ERROR, STATUS, GEOMETRY, PROVENANCE)
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="unusable wavelength"):
+        calibration_file_io.read_calibration_file(path)

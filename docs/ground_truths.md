@@ -3499,8 +3499,9 @@ both defaults.
     - The window asks "Continue with 0 for …?"; No changes nothing.
     - `pyrs-calibration` cannot ask, so it stops with the error.
     - Reduction reads a missing shift, rotation or 2θ₀ as 0, as before.
-    - **Reduction refuses a JSON without `Lambda`** (user decision, 2026-11-19): it would otherwise apply a
-      wavelength of 0. This is `require_wavelength` in `read_calibration_file`, `read_calibration_json_file` and
+    - **Reduction refuses a calibration without a usable wavelength** (user decisions, 2026-11-19): a JSON
+      without `Lambda`, or a JSON or NeXus `Lambda` that is zero, negative or not a number, including a
+      project file's record that stored `Lambda: 0.0`. It would otherwise apply that wavelength. This is `require_wavelength` in `read_calibration_file`, `read_calibration_json_file` and
       `calibration_from_dict`, true by default. Only a calibration start turns it off: the window asks, `pyrs-calibration` stops.
       Manual Reduction shows the refusal in a pop-up.
     - The legacy `two_theta_0` key counts as TTH_0.
