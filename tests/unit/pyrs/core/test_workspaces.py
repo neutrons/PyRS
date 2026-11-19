@@ -127,7 +127,7 @@ class TestSubRunNumbersAreNotPositions:
     """Sub-run numbers are labels, not array positions.
 
     Each xfail is a site recorded under DD-2 in
-    `plans/PR_review/deferred-defects.md` that treats a sub-run number as a
+    `docs/deferred_defects.md` that treats a sub-run number as a
     position, or pairs values with sub-runs by position alone. They break on
     sub-runs that do not run 1..N, even sorted ones.
     """

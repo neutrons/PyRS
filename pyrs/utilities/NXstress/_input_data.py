@@ -11,7 +11,7 @@ import numpy as np
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.pydantic_transition import validate_call_
 
-from ._definitions import FIELD_DTYPE, GROUP_NAME, growable, row_aligned_fields, tail_append
+from ._definitions import FIELD_DTYPE, GROUP_NAME, appended_together, growable, row_aligned_fields, tail_append
 
 
 """
@@ -65,8 +65,9 @@ class _InputData:
             # reachable on its own.
             cls.validateAppend(wss, data)
             if scan_points:
-                tail_append(data["detector_counts"], scans)
-                tail_append(data["scan_point"], np.asarray(scan_points))
+                with appended_together():
+                    tail_append(data["detector_counts"], scans)
+                    tail_append(data["scan_point"], np.asarray(scan_points))
             return data
 
         data = NXdata()
@@ -91,7 +92,7 @@ class _InputData:
             data: The target entry's existing `input_data` group.
 
         Returns:
-            Path -> `NXfield`, for `NXstress._validateAppendableShapes`.
+            Path -> `NXfield`, for `_append.validate_appendable_shapes`.
         """
         return row_aligned_fields(data, GROUP_NAME.INPUT_DATA)
 

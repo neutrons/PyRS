@@ -14,9 +14,11 @@ import h5py
 import numpy as np
 import yaml
 import pytest
+from nexusformat.nexus import nxload
 
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.peaks.peak_collection import PeakCollection
+from pyrs.utilities.NXstress import _discriminator
 from pyrs.utilities.NXstress._definitions import GROUP_NAME
 from pyrs.utilities.NXstress.NXstress import NXstress
 
@@ -74,6 +76,26 @@ class TestDiscriminatorRoundtrip:
         np.testing.assert_array_equal(by_direction["11"].get_sub_runs().raw_copy(), [1, 2, 3])
         np.testing.assert_array_equal(by_direction["22"].get_sub_runs().raw_copy(), [4, 5, 6])
         assert [len(p) for p in read_peakss] == [1, 1]
+
+    def test_every_workspace_read_names_its_source_file(
+        self, config_override, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
+    ):
+        """As its collections do: it is the file a viewer's saved state reloads from."""
+        # Arrange
+        configure(config_override, "nxstress:\n  discriminator_fields: ['direction']\n")
+        workspaces, peakss = two_workspaces(minimal_HidraWorkspace, minimal_PeakCollection)
+        path = tmp_path / "two.nxs"
+        with NXstress(path, "w") as nx:
+            nx.write(workspaces, peakss)
+
+        # Act
+        with NXstress(path, "r") as nx:
+            read_wss, read_peakss = nx.read()
+
+        # Assert
+        assert [ws.hidra_project_file for ws in read_wss] == [str(path)] * 2
+        # A collection keeps only the file's name, by its own design.
+        assert [peaks[0].projectfilename for peaks in read_peakss] == [path.name] * 2
 
     def test_discriminator_column_is_written_to_the_peaks_group(
         self, config_override, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
@@ -162,7 +184,7 @@ class TestBackCompat:
         with NXstress(path, "w") as nx:
             nx.write(workspaces, peakss)
 
-        configure(config_override, "nxstress:\n  discriminator_fields: ['run_number']\n")
+        configure(config_override, "nxstress:\n  discriminator_fields: ['zone']\n")
         with NXstress(path, "r") as nx:
             with pytest.raises(RuntimeError, match=r"written with discriminator fields \['direction'\]"):
                 nx.read()
@@ -247,6 +269,7 @@ class TestEmptyConfigPolicy:
     def test_multiple_workspaces_without_a_discriminator_raises(
         self, config_override, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
     ):
+        configure(config_override, "nxstress:\n  discriminator_fields: []\n")
         workspaces, peakss = two_workspaces(minimal_HidraWorkspace, minimal_PeakCollection)
 
         path = tmp_path / "no-field.nxs"
@@ -258,6 +281,7 @@ class TestEmptyConfigPolicy:
         self, config_override, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
     ):
         """NXstress does not merge workspaces; `nxstress.merge_workspaces` was removed (Decisions Log row 45)."""
+        configure(config_override, "nxstress:\n  discriminator_fields: []\n")
         workspaces, peakss = two_workspaces(minimal_HidraWorkspace, minimal_PeakCollection)
 
         with NXstress(tmp_path / "no-field.nxs", "w") as nx:
@@ -268,10 +292,11 @@ class TestEmptyConfigPolicy:
 class TestAWorkspaceMergedInPyRS:
     """One workspace whose `direction` log varies, as CombineRuns can produce.
 
-    It is one workspace, so it is written as one: with no discriminator field it
-    round-trips with its log intact. Under a `direction` discriminator it has no
-    single value, and is refused with a `ValueError` saying so -- it used to fail
-    with `get_sample_log_value`'s bare `AssertionError`.
+    It is one workspace, so it is written as one, and round-trips with its log
+    intact. Under a `direction` discriminator it has no single value -- which for
+    a single workspace means there is no boundary to record, so the entry records
+    no discriminator field and reads back as one workspace whatever is
+    configured. (It used to be refused; one workspace has nothing to tell apart.)
     """
 
     @staticmethod
@@ -298,18 +323,26 @@ class TestAWorkspaceMergedInPyRS:
         assert read_ws.get_sub_runs().raw_copy().tolist() == [1, 2, 3, 4, 5, 6]
         assert read_ws.get_sample_log_values("direction").tolist() == ["11"] * 3 + ["22"] * 3
 
-    def test_a_direction_discriminator_is_refused(
+    def test_under_a_direction_discriminator_it_records_no_field(
         self, config_override, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
     ):
         # Arrange
         configure(config_override, "nxstress:\n  discriminator_fields: ['direction']\n")
         ws = self.merged(minimal_HidraWorkspace)
+        path = tmp_path / "merged.nxs"
 
-        # Act / Assert
-        with NXstress(tmp_path / "merged.nxs", "w") as nx:
-            with pytest.raises(ValueError, match=r"'direction' has no single value"):
-                nx.write([ws], [[minimal_PeakCollection(N_subrun=6)]])
-            assert nx.entry_numbers() == ()
+        # Act
+        with NXstress(path, "w") as nx:
+            nx.write([ws], [[minimal_PeakCollection(N_subrun=6)]])
+
+        # Assert -- no column, an empty record, and the log intact on the way back
+        with nxload(str(path), "r") as root:
+            peaks = root["entry/peaks"]
+            assert "direction" not in peaks
+            assert _discriminator.recorded_names(peaks) == ()
+        with NXstress(path, "r") as nx:
+            (read_ws,), _ = nx.read()
+        assert read_ws.get_sample_log_values("direction").tolist() == ["11"] * 3 + ["22"] * 3
 
 
 class TestWriteTimeInvariants:
@@ -364,7 +397,7 @@ class TestWriteTimeInvariants:
 
         path = tmp_path / "overlap.nxs"
         with NXstress(path, "w") as nx:
-            with pytest.raises(ValueError, match="cover disjoint scan points"):
+            with pytest.raises(ValueError, match=r"\(run, scan point\) \(-1, 3\) appears in both"):
                 nx.write(workspaces, peakss)
 
     def test_masks_of_the_same_name_with_different_contents_raise(

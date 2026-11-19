@@ -171,7 +171,7 @@ class SubRuns(Iterable):
             # merged workspace. `append` bypasses this check. See
             # `docs/ground_truths.md`, "Two data-model limits that bite any
             # multi-record NeXus write". Only uniqueness is actually needed: see
-            # DD-2 in `plans/PR_review/deferred-defects.md`.
+            # DD-2 in `docs/deferred_defects.md`.
             raise RuntimeError("subruns are not sorted in increasing order")
         self._value = value.astype(int)
 

@@ -4,7 +4,7 @@ Shared builders for the by-hand NXstress scripts in this directory.
 Each script here demonstrates one NXstress feature to a reviewer, asserting what
 it prints. Run from the repository root:
 
-    pixi run python tests/scripts/NXstress/<script>.py
+    pixi run python tests/scripts/cis_tests/NXstress/<script>.py
 
 `tests/scripts/` is never collected by pytest (`norecursedirs`). The synthetic
 builders are the same plain functions the NXstress test fixtures wrap, so a
@@ -25,7 +25,7 @@ import numpy as np
 
 # A script's own directory is first on `sys.path`, not the repository root, so
 # `tests.util` is importable only once the root is added.
-REPO = Path(__file__).resolve().parents[3]
+REPO = Path(__file__).resolve().parents[4]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
@@ -65,7 +65,7 @@ def run(main: Callable[[], None]) -> None:
 def output_dir() -> Path:
     """Where a script leaves files for the reviewer: the first argument, or a fixed temp directory.
 
-    Fixed rather than fresh, so the GUI steps in `plans/PRs/phase-2.md` can name it.
+    Fixed rather than fresh, so the GUI steps in the PR text can name it.
     """
     path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(tempfile.gettempdir()) / "pyrs_nxstress_demo"
     path.mkdir(parents=True, exist_ok=True)

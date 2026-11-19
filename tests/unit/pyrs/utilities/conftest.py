@@ -16,7 +16,9 @@ Fixture conventions
   `NXstress/` tests as well as siblings of this file (e.g. `test_config.py`).
 - `config_override` — override config values **without** swapping the singleton, so
   that production modules which bound `Config` the documented way still see the
-  change. Use this for any test whose subject reads config; use `default_config`
+  change. Defined in `tests/conftest.py`, not here, since tests well outside
+  `pyrs/utilities/` read config too (the run-number default, the strain/stress
+  viewer). Use it for any test whose subject reads config; use `default_config`
   only when the test is *about* the config machinery itself (reload, `loadEnv`,
   isolation), which is what `test_config.py` does. See `config_override`'s own
   docstring for why the two cannot be the same fixture.

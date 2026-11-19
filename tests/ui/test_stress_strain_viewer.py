@@ -615,6 +615,43 @@ def strain_stress_window(qtbot):
     return window, qtbot
 
 
+@pytest.mark.gui
+@pytest.mark.integration
+def test_saved_state_restores_its_peak_in_the_window(strain_stress_window, test_data_dir, tmp_path, monkeypatch):
+    """Restoring e11 offers its peak tags, and the window selects the first: the saved one must win."""
+    # Arrange
+    window, _ = strain_stress_window
+    state = tmp_path / "state.json"
+    run_1328 = os.path.join(test_data_dir, "HB2B_1328.h5")
+    state.write_text(
+        json.dumps(
+            {
+                "stress_case": "in-plane-stress",
+                "filenames_11": [run_1328],
+                "filenames_22": [run_1328],
+                "filenames_33": [],
+                "peak_tag": "peak1",
+                "youngs_modulus": 200,
+                "poisson_ratio": 0.3,
+                "d0": None,
+            }
+        )
+    )
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileName", lambda *args, **kwargs: (str(state), ""))
+    # 1328's peak1 strain field is empty, so plotting it reports a failure in a
+    # modal dialog, which would block here. Recorded, not shown.
+    dialogs: list = []
+    monkeypatch.setattr(QtWidgets.QMessageBox, "exec", lambda box: dialogs.append(box.text()))
+
+    # Act
+    window.load()
+
+    # Assert
+    assert window.model.selectedPeak == "peak1"
+    assert window.peak_selection.peak_select.currentText() == "peak1"
+    assert dialogs == ["Failed to generate field"]
+
+
 # changes to SliceViewer from Mantid in the version 5.1 is needed for the stress/strain viewer to run
 @pytest.mark.skipif(old_mantid, reason="Need mantid version >= 5.1")
 @pytest.mark.gui

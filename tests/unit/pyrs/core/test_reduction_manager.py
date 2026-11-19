@@ -18,7 +18,7 @@ from tests.util.workspace_helpers import make_minimal_HidraWorkspace
 def test_setup_reduction_engine_any_sub_run_numbering(sub_runs: tuple, sub_run: int) -> None:
     """Whether to rebuild the 2theta map is decided against sub-run `n - 1`, which
     need not exist -- and, when it does, need not be the one reduced last.
-    Recorded under DD-2 in `plans/PR_review/deferred-defects.md`."""
+    Recorded under DD-2 in `docs/deferred_defects.md`."""
     # Arrange
     ws = make_minimal_HidraWorkspace(sub_runs=np.array(sub_runs), with_raw_counts=True)
     ws.set_sample_log("2theta", np.array(sub_runs), np.array([30.0, 30.0, 40.0]))

@@ -17,14 +17,25 @@ only when run after another test that had left fit-parameter plot axes selected.
 """
 
 from collections.abc import Callable
+import os
 from pathlib import Path
 
 import pytest
+from qtpy.QtWidgets import QApplication
 
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.NXstress.NXstress import NXstress
 from tests.unit.pyrs.utilities.NXstress.conftest import minimal_HidraWorkspace, minimal_PeakCollection  # noqa: F401
 from tests.util.peak_collection_helpers import createPeakCollection  # noqa: F401
+
+# Every module here imports mantidqt at module scope, which selects matplotlib's `QtAgg` backend;
+# matplotlib refuses it, with `ImportError`, unless a `QApplication` already exists or a display
+# can be opened -- it does not consult `QT_QPA_PLATFORM`. Without a display that failed every
+# tier at *collection*, since `-m` deselects only after import. An offscreen `QApplication`
+# created here, before those imports, satisfies the check; with a display nothing changes.
+if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    _HEADLESS_QAPP = QApplication.instance() or QApplication([])
 
 
 @pytest.fixture

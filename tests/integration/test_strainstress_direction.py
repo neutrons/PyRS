@@ -239,15 +239,10 @@ class TestNoPartiallySuccessfulLoad:
         assert model.stress is None
         assert model._e11_strain is not None
 
-    @pytest.mark.parametrize(
-        "overrides",
-        [{"filenames_22": ["missing.h5"]}, {"peak_tag": "no_such_peak"}],
-        ids=["unloadable file", "absent peak"],
-    )
-    def test_failed_session_restore_clears_everything(self, loaded, tmp_path, overrides):
+    def test_failed_session_restore_clears_everything(self, loaded, tmp_path):
         # Arrange -- a model already holding a session
         model, failures = loaded
-        path = self._session(tmp_path, **overrides)
+        path = self._session(tmp_path, filenames_22=["missing.h5"])
 
         # Act -- must not raise, nor compute stress from the earlier session
         model.from_json(str(path))
@@ -259,6 +254,24 @@ class TestNoPartiallySuccessfulLoad:
             assert getattr(model, f"_e{direction}_strain") is None
         assert model.stress is None
         assert model.peakTags == [] and model.selectedPeak is None
+
+    def test_absent_peak_keeps_the_restored_files_without_stress(self, loaded, tmp_path):
+        """A peak the files lack is not a failed load: they are kept, and the window names the gap."""
+        # Arrange -- a model already holding a session
+        model, failures = loaded
+        path = self._session(tmp_path, peak_tag="no_such_peak")
+
+        # Act
+        model.from_json(str(path))
+
+        # Assert -- the restored files, but no strain or stress from either session
+        assert not failures
+        assert len(model.e11) == len(model.e22) == 1
+        for direction in ("11", "22", "33"):
+            assert getattr(model, f"_e{direction}_strain") is None
+        assert model.stress is None
+        assert model.selectedPeak == "no_such_peak"
+        assert model.validate_selection("11") == "Peak no_such_peak is not in e11"
 
     def test_session_restore_succeeds(self, model_and_failures, tmp_path):
         # Arrange -- the view refreshes its peak list on "peakTags"

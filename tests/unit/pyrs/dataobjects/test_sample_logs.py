@@ -553,8 +553,8 @@ class TestSubRunOrdering:
     """`SubRuns` requires strictly increasing values; only uniqueness is needed.
 
     The xfail tests are the defects recorded under DD-2 in
-    `plans/PR_review/deferred-defects.md`, which recommends dropping the
-    ordering requirement. Each is strict, so it fails loudly once fixed.
+    `docs/deferred_defects.md`, whose recommended fix is to drop the ordering
+    requirement. Each is strict, so it fails loudly once fixed.
     """
 
     def test_repeated_values_raise(self):

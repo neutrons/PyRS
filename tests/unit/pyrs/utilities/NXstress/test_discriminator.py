@@ -52,7 +52,7 @@ class TestReservedColumns:
         logs = SampleLogs()
         logs.subruns = SubRuns([1, 2, 3])
 
-        written = set(_Peaks._init(logs))
+        written = set(_Peaks._init(logs, run_boundary=True))
 
         assert written == set(_discriminator.RESERVED_PEAK_COLUMNS)
 
@@ -76,7 +76,7 @@ class TestReservedColumns:
         for reserved in _discriminator.RESERVED_PEAK_COLUMNS:
             assert _discriminator.column_name(reserved) == reserved
 
-        candidates = {"direction", "run_number", "HB2B:direction", "2theta", "a.b", "_x_"}
+        candidates = {"direction", "zone", "HB2B:direction", "2theta", "a.b", "_x_"}
         encoded = {name: _discriminator.column_name(name) for name in candidates}
 
         assert not set(encoded.values()) & set(_discriminator.RESERVED_PEAK_COLUMNS)
@@ -84,8 +84,9 @@ class TestReservedColumns:
 
 
 class TestFieldNames:
-    def test_default_is_empty(self, config_override):
-        assert _discriminator.field_names() == ()
+    def test_default_is_direction(self, config_override):
+        """The strain/stress viewer's discriminator ships configured."""
+        assert _discriminator.field_names() == ("direction",)
 
     def test_configured_names_are_returned_in_order(self, config_override):
         configure(config_override, "nxstress:\n  discriminator_fields: ['b_field', 'a_field']\n")

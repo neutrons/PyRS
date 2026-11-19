@@ -64,7 +64,7 @@ Issues found:
 
 #. ``PEAKS`` group: only a single PEAKS group is allowed by the ``NXstress`` schema. This meant that in order to include *multiple* ``PeakCollection`` we needed to use a *flattened*-indexing scheme.  Such a scheme is allowed by the ``NXstress``-schema, but it is highly unlikely that any *generic* NeXus application will be able to decode these indices automatically.  **Further, since any data reduction (and associated peak fitting) would normally depend on the mask used, a *mask* field has been added to ``PeakCollection``.**  In order to not overly modify the existing code, this ``mask`` field is *optional*, with a *default* value corresponding to the *default* mask.
 
-#. **Converting from ``PyRS`` <peak tag> format to <phase name> and ``(h, k, l)`` (Miller indices) tags**.  At present we make this conversion automatically using a regular-expression based parser, however this is not an ideal solution.  Here it would be better if these values were specified *explicitly* by PyRS as *separate* fields in the ``PeakCollection``.
+#. **Converting from ``PyRS`` <peak tag> format to <phase name> and ``(h, k, l)`` (Miller indices) tags**.  At present we make this conversion automatically using a regular-expression based parser, however this is not an ideal solution.  Here it would be better if these values were specified *explicitly* by PyRS as *separate* fields in the ``PeakCollection``.  A tag the parser cannot read -- ``peak0``, as the strain/stress workflow tags its peaks -- or one that reads as ``(000)`` is written whole as the phase name, with ``(h, k, l) = (0, 0, 0)`` meaning *unknown* (``(000)`` describes no family of lattice planes).  It is read back as exactly the tag it was, and a warning is logged both ways: this is an interim representation, and PyRS should always fill in a valid ``<phase><hkl>`` tag.
 
 #. **It's assumed that ``PeakCollection.d_reference`` provides the required values to include in this section**.
 
@@ -156,15 +156,34 @@ nothing in the schema distinguishes them:
   ``read`` groups the rows by the tuple of their values.  A PV-style log name
   such as ``BL7:CS:Sample:Dir`` is encoded reversibly for the on-disk column and
   recovered exactly on read, by the same ``validItemName`` rule described above.
+  The shipped default is ``["direction"]``.
 * With ``discriminator_fields`` empty, a multi-workspace write is refused.
 * **The NXstress backend never merges workspaces; only PyRS core does**, before
   writing, as CombineRuns does.  This is a design rule of the backend, not a
   missing feature.  It is enforced on the workspace key -- the tuple of a
-  workspace's discriminator values: two inputs of one write may not share a key,
-  and an append may not bring a key the entry already holds, since either would
-  be read back as one workspace.  (The one exception is *extending* a single
-  workspace with further scan points under its existing key and peaks, "Case B"
-  of spec 04c, which is a deferred feature and refused as unsupported.)
+  workspace's discriminator values, and its run when the run is part of the key
+  (below): two inputs of one write may not share a key, and an append may not
+  bring a key the entry already holds, since either would be read back as one
+  workspace.  (The one exception is *extending* a single workspace with further
+  scan points under its existing key and peaks, "Case B" of spec 04c, which is a
+  deferred feature and refused as unsupported.)
+* A **single** workspace with no single value for a configured field -- none at
+  all, as for a peak-fitting save, or one varying across its scan points, as for
+  a workspace merged from several directions -- writes no column and records an
+  empty field list.  One workspace has no boundary to record, and the entry reads
+  back as one workspace whatever is configured.
+
+Every scan point is identified by ``(run_number, scan_point)``, not by
+``scan_point`` alone: each run numbers its scan points from 1, so the three
+directions of a stress measurement -- each its own run -- collide on scan point.
+The run number comes from the workspace's ``run_number`` sample log, per scan
+point, or from ``nxstress.default_run_number`` (``-1``) when there is none.  It
+is written as a ``run_number`` column beside ``scan_point`` on both
+``SAMPLE_DESCRIPTION`` and ``peaks``.  When every input workspace holds a single
+run, the run is also part of the key that tells workspaces apart (recorded as
+the ``peaks`` attribute ``run_number_is_boundary``), so two runs in one direction
+come back as two workspaces.  A workspace merged from several runs is written
+only on its own.
 
 Two data *families* behave differently under this, and the distinction runs
 through the whole implementation:
@@ -174,8 +193,10 @@ through the whole implementation:
   the diffractograms and the entry-level times -- is plain concatenation along
   ``scan_point``, in workspace order;
 * the **peak-index family** -- ``peaks`` and the ``FIT`` parameter groups -- is
-  ordered by the compound key ``(discriminators, phase, h, k, l, mask)``, with
-  the discriminator values as its most slowly varying coordinates.  Note the key
+  ordered by the compound key ``(workspace key, phase, h, k, l, mask)``. The
+  workspace key is the discriminator values and, when it is part of the key, the
+  run, ordered by column name -- so a field named after ``run_number`` sorts
+  after the run. They are its most slowly varying coordinates.  Note the key
   does *not* include ``scan_point``: one key identifies one ``PeakCollection``,
   and ``scan_point`` orders the rows *within* that key's run.  Putting the
   discriminators first is what makes each workspace's rows one contiguous block,
@@ -190,10 +211,16 @@ Issues found:
    sorted, globally segmented".  This was relaxed deliberately, so that append
    could be a plain tail-append; the reader never required more.
 
-#. **A discriminator field that resolves to nothing is a configuration error,
-   not a missing value**, and is reported as one.  A field named in the
-   configuration but absent from the workspace cannot be defaulted -- the whole
-   point of the column is to tell workspaces apart.
+#. **With more than one workspace, a discriminator field that resolves to
+   nothing is a configuration error, not a missing value**, and is reported as
+   one.  A field named in the configuration but absent from the workspace cannot
+   be defaulted -- the whole point of the column is to tell workspaces apart.
+   (A single workspace records no field instead; see above.)
+
+#. **No two workspaces may repeat a** ``(run_number, scan_point)`` **pair**, and
+   two workspaces with no ``run_number`` log share the default run number.  An
+   entry written before the run index carries no ``run_number`` column; it reads
+   exactly as before, and cannot be appended to.
 
 Multiple ``NXentry`` groups in one file
 ----------------------------------------

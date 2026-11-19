@@ -18,6 +18,10 @@ from qtpy.QtWidgets import QMainWindow, QAction  # type:ignore
 from qtpy.QtCore import Qt, Signal  # type: ignore
 from qtpy.QtGui import QDoubleValidator  # type:ignore
 
+from pyrs.interface.gui_helper import nxstress_file_filter, nxstress_save_available, write_nxstress_or_report
+from pyrs.interface.strainstressviewer.model import DIRECTIONS
+from pyrs.utilities.config import Config
+
 import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -817,6 +821,18 @@ class StrainStressViewer(QMainWindow):
         self.loadAction.triggered.connect(self.load)
         fileMenu.addAction(self.loadAction)
         fileMenu.addSeparator()
+        # NXstress: every loaded direction in one `.nxs` file. Both actions follow
+        # `nxstress.enable`, which switches the whole NXstress feature set on or off;
+        # saving also needs something writable loaded. Disabled, never hidden.
+        self.saveNXstressAction = QAction("Save as &NXstress...", self)
+        self.saveNXstressAction.setStatusTip("Save every loaded direction to one NXstress (.nxs) file")
+        self.saveNXstressAction.triggered.connect(self.save_nxstress)
+        fileMenu.addAction(self.saveNXstressAction)
+        self.loadNXstressAction = QAction("Load NXstress...", self)
+        self.loadNXstressAction.setStatusTip("Load every direction from one NXstress (.nxs) file")
+        self.loadNXstressAction.triggered.connect(self.load_nxstress)
+        fileMenu.addAction(self.loadNXstressAction)
+        fileMenu.addSeparator()
         exitAction = QAction("&Exit", self)
         exitAction.setShortcut("Ctrl+Q")
         exitAction.setStatusTip("Exit application")
@@ -874,6 +890,8 @@ class StrainStressViewer(QMainWindow):
         self.splitter.addWidget(right)
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 5)
+
+        self.update_nxstress_action()
 
     def closeEvent(self, event) -> None:
         # Closing a window sends no `closeEvent` to the widgets inside it, so the
@@ -944,6 +962,21 @@ class StrainStressViewer(QMainWindow):
             self.enable_stress_output(True)
         else:
             self.enable_stress_output(False)
+        self.update_nxstress_action()
+
+    def update_nxstress_action(self) -> None:
+        """Enable the NXstress actions when NXstress I/O is on, and saving when something can be written.
+
+        **Load NXstress...** follows `nxstress.enable` alone.
+
+        Every loaded workspace must carry instrument geometry, which `NXstress.write`
+        requires -- the same rule the other viewers apply through
+        `nxstress_save_available`. Project files with an incomplete `geometry setup`
+        load without it, so their directions cannot be saved as NXstress.
+        """
+        loaded = [ws for direction in DIRECTIONS for ws in getattr(self.model, f"e{direction}")]
+        self.saveNXstressAction.setEnabled(bool(loaded) and all(nxstress_save_available(ws) for ws in loaded))
+        self.loadNXstressAction.setEnabled(bool(Config["nxstress.enable"]))
 
     def enable_stress_output(self, enable):
         self.csvExport.setEnabled(enable)
@@ -976,10 +1009,7 @@ class StrainStressViewer(QMainWindow):
         self.stressCase.dimChanged.connect(self.dimChanged)
         self.fileLoading.file_load_e33.setDisabled(stressCase.lower() != "diagonal")
 
-        for d in ("11", "22", "33"):
-            self.fileLoading.set_text_values(
-                d, ", ".join(os.path.basename(filename) for filename in self.model.get_filenames_for_direction(d))
-            )
+        self.update_file_fields()
         self.update_d0_from_model()
         self.update_plot()
 
@@ -1019,3 +1049,38 @@ class StrainStressViewer(QMainWindow):
         filename, _ = QFileDialog.getOpenFileName(self, "Load Stress state", "", "JSON (*.json);;All Files (*)")
         if filename:
             self.controller.load(filename)
+
+    def save_nxstress(self) -> None:
+        """File > Save as NXstress...: write every loaded direction to one `.nxs` file.
+
+        A failure is reported in a dialog, and leaves any existing file untouched.
+        """
+        filename, _ = QFileDialog.getSaveFileName(self, "Save as NXstress", "", nxstress_file_filter())
+        if filename:
+            # Imposes the configured extension, and replaces an existing file only on success.
+            write_nxstress_or_report(self, filename, self.model.save_as_nxstress)
+
+    def load_nxstress(self) -> None:
+        """File > Load NXstress...: load every direction from one `.nxs` file.
+
+        A refused file is reported by the model, and the window is left as it was.
+        """
+        filename, _ = QFileDialog.getOpenFileName(
+            self, "Load NXstress", "", f"{nxstress_file_filter()};;All Files (*)"
+        )
+        if filename and self.model.load_nxstress(filename):
+            self.update_file_fields()
+            self.update_plot()
+
+    def update_file_fields(self) -> None:
+        """Show the files each direction was loaded from, each name once.
+
+        A direction loaded from an NXstress file lists that file once per
+        workspace -- twice for a direction of two runs -- so names are shown once
+        each, in order.
+        """
+        for direction in DIRECTIONS:
+            names = dict.fromkeys(
+                os.path.basename(filename) for filename in self.model.get_filenames_for_direction(direction)
+            )
+            self.fileLoading.set_text_values(direction, ", ".join(names))

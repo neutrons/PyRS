@@ -61,7 +61,9 @@ class TestPeakCollectionRanges:
         )
 
         # Write to NXreflections group
-        peaks_group = _Peaks.init_group(_Peaks.indexed([peak1, peak2, peak3], ws._sample_logs), ws._sample_logs)
+        peaks_group = _Peaks.init_group(
+            _Peaks.indexed([peak1, peak2, peak3], ws._sample_logs), ws._sample_logs, run_boundary=True
+        )
 
         # Read ranges
         ranges = _Peaks.peakCollectionRanges(peaks_group)
@@ -84,7 +86,7 @@ class TestPeakCollectionRanges:
         ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         # Manually create NXreflections with interleaved blocks
-        peaks = _Peaks._init(ws._sample_logs)
+        peaks = _Peaks._init(ws._sample_logs, run_boundary=False)
 
         # Create data for interleaved pattern: Al-111, Si-200, Al-111 (duplicate)
         phase_names = np.array(["Al", "Si", "Al"])
@@ -122,7 +124,7 @@ class TestPeakCollectionRanges:
         ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         # Manually create NXreflections with non-increasing scan_point
-        peaks = _Peaks._init(ws._sample_logs)
+        peaks = _Peaks._init(ws._sample_logs, run_boundary=False)
 
         # Create data with scan_point not strictly increasing: 1, 3, 2 (wrong!)
         phase_names = np.array(["Al", "Al", "Al"])
@@ -371,7 +373,7 @@ class TestPeakCollectionsFromNexus:
                 fit_group = entry[GROUP_NAME.FIT]
 
                 # Read PeakCollections
-                reconstructed_peaks = _Peaks.peakCollectionsFromNexus(peaks_group, fit_group)
+                reconstructed_peaks = _Peaks.peakCollectionsFromNexus(peaks_group, fit_group, wavelengths={})
 
         # Verify we got 2 PeakCollections back
         assert len(reconstructed_peaks) == 2
@@ -402,11 +404,13 @@ class TestPeakCollectionsFromNexus:
             # Verify sub_runs match
             np.testing.assert_array_equal(orig.sub_runs.raw_copy(), recon.sub_runs.raw_copy())
 
-            # Verify d_reference (should be constant for all subruns)
+            # Verify d_reference. It is read back per scan point, as the writer
+            # stored it and as `HidraProjectFile` reads it; an unset d-reference is
+            # held as one NaN, which the writer broadcast across the rows.
             orig_d, orig_d_err = orig.get_d_reference()
             recon_d, recon_d_err = recon.get_d_reference()
-            np.testing.assert_almost_equal(orig_d, recon_d, decimal=5)
-            np.testing.assert_almost_equal(orig_d_err, recon_d_err, decimal=5)
+            np.testing.assert_almost_equal(np.broadcast_to(orig_d, recon_d.shape), recon_d, decimal=5)
+            np.testing.assert_almost_equal(np.broadcast_to(orig_d_err, recon_d_err.shape), recon_d_err, decimal=5)
 
             # Verify effective parameters match (within tolerance)
             orig_eff_vals, orig_eff_errs = orig.get_effective_params()
@@ -453,7 +457,7 @@ class TestPeakCollectionsFromNexus:
                 peaks_group = entry[GROUP_NAME.PEAKS]
                 fit_group = entry[GROUP_NAME.FIT]
 
-                reconstructed_peaks = _Peaks.peakCollectionsFromNexus(peaks_group, fit_group)
+                reconstructed_peaks = _Peaks.peakCollectionsFromNexus(peaks_group, fit_group, wavelengths={})
 
         # Verify peak_tag matches
         assert len(reconstructed_peaks) == 1
@@ -542,7 +546,7 @@ class TestSplitterEnforcesOnlyContiguityAndMonotonicity:
         """
         logs = SampleLogs()
         logs[HidraConstants.SUB_RUNS] = np.arange(1, len(phase) + 1)
-        group = _Peaks._init(logs, {})
+        group = _Peaks._init(logs, {}, run_boundary=False)
 
         n = len(phase)
         for name, values in (
@@ -693,7 +697,7 @@ class TestDiscriminatorNamesAreCheckedAgainstTheGroup:
     def _two_block_group(logs, with_column: bool):
         """Two adjacent blocks sharing one compound key, told apart only by direction."""
         dtypes = {"direction": FIELD_DTYPE.STRING.value} if with_column else {}
-        peaks = _Peaks._init(logs, dtypes)
+        peaks = _Peaks._init(logs, dtypes, run_boundary=False)
         n = 6
         for name in ("phase_name", "h", "k", "l", "mask", "scan_point", "center", "center_errors"):
             peaks[name].resize((n,))
@@ -739,7 +743,7 @@ class TestDiscriminatorNamesAreCheckedAgainstTheGroup:
 
         # Assert
         assert [(start, end) for _, _, start, end in ranges] == [(0, 3), (3, 6)]
-        assert [dict(disc)["direction"] for disc, _, _, _ in ranges] == ["11", "22"]
+        assert [dict(key.discriminators)["direction"] for key, _, _, _ in ranges] == ["11", "22"]
 
     def test_a_column_less_group_still_reads_with_no_names(self, minimal_HidraWorkspace):
         """Empty is legitimate: it means the entry records no workspace boundary."""
@@ -754,3 +758,42 @@ class TestDiscriminatorNamesAreCheckedAgainstTheGroup:
         # Not "merged" in any NXstress sense: the rows were concatenated with no
         # boundary recorded, and the splitter has nothing to split on.
         assert [(start, end) for _, _, start, end in ranges] == [(0, 6)]
+
+
+class TestReadBackCollectionsKeepTheirPhysics:
+    """A collection read back converts to the same d-spacing and strain as the one written.
+
+    Before, the reader rebuilt every collection with `wavelength=NaN` -- a comment
+    said the workspace would set it, and nothing did -- so every d-spacing, and
+    every strain, read back as NaN. It also gave the d-reference as one value
+    taken from the first row. Both are what a stress calculation is made of.
+    """
+
+    @pytest.fixture
+    def round_trip(self, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path):
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3, 4], with_instrument=True, with_masks=True)
+        # The wavelength is stated, not left to the fixture: with a NaN one both sides
+        # would be NaN, and `assert_allclose` treats NaN as equal to NaN.
+        written = minimal_PeakCollection(N_subrun=4, peak_tag="Fe110", wavelength=1.486)
+        written.set_d_reference(values=np.array([1.0, 1.1, 1.2, 1.3]), errors=np.array([1e-4, 2e-4, 3e-4, 4e-4]))
+        path = tmp_path / "physics.nxs"
+        with NXstress(path, "w") as nx:
+            nx.write([ws], [[written]])
+        with NXstress(path, "r") as nx:
+            _, ((read,),) = nx.read()
+        return written, read
+
+    def test_d_spacing_survives(self, round_trip):
+        written, read = round_trip
+        assert np.isfinite(written.get_dspacing_center()[0]).all()
+        np.testing.assert_allclose(read.get_dspacing_center()[0], written.get_dspacing_center()[0])
+        np.testing.assert_allclose(read.get_dspacing_center()[1], written.get_dspacing_center()[1])
+
+    def test_the_d_reference_survives_per_scan_point(self, round_trip):
+        written, read = round_trip
+        np.testing.assert_allclose(read.get_d_reference(), written.get_d_reference())
+
+    def test_strain_survives(self, round_trip):
+        written, read = round_trip
+        assert np.isfinite(written.get_strain()[0]).all()
+        np.testing.assert_allclose(read.get_strain(), written.get_strain())

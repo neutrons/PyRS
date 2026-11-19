@@ -6,7 +6,7 @@
 # does not define is refused when PyRS starts, so check spelling and section.
 
 nxstress:
-  # Whether NXstress-format (.nxs) output is written.
+  # Whether the NXstress (.nxs) feature set is available at all: saving and loading.
   enable: true
   extension: "nxs"
   # Future-facing, not yet connected: validated here, but nothing reads it yet.
@@ -44,9 +44,14 @@ nxstress:
   # PV log name such as `BL7:CS:Sample:Dir` -- is encoded reversibly for the
   # on-disk column and recovered exactly on read.
   #
+  # `direction` is what the strain/stress viewer writes its directions under. A
+  # single workspace with no single value for a configured field -- a PeakFitting
+  # save has no direction at all -- records no field, since one workspace has no
+  # boundary to record, and reads back as one workspace whatever is configured.
+  #
   # Empty, a write of more than one workspace is refused. NXstress does not merge
   # workspaces; merge them in PyRS first, as CombineRuns does.
-  discriminator_fields: []
+  discriminator_fields: ["direction"]
   # Whether a single-workspace write may hold scan points that none of its peak
   # collections cover. A multi-workspace entry recovers each workspace's scan
   # points from its peaks, so there such a point would belong to no workspace on
@@ -55,6 +60,14 @@ nxstress:
   # default only because no workflow is known to need partial coverage. A
   # workspace with no peak collections at all is not affected.
   allow_partial_peak_coverage: false
+  # Run number of a workspace that records none. Every scan point in an entry is
+  # identified by (run number, scan point): each run numbers its scan points from
+  # 1, so two runs in one file -- three strain directions, say -- collide on scan
+  # point alone. A workspace with a `run_number` sample log uses its own; any
+  # other uses this value, so two such workspaces covering the same scan points
+  # cannot share an entry. Elsewhere in PyRS it is the run number of a
+  # `PeakCollection` that records none. Must not be 0.
+  default_run_number: -1
 
 legacy_io:
   # Whether legacy HidraProject (.h5) output is written.

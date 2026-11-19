@@ -20,7 +20,7 @@ Shows that:
 
 Run from the repository root:
 
-    pixi run python tests/scripts/NXstress/config_validation.py [output-dir]
+    pixi run python tests/scripts/cis_tests/NXstress/config_validation.py [output-dir]
 """
 
 import os

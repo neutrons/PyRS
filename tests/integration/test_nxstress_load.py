@@ -19,7 +19,8 @@ import numpy as np
 import pytest
 
 from pyrs.core.workspaces import HidraWorkspace
-from pyrs.interface.nxstress_load import UnsupportedNXstressFile, read_single_workspace
+from pyrs.interface.texture_fitting.texture_fitting_model import TextureFittingModel
+from pyrs.interface.nxstress_load import NXstressDisabled, UnsupportedNXstressFile, read_single_workspace
 from pyrs.peaks.peak_collection import PeakCollection
 from pyrs.utilities.config import Config
 from pyrs.utilities.NXstress.NXstress import NXstress
@@ -160,3 +161,27 @@ class TestReadReturnsObjectsDetachedFromTheFile:
         assert list(recovered.reduction_masks) == list(ws.reduction_masks)
         assert recovered.get_sample_log_value("direction") == "11"
         assert peak_collections[0][0].get_effective_params() is not None
+
+
+class TestNXstressSwitchedOff:
+    """`nxstress.enable` switches the whole NXstress feature set, loading included."""
+
+    def test_a_load_is_refused_before_the_file_is_opened(self, config_override, tmp_path: Path) -> None:
+        # Arrange -- a path that does not exist: a refusal from the file would be an OSError
+        config_override({"nxstress": {"enable": False}})
+
+        # Act / Assert
+        with pytest.raises(NXstressDisabled, match=r"'nxstress.enable' is false"):
+            read_single_workspace(tmp_path / "absent.nxs")
+
+    def test_a_viewer_model_refuses_the_load(self, config_override, tmp_path: Path) -> None:
+        """Through `TextureFittingModel`, which wraps a failed load in `RuntimeError`."""
+        # Arrange
+        config_override({"nxstress": {"enable": False}})
+        model = TextureFittingModel(None)
+
+        # Act / Assert
+        with pytest.raises(RuntimeError) as raised:
+            model.load_hidra_project_file(str(tmp_path / "absent.nxs"))
+        assert isinstance(raised.value.__cause__, NXstressDisabled)
+        assert model.ws is None

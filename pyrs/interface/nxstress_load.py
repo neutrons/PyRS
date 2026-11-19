@@ -29,11 +29,37 @@ from pathlib import Path
 
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.peaks.peak_collection import PeakCollection
+from pyrs.utilities.config import Config
 from pyrs.utilities.NXstress.NXstress import NXstress
 
 
 class UnsupportedNXstressFile(RuntimeError):
     """An NXstress file holds more than a single-workspace viewer can represent."""
+
+
+class NXstressDisabled(RuntimeError):
+    """NXstress I/O was asked for while `nxstress.enable` is false.
+
+    A `RuntimeError`, like `UnsupportedNXstressFile`, so that it lands in the
+    viewers' existing "unable to load" handling.
+    """
+
+
+def require_nxstress_enabled() -> None:
+    """Refuse any NXstress read or write while `nxstress.enable` is false.
+
+    `nxstress.enable` switches the whole NXstress feature set -- loading as well
+    as saving. The viewers also disable their NXstress actions and drop
+    `NXstress (*.nxs)` from their file dialogs; this is the check behind those,
+    so that no path reaches the file however it was asked for.
+
+    Raises:
+        NXstressDisabled: If `nxstress.enable` is false.
+    """
+    if not Config["nxstress.enable"]:
+        raise NXstressDisabled(
+            "NXstress (.nxs) files are switched off in this installation ('nxstress.enable' is false)."
+        )
 
 
 def read_single_workspace(path: Path) -> tuple[HidraWorkspace, list[PeakCollection]]:
@@ -47,11 +73,13 @@ def read_single_workspace(path: Path) -> tuple[HidraWorkspace, list[PeakCollecti
         expects, and what `NXstress.read` returned before spec 04b.
 
     Raises:
+        NXstressDisabled: If NXstress I/O is switched off (`nxstress.enable`).
         UnsupportedNXstressFile: If the file holds more than one `NXentry`, or
             the entry holds more than one workspace. Both are legitimate NXstress
             files; neither can be shown by a viewer that holds one workspace, and
             silently showing part of one is how data gets lost on the next save.
     """
+    require_nxstress_enabled()
     with NXstress(path, "r") as nx:
         entries = nx.entry_numbers()
         if len(entries) > 1:

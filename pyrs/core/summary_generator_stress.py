@@ -9,7 +9,6 @@ import math
 from pyrs.dataobjects.fields import StressField
 from pyrs.dataobjects.fields import StrainField
 from pyrs.dataobjects.fields import ScalarFieldSample
-from pyrs.peaks.peak_collection import PeakCollection
 
 import numpy as np
 from pyrs.core.stress_facade import StressFacade
@@ -198,6 +197,12 @@ class SummaryGeneratorStress:
             # Function starts here
             self._recalc_peak_collections_data()
 
+            # d0 doesn't depend on direction: the consensus across directions, on the
+            # stress grid, so `row` indexes it the same way it indexes the coordinates
+            d0_scalar_field: ScalarFieldSample = self._stress_facade.d_reference
+            d0_values = d0_scalar_field.values
+            d0_errors = d0_scalar_field.errors
+
             body = ""
 
             # write for each row of the CSV body, first coordinates, d0 and
@@ -207,20 +212,8 @@ class SummaryGeneratorStress:
                 for coord in coordinate:
                     line += self._write_number(coord, 2)
 
-                # d0 doesn't depend on direction so just picking the first peak_collection
-                for direction in SummaryGeneratorStress.directions:
-                    peak_collection = self._get_peak_collection(direction)
-                    if not peak_collection:
-                        continue
-
-                    if row >= len(peak_collection.get_d_reference()[0]):
-                        line += ", , "
-                    else:
-                        d0_value = peak_collection.get_d_reference()[0][row]
-                        d0_error = peak_collection.get_d_reference()[1][row]
-                        decimals = SummaryGeneratorStress.decimals["d0"]
-                        line += self._write_number(d0_value, decimals) + self._write_number(d0_error, decimals)
-                        break
+                decimals = SummaryGeneratorStress.decimals["d0"]
+                line += self._write_number(d0_values[row], decimals) + self._write_number(d0_errors[row], decimals)
 
                 # value error for fields_3dir = ['d', 'FWHM', 'Peak_Height', 'Strain', 'Stress']
                 for field_3dir in SummaryGeneratorStress.fields_3dir:
@@ -407,16 +400,6 @@ class SummaryGeneratorStress:
         strain = self._stress.strain
         if isinstance(strain, StrainField):
             return strain
-
-        return None
-
-    def _get_peak_collection(self, direction: str) -> Optional[PeakCollection]:
-        """
-        Returns a peak_collection for a particular direction from self._stress
-        """
-        strain = self._get_strain_field(direction)
-        if isinstance(strain, StrainField):
-            return strain.peak_collections[0]
 
         return None
 
