@@ -68,11 +68,12 @@ After implementation:
 - For UI work, actually exercise the feature in a browser — type checking and tests verify code correctness, not feature correctness.
 
 ### Step 5: Code Review Process (For Major Changes)
-<!-- cherry-pick 30231c18: reviewer links below changed from .github/agents/ to .claude/agents/ -->
-After a significant feature or refactor, delegate review using the `Agent` tool. Prefer the project's purpose-built reviewers in [.claude/agents/](.claude/agents/):
+After a significant feature or refactor, delegate review using the `Agent` tool. The project's own agents are in [.claude/agents/](.claude/agents/); prefer its purpose-built reviewers:
 - [security-reviewer](.claude/agents/security-reviewer.md) — security-focused review.
 - [design-reviewer](.claude/agents/design-reviewer.md) — architecture and design review.
 - [test-reviewer](.claude/agents/test-reviewer.md) — test-coverage review.
+
+The folder's other agent, [skill-installer](.claude/agents/skill-installer.md), installs domain skills from the neutron-skills library as Claude Code subagents. It runs `scripts/install_skills.py`, which is not in the repository yet, so it cannot be used until that script is added.
 
 Brief the sub-agent with what changed, why, the files touched, and what to focus on.
 
@@ -302,7 +303,7 @@ Trigger a review when:
 - Marking major work as complete.
 - The user asks.
 
-When delegating to a sub-agent via the `Agent` tool, hand over a self-contained brief: what changed, why, the files touched, and the specific concerns to weigh (style, tests, docs, bugs, perf, security). Sub-agents do not see your conversation — give them the context they need to make judgment calls.
+Use the reviewers in [.claude/agents/](.claude/agents/) (see Step 5 above). When delegating to a sub-agent via the `Agent` tool, hand over a self-contained brief: what changed, why, the files touched, and the specific concerns to weigh (style, tests, docs, bugs, perf, security). Sub-agents do not see your conversation — give them the context they need to make judgment calls.
 
 ## 📚 Documentation Standards
 
