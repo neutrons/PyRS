@@ -400,9 +400,8 @@ def test_incomplete_archived_start_is_refused(calibration, tmp_path):
 
     # Arrange
     path = tmp_path / "archived.json"
-    write_calibration_to_json(
-        DENEXDetectorShift(*[0.0] * 7), DENEXDetectorShift(*[0.01] * 7), 1.53, 1e-4, 1, str(path)
-    )
+    refused = DENEXDetectorShift(0.004, -0.003, 0.002, 0.3, -0.2, 0.1, 0.0)  # non-zero: a partial apply would show
+    write_calibration_to_json(refused, DENEXDetectorShift(*[0.01] * 7), 1.53, 1e-4, 1, str(path))
     stored = _json.loads(path.read_text())
     del stored["Rot_y"], stored["error_Rot_y"]
     path.write_text(_json.dumps(stored))

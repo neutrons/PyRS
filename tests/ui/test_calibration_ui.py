@@ -509,12 +509,16 @@ def _load_good_start(window, monkeypatch, tmp_path):
     monkeypatch.setattr(viewer_module.QFileDialog, "getOpenFileNames", lambda *args, **kwargs: ([str(good)], ""))
     window.fileLoading.file_load_calib.openCalibFileDialog()
     table = window.calib_summary._cal_summary_table
-    return str(good), [table.item(row, 0).text() for row in range(8)]
+    column = [table.item(row, 0).text() for row in range(8)]
+    assert float(column[7]) == pytest.approx(1.53), "the good start did not load"  # a broken setup says so
+    return str(good), column
 
 
 @pytest.mark.parametrize("kind", ["missing", "not-a-calibration", "null-value"])
 def test_unreadable_calibration_changes_nothing(calibration_window, monkeypatch, tmp_path, kind):
     """A start that cannot be read is reported and changes neither the table nor the remembered file (#1098)"""
+    import json
+
     import h5py
 
     from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
@@ -530,7 +534,7 @@ def test_unreadable_calibration_changes_nothing(calibration_window, monkeypatch,
         names = ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda")
         stored = {name: 0.0 for name in names}
         stored.update({f"error_{name}": -1.0 for name in names}, Status=1, TTH_0=None)
-        path.write_text(__import__("json").dumps(stored))
+        path.write_text(json.dumps(stored))
     table = window.calib_summary._cal_summary_table
     good, before = _load_good_start(window, monkeypatch, tmp_path)  # a good start the bad one must not disturb
     messages, asked = [], []
@@ -643,7 +647,12 @@ def test_recipe_start_file_is_read_like_load_calibration(calibration_window, mon
     window._nexus_file = "HB2B_0001.nxs.h5"  # the recipe's run: not loaded again
     earlier, before = _load_good_start(window, monkeypatch, tmp_path)
     start = tmp_path / "recipe_start.json"
-    if kind != "unreadable":
+    if kind == "unreadable":  # bad content, not a missing file: a non-numeric value
+        names = ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda")
+        bad = {name: 0.0 for name in names}
+        bad.update({f"error_{name}": -1.0 for name in names}, Status=1, TTH_0=None)
+        start.write_text(json.dumps(bad))
+    else:
         write_calibration_to_json(
             DENEXDetectorShift(0.004, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
             DENEXDetectorShift(*[0.01] * 7),
@@ -676,10 +685,18 @@ def test_recipe_start_file_is_read_like_load_calibration(calibration_window, mon
     table = window.calib_summary._cal_summary_table
     values = [table.item(row, 0).text() for row in range(8)]
     if kind == "good":
-        assert float(values[0]) == pytest.approx(0.004) and float(values[7]) == pytest.approx(1.54)
+        assert float(values[0]) == pytest.approx(0.004)
+        assert float(values[7]) == pytest.approx(1.54)
         assert window._calibration_input == str(start)
-        assert messages == [] and asked == []
+        assert messages == []
+        assert asked == []
+    elif kind == "unreadable":
+        assert values == before
+        assert window._calibration_input == earlier
+        assert messages == ["Cannot load the calibration"]
+        assert asked == []
     else:
         assert values == before
         assert window._calibration_input == earlier
-        assert (messages, len(asked)) == ((["Cannot load the calibration"], 0) if kind == "unreadable" else ([], 1))
+        assert messages == []
+        assert len(asked) == 1
