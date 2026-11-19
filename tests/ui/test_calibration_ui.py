@@ -124,7 +124,9 @@ def test_detector_calibration(calibration_window, tmp_path, export_settings):
     qtbot.mouseClick(window.calib_summary.export_calib_bttn, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
     assert not hasattr(window.calib_summary, "export_local_calib_bttn")  # Export replaces it (#1045)
-    (calib_path,) = [str(path) for path in calib_folder.iterdir()]
+    # the JSON and, ticked by default, its NeXus copy with diagnostics (#1098); the NeXus copy is loaded back below
+    json_path, calib_path = sorted(str(path) for path in calib_folder.iterdir())
+    assert json_path.endswith(".json") and calib_path == json_path[: -len(".json")] + ".nxs"
     # the folder is remembered for the next export, in the scratch settings
     from pyrs.interface.detector_calibration.detector_calibration_viewer import EXPORT_FOLDER_KEY
 
@@ -372,7 +374,15 @@ def test_export_dialog_rules(qtbot):
 
     # Assert - opens with only the folder ticked, ready to export
     assert dialog.folder_box.isChecked() and ok.isEnabled()
-    assert dialog.targets() == {"folder": "/tmp", "latest": False, "latest_mono": False, "archive": False}
+    # and with the NeXus copy ticked (#1098)
+    assert dialog.nexus_box.isChecked()
+    assert dialog.targets() == {
+        "folder": "/tmp",
+        "latest": False,
+        "latest_mono": False,
+        "archive": False,
+        "nexus": True,
+    }
 
     # a shared target unticks and disables the folder
     dialog.archive_box.setChecked(True)
@@ -383,7 +393,7 @@ def test_export_dialog_rules(qtbot):
     dialog.archive_box.setChecked(False)
     dialog.latest_box.setChecked(True)
     assert dialog.archive_box.isChecked() and not dialog.archive_box.isEnabled()
-    assert dialog.targets() == {"folder": None, "latest": True, "latest_mono": False, "archive": True}
+    assert dialog.targets() == {"folder": None, "latest": True, "latest_mono": False, "archive": True, "nexus": True}
     dialog.latest_mono_box.setChecked(True)
     dialog.latest_box.setChecked(False)
     assert dialog.archive_box.isChecked() and not dialog.archive_box.isEnabled()  # still a latest file

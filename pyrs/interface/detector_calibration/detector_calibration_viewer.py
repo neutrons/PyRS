@@ -834,7 +834,8 @@ class ExportCalibDialog(QDialog):
 
     User decisions: the folder copy and the shared targets are exclusive (ticking a shared target unticks and
     disables the folder); a "latest" file requires the archive (ticking one ticks and locks Archive); OK is
-    disabled when nothing is ticked. The dialog opens with only the folder ticked.
+    disabled when nothing is ticked. The dialog opens with only the folder ticked, and with "Also write NeXus"
+    ticked (#1098): a NeXus copy with diagnostics beside the folder or archive copy.
     """
 
     def __init__(self, parent=None, folder="", mono="SiXXX", description=(True, "")):
@@ -862,6 +863,10 @@ class ExportCalibDialog(QDialog):
         self.latest_box = QCheckBox("Latest: HB2B_Latest.json (what reduction picks up)")
         note = QLabel("A latest file is always archived too. The folder copy and the shared files are exclusive.")
         note.setWordWrap(True)
+        self.nexus_box = QCheckBox(
+            "Also write NeXus (with diagnostics): HB2B_CAL_<time>.nxs beside the folder or archive copy"
+        )
+        self.nexus_box.setChecked(True)
 
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.buttonBox.accepted.connect(self.accept)
@@ -877,7 +882,7 @@ class ExportCalibDialog(QDialog):
         self.layout.addWidget(self.folder_box)
         self.layout.addLayout(folder_row)
         self.layout.addWidget(shared)
-        for widget in (self.archive_box, self.latest_mono_box, self.latest_box, note, self.buttonBox):
+        for widget in (self.archive_box, self.latest_mono_box, self.latest_box, note, self.nexus_box, self.buttonBox):
             self.layout.addWidget(widget)
         self.setLayout(self.layout)
         self._update()
@@ -922,6 +927,7 @@ class ExportCalibDialog(QDialog):
             "latest": self.latest_box.isChecked(),
             "latest_mono": self.latest_mono_box.isChecked(),
             "archive": self.archive_box.isChecked(),
+            "nexus": self.nexus_box.isChecked(),
         }
 
 
@@ -1001,11 +1007,12 @@ class CalibrationSummaryView(QGroupBox):
             self._export_folder = targets["folder"]
             _settings().setValue(EXPORT_FOLDER_KEY, targets["folder"])
 
-    def write_calibration(self, folder=None, latest=False, latest_mono=False, archive=False):
-        """Write the calibration to the chosen targets and report which files were written (or why not)."""
+    def write_calibration(self, folder=None, latest=False, latest_mono=False, archive=False, nexus=False):
+        """Write the calibration to the chosen targets and report which files were written (or why not); a
+        missing NeXus copy is a warning, the JSON files were written (#1098)."""
         try:
             written = self._parent.controller.export_calibration(
-                folder, latest=latest, latest_mono=latest_mono, archive=archive
+                folder, latest=latest, latest_mono=latest_mono, archive=archive, nexus=nexus
             )
         except (ValueError, FileNotFoundError, PermissionError, RuntimeError, OSError) as export_err:
             pop_message(self, "Export failed", str(export_err), "error")
@@ -1013,6 +1020,9 @@ class CalibrationSummaryView(QGroupBox):
         message = "Calibration written to " + ", ".join(written)
         if self._parent.model.provenance_problem:
             message += f" (provenance incomplete: {self._parent.model.provenance_problem})"
+        if self._parent.model.nexus_problem:
+            message += f" ({self._parent.model.nexus_problem})"
+            pop_message(self, "NeXus copy missing", self._parent.model.nexus_problem, "warning")
         self._parent.statusBar().showMessage(message)
         return written
 
