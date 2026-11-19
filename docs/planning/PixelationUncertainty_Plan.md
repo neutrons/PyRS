@@ -3,8 +3,35 @@
 | | |
 |---|---|
 | **Board** | [neutrons project #5](https://github.com/orgs/neutrons/projects/5); tracking issue [#1111](https://github.com/neutrons/PyRS/issues/1111) |
-| **Status** | Phase 0 in progress: 2019–2023 and 2025 (IPTS-36131) data analysed; findings in [ground truths](../ground_truths.md) (2026-11-12) |
+| **Status** | **Concluded (2026-11-19).** Settled by the Poisson bin variance in reduction, PR #1125 (see Conclusion). Findings in [ground truths](../ground_truths.md) |
 | **Production code changes** | None planned in this phase. Any change to reduction or fitting is proposed separately and needs its own approval. |
+
+## Conclusion (2026-11-19)
+
+**The project is settled by the variance model** (user decision). Reduction now gives each 2θ bin the Poisson
+variance of its total count, σ²_bin = Σ Nᵢ, on the native 1024 × 1024 pixels, instead of a per-pixel σ = 1 floor
+(also pyFAI's `poisson` convention). The change was implemented in PR #1125 (`fix/1109-poisson-bin-variance` →
+`next`), which carries the user-documentation page *Intensity Uncertainties* with the full evidence.
+
+**Evidence:**
+- real event data split into independent pulse slices: observed / predicted variance 0.999–1.04 at every count
+  level, against 0.036–0.84 for the former rule;
+- Monte Carlo pull widths 0.96–1.01 (former 0.58–0.61) and no weak-peak fit failures (former 24 %);
+- `FitPeaks` passes σ straight into the reported errors.
+
+**Decisions along the way:**
+- detector calibration stays on the 1 × 1 grid;
+- vertical pixel grouping is not used;
+- the peak profile stays symmetric;
+- `FitCalibration` takes the new weights (gold errors updated; its rotation instability is DD-30).
+
+**Not pursued** (recorded for future work, outside this project):
+- the fit-level event-split scatter of peak centres (1.3–1.7× the reported errors for every variance rule,
+  8 groups);
+- HiDRA's position-dependent peak asymmetry, and a ~55–100 µε residual position dependence of d, which point to
+  the detector geometry / position response;
+- Phase 4 (propagation to stress on a real sample);
+- `FitCalibration`'s poorly determined rotations (DD-30) and `check_sweeping_motor` (DD-29).
 
 ## Motivation
 
