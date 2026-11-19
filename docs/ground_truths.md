@@ -1506,6 +1506,49 @@ Phase 3 of the pixelation study ([plan](planning/PixelationUncertainty_Plan.md))
   split profile's zero bias at close to the symmetric profile's precision. That is not yet tested, and
   a new instrument parameter needs approval.
 
+## Event-split test on real data: bin-level Poisson σ is honest; the per-pixel floor of PyRS / pyFAI is not (2026-11-19, #1109)
+
+Pixelation study, Phase 3 ([plan](planning/PixelationUncertainty_Plan.md)). No production code changed.
+No simulation.
+
+**Setup.**
+- **Slicing:** each HB2B_5344 sub-run's pulses were split into K interleaved slices (pulse number mod
+  K; K = 10 and 2), giving K independent real measurements of the same pattern.
+- **Reduction:** each slice was reduced with 5344's `next` ring calibration and vanadium 5339, on the
+  native 720 bins, for the full detector and the η = 0° wedge, with I = (ΣN / ΣV)·V_max.
+- **Models, each giving a bin σ:**
+  - (A) **PyRS today, identical to pyFAI's `poisson` model:** per-pixel variance max(1, Nᵢ)
+    (pyFAI `preproc`: `variance = numpy.maximum(1.0, signal)`);
+  - (B) **bin-level Poisson:** σ² = ΣN (1 for an empty bin);
+  - (C) **model-based:** the mean ΣN of the other slices. For a bin total a pixel-level (2D) model
+    gives the same, since Var(ΣNᵢ) = Σλᵢ;
+  - (D) **pyFAI `azimuthal`:** σ² = Σ(Nᵢ − Ī·Vᵢ)², the spread of the bin's pixels about the bin mean.
+- **Score:** the observed variance of I across slices over the mean predicted σ², pooled by counts per
+  pixel per slice. 1 = honest.
+
+| Model | < 0.05 /px | 0.05–0.2 | 0.2–1 | > 1 |
+|---|---|---|---|---|
+| (A) PyRS / pyFAI `poisson` | 0.036 | 0.07 | 0.40 | 0.84 |
+| (B) bin Poisson ΣN | 0.999 | 1.005 | 1.013 | 1.04 |
+| (C) model-based | 0.999 | 1.005 | 1.013 | 1.04 |
+| (D) pyFAI `azimuthal` | 0.997 | 1.000 | 0.98 | 0.98 |
+
+These are for K = 10, full detector (5,318 / 2,779 / 509 / 22 bins). The η = 0° wedge and K = 2 agree:
+(A) 0.15–0.89, (B) 0.96–1.03, (D) 0.94–1.01 except **0.82–0.85 above 1 count per pixel**.
+
+- **The per-pixel floor overstates σ in sparse bins by up to 5×** (√(1/0.036)) on real HB2B data. It
+  is pyFAI's `poisson` convention too, so a common convention, but wrong at these count levels.
+- **σ² = ΣN is honest at every count level, in the full detector and in a 3° wedge.** HB2B's counts
+  behave as Poisson. It needs no model: (C) adds nothing for binned data.
+- **pyFAI's `azimuthal` is honest in sparse bins but too large (up to ~20 %) in high-count peak
+  bins.** There, real pixel-to-pixel differences within a bin (the intensity gradient across the bin,
+  efficiency mismatch) are counted as noise.
+- **Fit level (K = 10, 8 peak groups): open.** The real scatter of fitted Ni centres between slices
+  exceeds the reported error for every model: (A) 1.69, (B) 1.34, (C) 1.41, (D) 1.39 (median χ² 0.19
+  for A, 1.16 for the others). The η = 0° wedge gives (A) 0.93, (B) 1.49. With 8 groups and plain
+  variances this may be dominated by a few unstable fits, as with the weak-peak fit failures earlier.
+  A robust re-analysis with more groups is needed. K = 2 has too few slices for a fit-level score.
+
 ## HB2B detector: pixel orientation, vanadium dead area, and vertical wire-period stripes (2026-11-12)
 
 From Phase 0 of the pixelation study

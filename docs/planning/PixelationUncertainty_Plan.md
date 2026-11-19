@@ -303,6 +303,13 @@ Findings: [HB2B detector ground truths](../ground_truths.md) (2019–2023 test d
 - [x] Write a proposal for any production change. **It needs separate
       approval** before any code in `pyrs/` changes. Written below.
 
+- [x] **Event-split real-data test** (5344, K = 10 / 2 interleaved pulse slices; models PyRS = pyFAI
+      `poisson`, bin Poisson, model-based, pyFAI `azimuthal`). Bin level: σ² = ΣN is honest at all
+      count levels (0.96–1.04); the per-pixel floor overstates σ up to 5×; `azimuthal` is ~20 % too
+      large in peak bins. Supports the proposal on real data.
+- [ ] **Fit-level event-split score:** robust statistics (MAD), more groups (more sub-runs / runs,
+      K = 3–5). The first pass shows real centre scatter / reported error of 1.3–1.7 for every model.
+
 #### Proposal: Poisson bin variance in reduction (awaiting approval)
 
 **Change.** In `PyHB2BReduction.histogram_by_numpy` (`pyrs/core/reduce_hb2b_pyrs.py`), stop replacing a
