@@ -1,6 +1,5 @@
 import numpy as np
 import time
-import json
 import os
 import warnings
 
@@ -1109,7 +1108,7 @@ class FitCalibration:
         return
 
     def get_archived_calibration(self, file_name):
-        """Get calibration from archived JSON file
+        """Start from an archived calibration file, JSON or NeXus (#1098; read as reduction reads it)
 
         Output: result is written to self._calib[i]
 
@@ -1117,11 +1116,10 @@ class FitCalibration:
         -------
         None
         """
-        with open(file_name) as fIN:
-            CalibData = json.load(fIN)
-            keys = ["Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda"]
-            for i in range(len(keys)):
-                self._calib[i] = CalibData[keys[i]]
+        from pyrs.utilities.calibration_file_io import read_calibration_values
+
+        stored = read_calibration_values(file_name)
+        self._calib[:] = list(stored.values())
 
         self._calib, note = self._held_start(self._calib)
         self._calib_start = np.copy(self._calib)

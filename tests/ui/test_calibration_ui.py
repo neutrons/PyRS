@@ -124,7 +124,9 @@ def test_detector_calibration(calibration_window, tmp_path, export_settings):
     qtbot.mouseClick(window.calib_summary.export_calib_bttn, QtCore.Qt.LeftButton)
     qtbot.wait(wait)
     assert not hasattr(window.calib_summary, "export_local_calib_bttn")  # Export replaces it (#1045)
-    (calib_path,) = [str(path) for path in calib_folder.iterdir()]
+    # the JSON and, ticked by default, its NeXus copy with diagnostics (#1098); the NeXus copy is loaded back below
+    json_path, calib_path = sorted(str(path) for path in calib_folder.iterdir())
+    assert json_path.endswith(".json") and calib_path == json_path[: -len(".json")] + ".nxs"
     # the folder is remembered for the next export, in the scratch settings
     from pyrs.interface.detector_calibration.detector_calibration_viewer import EXPORT_FOLDER_KEY
 
@@ -372,7 +374,15 @@ def test_export_dialog_rules(qtbot):
 
     # Assert - opens with only the folder ticked, ready to export
     assert dialog.folder_box.isChecked() and ok.isEnabled()
-    assert dialog.targets() == {"folder": "/tmp", "latest": False, "latest_mono": False, "archive": False}
+    # and with the NeXus copy ticked (#1098)
+    assert dialog.nexus_box.isChecked()
+    assert dialog.targets() == {
+        "folder": "/tmp",
+        "latest": False,
+        "latest_mono": False,
+        "archive": False,
+        "nexus": True,
+    }
 
     # a shared target unticks and disables the folder
     dialog.archive_box.setChecked(True)
@@ -383,7 +393,7 @@ def test_export_dialog_rules(qtbot):
     dialog.archive_box.setChecked(False)
     dialog.latest_box.setChecked(True)
     assert dialog.archive_box.isChecked() and not dialog.archive_box.isEnabled()
-    assert dialog.targets() == {"folder": None, "latest": True, "latest_mono": False, "archive": True}
+    assert dialog.targets() == {"folder": None, "latest": True, "latest_mono": False, "archive": True, "nexus": True}
     dialog.latest_mono_box.setChecked(True)
     dialog.latest_box.setChecked(False)
     assert dialog.archive_box.isChecked() and not dialog.archive_box.isEnabled()  # still a latest file
@@ -446,3 +456,230 @@ def test_recipe_dialogs_filter_json(calibration_window, monkeypatch, dialog):
     ((directory, file_filter),) = calls
     assert directory == ""
     assert "*.json" in file_filter.split(";;")[0]
+
+
+def test_load_calibration_offers_and_reads_nexus(calibration_window, monkeypatch, tmp_path):
+    """Load Calibration offers JSON and NeXus calibrations, and a .nxs start fills the Starting column (#1098)"""
+    import numpy as np
+
+    from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+    from pyrs.utilities.calibration_nexus import write_calibration_nexus
+
+    # Arrange - a NeXus calibration file, chosen in the dialog
+    window, _ = calibration_window
+    path = tmp_path / "start.nxs"
+    shifts = DENEXDetectorShift(0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.0)
+    geometry = DENEXDetectorGeometry(1024, 1024, 0.3 / 1024, 0.3 / 1024, 0.985, False)
+    write_calibration_nexus(str(path), shifts, DENEXDetectorShift(*[0.01] * 7), 1.53, 1e-4, 1, geometry)
+    filters = []
+
+    def choose(parent, caption, directory="", file_filter="", **kwargs):
+        filters.append(file_filter)
+        return [str(path)], file_filter
+
+    monkeypatch.setattr(viewer_module.QFileDialog, "getOpenFileNames", choose)
+
+    # Act
+    window.fileLoading.file_load_calib.openCalibFileDialog()
+
+    # Assert - the default filter shows both formats; the table holds the file's values
+    (file_filter,) = filters
+    assert "*.json *.nxs" in file_filter.split(";;")[0]
+    table = window.calib_summary._cal_summary_table
+    values = [float(table.item(row, 0).text()) for row in range(8)]
+    np.testing.assert_allclose(values, [0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.0, 1.53])
+
+
+def _load_good_start(window, monkeypatch, tmp_path):
+    """Load a complete start (Lambda 1.53) through Load Calibration; returns its path and the table column after"""
+    from pyrs.core.instrument_geometry import DENEXDetectorShift
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+    from pyrs.utilities.calibration_file_io import write_calibration_to_json
+
+    good = tmp_path / "good.json"
+    write_calibration_to_json(
+        DENEXDetectorShift(0.002, 0.001, -0.003, 0.2, 0.1, -0.1, 0.0),
+        DENEXDetectorShift(*[0.01] * 7),
+        1.53,
+        1e-4,
+        1,
+        str(good),
+    )
+    monkeypatch.setattr(viewer_module.QFileDialog, "getOpenFileNames", lambda *args, **kwargs: ([str(good)], ""))
+    window.fileLoading.file_load_calib.openCalibFileDialog()
+    table = window.calib_summary._cal_summary_table
+    return str(good), [table.item(row, 0).text() for row in range(8)]
+
+
+@pytest.mark.parametrize("kind", ["missing", "not-a-calibration", "null-value"])
+def test_unreadable_calibration_changes_nothing(calibration_window, monkeypatch, tmp_path, kind):
+    """A start that cannot be read is reported and changes neither the table nor the remembered file (#1098)"""
+    import h5py
+
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+
+    # Arrange
+    window, _ = calibration_window
+    path = tmp_path / "start.nxs"
+    if kind == "not-a-calibration":
+        with h5py.File(path, "w") as other:
+            other.create_group("entry")
+    elif kind == "null-value":
+        path = tmp_path / "start.json"
+        names = ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda")
+        stored = {name: 0.0 for name in names}
+        stored.update({f"error_{name}": -1.0 for name in names}, Status=1, TTH_0=None)
+        path.write_text(__import__("json").dumps(stored))
+    table = window.calib_summary._cal_summary_table
+    good, before = _load_good_start(window, monkeypatch, tmp_path)  # a good start the bad one must not disturb
+    messages, asked = [], []
+    monkeypatch.setattr(viewer_module.QFileDialog, "getOpenFileNames", lambda *args, **kwargs: ([str(path)], ""))
+    monkeypatch.setattr(viewer_module, "pop_message", lambda parent, title, *args: messages.append(title))
+    monkeypatch.setattr(viewer_module.QMessageBox, "question", lambda *args: asked.append(args))
+
+    # Act
+    window.fileLoading.file_load_calib.openCalibFileDialog()
+
+    # Assert - reported, not asked about; the earlier start is still the table's and the remembered file
+    assert messages == ["Cannot load the calibration"]
+    assert asked == []
+    assert [table.item(row, 0).text() for row in range(8)] == before
+    assert window._calibration_input == good
+
+
+@pytest.mark.parametrize(
+    "written, title",
+    [(["cal.json", "cal.nxs"], "NeXus copy without diagnostics"), (["cal.json"], "NeXus copy missing")],
+)
+def test_nexus_warning_says_what_happened(calibration_window, monkeypatch, written, title):
+    """The warning tells a NeXus copy written without diagnostics from one not written (#1098 review)"""
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+
+    # Arrange
+    window, _ = calibration_window
+    messages = []
+    monkeypatch.setattr(window.controller, "export_calibration", lambda *args, **kwargs: written)
+    monkeypatch.setattr(
+        viewer_module, "pop_message", lambda parent, message, detail, kind: messages.append((message, detail, kind))
+    )
+    window.model.nexus_problem = "something went wrong"
+
+    # Act
+    window.calib_summary.write_calibration("folder", nexus=True)
+
+    # Assert - the title, the reason as the detail, a warning (not an error); the status bar says it too
+    assert messages == [(title, "something went wrong", "warning")]
+    assert "something went wrong" in window.statusBar().currentMessage()
+
+
+@pytest.mark.parametrize("answer", ["yes", "no"])
+def test_incomplete_start_asks_to_use_zero(calibration_window, monkeypatch, tmp_path, answer):
+    """A start JSON without Lambda: the window says so and asks whether to continue with 0 (#1098)"""
+    import json
+
+    from pyrs.core.instrument_geometry import DENEXDetectorShift
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+    from pyrs.utilities.calibration_file_io import write_calibration_to_json
+
+    # Arrange
+    window, _ = calibration_window
+    path = tmp_path / "start.json"
+    write_calibration_to_json(
+        DENEXDetectorShift(0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.0),
+        DENEXDetectorShift(*[0.01] * 7),
+        1.5,
+        1e-4,
+        1,
+        str(path),
+    )
+    stored = json.loads(path.read_text())
+    del stored["Lambda"], stored["error_Lambda"]
+    path.write_text(json.dumps(stored))
+    table = window.calib_summary._cal_summary_table
+    good, before = _load_good_start(window, monkeypatch, tmp_path)  # Lambda 1.53, so a written 0 shows
+    asked, messages = [], []
+    reply = viewer_module.QMessageBox.Yes if answer == "yes" else viewer_module.QMessageBox.No
+    monkeypatch.setattr(viewer_module, "pop_message", lambda parent, title, *args: messages.append(title))
+
+    def ask(parent, title, text, *args):
+        asked.append(text)
+        return reply
+
+    monkeypatch.setattr(viewer_module.QMessageBox, "question", ask)
+    monkeypatch.setattr(viewer_module.QFileDialog, "getOpenFileNames", lambda *args, **kwargs: ([str(path)], ""))
+
+    # Act
+    window.fileLoading.file_load_calib.openCalibFileDialog()
+
+    # Assert - asked once, naming Lambda; Yes fills the table with Lambda 0, No changes nothing
+    (question,) = asked
+    assert "Lambda" in question
+    assert "Continue with 0" in question
+    assert messages == []  # asked, not reported as unreadable
+    values = [table.item(row, 0).text() for row in range(8)]
+    if answer == "yes":
+        assert float(before[7]) == pytest.approx(1.53)
+        assert float(values[7]) == 0.0
+        assert float(values[0]) == pytest.approx(0.001)
+        assert window._calibration_input == str(path)
+    else:
+        assert values == before
+        assert window._calibration_input == good
+
+
+@pytest.mark.parametrize("kind", ["good", "unreadable", "incomplete-declined"])
+def test_recipe_start_file_is_read_like_load_calibration(calibration_window, monkeypatch, tmp_path, kind):
+    """A recipe's input_calibration goes through the same reader and rules as Load Calibration (#1098)"""
+    import json
+
+    from pyrs.core.instrument_geometry import DENEXDetectorShift
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+    from pyrs.interface.detector_calibration.detector_calibration_model import METHOD_RING
+    from pyrs.utilities.calibration_file_io import write_calibration_to_json
+
+    # Arrange - a loaded run and an earlier good start; the recipe names another start file
+    window, _ = calibration_window
+    window._nexus_file = "HB2B_0001.nxs.h5"  # the recipe's run: not loaded again
+    earlier, before = _load_good_start(window, monkeypatch, tmp_path)
+    start = tmp_path / "recipe_start.json"
+    if kind != "unreadable":
+        write_calibration_to_json(
+            DENEXDetectorShift(0.004, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+            DENEXDetectorShift(*[0.01] * 7),
+            1.54,
+            1e-4,
+            1,
+            str(start),
+        )
+    if kind == "incomplete-declined":
+        stored = json.loads(start.read_text())
+        del stored["Rot_x"], stored["error_Rot_x"]
+        start.write_text(json.dumps(stored))
+    recipe = tmp_path / "recipe.json"
+    recipe.write_text(
+        json.dumps(
+            {"nexus_file": "HB2B_0001.nxs.h5", "calibration_method": METHOD_RING, "input_calibration": str(start)}
+        )
+    )
+    messages, asked = [], []
+    monkeypatch.setattr(viewer_module.QFileDialog, "getOpenFileName", lambda *args, **kwargs: (str(recipe), ""))
+    monkeypatch.setattr(viewer_module, "pop_message", lambda parent, title, *args: messages.append(title))
+    monkeypatch.setattr(
+        viewer_module.QMessageBox, "question", lambda *args: asked.append(args) or viewer_module.QMessageBox.No
+    )
+
+    # Act
+    window.peak_lines_setup.load_json()
+
+    # Assert
+    table = window.calib_summary._cal_summary_table
+    values = [table.item(row, 0).text() for row in range(8)]
+    if kind == "good":
+        assert float(values[0]) == pytest.approx(0.004) and float(values[7]) == pytest.approx(1.54)
+        assert window._calibration_input == str(start)
+        assert messages == [] and asked == []
+    else:
+        assert values == before
+        assert window._calibration_input == earlier
+        assert (messages, len(asked)) == ((["Cannot load the calibration"], 0) if kind == "unreadable" else ([], 1))

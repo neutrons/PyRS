@@ -29,6 +29,7 @@ _APPLIED_DATASETS = ("calibration_json", "provenance_json", "sources_json")
 _RECORD_ATTRIBUTES = {
     "calibration_file": "calibration_file",
     "calibration_file_sha256": "calibration_file_sha256",
+    "calibration_format": "calibration_format",
     "vanadium_run": "vanadium_run",
     "calibration_source": "source",
     "calibration_created": "created",
@@ -62,6 +63,16 @@ def _report_record_failure(message):
     """A record failure is warned about and logged with its traceback, never raised (#1053)."""
     warnings.warn(message, stacklevel=3)
     Logger("HidraProjectFile").error(f"{message}\n{traceback.format_exc()}")
+
+
+def _calibration_format(calibration_file):
+    """``"json"`` or ``"nexus"`` for a calibration file name (#1098), or None for any other name."""
+    from pyrs.utilities.calibration_file_io import calibration_format
+
+    try:
+        return calibration_format(calibration_file)
+    except ValueError:
+        return None
 
 
 def _clear_record(group):
@@ -132,6 +143,10 @@ def _prepare_record(applied):
     ):
         if applied.get(key) is not None:
             prepared[key] = str(applied[key])
+    if prepared.get("calibration_file") is not None:
+        file_format = _calibration_format(prepared["calibration_file"])
+        if file_format is not None:
+            prepared["calibration_format"] = file_format
     if applied.get("run_geometry") is not None:
         prepared["run_geometry"] = json.dumps(jsonable(applied["run_geometry"]), allow_nan=False)
     if applied.get("calibration") is not None:
@@ -1181,6 +1196,9 @@ class HidraProjectFile:
             sha256 = _compute_file_sha256(calibration_file)
             if sha256 is not None:
                 calibration_group.attrs["calibration_file_sha256"] = sha256
+            file_format = _calibration_format(calibration_file)
+            if file_format is not None:
+                calibration_group.attrs["calibration_format"] = file_format
 
         if vanadium_run is not None:
             calibration_group.attrs["vanadium_run"] = str(vanadium_run)
@@ -1212,7 +1230,8 @@ class HidraProjectFile:
         -------
         dict
             with the keys of ``HidraSetup.calibration_record()``: ``source``, ``calibration`` (the
-            calibration JSON's dictionary), ``calibration_file``, ``calibration_file_sha256``, ``created``,
+            calibration JSON's dictionary), ``calibration_file``, ``calibration_file_sha256``,
+            ``calibration_format`` (``"json"`` or ``"nexus"``, #1098), ``created``,
             ``created_source``, ``lambda_source``, ``provenance``, ``error``, and ``vanadium_run`` — each
             where present (file attributes are prefixed ``calibration_``); ``reduction``: the mask and
             binning the reduction used (``mask``, ``settings``; ``error`` if they could not be recorded),
