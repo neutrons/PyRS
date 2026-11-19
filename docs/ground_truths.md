@@ -3518,7 +3518,7 @@ fits, per-pixel weighting) would need model-based per-pixel variances λ̂ᵢ.
 **Effect on results.**
 - **Errors:** σ falls in sparse bins. Weak-peak strain errors fall ~2.3× (HB2B_3489 Ni: 85 → 37 µε), strong-peak
   errors ~5 %.
-- **Fitted values** move only where the pseudo-Voigt misfits the peak: −5.7 µε mean (5344), +27.6 µε (3489 Ni).
+- **Fitted values** move within their errors from the re-weighting alone, even when the peak model is correct. They shift systematically where the pseudo-Voigt misfits the peak: −5.7 µε mean (5344), +27.6 µε (3489 Ni).
 - **χ²:** the reduced χ² becomes ≈ 1.
 
 **Effect on `FitCalibration`** (approved by the user, 2026-11-19, option 1). `FitCalibration` fits peaks in η-wedge

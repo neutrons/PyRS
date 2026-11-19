@@ -29,8 +29,9 @@ Summary
 How a reduced point and its uncertainty are computed
 ====================================================
 
-For a sub-run, each unmasked pixel *i* with vanadium counts V\ :sub:`i` ≥ 0.9 is assigned to the 2θ
-bin containing its pixel 2θ. For each bin, pyRS forms the total counts and the total vanadium
+For a sub-run, each unmasked pixel *i* is assigned to the 2θ bin containing its pixel 2θ. When a
+vanadium is supplied, pixels with vanadium counts V\ :sub:`i` < 0.9 are excluded first. For each bin,
+pyRS forms the total counts and the total vanadium
 
 .. math::
 
@@ -42,7 +43,9 @@ and reports the vanadium-normalised intensity
 
    I_{bin} = N_{bin} \, \frac{V_{max}}{V_{bin}} ,
 
-where V\ :sub:`max` is the largest V\ :sub:`bin` of the pattern. The normalisation is a *ratio of
+where V\ :sub:`max` is the largest V\ :sub:`bin` among the bins with counts. An empty bin
+(N\ :sub:`bin` = 0) has its V\ :sub:`bin` set to 1 before the maximum is taken, so it does not
+contribute. The normalisation is a *ratio of
 sums*: the counts are summed first and then divided by the summed vanadium. The uncertainties of
 N\ :sub:`bin`, V\ :sub:`bin` and V\ :sub:`max` are propagated as independent:
 
@@ -53,6 +56,8 @@ N\ :sub:`bin`, V\ :sub:`bin` and V\ :sub:`max` are propagated as independent:
 The vanadium terms are small, because a flood has ~17–30 counts per pixel. The data term
 σ²\ :sub:`N,bin` is the subject of this page.
 
+* **Without vanadium**, both the pixel selection by V\ :sub:`i` and the normalisation are skipped:
+  I = N\ :sub:`bin` and σ\ :sub:`I` = σ\ :sub:`N,bin`.
 * **Empty bins** (N\ :sub:`bin` = 0) are reported as I = 0 and σ = 1, so that a fit never sees
   σ = 0.
 * **Implementation:** ``PyHB2BReduction.histogram_by_numpy`` (``pyrs/core/reduce_hb2b_pyrs.py``).
@@ -271,15 +276,19 @@ Effect on reduced data and fits
 ===============================
 
 * **Intensities:** unchanged. **σ:** smaller where pixels are sparse, unchanged in high-count bins.
-* **Reported errors become honest.** Typical changes:
+* **Reported errors are no longer inflated by empty pixels.** The bin variance itself is validated
+  above. The fitted peak-centre errors are not yet fully validated: in the event-split test the
+  centres scatter 1.3–1.7× more than their reported errors under every variance rule (see
+  *Limitations*). Typical changes:
 
   - weak-peak strain errors ~2.3× smaller (HB2B_3489 Ni peaks: 85 → 37 µε median);
   - strong-peak strain errors ~5 % smaller;
   - weak-peak intensity errors ~2.4× smaller.
 
-* **Fitted values** shift only where the pseudo-Voigt does not fully describe the peak, because the
-  weights of the tails change: −5.7 µε mean on strong peaks (HB2B_5344) and +27.6 µε on weak ones
-  (HB2B_3489). They are unbiased in both cases when the model fits.
+* **Fitted values** shift because the weights change. On noisy data a re-weighted fit moves within
+  its errors even when the peak model is correct. A systematic shift appears where the pseudo-Voigt
+  does not fully describe the peak, because the weights of the tails change: −5.7 µε mean on strong
+  peaks (HB2B_5344) and +27.6 µε on weak ones (HB2B_3489).
 * **Weak-peak fit failures** caused by the inflated background σ disappear.
 * **The reduced χ²** of peak fits becomes a usable goodness-of-fit measure.
 * **FitCalibration** fits peaks in η-wedge reductions, so its weights change as well. Its error estimates
