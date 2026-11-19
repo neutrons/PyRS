@@ -193,7 +193,8 @@ Poisson bin variance.
 -----------------------------------
 
 A true pattern was placed on the calibrated HB2B_5344 detector, with the vanadium as the per-pixel
-efficiency, stripes included: λ\ :sub:`i` = k · V\ :sub:`i` · R(2θ\ :sub:`i`) / V\ :sub:`max`. It
+efficiency, stripes included: λ\ :sub:`i` = k · V\ :sub:`i` · P(2θ\ :sub:`i`) / V\ :sub:`max`, where P is the
+true pattern. It
 was Poisson-sampled 600 times at 0.066 counts per pixel, reduced with the production code, and fitted
 with pyRS's ``FitPeaks`` arguments. A pull width of 1 means honest errors.
 

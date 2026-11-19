@@ -13,7 +13,7 @@ from pyrs.core.reduce_hb2b_pyrs import PyHB2BReduction
 EDGES = np.array([0.0, 1.0, 2.0, 3.0])
 
 
-def histogram(tth, counts, vanadium=None):
+def histogram(tth: list, counts: list, vanadium: list | None = None) -> tuple:
     """Point-data histogram on EDGES."""
     return PyHB2BReduction.histogram_by_numpy(
         np.asarray(tth, dtype=float),
@@ -87,3 +87,20 @@ def test_vanadium_dead_pixels_are_excluded():
 
     assert intensity[0] == pytest.approx(4.0 * 10 / 10)
     assert sigma[0] == pytest.approx(4.0 * np.sqrt(1 / 4 + 1 / 10 + 1 / 10))
+
+
+def test_vanadium_empty_bin_keeps_unit_sigma():
+    """With vanadium, a bin of zero-count live pixels gets I = 0 and sigma = 1; other bins are normalised."""
+    # Arrange: bin 0 holds two zero-count pixels with live vanadium; bin 1 holds counts 4 and 1
+    tth = [0.3, 0.6, 1.3, 1.7]
+    counts = [0, 0, 4, 1]
+    vanadium = [10, 10, 20, 20]
+
+    # Act
+    _, intensity, sigma = histogram(tth, counts, vanadium)
+
+    # Assert
+    assert intensity[0] == 0.0 and sigma[0] == 1.0
+    v_max = 40.0  # bin 1's vanadium (bin 0's is set to 1 before the maximum is taken)
+    assert intensity[1] == pytest.approx(5.0 * v_max / 40.0)
+    assert sigma[1] == pytest.approx(intensity[1] * np.sqrt(1 / 5 + 1 / 40 + 1 / v_max))
