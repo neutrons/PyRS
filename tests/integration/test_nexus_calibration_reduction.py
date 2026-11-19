@@ -75,5 +75,5 @@ def test_reduced_file_records_the_nexus_calibration(workspace, nexus_reference, 
 
     # Assert
     assert record["source"] == "file" and record["calibration_file"] == nexus_reference
-    assert len(record["calibration_file_sha256"]) == 64
+    assert len(record["calibration_file_sha256"]) == 64 and record["calibration_format"] == "nexus"  # #1098
     assert record["calibration"]["TTH_0"] == read_calibration_json_file(REFERENCE)[0].two_theta_0

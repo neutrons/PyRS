@@ -272,12 +272,12 @@ def test_rebuild_without_geometry_says_what_to_pass(tmp_path):
 
 
 def test_file_without_a_record_reads_as_before(tmp_path):
-    # Arrange - what a reduction before #1053 part B wrote
+    # Arrange - what a reduction before #1053 part B wrote (now with the file's format, #1098)
     path = tmp_path / "old.h5"
     write(path, calibration_file="calibration.json")
 
     # Act / Assert
-    assert read(path) == {"calibration_file": "calibration.json"}
+    assert read(path) == {"calibration_file": "calibration.json", "calibration_format": "json"}
 
 
 MASK = {"source": "file", "file": "/HFIR/HB2B/shared/CALIBRATION/HB2B_Mask_Latest.xml", "sha256": "f00d" * 16}
@@ -363,3 +363,16 @@ def test_file_without_reduction_group_has_no_reduction_entry(tmp_path, calibrate
 
     # Act / Assert
     assert "reduction" not in read(path)
+
+
+def test_record_names_the_calibration_format(tmp_path, calibrated):
+    """The project file says whether the calibration file was JSON or NeXus (#1098)"""
+    # Arrange
+    path = tmp_path / "reduced.h5"
+
+    # Act
+    write(path, instrument=calibrated)
+    record = read(path)
+
+    # Assert
+    assert record["calibration_file"].endswith(".json") and record["calibration_format"] == "json"
