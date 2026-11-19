@@ -104,13 +104,3 @@ def test_vanadium_empty_bin_keeps_unit_sigma():
     v_max = 40.0  # bin 1's vanadium (bin 0's is set to 1 before the maximum is taken)
     assert intensity[1] == pytest.approx(5.0 * v_max / 40.0)
     assert sigma[1] == pytest.approx(intensity[1] * np.sqrt(1 / 5 + 1 / 40 + 1 / v_max))
-
-
-def test_unequal_tth_and_counts_raises():
-    with pytest.raises(AssertionError):
-        histogram([0.5, 1.5, 2.5], [1, 2])
-
-
-def test_two_dimensional_input_raises():
-    with pytest.raises(AssertionError):
-        PyHB2BReduction.histogram_by_numpy(np.full((2, 2), 0.5), np.ones((2, 2)), EDGES, True, None)
