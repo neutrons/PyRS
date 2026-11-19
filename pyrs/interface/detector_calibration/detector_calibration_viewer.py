@@ -1068,7 +1068,8 @@ class CalibrationSummaryTable(QTableWidget):
             if answer != QMessageBox.Yes:
                 return False
             values = incomplete.values
-        except (OSError, ValueError, KeyError, RuntimeError) as read_error:  # RuntimeError: missing file or field
+        # RuntimeError: a missing file or field; TypeError: a field that is not a number (e.g. null)
+        except (OSError, ValueError, KeyError, RuntimeError, TypeError) as read_error:
             pop_message(self, "Cannot load the calibration", f"{calibration_file}: {read_error}", "error")
             return False
         for i_lable, label in enumerate(self.labels):

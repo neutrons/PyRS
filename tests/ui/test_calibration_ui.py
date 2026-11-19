@@ -491,7 +491,28 @@ def test_load_calibration_offers_and_reads_nexus(calibration_window, monkeypatch
     np.testing.assert_allclose(values, [0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.0, 1.53])
 
 
-@pytest.mark.parametrize("kind", ["missing", "not-a-calibration"])
+def _load_good_start(window, monkeypatch, tmp_path):
+    """Load a complete start (Lambda 1.53) through Load Calibration; returns its path and the table column after"""
+    from pyrs.core.instrument_geometry import DENEXDetectorShift
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+    from pyrs.utilities.calibration_file_io import write_calibration_to_json
+
+    good = tmp_path / "good.json"
+    write_calibration_to_json(
+        DENEXDetectorShift(0.002, 0.001, -0.003, 0.2, 0.1, -0.1, 0.0),
+        DENEXDetectorShift(*[0.01] * 7),
+        1.53,
+        1e-4,
+        1,
+        str(good),
+    )
+    monkeypatch.setattr(viewer_module.QFileDialog, "getOpenFileNames", lambda *args, **kwargs: ([str(good)], ""))
+    window.fileLoading.file_load_calib.openCalibFileDialog()
+    table = window.calib_summary._cal_summary_table
+    return str(good), [table.item(row, 0).text() for row in range(8)]
+
+
+@pytest.mark.parametrize("kind", ["missing", "not-a-calibration", "null-value"])
 def test_unreadable_calibration_changes_nothing(calibration_window, monkeypatch, tmp_path, kind):
     """A start that cannot be read is reported and changes neither the table nor the remembered file (#1098)"""
     import h5py
@@ -504,19 +525,27 @@ def test_unreadable_calibration_changes_nothing(calibration_window, monkeypatch,
     if kind == "not-a-calibration":
         with h5py.File(path, "w") as other:
             other.create_group("entry")
+    elif kind == "null-value":
+        path = tmp_path / "start.json"
+        names = ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda")
+        stored = {name: 0.0 for name in names}
+        stored.update({f"error_{name}": -1.0 for name in names}, Status=1, TTH_0=None)
+        path.write_text(__import__("json").dumps(stored))
     table = window.calib_summary._cal_summary_table
-    before = [table.item(row, 0).text() for row in range(8)]
-    messages = []
+    good, before = _load_good_start(window, monkeypatch, tmp_path)  # a good start the bad one must not disturb
+    messages, asked = [], []
     monkeypatch.setattr(viewer_module.QFileDialog, "getOpenFileNames", lambda *args, **kwargs: ([str(path)], ""))
     monkeypatch.setattr(viewer_module, "pop_message", lambda parent, title, *args: messages.append(title))
+    monkeypatch.setattr(viewer_module.QMessageBox, "question", lambda *args: asked.append(args))
 
     # Act
     window.fileLoading.file_load_calib.openCalibFileDialog()
 
-    # Assert
+    # Assert - reported, not asked about; the earlier start is still the table's and the remembered file
     assert messages == ["Cannot load the calibration"]
+    assert asked == []
     assert [table.item(row, 0).text() for row in range(8)] == before
-    assert window._calibration_input is None
+    assert window._calibration_input == good
 
 
 @pytest.mark.parametrize(
@@ -565,9 +594,10 @@ def test_incomplete_start_asks_to_use_zero(calibration_window, monkeypatch, tmp_
     del stored["Lambda"], stored["error_Lambda"]
     path.write_text(json.dumps(stored))
     table = window.calib_summary._cal_summary_table
-    before = [table.item(row, 0).text() for row in range(8)]
-    asked = []
+    good, before = _load_good_start(window, monkeypatch, tmp_path)  # Lambda 1.53, so a written 0 shows
+    asked, messages = [], []
     reply = viewer_module.QMessageBox.Yes if answer == "yes" else viewer_module.QMessageBox.No
+    monkeypatch.setattr(viewer_module, "pop_message", lambda parent, title, *args: messages.append(title))
 
     def ask(parent, title, text, *args):
         asked.append(text)
@@ -581,10 +611,15 @@ def test_incomplete_start_asks_to_use_zero(calibration_window, monkeypatch, tmp_
 
     # Assert - asked once, naming Lambda; Yes fills the table with Lambda 0, No changes nothing
     (question,) = asked
-    assert "Lambda" in question and "Continue with 0" in question
+    assert "Lambda" in question
+    assert "Continue with 0" in question
+    assert messages == []  # asked, not reported as unreadable
     values = [table.item(row, 0).text() for row in range(8)]
     if answer == "yes":
-        assert float(values[7]) == 0.0 and float(values[0]) == pytest.approx(0.001)
+        assert float(before[7]) == pytest.approx(1.53)
+        assert float(values[7]) == 0.0
+        assert float(values[0]) == pytest.approx(0.001)
         assert window._calibration_input == str(path)
     else:
-        assert values == before and window._calibration_input is None
+        assert values == before
+        assert window._calibration_input == good
