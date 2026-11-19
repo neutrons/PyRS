@@ -104,7 +104,8 @@ Detector Calibration
 
 The detector calibration refines the HB2B detector's position and orientation (shifts x, y, z and rotations
 x, y, z), the virtual arm offset 2theta_0 and the wavelength from a powder calibration run (Ni, Fe and Mo
-powders). Reduction applies the resulting calibration file (JSON) to every run measured afterwards.
+powders). Reduction applies the resulting calibration file (JSON or NeXus, see below) to every run measured
+afterwards.
 
 Open the calibration window from the MainWindow menu **Advanced > Calibration**. Two methods are offered:
 
@@ -124,7 +125,7 @@ A ring-based calibration in the window:
    **Rounds** (10) the most ring-finding rounds.
 3. Click **Fit Peaks** to find the rings, then **Calibrate**: the recipe starts with *iterate* (refine, then
    find the rings again until converged).
-4. Check the predicted rings on the detector view, then export the calibration.
+4. Check the predicted rings on the detector view, then **Export** the calibration (see below).
 
 Recipes saved from the window keep the method, strips and rounds. A recipe saved before the method choice
 existed opens with FitCalibration, its method then.
@@ -139,3 +140,32 @@ The same calibrations run from the command line:
 Every calibration file records how it was made (its *provenance*): the method, the run and mask files, each
 refinement step and, for the ring-based method, each round of ring finding. The evaluation behind the
 default is recorded in ``docs/ground_truths.md`` (GitHub issue #1038).
+
+Calibration files: JSON and NeXus
+---------------------------------
+
+A calibration is stored in one of two formats, recognised by the file extension:
+
+* **JSON** (``.json``): the eight values with their errors, the status, the detector geometry and the
+  provenance. The shared ``HB2B_Latest.json`` and ``HB2B_Latest_<Si...>.json`` files are always JSON.
+* **NeXus** (``.nxs``): the same calibration as a standard NeXus detector description, plus its
+  *diagnostics*: what it was fitted to (the ring points and strip fits of the ring-based method, or the
+  fitted peaks of FitCalibration), the residuals and the covariance of the refined parameters. It can be
+  opened with any HDF5 or NeXus tool.
+
+Both formats hold exactly the same values, and reduction gives bit-for-bit the same result with either.
+
+**Export.** The Export dialog writes a JSON file to the chosen folder, or to the shared archive and
+"latest" files. **Also write NeXus (with diagnostics)**, ticked by default, adds a ``HB2B_CAL_<time>.nxs``
+copy beside the folder or archive copy. If the NeXus copy cannot be written, the JSON files are still
+written and a warning says why the NeXus copy is missing.
+
+**Reading a calibration.** Everywhere a calibration file is chosen, both formats are accepted:
+
+* in Manual Reduction, the calibration file browser;
+* in the calibration window, **Load Calibration** (the starting values) and a recipe's
+  ``input_calibration``;
+* in ``pyrs-calibration``, the recipe's ``"old calibration"``.
+
+A reduced project file records which calibration file was applied, its SHA-256 and its format
+(``calibration_format``: ``json`` or ``nexus``).

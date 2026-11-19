@@ -3482,3 +3482,25 @@ both defaults.
   - the FitCalibration gold-file smoke test `test_all_refinements` also runs with 2θ₀ freed, as its gold file
     was made;
   - the others compare with the truth re-expressed at 2θ₀ = 0.
+
+## NeXus calibration files in the GUI and command line (2026-11-19, #1098 phase 3)
+
+- **Reading:** every place a calibration file is chosen reads `.json` or `.nxs` through
+  `read_calibration_file`, the reader reduction uses:
+  - Manual Reduction (step 1, #1114);
+  - the calibration window's **Load Calibration** and a recipe's `input_calibration`;
+  - `pyrs-calibration`'s `"old calibration"` (`FitCalibration.get_archived_calibration`).
+
+  `read_calibration_values` returns the eight values by name. A file the window cannot read now shows a pop-up
+  and changes nothing (before, `json.load` with missing keys silently left table cells unchanged).
+- **Export:** "Also write NeXus (with diagnostics)", ticked by default, adds `HB2B_CAL_<time>.nxs` beside the
+  folder or archive copy.
+  - It is written after the JSON targets, from the same values and provenance, with the method's diagnostics.
+  - The latest files stay JSON only (#1054).
+  - **User decision (2026-11-11):** the JSON targets alone decide success. A failed NeXus copy leaves no file (a
+    temporary file plus rename, shared with the JSON writer), the window warns, and the terminal line says why.
+  - Diagnostics that cannot be built give a NeXus copy without them, with the same warning.
+- **Project file:** the CALIBRATION group records `calibration_format` (`json` or `nexus`) beside
+  `calibration_file` and `calibration_file_sha256`.
+- **User docs:** "Calibration files: JSON and NeXus" in `docs/user/source/basics/basics.rst`.
+- **Deferred:** DD-29, an order-dependent NeXus reduction test that exists on `next` too, found here.
