@@ -167,7 +167,7 @@ without renumbering.
 
   **Found during:** the code review of #1101, which moved the file unchanged.
   **Why it is deferred.** A production change, outside a pure move. It needs its own approval.
-- **DD-29**, 2026-11-19: `check_sweeping_motor` (`pyrs/core/nexus_conversion.py`) removes motors from
+- **DD-31**, 2026-11-19: `check_sweeping_motor` (`pyrs/core/nexus_conversion.py`) removes motors from
   `motor_search` while iterating over it (`for motor in motor_search: ... motor_search.pop(...)`).
   - **Effect:** the motor after each removed one is never tested, so a sweeping motor can stay in the list used to
     correct the first sub-run's start time. On HB2B_5344, `sx` and `2theta` are removed and `sy` and `omega` are
