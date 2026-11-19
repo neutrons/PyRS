@@ -406,7 +406,6 @@ def test_incomplete_archived_start_is_refused(calibration, tmp_path):
     stored = _json.loads(path.read_text())
     del stored["Rot_y"], stored["error_Rot_y"]
     path.write_text(_json.dumps(stored))
-    before = calibration.get_calib().copy()
 
     good = tmp_path / "good.json"
     write_calibration_to_json(

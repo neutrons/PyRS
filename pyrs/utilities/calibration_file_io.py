@@ -110,8 +110,15 @@ def calibration_format(calibration_file_name):
     raise ValueError(f"Calibration file must be a .json or .nxs file, got {calibration_file_name!r}")
 
 
-def read_calibration_file(calibration_file_name):
+def read_calibration_file(calibration_file_name, require_wavelength=True):
     """A calibration from a JSON or NeXus calibration file (#1054): the one reader reduction uses
+
+    Parameters
+    ----------
+    require_wavelength: bool
+        refuse a JSON file without ``Lambda`` (user decision, #1098: reduction must not apply a wavelength of 0);
+        only a start for a new calibration may read it as 0 (:func:`read_calibration_values`). A NeXus file
+        always needs its wavelength.
 
     Returns
     -------
@@ -121,13 +128,14 @@ def read_calibration_file(calibration_file_name):
     Raises
     ------
     ValueError
-        If the extension is not ``.json`` or ``.nxs`` (:func:`calibration_format`)
+        If the extension is not ``.json`` or ``.nxs`` (:func:`calibration_format`), or a JSON file has no
+        ``Lambda`` and ``require_wavelength`` is True
     """
     if calibration_format(calibration_file_name) == "nexus":
         from pyrs.utilities.calibration_nexus import read_calibration_nexus
 
         return read_calibration_nexus(calibration_file_name)
-    return read_calibration_json_file(calibration_file_name)
+    return read_calibration_json_file(calibration_file_name, require_wavelength=require_wavelength)
 
 
 CALIBRATION_PARAMETERS = ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda")
@@ -192,7 +200,8 @@ def read_calibration_values(calibration_file_name, allow_missing=False):
     ValueError
         If the extension is not ``.json`` or ``.nxs``, or the file is not a calibration
     """
-    shifts, _, wavelength, _, _ = read_calibration_file(calibration_file_name)
+    # read as a start: a missing wavelength is reported below with the other missing parameters, and may be 0
+    shifts, _, wavelength, _, _ = read_calibration_file(calibration_file_name, require_wavelength=False)
     values = dict(shifts.convert_to_dict(), Lambda=float(wavelength))
     values = {name: float(values[name]) for name in CALIBRATION_PARAMETERS}
     missing = _missing_parameters(calibration_file_name)
@@ -201,7 +210,7 @@ def read_calibration_values(calibration_file_name, allow_missing=False):
     return values
 
 
-def read_calibration_json_file(calibration_file_name):
+def read_calibration_json_file(calibration_file_name, require_wavelength=True):
     """Import calibration file in json format
 
     Example:  input JSON
@@ -248,10 +257,10 @@ def read_calibration_json_file(calibration_file_name):
     if calib_dict is None:
         raise RuntimeError("Failed to load JSON calibration file {}".format(calibration_file_name))
 
-    return calibration_from_dict(calib_dict, calibration_file_name)
+    return calibration_from_dict(calib_dict, calibration_file_name, require_wavelength=require_wavelength)
 
 
-def calibration_from_dict(calib_dict, calibration_file_name=""):
+def calibration_from_dict(calib_dict, calibration_file_name="", require_wavelength=True):
     """A calibration as read from its dictionary (the calibration JSON's keys)
 
     Parameters
@@ -261,12 +270,17 @@ def calibration_from_dict(calib_dict, calibration_file_name=""):
         ``two_theta_0`` is accepted (:func:`check_calibration_dictionary`)
     calibration_file_name : str
         where the dictionary came from, for the shift and for error messages
+    require_wavelength : bool
+        refuse a dictionary without ``Lambda`` (#1098); see :func:`read_calibration_file`
 
     Returns
     -------
     ~tuple
         (DENEXDetectorShift, DENEXDetectorShift, float, float, int) as :func:`read_calibration_json_file`
     """
+    # a calibration without its wavelength cannot be applied: reduction would use 0 (user decision, #1098)
+    if require_wavelength and "Lambda" not in calib_dict:
+        raise ValueError(f"calibration {calibration_file_name} gives no wavelength (Lambda); it cannot be applied")
     # check for properly formated dictionary
     calib_dict = check_calibration_dictionary(dict(calib_dict))
 

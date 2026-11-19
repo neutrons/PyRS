@@ -3498,14 +3498,20 @@ both defaults.
     `IncompleteCalibrationError`, which names them and carries the values with them as 0.
     - The window asks "Continue with 0 for …?"; No changes nothing.
     - `pyrs-calibration` cannot ask, so it stops with the error.
-    - Reduction itself still reads a missing parameter as 0, as before.
+    - Reduction reads a missing shift, rotation or 2θ₀ as 0, as before.
+    - **Reduction refuses a JSON without `Lambda`** (user decision, 2026-11-19): it would otherwise apply a
+      wavelength of 0. This is `require_wavelength` in `read_calibration_file`, `read_calibration_json_file` and
+      `calibration_from_dict`, true by default. Only a calibration start turns it off, after asking.
     - The legacy `two_theta_0` key counts as TTH_0.
   - **A value given without its error** (user decision, 2026-11-19) is read with error −1 (not refined), in both
     readers and so also in reduction.
     - Before, the JSON reader raised `RuntimeError` ("Missing key parameter"), and the NeXus reader refused a
       missing `<name>_errors` or `wavelength_errors`.
     - Only `error_TTH_0` was already optional.
-    - A missing value, wavelength or status is still refused.
+    - **Still refused:** a missing `Status` by both readers, and a missing `Lambda` by reduction.
+    - **NeXus:** any missing value, the wavelength or the status is refused.
+    - **JSON:** a missing shift, rotation or 2θ₀ is read as 0 by reduction, and refused only as a start
+      (`IncompleteCalibrationError`).
 - **Export:** "Also write NeXus (with diagnostics)", ticked by default, adds `HB2B_CAL_<time>.nxs` beside the
   folder or archive copy.
   - It is written after the JSON targets, from the same values and provenance, with the method's diagnostics.

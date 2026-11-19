@@ -529,3 +529,20 @@ def test_nexus_with_allow_missing_reads_as_usual(tmp_path):
     assert calibration_file_io.read_calibration_values(path, allow_missing=True) == (
         calibration_file_io.read_calibration_values(path)
     )
+
+
+def test_reduction_refuses_json_without_wavelength(tmp_path):
+    """Reduction must not apply a wavelength of 0 (user decision, #1098): its reader and HidraSetup refuse the file;
+    only a calibration start may read the missing Lambda as 0, after asking"""
+    from pyrs.core.instrument_geometry import HidraSetup
+
+    # Arrange
+    path = _json_without(tmp_path, "Lambda", "error_Lambda")
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="no wavelength"):
+        calibration_file_io.read_calibration_file(path)
+    with pytest.raises(ValueError, match="no wavelength"):
+        HidraSetup(GEOMETRY).load_calibration_file(path)
+    with pytest.raises(calibration_file_io.IncompleteCalibrationError, match="Lambda"):
+        calibration_file_io.read_calibration_values(path)
