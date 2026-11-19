@@ -12,6 +12,7 @@ from qtpy.QtCore import QSettings, Qt  # type: ignore
 
 from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities import get_nexus_file  # type: ignore
+from pyrs.utilities.calibration_file_io import read_calibration_values
 from pyrs.interface.threading.worker_pool import WorkerPool
 from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
 from pyrs.interface.detector_calibration.detector_calibration_model import (
@@ -178,7 +179,7 @@ class FileLoading(QGroupBox):
         self.file_load_run_number = FileLoad(name="Run Number:", parent=parent)
         self.file_load_dilg = FileLoad(name=None, parent=parent, fileType="Nexus (*.nxs.h5)")
         self.file_load_calib = FileLoad(
-            name="Load Calibration", parent=parent, fileType="json (*.json);;All Files (*)"
+            name="Load Calibration", parent=parent, fileType="Calibration (*.json *.nxs);;All Files (*)"
         )
         layout.addWidget(self.file_load_run_number)
         layout.addWidget(self.file_load_dilg)
@@ -1036,20 +1037,21 @@ class CalibrationSummaryTable(QTableWidget):
         for i_row in range(8):
             self.setItem(i_row, 0, QTableWidgetItem("0"))
 
-    def _initalize_calibration(self, json_input=None):
-        if json_input is None:
-            json_input = self._parent._parent._calibration_input
+    def _initalize_calibration(self, calibration_file=None):
+        """Fill the "Starting" column from a JSON or NeXus calibration file (#1098), read as reduction reads it.
+        A file that cannot be read is reported in a pop-up and changes nothing."""
+        if calibration_file is None:
+            calibration_file = self._parent._parent._calibration_input
 
-        if json_input is not None:
-            with open(json_input, "r") as openfile:
-                # Reading from json file
-                input_dict = json.load(openfile)
+        if calibration_file is not None:
+            try:
+                values = read_calibration_values(calibration_file)
+            except (OSError, ValueError, KeyError) as read_error:
+                pop_message(self, "Cannot load the calibration", f"{calibration_file}: {read_error}", "error")
+                return
 
             for i_lable, label in enumerate(self.labels):
-                try:
-                    self.setItem(i_lable, 0, QTableWidgetItem(str(input_dict[label])))
-                except KeyError:
-                    pass
+                self.setItem(i_lable, 0, QTableWidgetItem(str(values[label])))
 
     def set_calibration(self, calibration_list, calibration_error_list, col_name=None):
         for i_calibration in range(len(calibration_list)):

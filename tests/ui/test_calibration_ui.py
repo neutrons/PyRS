@@ -446,3 +446,36 @@ def test_recipe_dialogs_filter_json(calibration_window, monkeypatch, dialog):
     ((directory, file_filter),) = calls
     assert directory == ""
     assert "*.json" in file_filter.split(";;")[0]
+
+
+def test_load_calibration_offers_and_reads_nexus(calibration_window, monkeypatch, tmp_path):
+    """Load Calibration offers JSON and NeXus calibrations, and a .nxs start fills the Starting column (#1098)"""
+    import numpy as np
+
+    from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+    from pyrs.utilities.calibration_nexus import write_calibration_nexus
+
+    # Arrange - a NeXus calibration file, chosen in the dialog
+    window, _ = calibration_window
+    path = tmp_path / "start.nxs"
+    shifts = DENEXDetectorShift(0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.0)
+    geometry = DENEXDetectorGeometry(1024, 1024, 0.3 / 1024, 0.3 / 1024, 0.985, False)
+    write_calibration_nexus(str(path), shifts, DENEXDetectorShift(*[0.01] * 7), 1.53, 1e-4, 1, geometry)
+    filters = []
+
+    def choose(parent, caption, directory="", file_filter="", **kwargs):
+        filters.append(file_filter)
+        return [str(path)], file_filter
+
+    monkeypatch.setattr(viewer_module.QFileDialog, "getOpenFileNames", choose)
+
+    # Act
+    window.fileLoading.file_load_calib.openCalibFileDialog()
+
+    # Assert - the default filter shows both formats; the table holds the file's values
+    (file_filter,) = filters
+    assert "*.json *.nxs" in file_filter.split(";;")[0]
+    table = window.calib_summary._cal_summary_table
+    values = [float(table.item(row, 0).text()) for row in range(8)]
+    np.testing.assert_allclose(values, [0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.0, 1.53])

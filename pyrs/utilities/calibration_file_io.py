@@ -127,6 +127,30 @@ def read_calibration_file(calibration_file_name):
     return read_calibration_json_file(calibration_file_name)
 
 
+CALIBRATION_PARAMETERS = ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda")
+
+
+def read_calibration_values(calibration_file_name):
+    """The eight calibration values of a JSON or NeXus calibration file, by name (#1098)
+
+    Reads the file with :func:`read_calibration_file`, the reader reduction uses, so a start loaded into the
+    calibration window or ``pyrs-calibration`` is read exactly as reduction would read it.
+
+    Returns
+    -------
+    dict
+        ``{"Shift_x": ..., ..., "TTH_0": ..., "Lambda": ...}`` in :data:`CALIBRATION_PARAMETERS` order
+
+    Raises
+    ------
+    ValueError
+        If the extension is not ``.json`` or ``.nxs``, or the file is not a complete calibration
+    """
+    shifts, _, wavelength, _, _ = read_calibration_file(calibration_file_name)
+    values = dict(shifts.convert_to_dict(), Lambda=float(wavelength))
+    return {name: float(values[name]) for name in CALIBRATION_PARAMETERS}
+
+
 def read_calibration_json_file(calibration_file_name):
     """Import calibration file in json format
 

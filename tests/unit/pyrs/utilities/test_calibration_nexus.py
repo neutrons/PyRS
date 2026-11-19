@@ -416,3 +416,23 @@ def test_provenance_stored_as_a_group_raises_valueerror(tmp_path):
     # Act / Assert
     with pytest.raises(ValueError, match="expected a data field"):
         read_calibration_nexus_provenance(path)
+
+
+def test_calibration_values_same_from_json_and_nexus(tmp_path):
+    """The window's and pyrs-calibration's start reader (#1098) gives the same eight values for either format"""
+    # Arrange
+    json_file, nexus_file = _write_json(tmp_path / "cal.json"), _write(tmp_path / "cal.nxs")
+
+    # Act
+    from_json = calibration_file_io.read_calibration_values(json_file)
+    from_nexus = calibration_file_io.read_calibration_values(nexus_file)
+
+    # Assert
+    assert list(from_json) == list(calibration_file_io.CALIBRATION_PARAMETERS)
+    assert from_json == from_nexus
+    assert from_nexus["TTH_0"] == pytest.approx(0.85294) and from_nexus["Lambda"] == pytest.approx(WAVELENGTH)
+
+
+def test_calibration_values_of_raw_run_raises(tmp_path):
+    with pytest.raises(ValueError, match="raw event data"):
+        calibration_file_io.read_calibration_values(str(tmp_path / "HB2B_3510.nxs.h5"))

@@ -369,3 +369,23 @@ def test_held_fit_detector_with_two_theta_0_raises(calibration):
     with pytest.raises(ValueError, match="2theta_0 is held"):
         calibration.calibrate_single(initial_guess=[0.0], LL=[-5.0], UL=[5.0], i_index=6)
     assert calibration.steps == []
+
+
+def test_archived_nexus_start_is_read(calibration, tmp_path):
+    """pyrs-calibration's "old calibration" may be a NeXus calibration file (#1098)"""
+    # Arrange
+    from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
+    from pyrs.utilities.calibration_nexus import write_calibration_nexus
+
+    _with_inputs(calibration)
+    path = tmp_path / "archived.nxs"
+    shifts = DENEXDetectorShift(0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.0)
+    geometry = DENEXDetectorGeometry(1024, 1024, 0.3 / 1024, 0.3 / 1024, 0.985, False)
+    write_calibration_nexus(str(path), shifts, DENEXDetectorShift(*[0.01] * 7), 1.53, 1e-4, 1, geometry)
+
+    # Act
+    calibration.get_archived_calibration(str(path))
+
+    # Assert
+    np.testing.assert_allclose(calibration.get_calib(), [0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.0, 1.53])
+    assert calibration.provenance()["start"]["source"]["file"] == str(path)
