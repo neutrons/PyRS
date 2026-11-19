@@ -188,3 +188,29 @@ def test_browse_offers_json_and_nexus_calibrations(tmp_path, manual_reduction_wi
     assert not any(fnmatch.fnmatch("HB2B_1017.hdf", p) for p in patterns)
     assert window.ui.lineEdit_calibrationFile.text() == chosen
     assert reduced[0]["calibration"] == chosen
+
+
+def test_unusable_calibration_is_reported(tmp_path, manual_reduction_window, monkeypatch):
+    """A calibration file reduction refuses (here: no wavelength, #1098) is shown in a pop-up, not raised out of the
+    window"""
+    from pyrs.interface.manual_reduction import manual_reduction_viewer as viewer_module
+
+    # Arrange
+    window, _ = manual_reduction_window
+    run_file = tmp_path / "HB2B_1017.nxs.h5"
+    run_file.write_bytes(b"")
+    window.ui.lineEdit_runNumber.setText(str(run_file))
+    messages = []
+
+    def refuse(*args, **kwargs):
+        raise ValueError("calibration HB2B_CAL.json gives no wavelength (Lambda); it cannot be applied")
+
+    monkeypatch.setattr(window._ctrl, "reduce", refuse)
+    monkeypatch.setattr(viewer_module, "pop_message", lambda parent, title, detail, **kwargs: messages.append(detail))
+
+    # Act
+    window.split_convert_save_nexus()
+
+    # Assert
+    assert len(messages) == 1
+    assert "no wavelength" in messages[0]

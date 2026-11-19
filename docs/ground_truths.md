@@ -3501,7 +3501,8 @@ both defaults.
     - Reduction reads a missing shift, rotation or 2θ₀ as 0, as before.
     - **Reduction refuses a JSON without `Lambda`** (user decision, 2026-11-19): it would otherwise apply a
       wavelength of 0. This is `require_wavelength` in `read_calibration_file`, `read_calibration_json_file` and
-      `calibration_from_dict`, true by default. Only a calibration start turns it off, after asking.
+      `calibration_from_dict`, true by default. Only a calibration start turns it off: the window asks, `pyrs-calibration` stops.
+      Manual Reduction shows the refusal in a pop-up.
     - The legacy `two_theta_0` key counts as TTH_0.
   - **A value given without its error** (user decision, 2026-11-19) is read with error −1 (not refined), in both
     readers and so also in reduction.
