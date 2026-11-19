@@ -3500,6 +3500,12 @@ both defaults.
     - `pyrs-calibration` cannot ask, so it stops with the error.
     - Reduction itself still reads a missing parameter as 0, as before.
     - The legacy `two_theta_0` key counts as TTH_0.
+  - **A value given without its error** (user decision, 2026-11-19) is read with error −1 (not refined), in both
+    readers and so also in reduction.
+    - Before, the JSON reader raised `RuntimeError` ("Missing key parameter"), and the NeXus reader refused a
+      missing `<name>_errors` or `wavelength_errors`.
+    - Only `error_TTH_0` was already optional.
+    - A missing value, wavelength or status is still refused.
 - **Export:** "Also write NeXus (with diagnostics)", ticked by default, adds `HB2B_CAL_<time>.nxs` beside the
   folder or archive copy.
   - It is written after the JSON targets, from the same values and provenance, with the method's diagnostics.

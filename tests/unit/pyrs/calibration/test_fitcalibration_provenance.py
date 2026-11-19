@@ -408,7 +408,16 @@ def test_incomplete_archived_start_is_refused(calibration, tmp_path):
     path.write_text(_json.dumps(stored))
     before = calibration.get_calib().copy()
 
+    good = tmp_path / "good.json"
+    write_calibration_to_json(
+        DENEXDetectorShift(*[0.0] * 7), DENEXDetectorShift(*[0.01] * 7), 1.52, 1e-4, 1, str(good)
+    )
+    _with_inputs(calibration)
+    calibration.get_archived_calibration(str(good))  # an earlier start the refused one must not replace
+    before = calibration.get_calib().copy()
+
     # Act / Assert
     with pytest.raises(IncompleteCalibrationError, match="Rot_y"):
         calibration.get_archived_calibration(str(path))
     np.testing.assert_array_equal(calibration.get_calib(), before)
+    assert calibration.provenance()["start"]["source"]["file"] == str(good)

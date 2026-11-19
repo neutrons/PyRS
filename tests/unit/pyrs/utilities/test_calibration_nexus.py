@@ -2,6 +2,7 @@
 the detector exactly as reduction does"""
 
 import json
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -200,15 +201,26 @@ def test_file_without_transformations_raises(tmp_path):
         read_calibration_nexus(str(path))
 
 
-def test_missing_error_raises(tmp_path):
+@pytest.mark.parametrize(
+    "field",
+    ["entry/instrument/detector/transformations/shift_x_errors", "entry/instrument/monochromator/wavelength_errors"],
+)
+def test_missing_error_reads_as_not_refined(tmp_path, field):
+    """A value without its error is read with error -1, not refused (user decision, #1098)"""
     # Arrange
     path = _write(tmp_path / "cal.nxs")
     with h5py.File(path, "a") as nexus:
-        del nexus["entry/instrument/detector/transformations/shift_x_errors"]
+        del nexus[field]
 
-    # Act / Assert
-    with pytest.raises(RuntimeError, match="shift_x_errors"):
-        read_calibration_nexus(path)
+    # Act
+    shifts, shifts_error, wavelength, wavelength_error, _ = read_calibration_nexus(path)
+
+    # Assert - the value is read; only the missing error is -1
+    assert shifts.center_shift_x == pytest.approx(SHIFT.center_shift_x) and wavelength == pytest.approx(WAVELENGTH)
+    if field.endswith("shift_x_errors"):
+        assert shifts_error.center_shift_x == -1.0 and wavelength_error == pytest.approx(WAVELENGTH_ERROR)
+    else:
+        assert wavelength_error == -1.0 and shifts_error.center_shift_x == pytest.approx(ERROR.center_shift_x)
 
 
 def test_unrefined_calibration_is_refused(tmp_path):
@@ -468,3 +480,52 @@ def test_legacy_two_theta_0_key_is_not_missing(tmp_path):
 
     # Act / Assert
     assert calibration_file_io.read_calibration_values(path)["TTH_0"] == pytest.approx(0.85294)
+
+
+def _json_without(tmp_path, *keys):
+    """A complete calibration JSON with ``keys`` removed"""
+    path = Path(_write_json(tmp_path / "cal.json"))
+    stored = json.loads(path.read_text())
+    for key in keys:
+        del stored[key]
+    path.write_text(json.dumps(stored))
+    return str(path)
+
+
+def test_several_missing_are_named_in_order(tmp_path):
+    """The window shows this list: every missing parameter, in calibration order (#1098)"""
+    # Arrange
+    path = _json_without(tmp_path, "Lambda", "error_Lambda", "Rot_x", "error_Rot_x")
+
+    # Act
+    with pytest.raises(calibration_file_io.IncompleteCalibrationError) as refused:
+        calibration_file_io.read_calibration_values(path)
+
+    # Assert
+    assert refused.value.missing == ["Rot_x", "Lambda"]
+    assert "Rot_x, Lambda" in str(refused.value) and "them as 0" in str(refused.value)
+
+
+def test_value_without_its_error_is_read(tmp_path):
+    """A value given without its error is read, with error -1 (not refined): not refused, not missing (#1098)"""
+    # Arrange
+    path = _json_without(tmp_path, "error_Rot_y")
+
+    # Act
+    values = calibration_file_io.read_calibration_values(path)
+    _, errors, _, _, _ = calibration_file_io.read_calibration_file(path)
+
+    # Assert
+    assert values["Rot_y"] == pytest.approx(-0.254056)
+    assert errors.rotation_y == -1.0
+
+
+def test_nexus_with_allow_missing_reads_as_usual(tmp_path):
+    """allow_missing only matters for JSON: a NeXus file's reader refuses an incomplete file itself"""
+    # Arrange
+    path = _write(tmp_path / "cal.nxs")
+
+    # Act / Assert
+    assert calibration_file_io.read_calibration_values(path, allow_missing=True) == (
+        calibration_file_io.read_calibration_values(path)
+    )

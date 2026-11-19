@@ -10,7 +10,8 @@ def check_calibration_dictionary(calib_dict):
 
     The 2theta offset is stored as ``TTH_0`` (as written by ``DENEXDetectorShift.convert_to_dict``);
     files using the legacy key ``two_theta_0`` are accepted and moved to ``TTH_0`` (#1021). Missing
-    parameters are set to 0 with an error of -1.
+    parameters are set to 0 with an error of -1; a parameter given without its error gets an error of -1
+    (not refined, #1098).
 
     Parameters
     ----------
@@ -44,8 +45,10 @@ def check_calibration_dictionary(calib_dict):
         if key not in calib_dict:
             calib_dict[key] = 0
             calib_dict["error_{}".format(key)] = -1
-    # TTH_0 used to be ignored, so a file giving it without its error loaded; keep accepting such files
-    calib_dict.setdefault("error_TTH_0", -1)
+    # a value given without its error is read with error -1, not refined (user decision, #1098); TTH_0 used to be
+    # ignored, so files giving it without its error were always accepted
+    for key in keys:
+        calib_dict.setdefault("error_{}".format(key), -1)
 
     return calib_dict
 

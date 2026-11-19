@@ -560,14 +560,17 @@ def test_nexus_warning_says_what_happened(calibration_window, monkeypatch, writt
     window, _ = calibration_window
     messages = []
     monkeypatch.setattr(window.controller, "export_calibration", lambda *args, **kwargs: written)
-    monkeypatch.setattr(viewer_module, "pop_message", lambda parent, message, *args: messages.append(message))
+    monkeypatch.setattr(
+        viewer_module, "pop_message", lambda parent, message, detail, kind: messages.append((message, detail, kind))
+    )
     window.model.nexus_problem = "something went wrong"
 
     # Act
     window.calib_summary.write_calibration("folder", nexus=True)
 
-    # Assert
-    assert messages == [title]
+    # Assert - the title, the reason as the detail, a warning (not an error); the status bar says it too
+    assert messages == [(title, "something went wrong", "warning")]
+    assert "something went wrong" in window.statusBar().currentMessage()
 
 
 @pytest.mark.parametrize("answer", ["yes", "no"])
@@ -623,3 +626,60 @@ def test_incomplete_start_asks_to_use_zero(calibration_window, monkeypatch, tmp_
     else:
         assert values == before
         assert window._calibration_input == good
+
+
+@pytest.mark.parametrize("kind", ["good", "unreadable", "incomplete-declined"])
+def test_recipe_start_file_is_read_like_load_calibration(calibration_window, monkeypatch, tmp_path, kind):
+    """A recipe's input_calibration goes through the same reader and rules as Load Calibration (#1098)"""
+    import json
+
+    from pyrs.core.instrument_geometry import DENEXDetectorShift
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+    from pyrs.interface.detector_calibration.detector_calibration_model import METHOD_RING
+    from pyrs.utilities.calibration_file_io import write_calibration_to_json
+
+    # Arrange - a loaded run and an earlier good start; the recipe names another start file
+    window, _ = calibration_window
+    window._nexus_file = "HB2B_0001.nxs.h5"  # the recipe's run: not loaded again
+    earlier, before = _load_good_start(window, monkeypatch, tmp_path)
+    start = tmp_path / "recipe_start.json"
+    if kind != "unreadable":
+        write_calibration_to_json(
+            DENEXDetectorShift(0.004, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+            DENEXDetectorShift(*[0.01] * 7),
+            1.54,
+            1e-4,
+            1,
+            str(start),
+        )
+    if kind == "incomplete-declined":
+        stored = json.loads(start.read_text())
+        del stored["Rot_x"], stored["error_Rot_x"]
+        start.write_text(json.dumps(stored))
+    recipe = tmp_path / "recipe.json"
+    recipe.write_text(
+        json.dumps(
+            {"nexus_file": "HB2B_0001.nxs.h5", "calibration_method": METHOD_RING, "input_calibration": str(start)}
+        )
+    )
+    messages, asked = [], []
+    monkeypatch.setattr(viewer_module.QFileDialog, "getOpenFileName", lambda *args, **kwargs: (str(recipe), ""))
+    monkeypatch.setattr(viewer_module, "pop_message", lambda parent, title, *args: messages.append(title))
+    monkeypatch.setattr(
+        viewer_module.QMessageBox, "question", lambda *args: asked.append(args) or viewer_module.QMessageBox.No
+    )
+
+    # Act
+    window.peak_lines_setup.load_json()
+
+    # Assert
+    table = window.calib_summary._cal_summary_table
+    values = [table.item(row, 0).text() for row in range(8)]
+    if kind == "good":
+        assert float(values[0]) == pytest.approx(0.004) and float(values[7]) == pytest.approx(1.54)
+        assert window._calibration_input == str(start)
+        assert messages == [] and asked == []
+    else:
+        assert values == before
+        assert window._calibration_input == earlier
+        assert (messages, len(asked)) == ((["Cannot load the calibration"], 0) if kind == "unreadable" else ([], 1))
