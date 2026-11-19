@@ -3483,6 +3483,72 @@ both defaults.
     was made;
   - the others compare with the truth re-expressed at 2θ₀ = 0.
 
+## Poisson bin variance in reduction (2026-11-19, #1109)
+
+**Change (user-approved, 2026-11-19).** `PyHB2BReduction.histogram_by_numpy` (`pyrs/core/reduce_hb2b_pyrs.py`) no
+longer gives a zero-count pixel σ = 1 before histogramming. A 2θ bin's data variance is now the Poisson variance of
+its total count, **σ²_bin = Σ Nᵢ**; before, it was Σ Nᵢ + n₀ (n₀ = empty pixels in the bin). Unchanged:
+- empty bins (Σ Nᵢ = 0) still get intensity 0 and σ = 1;
+- the vanadium normalisation I = Σ N · V_max / Σ V and its σ propagation;
+- pixel selection (mask, vanadium ≥ 0.9);
+- intensities.
+
+The full write-up, with equations and figures, is the user-documentation page *Intensity Uncertainties*
+(`docs/user/source/math/uncertainty.rst`).
+
+**Why.** A bin total is Poisson with variance Σ λᵢ, estimated without bias by Σ Nᵢ. The per-pixel floor (also
+pyFAI's `poisson` model, `variance = max(1, N)`) adds n₀, which measures sparsity, not uncertainty: by
+R(λ) = 1 + e^(−λ)/λ, that is ×10 at λ = 0.1 counts per pixel. This is a bin-level argument. Pixel-level uses (2D
+fits, per-pixel weighting) would need model-based per-pixel variances λ̂ᵢ.
+
+**Evidence** (pixelation study, `docs/pixelation-uncertainty-plan` branch, `docs/ground_truths.md` there):
+- **Former inflation measured on HB2B_5344** (autoreduction settings): background σ 1.5–1.8× too large; inflation
+  equals the Poisson prediction (median ratio 0.996–1.005); the same for 360–1,440 bins and 3° wedges.
+- **Mantid `FitPeaks` does not rescale errors by χ²**, so σ passes straight into reported peak errors.
+- **Monte Carlo on the real detector** (0.066 counts per pixel, 600 realisations): centre pull width 0.58–0.61
+  (former) → 0.96–1.01 (Poisson); intensity 0.41–0.44 → 0.99–1.05; no strain bias with either (≤ 1–2 µε); weak-peak
+  fit failures 24 % → 0 % (HB2B_3489 sub-run 10).
+- **Real data, event split.** HB2B_5344 was split into 10 independent pulse slices. Observed / predicted variance:
+  - former: 0.036 (< 0.05 counts/px), 0.07, 0.40, 0.84 (> 1);
+  - Poisson: 0.999, 1.005, 1.013, 1.04;
+  - pyFAI `azimuthal`: 0.997–1.000 sparse, 0.82–0.98 in peak bins.
+
+  A 3° wedge agrees.
+
+**Effect on results.**
+- **Errors:** σ falls in sparse bins. Weak-peak strain errors fall ~2.3× (HB2B_3489 Ni: 85 → 37 µε), strong-peak
+  errors ~5 %.
+- **Fitted values** move within their errors from the re-weighting alone, even when the peak model is correct. They shift systematically where the pseudo-Voigt misfits the peak: −5.7 µε mean (5344), +27.6 µε (3489 Ni).
+- **χ²:** the reduced χ² becomes ≈ 1.
+
+**Effect on `FitCalibration`** (approved by the user, 2026-11-19, option 1). `FitCalibration` fits peaks in η-wedge
+reductions, so its weights change too.
+- **Gold smoke test** (`test_all_refinements`, one evaluation per routine): the parameter values are unchanged.
+  `error_TTH_0` 1.141 → 1.383 and `error_Lambda` 0.01822 → 0.01884; the gold file `HB2B_mantid_calib.json` was
+  updated.
+- **`test_held_refinement_on_a_real_run`** (one sub-run, at most 3 evaluations): Rot_y now stays at 0. With
+  5 residuals it moves them by only ~1e-3° per 0.1°, so it is nearly unconstrained there. The test now checks
+  Shift_x and λ, which are constrained. Converged on that sub-run: old Shift_x −4.71 mm, Rot_y −0.22°, λ 1.53424;
+  new −7.16 mm, 0.00°, 1.53678 Å; both RMS 0.0159°.
+- **Full refinement of HB2B_3510** (all sub-runs, `calibrate_wave_shift` + `FullCalibration`, 2θ₀ held at 0):
+
+  | | Rot_x | Rot_y | Rot_z | λ (Å) | RMS |
+  |---|---|---|---|---|---|
+  | old σ | +3.215 ± 0.049° | 0.274 ± 0.088° | 0.162 ± 0.024° | 1.53088 | 0.0244° |
+  | new σ | −1.230 ± 0.076° | 0.958 ± 0.062° | −0.001 ± 0.014° | 1.53117 | 0.0240° |
+  | ring calibration (reference, unaffected) | 0.29 ± 0.50° | 4.35 ± 0.90° | 0.185 ± 0.029° | 1.53057 | 0.0170° |
+
+  The shifts agree within 1σ. The rotations move far beyond their errors at the same RMS, and neither result
+  matches the ring calibration (the new σ is closer in Rot_x, the old in Rot_z and λ). **`FitCalibration`'s
+  rotations are poorly determined on 3510 under either weighting** (DD-30). The variance change exposes this; it
+  does not cause it. The GUI's default calibration is the ring calibration (#1038), which this change does not
+  affect.
+
+**Open:** the fit-level event-split scatter of peak centres exceeds the reported errors 1.3–1.7× for every
+variance rule; 8 groups, to be re-analysed with robust statistics.
+
+**Tests:** `tests/unit/pyrs/core/test_reduce_hb2b_pyrs.py` (σ² = Σ N with empty pixels, empty bins σ = 1,
+vanadium propagation, vanadium-dead pixels). Three of its six tests fail on the former code.
 ## NeXus calibration files in the GUI and command line (2026-11-19, #1098 phase 3)
 
 - **Reading:** every place a calibration file is chosen reads `.json` or `.nxs` through

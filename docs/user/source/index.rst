@@ -21,6 +21,7 @@ Funded by the `Office of Energy Science <https://www.energy.gov/science/bes/basi
    basics/basics
    example/example
    math/mathmatical
+   math/uncertainty
    api/manual_api
    advanced/advanced
    bibliography

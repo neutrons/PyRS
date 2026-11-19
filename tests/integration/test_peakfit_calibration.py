@@ -429,7 +429,10 @@ def test_held_refinement_on_a_real_run():
     assert calibrator.two_theta_0_held
     assert [step["free_parameters"] for step in calibrator.steps] == [["Shift_x", "Rot_y", "Lambda"]]
     assert values[6] == 0.0 and calibrator.calibration_error_array[6] == -1.0
-    assert np.all(values[[0, 4]] != start[[0, 4]])
+    # Shift_x and the wavelength are refined. Rot_y is free too, but with one sub-run (5 residuals) it moves the
+    # residual by only ~1e-3 deg per 0.1 deg, so whether it leaves 0 within 3 evaluations depends on the peak
+    # weights; it stayed at 0 once reduction used the Poisson bin variance (#1109, docs/ground_truths.md).
+    assert np.all(values[[0, 7]] != start[[0, 7]])
     assert calibrator.steps[-1]["rmse_deg"] <= rmse_start
 
 
