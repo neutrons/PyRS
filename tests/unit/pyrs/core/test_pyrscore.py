@@ -57,3 +57,34 @@ def test_uncalibrated_calibration_file_raises(core, tmp_path):
     with pytest.raises(RuntimeError, match="never successfully refined"):
         core.reduce_diffraction_data("session", 1000, "PyRS", geometry_calibration=file_name)
     assert core.applied == []
+
+
+def test_missing_error_is_applied_unchanged(core, tmp_path):
+    """A calibration with an error missing is applied exactly as the complete one (#1098): errors do not move pixels"""
+    # Arrange
+    complete = _write_calibration(tmp_path / "complete.json", status=3)
+    stored = json.loads(open(complete).read())
+    del stored["error_Rot_y"]
+    partial = tmp_path / "partial.json"
+    partial.write_text(json.dumps(stored))
+
+    # Act
+    core.reduce_diffraction_data("session", 1000, "PyRS", geometry_calibration=complete)
+    core.reduce_diffraction_data("session", 1000, "PyRS", geometry_calibration=str(partial))
+
+    # Assert
+    assert core.applied[0].convert_to_dict() == core.applied[1].convert_to_dict()
+
+
+def test_calibration_without_wavelength_is_refused(core, tmp_path):
+    """Reduction refuses a JSON without Lambda rather than apply a wavelength of 0 (user decision, #1098)"""
+    # Arrange
+    stored = json.loads(open(_write_calibration(tmp_path / "complete.json", status=3)).read())
+    del stored["Lambda"], stored["error_Lambda"]
+    path = tmp_path / "no_lambda.json"
+    path.write_text(json.dumps(stored))
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="no wavelength"):
+        core.reduce_diffraction_data("session", 1000, "PyRS", geometry_calibration=str(path))
+    assert core.applied == []

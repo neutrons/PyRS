@@ -5,6 +5,10 @@ import pytest
 from pyrs.utilities import calibration_file_io
 import json
 import datetime
+import numpy as np
+
+from pyrs.core.detector_model import from_shift
+from pyrs.core.instrument_geometry import DENEXDetectorShift
 
 
 @pytest.mark.parametrize("status", [-1, -4])
@@ -288,3 +292,138 @@ def test_calibration_without_geometry_reads_none(tmp_path):
 
     # Act / Assert
     assert calibration_file_io.read_calibration_geometry(target) is None
+
+
+# ---------------------------------------------------------------- starts and missing keys (#1098)
+
+_SHIFT = DENEXDetectorShift(-0.0154027, -0.00255874, -0.0445212, 0.0642667, -0.254056, 0.16946, 0.85294)
+_ERROR = DENEXDetectorShift(9.889e-05, 0.001167, 0.00026, 0.188275, 0.322219, 0.010681, 0.0042)
+_WAVELENGTH, _WAVELENGTH_ERROR = 1.531347247129065, 8.25e-05
+_PARAMETERS = ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda")
+
+
+def _json_without(tmp_path, *keys):
+    """A complete calibration JSON with ``keys`` removed"""
+    path = tmp_path / "cal.json"
+    calibration_file_io.write_calibration_to_json(_SHIFT, _ERROR, _WAVELENGTH, _WAVELENGTH_ERROR, 1, str(path))
+    stored = json.loads(path.read_text())
+    for key in keys:
+        del stored[key]
+    path.write_text(json.dumps(stored))
+    return str(path)
+
+
+def _vector(shift, wavelength):
+    return list(from_shift(shift)) + [wavelength]
+
+
+def test_incomplete_json_is_refused_with_its_values(tmp_path):
+    """A start without some parameters is refused by name (user decision, #1098); the values carry them as 0"""
+    # Arrange
+    path = _json_without(tmp_path, "Lambda", "error_Lambda")
+
+    # Act
+    with pytest.raises(calibration_file_io.IncompleteCalibrationError) as refused:
+        calibration_file_io.read_calibration_values(path)
+
+    # Assert
+    assert refused.value.missing == ["Lambda"]
+    assert "Lambda" in str(refused.value)
+    assert refused.value.values["Lambda"] == 0.0
+    assert refused.value.values["TTH_0"] == pytest.approx(0.85294)
+    assert calibration_file_io.read_calibration_values(path, allow_missing=True) == refused.value.values
+
+
+def test_legacy_two_theta_0_key_is_not_missing(tmp_path):
+    """A start written with the legacy two_theta_0 key is complete"""
+    # Arrange
+    path = _json_without(tmp_path)
+    stored = json.loads(open(path).read())
+    stored["two_theta_0"] = stored.pop("TTH_0")
+    stored["error_two_theta_0"] = stored.pop("error_TTH_0")
+    with open(path, "w") as handle:
+        json.dump(stored, handle)
+
+    # Act
+    values = calibration_file_io.read_calibration_values(path)
+
+    # Assert
+    assert values["TTH_0"] == pytest.approx(0.85294)
+
+
+def test_several_missing_are_named_in_order(tmp_path):
+    """The window shows this list: every missing parameter, in calibration order (#1098)"""
+    # Arrange
+    path = _json_without(tmp_path, "Lambda", "error_Lambda", "Rot_x", "error_Rot_x")
+
+    # Act
+    with pytest.raises(calibration_file_io.IncompleteCalibrationError) as refused:
+        calibration_file_io.read_calibration_values(path)
+
+    # Assert
+    assert refused.value.missing == ["Rot_x", "Lambda"]
+    assert "Rot_x, Lambda" in str(refused.value)
+    assert "them as 0" in str(refused.value)
+
+
+@pytest.mark.parametrize("parameter", _PARAMETERS)
+def test_missing_error_reads_as_not_refined(tmp_path, parameter):
+    """A value without its error is read with error -1 (user decision, #1098): only that error, every value"""
+    # Arrange
+    path = _json_without(tmp_path, f"error_{parameter}")
+    expected = _vector(_ERROR, _WAVELENGTH_ERROR)
+    expected[_PARAMETERS.index(parameter)] = -1.0
+
+    # Act
+    shift, shift_error, wavelength, wavelength_error, _ = calibration_file_io.read_calibration_file(path)
+
+    # Assert
+    np.testing.assert_allclose(_vector(shift_error, wavelength_error), expected)
+    np.testing.assert_allclose(_vector(shift, wavelength), _vector(_SHIFT, _WAVELENGTH))
+
+
+def test_json_without_wavelength_is_refused(tmp_path):
+    """Reduction must not apply a wavelength of 0 (user decision, #1098): the reader and HidraSetup refuse the file;
+    only a calibration start may read the missing Lambda as 0, after asking"""
+    from pyrs.core.instrument_geometry import DENEXDetectorGeometry, HidraSetup
+
+    # Arrange
+    path = _json_without(tmp_path, "Lambda", "error_Lambda")
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="no wavelength"):
+        calibration_file_io.read_calibration_file(path)
+    with pytest.raises(ValueError, match="no wavelength"):
+        HidraSetup(DENEXDetectorGeometry(1024, 1024, 0.3 / 1024, 0.3 / 1024, 0.985, False)).load_calibration_file(path)
+    with pytest.raises(calibration_file_io.IncompleteCalibrationError, match="Lambda"):
+        calibration_file_io.read_calibration_values(path)
+
+
+@pytest.mark.parametrize("wavelength", [0, -1.5, "nan", None], ids=["zero", "negative", "nan", "null"])
+def test_unusable_wavelength_is_refused(tmp_path, wavelength):
+    """A wavelength reduction cannot apply is refused like a missing one (user decision, #1098); a start may still
+    read it, as the window asks about it"""
+    # Arrange
+    path = _json_without(tmp_path)
+    stored = json.loads(open(path).read())
+    stored["Lambda"] = float(wavelength) if wavelength == "nan" else wavelength
+    with open(path, "w") as handle:
+        handle.write(json.dumps(stored))
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="unusable wavelength"):
+        calibration_file_io.read_calibration_file(path)
+    with pytest.raises(ValueError, match="unusable wavelength"):
+        calibration_file_io.calibration_from_dict(stored, path)
+
+
+def test_record_with_zero_wavelength_is_refused():
+    """A project file reduced from a Lambda-less file before #1098 stores Lambda 0.0: reducing it again from that
+    record is refused too"""
+    # Arrange
+    record = {name: 0.0 for name in _PARAMETERS}
+    record.update({f"error_{name}": -1.0 for name in _PARAMETERS}, Status=1)
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="unusable wavelength"):
+        calibration_file_io.calibration_from_dict(record, "the project file's record")

@@ -284,7 +284,8 @@ class ManualReductionViewer(QMainWindow):
                 calibration=calibration_file,
                 vanadium_file=vanadium_file,
             )
-        except RuntimeError as run_err:
+        # ValueError: e.g. a calibration file without a wavelength (#1098) or of another format; OSError: unreadable
+        except (RuntimeError, ValueError, OSError) as run_err:
             pop_message(self, "Failed to reduce {}".format(jobs[0][1]), str(run_err), message_type="error")
             return
 
