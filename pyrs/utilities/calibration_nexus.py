@@ -395,18 +395,20 @@ def read_calibration_nexus(
             if parameter is None:
                 continue
             error = _field(transformations, name + "_errors", calibration_file_name)
-            if error is None:
-                raise RuntimeError(f"{calibration_file_name}: {name}_errors is missing")
             values[parameter] = float(_scalar(transformations[name], calibration_file_name))
-            errors[parameter] = float(_scalar(error, calibration_file_name))
+            # a value without its error: -1, not refined (user decision, #1098), as the JSON reader
+            errors[parameter] = -1.0 if error is None else float(_scalar(error, calibration_file_name))
         fields = {}
-        for path in (_MONOCHROMATOR + "/wavelength", _MONOCHROMATOR + "/wavelength_errors", _NOTE + "/status"):
+        for path in (_MONOCHROMATOR + "/wavelength", _NOTE + "/status"):
             field = _field(root, path, calibration_file_name)
             if field is None:
                 raise RuntimeError(f"{calibration_file_name}: missing {path}")
             fields[path] = field
         wave_length = float(_scalar(fields[_MONOCHROMATOR + "/wavelength"], calibration_file_name))
-        wave_length_error = float(_scalar(fields[_MONOCHROMATOR + "/wavelength_errors"], calibration_file_name))
+        wave_length_error_field = _field(root, _MONOCHROMATOR + "/wavelength_errors", calibration_file_name)
+        wave_length_error = (
+            -1.0 if wave_length_error_field is None else float(_scalar(wave_length_error_field, calibration_file_name))
+        )
         status = int(_scalar(fields[_NOTE + "/status"], calibration_file_name))
 
     def shift(parameters: Dict[str, float], file_name: str = "") -> DENEXDetectorShift:

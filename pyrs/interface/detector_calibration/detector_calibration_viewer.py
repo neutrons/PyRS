@@ -4,7 +4,7 @@ from qtpy.QtWidgets import QGroupBox, QSplitter, QFileDialog  # type:ignore
 
 # from qtpy.QtWidgets import QStyledItemDelegate, QDoubleSpinBox  # type:ignore
 from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QSlider, QTabWidget  # type:ignore
-from qtpy.QtWidgets import QDialog, QDialogButtonBox
+from qtpy.QtWidgets import QDialog, QDialogButtonBox, QMessageBox
 
 from qtpy.QtWidgets import QGridLayout  # type:ignore
 from qtpy.QtWidgets import QMainWindow  # type:ignore
@@ -12,6 +12,7 @@ from qtpy.QtCore import QSettings, Qt  # type: ignore
 
 from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities import get_nexus_file  # type: ignore
+from pyrs.utilities.calibration_file_io import IncompleteCalibrationError, read_calibration_values
 from pyrs.interface.threading.worker_pool import WorkerPool
 from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
 from pyrs.interface.detector_calibration.detector_calibration_model import (
@@ -112,15 +113,15 @@ class FileLoad(QWidget):
         self._parent.fit_summary.fit_table_operator.fit_result = None
 
     def openCalibFileDialog(self):
-        self._parent._calibration_input, _ = QFileDialog.getOpenFileNames(
+        chosen, _ = QFileDialog.getOpenFileNames(
             self, self.name, "", self.fileType, options=QFileDialog.DontUseNativeDialog
         )
-
-        if self._parent._calibration_input:
-            if type(self._parent._calibration_input) is list:
-                self._parent._calibration_input = self._parent._calibration_input[0]
-
-            self._parent.calib_summary._cal_summary_table._initalize_calibration()
+        if chosen:
+            path = chosen[0] if isinstance(chosen, list) else chosen
+            # remembered (and saved with a recipe) only once it has been read: a cancelled dialog or a file
+            # that cannot be read changes nothing (#1098)
+            if self._parent.calib_summary._cal_summary_table._initalize_calibration(path):
+                self._parent._calibration_input = path
 
     def openFileDialog(self):
         self._parent._nexus_file, _ = QFileDialog.getOpenFileNames(
@@ -178,7 +179,7 @@ class FileLoading(QGroupBox):
         self.file_load_run_number = FileLoad(name="Run Number:", parent=parent)
         self.file_load_dilg = FileLoad(name=None, parent=parent, fileType="Nexus (*.nxs.h5)")
         self.file_load_calib = FileLoad(
-            name="Load Calibration", parent=parent, fileType="json (*.json);;All Files (*)"
+            name="Load Calibration", parent=parent, fileType="Calibration (*.json *.nxs);;All Files (*)"
         )
         layout.addWidget(self.file_load_run_number)
         layout.addWidget(self.file_load_dilg)
@@ -795,10 +796,9 @@ class PeakLinesSetupView(QGroupBox):
         if self._parent._nexus_file is not None:  # Error check to make sure nexus file is loaded
             for key in list(input_dict.keys()):
                 if key == "input_calibration":
-                    self._parent._calibration_input = input_dict["input_calibration"]
-                    self._parent.calib_summary._cal_summary_table._initalize_calibration(
-                        self._parent._calibration_input
-                    )
+                    path = input_dict["input_calibration"]
+                    if self._parent.calib_summary._cal_summary_table._initalize_calibration(path):
+                        self._parent._calibration_input = path
                 elif key == "keep":
                     for i_keep, keep in enumerate(input_dict["keep"]):
                         if keep is False:
@@ -833,7 +833,8 @@ class ExportCalibDialog(QDialog):
 
     User decisions: the folder copy and the shared targets are exclusive (ticking a shared target unticks and
     disables the folder); a "latest" file requires the archive (ticking one ticks and locks Archive); OK is
-    disabled when nothing is ticked. The dialog opens with only the folder ticked.
+    disabled when nothing is ticked. The dialog opens with only the folder ticked, and with "Also write NeXus"
+    ticked (#1098): a NeXus copy with diagnostics beside the folder or archive copy.
     """
 
     def __init__(self, parent=None, folder="", mono="SiXXX", description=(True, "")):
@@ -861,6 +862,10 @@ class ExportCalibDialog(QDialog):
         self.latest_box = QCheckBox("Latest: HB2B_Latest.json (what reduction picks up)")
         note = QLabel("A latest file is always archived too. The folder copy and the shared files are exclusive.")
         note.setWordWrap(True)
+        self.nexus_box = QCheckBox(
+            "Also write NeXus (with diagnostics): HB2B_CAL_<time>.nxs beside the folder or archive copy"
+        )
+        self.nexus_box.setChecked(True)
 
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.buttonBox.accepted.connect(self.accept)
@@ -876,7 +881,7 @@ class ExportCalibDialog(QDialog):
         self.layout.addWidget(self.folder_box)
         self.layout.addLayout(folder_row)
         self.layout.addWidget(shared)
-        for widget in (self.archive_box, self.latest_mono_box, self.latest_box, note, self.buttonBox):
+        for widget in (self.archive_box, self.latest_mono_box, self.latest_box, note, self.nexus_box, self.buttonBox):
             self.layout.addWidget(widget)
         self.setLayout(self.layout)
         self._update()
@@ -921,6 +926,7 @@ class ExportCalibDialog(QDialog):
             "latest": self.latest_box.isChecked(),
             "latest_mono": self.latest_mono_box.isChecked(),
             "archive": self.archive_box.isChecked(),
+            "nexus": self.nexus_box.isChecked(),
         }
 
 
@@ -1000,11 +1006,12 @@ class CalibrationSummaryView(QGroupBox):
             self._export_folder = targets["folder"]
             _settings().setValue(EXPORT_FOLDER_KEY, targets["folder"])
 
-    def write_calibration(self, folder=None, latest=False, latest_mono=False, archive=False):
-        """Write the calibration to the chosen targets and report which files were written (or why not)."""
+    def write_calibration(self, folder=None, latest=False, latest_mono=False, archive=False, nexus=False):
+        """Write the calibration to the chosen targets and report which files were written (or why not); a
+        missing NeXus copy is a warning, the JSON files were written (#1098)."""
         try:
             written = self._parent.controller.export_calibration(
-                folder, latest=latest, latest_mono=latest_mono, archive=archive
+                folder, latest=latest, latest_mono=latest_mono, archive=archive, nexus=nexus
             )
         except (ValueError, FileNotFoundError, PermissionError, RuntimeError, OSError) as export_err:
             pop_message(self, "Export failed", str(export_err), "error")
@@ -1012,6 +1019,11 @@ class CalibrationSummaryView(QGroupBox):
         message = "Calibration written to " + ", ".join(written)
         if self._parent.model.provenance_problem:
             message += f" (provenance incomplete: {self._parent.model.provenance_problem})"
+        if self._parent.model.nexus_problem:
+            message += f" ({self._parent.model.nexus_problem})"
+            written_nexus = any(path.endswith(".nxs") for path in written)
+            title = "NeXus copy without diagnostics" if written_nexus else "NeXus copy missing"
+            pop_message(self, title, self._parent.model.nexus_problem, "warning")
         self._parent.statusBar().showMessage(message)
         return written
 
@@ -1036,20 +1048,33 @@ class CalibrationSummaryTable(QTableWidget):
         for i_row in range(8):
             self.setItem(i_row, 0, QTableWidgetItem("0"))
 
-    def _initalize_calibration(self, json_input=None):
-        if json_input is None:
-            json_input = self._parent._parent._calibration_input
-
-        if json_input is not None:
-            with open(json_input, "r") as openfile:
-                # Reading from json file
-                input_dict = json.load(openfile)
-
-            for i_lable, label in enumerate(self.labels):
-                try:
-                    self.setItem(i_lable, 0, QTableWidgetItem(str(input_dict[label])))
-                except KeyError:
-                    pass
+    def _initalize_calibration(self, calibration_file=None) -> bool:
+        """Fill the "Starting" column from a JSON or NeXus calibration file (#1098), read as reduction reads it.
+        A file that cannot be read is reported in a pop-up and changes nothing. Returns whether it was read."""
+        if calibration_file is None:
+            calibration_file = self._parent._parent._calibration_input
+        if calibration_file is None:
+            return False
+        try:
+            values = read_calibration_values(calibration_file)
+        except IncompleteCalibrationError as incomplete:  # user decision (#1098): ask before using 0
+            answer = QMessageBox.question(
+                self,
+                "Incomplete calibration",
+                f"{incomplete}.\n\nContinue with 0 for {', '.join(incomplete.missing)}?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if answer != QMessageBox.Yes:
+                return False
+            values = incomplete.values
+        # RuntimeError: a missing file or field; TypeError: a field that is not a number (e.g. null)
+        except (OSError, ValueError, KeyError, RuntimeError, TypeError) as read_error:
+            pop_message(self, "Cannot load the calibration", f"{calibration_file}: {read_error}", "error")
+            return False
+        for i_lable, label in enumerate(self.labels):
+            self.setItem(i_lable, 0, QTableWidgetItem(str(values[label])))
+        return True
 
     def set_calibration(self, calibration_list, calibration_error_list, col_name=None):
         for i_calibration in range(len(calibration_list)):

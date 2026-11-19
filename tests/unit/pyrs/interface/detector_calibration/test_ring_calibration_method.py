@@ -1073,3 +1073,85 @@ def test_tth0_routine_is_refused(workspace, method):
     with pytest.raises(ValueError, match="2theta_0, which is held at 0"):
         gui_model.calibrate_detector(["shifts", "tth0"])
     np.testing.assert_array_equal(gui_model.current_calibration_array, before)
+
+
+# ---------------------------------------------------------------- the NeXus copy (#1098 step 3)
+
+
+def _calibration_values(path):
+    from pyrs.utilities.calibration_file_io import read_calibration_values
+
+    return list(read_calibration_values(str(path)).values())
+
+
+def test_export_nexus_copy_beside_the_folder_copy(refined, tmp_path):
+    from pyrs.utilities.calibration_nexus import read_calibration_nexus_diagnostics
+
+    # Arrange
+    gui_model, _ = refined
+
+    # Act
+    written = gui_model.export_calibration(str(tmp_path), nexus=True)
+
+    # Assert - the JSON, then the NeXus copy of the same calibration with the ring diagnostics
+    json_file, nexus_file = written
+    assert nexus_file == json_file[: -len(".json")] + ".nxs" and gui_model.nexus_problem is None
+    assert _calibration_values(nexus_file) == _calibration_values(json_file)
+    assert {"ring_points", "strip_fits"} <= set(read_calibration_nexus_diagnostics(nexus_file)["tables"])
+
+
+def test_export_nexus_copy_beside_the_archive_only(refined, tmp_path, shared):
+    # Arrange
+    gui_model, _ = refined
+
+    # Act
+    written = gui_model.export_calibration(latest=True, archive=True, nexus=True)
+
+    # Assert - the latest file stays JSON only (#1054 decision)
+    archive, latest, nexus_file = written
+    assert os.path.basename(latest) == "HB2B_Latest.json"
+    assert nexus_file == archive[: -len(".json")] + ".nxs"
+    assert sorted(os.listdir(os.path.dirname(archive))) == sorted(map(os.path.basename, (archive, nexus_file)))
+
+
+def test_failed_nexus_copy_keeps_the_json(refined, tmp_path, monkeypatch):
+    """User decision (#1098): the JSON decides success; a failed NeXus copy leaves nothing and says why"""
+    from pyrs.utilities import calibration_nexus
+
+    # Arrange
+    gui_model, _ = refined
+
+    def failing(file_name, *args, **kwargs):
+        with open(file_name, "w") as partial:
+            partial.write("half a file")
+        raise OSError("disk full")
+
+    monkeypatch.setattr(calibration_nexus, "write_calibration_nexus", failing)
+
+    # Act
+    written = gui_model.export_calibration(str(tmp_path), nexus=True)
+
+    # Assert
+    assert [os.path.basename(path) for path in written] == os.listdir(tmp_path)  # no .nxs, no temporary file
+    assert written[0].endswith(".json") and "disk full" in gui_model.nexus_problem
+    assert "was not written" in gui_model.nexus_problem
+
+
+def test_nexus_copy_without_diagnostics_says_so(refined, tmp_path, monkeypatch):
+    from pyrs.utilities.calibration_nexus import read_calibration_nexus_diagnostics
+
+    # Arrange
+    gui_model, _ = refined
+
+    def no_diagnostics(*args, **kwargs):
+        raise RuntimeError("strip fits lost")
+
+    monkeypatch.setattr(model_module.PixelCalibration, "diagnostics", no_diagnostics)
+
+    # Act
+    json_file, nexus_file = gui_model.export_calibration(str(tmp_path), nexus=True)
+
+    # Assert - the calibration is written; its diagnostics are not, and the user is told
+    assert _calibration_values(nexus_file) == _calibration_values(json_file)
+    assert read_calibration_nexus_diagnostics(nexus_file) is None
+    assert "no diagnostics" in gui_model.nexus_problem and "strip fits lost" in gui_model.nexus_problem

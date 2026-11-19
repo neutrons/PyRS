@@ -3549,3 +3549,37 @@ variance rule; 8 groups, to be re-analysed with robust statistics.
 
 **Tests:** `tests/unit/pyrs/core/test_reduce_hb2b_pyrs.py` (σ² = Σ N with empty pixels, empty bins σ = 1,
 vanadium propagation, vanadium-dead pixels). Three of its six tests fail on the former code.
+## NeXus calibration files in the GUI and command line (2026-11-19, #1098 phase 3)
+
+- **Reading:** every place a calibration file is chosen reads `.json` or `.nxs` through
+  `read_calibration_file`, the reader reduction uses:
+  - Manual Reduction (step 1, #1114);
+  - the calibration window's **Load Calibration** and a recipe's `input_calibration`;
+  - `pyrs-calibration`'s `"old calibration"` (`FitCalibration.get_archived_calibration`).
+
+  `read_calibration_values` returns the eight values by name.
+  - **A file the window cannot read** (missing, not a calibration) shows a pop-up and changes nothing: neither
+    the table nor the remembered start file, which a saved recipe would carry.
+  - **Missing parameters** in a JSON start (user decision, 2026-11-19): `read_calibration_values` raises
+    `IncompleteCalibrationError`, which names them and carries the values with them as 0.
+    - The window asks "Continue with 0 for …?"; No changes nothing.
+    - `pyrs-calibration` cannot ask, so it stops with the error.
+    - Reduction itself still reads a missing parameter as 0, as before.
+    - The legacy `two_theta_0` key counts as TTH_0.
+  - **A value given without its error** (user decision, 2026-11-19) is read with error −1 (not refined), in both
+    readers and so also in reduction.
+    - Before, the JSON reader raised `RuntimeError` ("Missing key parameter"), and the NeXus reader refused a
+      missing `<name>_errors` or `wavelength_errors`.
+    - Only `error_TTH_0` was already optional.
+    - A missing value, wavelength or status is still refused.
+- **Export:** "Also write NeXus (with diagnostics)", ticked by default, adds `HB2B_CAL_<time>.nxs` beside the
+  folder or archive copy.
+  - It is written after the JSON targets, from the same values and provenance, with the method's diagnostics.
+  - The latest files stay JSON only (#1054).
+  - **User decision (2026-11-11):** the JSON targets alone decide success. A failed NeXus copy leaves no file (a
+    temporary file plus rename, shared with the JSON writer), the window warns, and the terminal line says why.
+  - Diagnostics that cannot be built give a NeXus copy without them, with the same warning.
+- **Project file:** the CALIBRATION group records `calibration_format` (`json` or `nexus`) beside
+  `calibration_file` and `calibration_file_sha256`.
+- **User docs:** "Calibration files: JSON and NeXus" in `docs/user/source/basics/basics.rst`.
+- **Deferred:** DD-29, an order-dependent NeXus reduction test that exists on `next` too, found here.

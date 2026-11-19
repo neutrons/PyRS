@@ -186,3 +186,18 @@ without renumbering.
     residuals constrain the rotations weakly.
   - **Found during:** #1109 (Poisson bin variance in reduction), which changed `FitCalibration`'s peak weights.
   - **Why it is deferred:** a change to the established calibration, outside #1109, needing its own approval.
+
+- **DD-29**, 2026-11-19: `tests/integration/test_nexus_calibration_reduction.py::test_nexus_and_json_reduce_bit_identically[eta-slices]`
+  depends on the test order.
+  - **Cause:** it compares `get_diffraction_data(sub_run)`, whose default is the whole-detector pattern (mask
+    `None`). An `eta_step=3.0` reduction makes only `eta_*` patterns.
+  - **Why it passes today:** the module-scoped `workspace` still holds the `[whole-detector]` case's patterns,
+    and that case runs first.
+  - **Failure:** run alone, or on another xdist worker (`-n` without `--dist loadscope`), it raises
+    `RuntimeError: Mask ID None does not exist`.
+  - **Same on `next`:** checked on a scratch checkout. The pixi tasks use `--dist loadscope`, so CI passes.
+  - **Fix:** compare every mask the reduction made (`eta_*` here), not only the default one, so the case checks
+    what it reduced.
+
+  **Found during:** #1098 step 4, running the project-file and NeXus reduction tests together.
+  **Why it is deferred.** A test defect outside #1098, and CI is not affected.

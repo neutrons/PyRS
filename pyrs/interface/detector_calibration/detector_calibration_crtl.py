@@ -37,9 +37,11 @@ class DetectorCalibrationCrtl:
 
         return tth_bins, eta_bins
 
-    def export_calibration(self, folder=None, latest=False, latest_mono=False, archive=False):
+    def export_calibration(self, folder=None, latest=False, latest_mono=False, archive=False, nexus=False):
         """Write the calibration to the chosen targets (the model's ``export_calibration``, #1087); returns the files."""
-        return self._model.export_calibration(folder, latest=latest, latest_mono=latest_mono, archive=archive)
+        return self._model.export_calibration(
+            folder, latest=latest, latest_mono=latest_mono, archive=archive, nexus=nexus
+        )
 
     def set_method(self, method):
         self._model.set_method(method)
