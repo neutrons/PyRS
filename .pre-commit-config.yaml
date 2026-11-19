@@ -1,14 +1,16 @@
-# `NXstress.nxdl.xml` is a VERBATIM vendored copy of an upstream artifact
-# (nexusformat/definitions). It must stay byte-identical to upstream to be
-# diffable against it; its provenance and sha256 are recorded in
-# IO_prototype.rst, beside the file.
+# `docs/developer/source/design/nexus/NeXuS-definitions/` is a VERBATIM vendored
+# copy of part of an upstream repository (nexusformat/definitions): NXstress, the
+# base classes it names, and the NXDL schema. Every file must stay byte-identical
+# to upstream to be diffable against it; its provenance is recorded in
+# IO_prototype.rst, and each file's sha256 in NeXuS-definitions.sha256, beside it.
 #
-# This key is TOP-LEVEL, so it excludes the file from *every* hook, not only the
+# This key is TOP-LEVEL, so it excludes the tree from *every* hook, not only the
 # ones that would rewrite it. That is deliberate but worth stating plainly: the
 # read-only hooks skip it too, so `check-xml` never parses it and
-# `detect-secrets` never scans it. The guarantee is upstream's, not ours -- we
-# verify the copy by sha256 rather than by re-validating it here.
-exclude: "^(pixi\\.lock|docs/developer/source/design/nexus/NXstress\\.nxdl\\.xml)$"
+# `detect-secrets` never scans it. The guarantee is upstream's, not ours -- the
+# copy is verified by sha256 (`test_vendored_definitions.py` checks every file on
+# each commit) rather than by re-validating it here.
+exclude: "^(pixi\\.lock|docs/developer/source/design/nexus/NeXuS-definitions/.*)$"
 # pre-commit.ci has no pixi or Mantid environment; mypy runs in GitHub Actions' lint job
 ci:
   skip: [mypy]
