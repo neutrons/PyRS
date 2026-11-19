@@ -74,7 +74,9 @@ After a significant feature or refactor, delegate review using the `Agent` tool.
 - [design-reviewer](.claude/agents/design-reviewer.md) — architecture and design review.
 - [test-reviewer](.claude/agents/test-reviewer.md) — test-coverage review.
 
-Brief the sub-agent with what changed, why, the files touched, and what to focus on. Address findings, then update documentation.
+Brief the sub-agent with what changed, why, the files touched, and what to focus on.
+
+**After a review, bring the user the findings with your recommendation and wait for their choice before acting on them, unless a finding is an outright bug in the change itself.** Then update documentation.
 
 ## 📦 Environment & Launching
 
