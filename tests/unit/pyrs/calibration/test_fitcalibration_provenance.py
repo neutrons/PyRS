@@ -389,3 +389,26 @@ def test_archived_nexus_start_is_read(calibration, tmp_path):
     # Assert
     np.testing.assert_allclose(calibration.get_calib(), [0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.0, 1.53])
     assert calibration.provenance()["start"]["source"]["file"] == str(path)
+
+
+def test_incomplete_archived_start_is_refused(calibration, tmp_path):
+    """pyrs-calibration cannot ask, so an "old calibration" without some parameters stops with their names (#1098)"""
+    import json as _json
+
+    from pyrs.core.instrument_geometry import DENEXDetectorShift
+    from pyrs.utilities.calibration_file_io import IncompleteCalibrationError, write_calibration_to_json
+
+    # Arrange
+    path = tmp_path / "archived.json"
+    write_calibration_to_json(
+        DENEXDetectorShift(*[0.0] * 7), DENEXDetectorShift(*[0.01] * 7), 1.53, 1e-4, 1, str(path)
+    )
+    stored = _json.loads(path.read_text())
+    del stored["Rot_y"], stored["error_Rot_y"]
+    path.write_text(_json.dumps(stored))
+    before = calibration.get_calib().copy()
+
+    # Act / Assert
+    with pytest.raises(IncompleteCalibrationError, match="Rot_y"):
+        calibration.get_archived_calibration(str(path))
+    np.testing.assert_array_equal(calibration.get_calib(), before)

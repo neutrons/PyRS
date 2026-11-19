@@ -539,3 +539,52 @@ def test_nexus_warning_says_what_happened(calibration_window, monkeypatch, writt
 
     # Assert
     assert messages == [title]
+
+
+@pytest.mark.parametrize("answer", ["yes", "no"])
+def test_incomplete_start_asks_to_use_zero(calibration_window, monkeypatch, tmp_path, answer):
+    """A start JSON without Lambda: the window says so and asks whether to continue with 0 (#1098)"""
+    import json
+
+    from pyrs.core.instrument_geometry import DENEXDetectorShift
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+    from pyrs.utilities.calibration_file_io import write_calibration_to_json
+
+    # Arrange
+    window, _ = calibration_window
+    path = tmp_path / "start.json"
+    write_calibration_to_json(
+        DENEXDetectorShift(0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.0),
+        DENEXDetectorShift(*[0.01] * 7),
+        1.5,
+        1e-4,
+        1,
+        str(path),
+    )
+    stored = json.loads(path.read_text())
+    del stored["Lambda"], stored["error_Lambda"]
+    path.write_text(json.dumps(stored))
+    table = window.calib_summary._cal_summary_table
+    before = [table.item(row, 0).text() for row in range(8)]
+    asked = []
+    reply = viewer_module.QMessageBox.Yes if answer == "yes" else viewer_module.QMessageBox.No
+
+    def ask(parent, title, text, *args):
+        asked.append(text)
+        return reply
+
+    monkeypatch.setattr(viewer_module.QMessageBox, "question", ask)
+    monkeypatch.setattr(viewer_module.QFileDialog, "getOpenFileNames", lambda *args, **kwargs: ([str(path)], ""))
+
+    # Act
+    window.fileLoading.file_load_calib.openCalibFileDialog()
+
+    # Assert - asked once, naming Lambda; Yes fills the table with Lambda 0, No changes nothing
+    (question,) = asked
+    assert "Lambda" in question and "Continue with 0" in question
+    values = [table.item(row, 0).text() for row in range(8)]
+    if answer == "yes":
+        assert float(values[7]) == 0.0 and float(values[0]) == pytest.approx(0.001)
+        assert window._calibration_input == str(path)
+    else:
+        assert values == before and window._calibration_input is None

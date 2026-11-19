@@ -3494,9 +3494,12 @@ both defaults.
   `read_calibration_values` returns the eight values by name.
   - **A file the window cannot read** (missing, not a calibration) shows a pop-up and changes nothing: neither
     the table nor the remembered start file, which a saved recipe would carry.
-  - **Missing parameters** in a JSON start are read as reduction reads them: 0, error -1, silently. Before,
-    `json.load` left the window's cell unchanged, and FitCalibration raised `KeyError`. (Review finding, left
-    for a user decision.)
+  - **Missing parameters** in a JSON start (user decision, 2026-11-19): `read_calibration_values` raises
+    `IncompleteCalibrationError`, which names them and carries the values with them as 0.
+    - The window asks "Continue with 0 for …?"; No changes nothing.
+    - `pyrs-calibration` cannot ask, so it stops with the error.
+    - Reduction itself still reads a missing parameter as 0, as before.
+    - The legacy `two_theta_0` key counts as TTH_0.
 - **Export:** "Also write NeXus (with diagnostics)", ticked by default, adds `HB2B_CAL_<time>.nxs` beside the
   folder or archive copy.
   - It is written after the JSON targets, from the same values and provenance, with the method's diagnostics.

@@ -436,3 +436,35 @@ def test_calibration_values_same_from_json_and_nexus(tmp_path):
 def test_calibration_values_of_raw_run_raises(tmp_path):
     with pytest.raises(ValueError, match="raw event data"):
         calibration_file_io.read_calibration_values(str(tmp_path / "HB2B_3510.nxs.h5"))
+
+
+def test_incomplete_json_is_refused_with_its_values(tmp_path):
+    """A start without some parameters is refused by name (user decision, #1098); the values carry them as 0"""
+    # Arrange - a complete file with Lambda and its error removed
+    path = _write_json(tmp_path / "cal.json")
+    stored = json.loads(open(path).read())
+    del stored["Lambda"], stored["error_Lambda"]
+    with open(path, "w") as handle:
+        json.dump(stored, handle)
+
+    # Act
+    with pytest.raises(calibration_file_io.IncompleteCalibrationError) as refused:
+        calibration_file_io.read_calibration_values(path)
+
+    # Assert
+    assert refused.value.missing == ["Lambda"] and "Lambda" in str(refused.value)
+    assert refused.value.values["Lambda"] == 0.0 and refused.value.values["TTH_0"] == pytest.approx(0.85294)
+    assert calibration_file_io.read_calibration_values(path, allow_missing=True) == refused.value.values
+
+
+def test_legacy_two_theta_0_key_is_not_missing(tmp_path):
+    # Arrange
+    path = _write_json(tmp_path / "cal.json")
+    stored = json.loads(open(path).read())
+    stored["two_theta_0"] = stored.pop("TTH_0")
+    stored["error_two_theta_0"] = stored.pop("error_TTH_0")
+    with open(path, "w") as handle:
+        json.dump(stored, handle)
+
+    # Act / Assert
+    assert calibration_file_io.read_calibration_values(path)["TTH_0"] == pytest.approx(0.85294)

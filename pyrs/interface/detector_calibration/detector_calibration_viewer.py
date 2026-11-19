@@ -4,7 +4,7 @@ from qtpy.QtWidgets import QGroupBox, QSplitter, QFileDialog  # type:ignore
 
 # from qtpy.QtWidgets import QStyledItemDelegate, QDoubleSpinBox  # type:ignore
 from qtpy.QtWidgets import QTableWidget, QTableWidgetItem, QSlider, QTabWidget  # type:ignore
-from qtpy.QtWidgets import QDialog, QDialogButtonBox
+from qtpy.QtWidgets import QDialog, QDialogButtonBox, QMessageBox
 
 from qtpy.QtWidgets import QGridLayout  # type:ignore
 from qtpy.QtWidgets import QMainWindow  # type:ignore
@@ -12,7 +12,7 @@ from qtpy.QtCore import QSettings, Qt  # type: ignore
 
 from pyrs.interface.gui_helper import pop_message
 from pyrs.utilities import get_nexus_file  # type: ignore
-from pyrs.utilities.calibration_file_io import read_calibration_values
+from pyrs.utilities.calibration_file_io import IncompleteCalibrationError, read_calibration_values
 from pyrs.interface.threading.worker_pool import WorkerPool
 from pyrs.interface.ui.diffdataviews import DetectorView, GeneralDiffDataView
 from pyrs.interface.detector_calibration.detector_calibration_model import (
@@ -1057,6 +1057,17 @@ class CalibrationSummaryTable(QTableWidget):
             return False
         try:
             values = read_calibration_values(calibration_file)
+        except IncompleteCalibrationError as incomplete:  # user decision (#1098): ask before using 0
+            answer = QMessageBox.question(
+                self,
+                "Incomplete calibration",
+                f"{incomplete}.\n\nContinue with 0 for {', '.join(incomplete.missing)}?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if answer != QMessageBox.Yes:
+                return False
+            values = incomplete.values
         except (OSError, ValueError, KeyError, RuntimeError) as read_error:  # RuntimeError: missing file or field
             pop_message(self, "Cannot load the calibration", f"{calibration_file}: {read_error}", "error")
             return False

@@ -130,11 +130,52 @@ def read_calibration_file(calibration_file_name):
 CALIBRATION_PARAMETERS = ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda")
 
 
-def read_calibration_values(calibration_file_name):
+class IncompleteCalibrationError(ValueError):
+    """A calibration file without some of the eight parameters (user decision, #1098): refused unless the
+    caller accepts them as 0.
+
+    Attributes
+    ----------
+    missing: list of str
+        the parameters the file does not give
+    values: dict
+        the eight values as reduction reads the file: the missing ones 0
+    """
+
+    def __init__(self, calibration_file_name, missing, values):
+        self.missing = list(missing)
+        self.values = dict(values)
+        super().__init__(
+            f"{calibration_file_name} does not give {', '.join(self.missing)}; reduction would read "
+            f"{'it' if len(self.missing) == 1 else 'them'} as 0"
+        )
+
+
+def _missing_parameters(calibration_file_name):
+    """The parameters a JSON calibration file does not give (the legacy ``two_theta_0`` counts as TTH_0); none
+    for NeXus, whose reader refuses an incomplete file."""
+    if calibration_format(calibration_file_name) != "json":
+        return []
+    with open(calibration_file_name, "r") as calibration_file:
+        given = json.load(calibration_file)
+    return [
+        name
+        for name in CALIBRATION_PARAMETERS
+        if name not in given and not (name == "TTH_0" and "two_theta_0" in given)
+    ]
+
+
+def read_calibration_values(calibration_file_name, allow_missing=False):
     """The eight calibration values of a JSON or NeXus calibration file, by name (#1098)
 
     Reads the file with :func:`read_calibration_file`, the reader reduction uses, so a start loaded into the
     calibration window or ``pyrs-calibration`` is read exactly as reduction would read it.
+
+    Parameters
+    ----------
+    allow_missing: bool
+        accept a file without some parameters, read as 0 as reduction reads them; by default it is refused
+        (user decision, #1098), so a start is never silently 0
 
     Returns
     -------
@@ -143,12 +184,18 @@ def read_calibration_values(calibration_file_name):
 
     Raises
     ------
+    IncompleteCalibrationError
+        If parameters are missing and ``allow_missing`` is False; it carries the values with them as 0
     ValueError
-        If the extension is not ``.json`` or ``.nxs``, or the file is not a complete calibration
+        If the extension is not ``.json`` or ``.nxs``, or the file is not a calibration
     """
     shifts, _, wavelength, _, _ = read_calibration_file(calibration_file_name)
     values = dict(shifts.convert_to_dict(), Lambda=float(wavelength))
-    return {name: float(values[name]) for name in CALIBRATION_PARAMETERS}
+    values = {name: float(values[name]) for name in CALIBRATION_PARAMETERS}
+    missing = _missing_parameters(calibration_file_name)
+    if missing and not allow_missing:
+        raise IncompleteCalibrationError(calibration_file_name, missing, values)
+    return values
 
 
 def read_calibration_json_file(calibration_file_name):
