@@ -3491,8 +3491,12 @@ both defaults.
   - the calibration window's **Load Calibration** and a recipe's `input_calibration`;
   - `pyrs-calibration`'s `"old calibration"` (`FitCalibration.get_archived_calibration`).
 
-  `read_calibration_values` returns the eight values by name. A file the window cannot read now shows a pop-up
-  and changes nothing (before, `json.load` with missing keys silently left table cells unchanged).
+  `read_calibration_values` returns the eight values by name.
+  - **A file the window cannot read** (missing, not a calibration) shows a pop-up and changes nothing: neither
+    the table nor the remembered start file, which a saved recipe would carry.
+  - **Missing parameters** in a JSON start are read as reduction reads them: 0, error -1, silently. Before,
+    `json.load` left the window's cell unchanged, and FitCalibration raised `KeyError`. (Review finding, left
+    for a user decision.)
 - **Export:** "Also write NeXus (with diagnostics)", ticked by default, adds `HB2B_CAL_<time>.nxs` beside the
   folder or archive copy.
   - It is written after the JSON targets, from the same values and provenance, with the method's diagnostics.

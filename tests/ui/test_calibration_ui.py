@@ -489,3 +489,53 @@ def test_load_calibration_offers_and_reads_nexus(calibration_window, monkeypatch
     table = window.calib_summary._cal_summary_table
     values = [float(table.item(row, 0).text()) for row in range(8)]
     np.testing.assert_allclose(values, [0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.0, 1.53])
+
+
+@pytest.mark.parametrize("kind", ["missing", "not-a-calibration"])
+def test_unreadable_calibration_changes_nothing(calibration_window, monkeypatch, tmp_path, kind):
+    """A start that cannot be read is reported and changes neither the table nor the remembered file (#1098)"""
+    import h5py
+
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+
+    # Arrange
+    window, _ = calibration_window
+    path = tmp_path / "start.nxs"
+    if kind == "not-a-calibration":
+        with h5py.File(path, "w") as other:
+            other.create_group("entry")
+    table = window.calib_summary._cal_summary_table
+    before = [table.item(row, 0).text() for row in range(8)]
+    messages = []
+    monkeypatch.setattr(viewer_module.QFileDialog, "getOpenFileNames", lambda *args, **kwargs: ([str(path)], ""))
+    monkeypatch.setattr(viewer_module, "pop_message", lambda parent, title, *args: messages.append(title))
+
+    # Act
+    window.fileLoading.file_load_calib.openCalibFileDialog()
+
+    # Assert
+    assert messages == ["Cannot load the calibration"]
+    assert [table.item(row, 0).text() for row in range(8)] == before
+    assert window._calibration_input is None
+
+
+@pytest.mark.parametrize(
+    "written, title",
+    [(["cal.json", "cal.nxs"], "NeXus copy without diagnostics"), (["cal.json"], "NeXus copy missing")],
+)
+def test_nexus_warning_says_what_happened(calibration_window, monkeypatch, written, title):
+    """The warning tells a NeXus copy written without diagnostics from one not written (#1098 review)"""
+    from pyrs.interface.detector_calibration import detector_calibration_viewer as viewer_module
+
+    # Arrange
+    window, _ = calibration_window
+    messages = []
+    monkeypatch.setattr(window.controller, "export_calibration", lambda *args, **kwargs: written)
+    monkeypatch.setattr(viewer_module, "pop_message", lambda parent, message, *args: messages.append(message))
+    window.model.nexus_problem = "something went wrong"
+
+    # Act
+    window.calib_summary.write_calibration("folder", nexus=True)
+
+    # Assert
+    assert messages == [title]

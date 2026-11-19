@@ -113,15 +113,15 @@ class FileLoad(QWidget):
         self._parent.fit_summary.fit_table_operator.fit_result = None
 
     def openCalibFileDialog(self):
-        self._parent._calibration_input, _ = QFileDialog.getOpenFileNames(
+        chosen, _ = QFileDialog.getOpenFileNames(
             self, self.name, "", self.fileType, options=QFileDialog.DontUseNativeDialog
         )
-
-        if self._parent._calibration_input:
-            if type(self._parent._calibration_input) is list:
-                self._parent._calibration_input = self._parent._calibration_input[0]
-
-            self._parent.calib_summary._cal_summary_table._initalize_calibration()
+        if chosen:
+            path = chosen[0] if isinstance(chosen, list) else chosen
+            # remembered (and saved with a recipe) only once it has been read: a cancelled dialog or a file
+            # that cannot be read changes nothing (#1098)
+            if self._parent.calib_summary._cal_summary_table._initalize_calibration(path):
+                self._parent._calibration_input = path
 
     def openFileDialog(self):
         self._parent._nexus_file, _ = QFileDialog.getOpenFileNames(
@@ -796,10 +796,9 @@ class PeakLinesSetupView(QGroupBox):
         if self._parent._nexus_file is not None:  # Error check to make sure nexus file is loaded
             for key in list(input_dict.keys()):
                 if key == "input_calibration":
-                    self._parent._calibration_input = input_dict["input_calibration"]
-                    self._parent.calib_summary._cal_summary_table._initalize_calibration(
-                        self._parent._calibration_input
-                    )
+                    path = input_dict["input_calibration"]
+                    if self._parent.calib_summary._cal_summary_table._initalize_calibration(path):
+                        self._parent._calibration_input = path
                 elif key == "keep":
                     for i_keep, keep in enumerate(input_dict["keep"]):
                         if keep is False:
@@ -1022,7 +1021,9 @@ class CalibrationSummaryView(QGroupBox):
             message += f" (provenance incomplete: {self._parent.model.provenance_problem})"
         if self._parent.model.nexus_problem:
             message += f" ({self._parent.model.nexus_problem})"
-            pop_message(self, "NeXus copy missing", self._parent.model.nexus_problem, "warning")
+            written_nexus = any(path.endswith(".nxs") for path in written)
+            title = "NeXus copy without diagnostics" if written_nexus else "NeXus copy missing"
+            pop_message(self, title, self._parent.model.nexus_problem, "warning")
         self._parent.statusBar().showMessage(message)
         return written
 
@@ -1047,21 +1048,21 @@ class CalibrationSummaryTable(QTableWidget):
         for i_row in range(8):
             self.setItem(i_row, 0, QTableWidgetItem("0"))
 
-    def _initalize_calibration(self, calibration_file=None):
+    def _initalize_calibration(self, calibration_file=None) -> bool:
         """Fill the "Starting" column from a JSON or NeXus calibration file (#1098), read as reduction reads it.
-        A file that cannot be read is reported in a pop-up and changes nothing."""
+        A file that cannot be read is reported in a pop-up and changes nothing. Returns whether it was read."""
         if calibration_file is None:
             calibration_file = self._parent._parent._calibration_input
-
-        if calibration_file is not None:
-            try:
-                values = read_calibration_values(calibration_file)
-            except (OSError, ValueError, KeyError) as read_error:
-                pop_message(self, "Cannot load the calibration", f"{calibration_file}: {read_error}", "error")
-                return
-
-            for i_lable, label in enumerate(self.labels):
-                self.setItem(i_lable, 0, QTableWidgetItem(str(values[label])))
+        if calibration_file is None:
+            return False
+        try:
+            values = read_calibration_values(calibration_file)
+        except (OSError, ValueError, KeyError, RuntimeError) as read_error:  # RuntimeError: missing file or field
+            pop_message(self, "Cannot load the calibration", f"{calibration_file}: {read_error}", "error")
+            return False
+        for i_lable, label in enumerate(self.labels):
+            self.setItem(i_lable, 0, QTableWidgetItem(str(values[label])))
+        return True
 
     def set_calibration(self, calibration_list, calibration_error_list, col_name=None):
         for i_calibration in range(len(calibration_list)):

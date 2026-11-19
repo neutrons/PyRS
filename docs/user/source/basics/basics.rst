@@ -158,7 +158,8 @@ Both formats hold exactly the same values, and reduction gives bit-for-bit the s
 **Export.** The Export dialog writes a JSON file to the chosen folder, or to the shared archive and
 "latest" files. **Also write NeXus (with diagnostics)**, ticked by default, adds a ``HB2B_CAL_<time>.nxs``
 copy beside the folder or archive copy. If the NeXus copy cannot be written, the JSON files are still
-written and a warning says why the NeXus copy is missing.
+written and a warning says why the NeXus copy is missing; if only its diagnostics cannot be built, the copy is
+written without them and a warning says so.
 
 **Reading a calibration.** Everywhere a calibration file is chosen, both formats are accepted:
 
