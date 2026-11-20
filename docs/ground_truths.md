@@ -3591,3 +3591,20 @@ vanadium propagation, vanadium-dead pixels). Three of its six tests fail on the 
   `calibration_file` and `calibration_file_sha256`.
 - **User docs:** "Calibration files: JSON and NeXus" in `docs/user/source/basics/basics.rst`.
 - **Deferred:** DD-29, an order-dependent NeXus reduction test that exists on `next` too, found here.
+
+## Developer docs build on Sphinx 9 (2026-11-20)
+
+`sphinx-build docs/developer/source` crashed on Sphinx 9.2 before writing any page. CI builds only the user docs (Read
+the Docs: `docs/user/source`), so nothing caught it.
+
+- **The `pyrs.interface` crash:** `conf.py` put plain `unittest.mock.Mock()` objects into `sys.modules` for
+  mantid, h5py, Qt, nexusformat and `pyrs.interface`. Sphinx 9's autodoc reads `__name__` from every module it
+  documents, which a plain `Mock` refuses, so `automodule:: pyrs.interface` raised `AttributeError: __name__`.
+  - **Fix:** `autodoc_mock_imports = MOCK_MODULES`, Sphinx's own mocks.
+- **The hook crash:** `remove_duplicate_from_index` (`autodoc-process-docstring`) set `options["noindex"]`. In
+  Sphinx 9 the options are an object.
+  - **Fix:** the hook sets `options.no_index` when item assignment fails.
+- **Result:** the build exits 0, and the `HidraProjectFile` duplicate entry stays out of the index. The roughly 137
+  warnings left are docstring-format and duplicate-description notes from the API pages.
+- **User docs:** `docs/user/source/conf.py` still uses plain `Mock` objects. It builds, because it documents
+  nothing they replace.
