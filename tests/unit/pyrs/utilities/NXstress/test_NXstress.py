@@ -26,6 +26,7 @@ from pyrs.utilities.NXstress._input_data import _InputData
 from pyrs.utilities.NXstress._instrument import _Instrument, _Masks
 from pyrs.utilities.NXstress._peaks import _Peaks
 from pyrs.utilities.NXstress._sample import _Sample
+from pyrs.utilities.NXstress import _validation
 from pyrs.utilities.NXstress.NXstress import NXstress
 
 import pytest
@@ -439,7 +440,7 @@ class TestNXstress:
         )
 
         # Should not raise
-        NXstress._validateWorkspaceAndPeaksData([ws], [[peak0]], _Peaks.indexed([peak0], sampleLogs))
+        _validation.validate_inputs([ws], [[peak0]], _Peaks.indexed([peak0], sampleLogs))
 
     def test_NXentry_definition_value(
         self,
@@ -616,7 +617,7 @@ class TestNXstress:
         )
         required_subgroups: list[tuple[str, type[object]]] = []
 
-        peaks = _Peaks.init_group(_Peaks.indexed([peak0], sampleLogs), sampleLogs)
+        peaks = _Peaks.init_group(_Peaks.indexed([peak0], sampleLogs), sampleLogs, run_boundary=True)
         assert isinstance(peaks, NXreflections)
         for key in required_fields:
             assert key in peaks

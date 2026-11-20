@@ -141,7 +141,7 @@ class TestDiscriminatorConfigKeys:
     """
 
     def test_shipped_defaults(self, default_config: "_Config") -> None:
-        assert default_config["nxstress.discriminator_fields"] == []
+        assert default_config["nxstress.discriminator_fields"] == ["direction"]
 
     def test_validate_config_rejects_a_bare_string(self, default_config: "_Config", tmp_path: Path) -> None:
         import pyrs.utilities.config as config_module
@@ -229,13 +229,13 @@ class TestConfigOverrideReachesBoundNames:
         # Arrange
         from pyrs.utilities.NXstress import _discriminator
 
-        assert _discriminator.field_names() == ()
+        assert _discriminator.field_names() == ("direction",)
 
         # Act
-        config_override({"nxstress": {"discriminator_fields": ["direction"]}})
+        config_override({"nxstress": {"discriminator_fields": ["zone"]}})
 
         # Assert
-        assert _discriminator.field_names() == ("direction",)
+        assert _discriminator.field_names() == ("zone",)
 
     def test_the_override_is_undone_afterwards(self, config_override):
         """Guards the teardown: a leaked override would make later tests lie."""
@@ -336,7 +336,7 @@ class TestConfigOverrideRefusesMalformedConfig:
     `validate_config()` call and the entire 675-test suite stayed green -- the
     guarantee was real but unconstrained, so a later refactor could drop it
     silently and reintroduce the defect recorded as DD-1 in
-    `plans/PR_review/deferred-defects.md`.
+    `docs/deferred_defects.md`.
     """
 
     def test_a_malformed_override_is_refused_by_the_fixture(self, config_override):
@@ -396,6 +396,16 @@ class TestValidateConfigRejectsMalformedValues:
     def test_an_empty_extension_raises(self, config_override):
         with pytest.raises(RuntimeError, match=r"extension: .*must not be blank"):
             self._validate(config_override, {"legacy_io": {"extension": ""}})
+
+    def test_a_zero_default_run_number_raises(self, config_override):
+        """0 reads as a real run, so it cannot stand for "this run records none"."""
+        with pytest.raises(RuntimeError, match=r"default_run_number: .*must not be 0"):
+            self._validate(config_override, {"nxstress": {"default_run_number": 0}})
+
+    @pytest.mark.parametrize("value", ["-1", 1.5, True], ids=["string", "float", "bool"])
+    def test_a_non_integer_default_run_number_raises(self, config_override, value):
+        with pytest.raises(RuntimeError, match=r"default_run_number: Input should be a valid integer"):
+            self._validate(config_override, {"nxstress": {"default_run_number": value}})
 
     def test_a_bare_string_for_the_field_list_raises(self, config_override):
         """A string is iterable, so it would be read one character at a time."""

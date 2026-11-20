@@ -1,5 +1,7 @@
 import json
 import traceback
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from pyrs.dataobjects.fields import StressField, StrainField, ScalarFieldSample
@@ -8,8 +10,15 @@ from pyrs.core.summary_generator_stress import SummaryGeneratorStress
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.utilities.restorable_property import restore
+from pyrs.utilities.NXstress.NXstress import NXstress
+from pyrs.interface.gui_helper import is_nxstress_path
+from pyrs.interface.nxstress_load import NXstressDisabled, require_nxstress_enabled
+from pyrs.utilities.config import Config, default_run_number
 from pyrs.utilities.convertdatatypes import to_text
 from qtpy.QtCore import Signal, QObject  # type:ignore
+
+#: The strain directions the viewer holds, in the order it lists them.
+DIRECTIONS = ("11", "22", "33")
 
 
 class Model(QObject):
@@ -90,9 +99,15 @@ class Model(QObject):
     @selectedPeak.setter
     def selectedPeak(self, tag):
         self._selectedPeak = tag
-        for direction in ("11", "22", "33"):
-            if getattr(self, f"e{direction}") and self.check_peak_for_direction(f"{direction}"):
+        # Nothing may stay from the previous peak: the stress stacked its strains when
+        # it was built, so it is rebuilt for this one, and a direction without this
+        # peak holds no strain rather than the previous peak's.
+        self.stress = None
+        for direction in DIRECTIONS:
+            if getattr(self, f"e{direction}") and self.check_peak_for_direction(direction):
                 self.create_strain(direction)
+            else:
+                setattr(self, f"_e{direction}_strain", None)
         self.propertyUpdated.emit("selectedPeak")
 
     @property
@@ -122,14 +137,21 @@ class Model(QObject):
 
     def create_strain(self, direction):
         print(getattr(self, f"e{direction}"))
+        setattr(
+            self,
+            f"_e{direction}_strain",
+            self._strain_for(getattr(self, f"e{direction}"), getattr(self, f"e{direction}_peaks")),
+        )
+
+    def _strain_for(self, workspaces: list, peaks: list) -> StrainField:
+        """The selected peak's strain over one direction's workspaces, assigning nothing."""
         strain_list = [
             StrainField(hidraworkspace=ws, peak_collection=peak[self.selectedPeak])
-            for ws, peak in zip(getattr(self, f"e{direction}"), getattr(self, f"e{direction}_peaks"))
+            for ws, peak in zip(workspaces, peaks)
         ]
         if len(strain_list) == 1:
-            setattr(self, f"_e{direction}_strain", strain_list[0])
-        else:
-            setattr(self, f"_e{direction}_strain", sum(strain_list[1:], strain_list[0]))
+            return strain_list[0]
+        return sum(strain_list[1:], strain_list[0])
 
     def check_peak_for_direction(self, direction):
         for peak in getattr(self, f"e{direction}_peaks"):
@@ -144,7 +166,7 @@ class Model(QObject):
         if not self.e11:
             return "e11 is not loaded, the peak tags from this file will be used"
 
-        if not self.e11_peaks:
+        if not any(self.e11_peaks):
             return "e11 contains no peaks, fit peaks first"
 
         if not self.check_peak_for_direction(f"{direction}"):
@@ -196,7 +218,9 @@ class Model(QObject):
             if poissonsRatio != self._poisson_ratio:
                 self._stress.poisson_ratio = poissonsRatio
 
-        if d0 is not None and (self._d0 is None or self._d0 != d0):
+        # A rebuilt stress has lost any d0 applied to the previous one, so re-apply it
+        # even when it equals the cached value.
+        if d0 is not None and (build_stress or self._d0 != d0):
             if len(d0) == 5:  # ScalarFieldSample case
                 self.stress_facade.d_reference = ScalarFieldSample("d0", *d0)
             else:
@@ -273,7 +297,7 @@ class Model(QObject):
         runnumbers = []
         for runs in runs:
             for runnumber in runs:
-                if runnumber != -1:
+                if runnumber != default_run_number():
                     runnumbers.append(str(runnumber))
         return "HB2B_{}_stress_grid_{}.csv".format("_".join(runnumbers), self.selectedPeak)
 
@@ -286,7 +310,10 @@ class Model(QObject):
             # free text that other viewers use for other things. Record it on the
             # `direction` property too, which is what NXstress reads and restores.
             restore(ws, "direction", direction)
-            ws.load_hidra_project(source_project, False, False)
+            # Reduced diffraction is loaded only for NXstress output, which writes a
+            # diffractogram for every peak collection and refuses one without. The
+            # viewer itself never reads it, so without NXstress it is not worth the memory.
+            ws.load_hidra_project(source_project, False, bool(Config["nxstress.enable"]))
             # The direction is the user's assertion about which file is which, made
             # in the file-selection UI. If the project itself records one and the two
             # disagree, one of them is wrong and neither this model nor the viewer
@@ -336,8 +363,8 @@ class Model(QObject):
             if ws is None:
                 return None
             workspaces.append(ws)
-            if p:
-                peaks.append(p)
+            # Appended even when empty: `create_strain` pairs the two lists by position.
+            peaks.append(p)
 
         return workspaces, peaks
 
@@ -374,6 +401,226 @@ class Model(QObject):
         self._poisson_ratio = None
         self._d0 = None
 
+    def save_as_nxstress(self, filename: str) -> None:
+        """Write every loaded direction to one NXstress file, in one `NXentry`.
+
+        Each loaded workspace -- one per project file, so a direction loaded from
+        two runs contributes two -- is written with its own peak collections. They
+        are told apart on read by `direction`, which `load_hidra_project_file`
+        records on each workspace, and by run number: every run numbers its scan
+        points from 1, and NXstress keys each scan point by `(run, scan point)`.
+
+        Raises rather than reporting through `failureMsg`: the viewer writes
+        through `gui_helper.write_nxstress_or_report`, which reports the failure
+        and leaves any existing file at `filename` untouched.
+
+        Args:
+            filename: The `.nxs` file to write. The viewer has already imposed the
+                configured extension.
+
+        Raises:
+            NXstressDisabled: If NXstress I/O is switched off (`nxstress.enable`).
+            RuntimeError: If `direction` is not among `nxstress.discriminator_fields`
+                -- without it the directions would be refused as several
+                workspaces with no recorded boundary -- or if nothing is loaded.
+            ValueError: If a loaded file has no fitted peaks: a direction
+                contributes a workspace only together with its peak collections.
+        """
+        require_nxstress_enabled()
+        if "direction" not in Config["nxstress.discriminator_fields"]:
+            raise RuntimeError(
+                "Saving strain/stress data as NXstress needs 'direction' in the "
+                "'nxstress.discriminator_fields' configuration, which tells the directions apart "
+                f"in the file; it is {Config['nxstress.discriminator_fields']}.\n"
+                "  Add 'direction' to that setting, or save as JSON state instead."
+            )
+
+        workspaces: list[HidraWorkspace] = []
+        peakss: list = []
+        for direction in DIRECTIONS:
+            loaded = getattr(self, f"e{direction}")
+            peaks = getattr(self, f"e{direction}_peaks")
+            unfitted = sum(1 for collections in peaks if not collections)
+            if unfitted:
+                raise ValueError(
+                    f"Direction {direction}: {unfitted} of its {len(loaded)} file(s) "
+                    "have no fitted peaks, and NXstress records a direction only through its peaks.\n"
+                    "  Fit peaks first, or remove those files."
+                )
+            workspaces.extend(loaded)
+            peakss.extend(list(collections.values()) for collections in peaks)
+
+        if not workspaces:
+            raise RuntimeError("Nothing to save: no direction has been loaded.")
+
+        with NXstress(Path(filename), "w") as nx:
+            nx.write(workspaces, peakss)
+
+    def load_nxstress(self, filename: str) -> bool:
+        """Load every direction from one NXstress file written by `save_as_nxstress`.
+
+        Each workspace in the file goes to the direction it records, replacing
+        whatever that direction held; a direction the file does not hold is
+        emptied. Strains are rebuilt as they are after loading project files
+        direction by direction.
+
+        A file is not a `HidraProjectFile`, so this is separate from
+        `load_hidra_project_files` rather than a branch inside it.
+
+        Args:
+            filename: The `.nxs` file to read.
+
+        Returns:
+            True if the file was loaded. False if it was refused or failed to
+            read; the reason has been reported through `failureMsg`, and nothing
+            the model held has changed.
+        """
+        try:
+            slots = self._read_nxstress_slots(filename)
+        except NXstressDisabled as e:
+            # Its own message names the setting to change; the file is not at fault.
+            self.failureMsg.emit(f"Failed to load {filename}", str(e), traceback.format_exc())
+            return False
+        except Exception as e:
+            self.failureMsg.emit(
+                f"Failed to load {filename}. Check that this is an NXstress file written by the strain/stress viewer",
+                str(e),
+                traceback.format_exc(),
+            )
+            return False
+
+        # Every strain is built before anything is assigned, so that one failing to
+        # build leaves the model as it was, as a refused file does.
+        try:
+            strains = {
+                direction: self._strain_for(loaded, peaks)
+                for direction, (loaded, peaks) in slots.items()
+                if loaded and all(self.selectedPeak in collections for collections in peaks)
+            }
+        except Exception as e:
+            self.failureMsg.emit(f"Failed to load {filename}", str(e), traceback.format_exc())
+            return False
+
+        # remove existing stress as it will need to be recreated
+        self.stress = None
+        for direction, (loaded, peaks) in slots.items():
+            setattr(self, f"_e{direction}", loaded)
+            setattr(self, f"_e{direction}_peaks", peaks)
+            setattr(self, f"_e{direction}_strain", strains.get(direction))
+
+        # Peak tags come from e11, as when loading direction by direction.
+        self._peakTags = list(self._e11_peaks[0].keys()) if self._e11_peaks else []
+        self.propertyUpdated.emit("peakTags")
+        return True
+
+    @staticmethod
+    def _read_nxstress_slots(filename: str) -> dict[str, tuple[list, list]]:
+        """Every workspace of an NXstress file, sorted into the direction it records.
+
+        Args:
+            filename: The `.nxs` file to read.
+
+        Returns:
+            For each of `DIRECTIONS`, `(workspaces, peaks)` in the shape the model
+            holds a direction in: one `{peak_tag: PeakCollection}` per workspace.
+            A direction the file does not hold has two empty lists.
+
+        Raises:
+            NXstressDisabled: If NXstress I/O is switched off (`nxstress.enable`).
+            RuntimeError: If the file holds more than one `NXentry`.
+            ValueError: If a workspace records no direction, or one the viewer
+                does not hold.
+        """
+        require_nxstress_enabled()
+        with NXstress(Path(filename), "r") as nx:
+            entries = nx.entry_numbers()
+            if len(entries) != 1:
+                raise RuntimeError(
+                    f"'{Path(filename).name}' holds {len(entries)} NXentry groups, and the strain/stress "
+                    "viewer reads one: nothing in PyRS writes more than one yet."
+                )
+            workspaces, peakss = nx.read()
+
+        slots: dict[str, tuple[list, list]] = {direction: ([], []) for direction in DIRECTIONS}
+        for ws, collections in zip(workspaces, peakss, strict=True):
+            # Raises `ValueError` for a workspace that records no direction.
+            direction = ws.direction
+            if direction not in slots:
+                raise ValueError(f"A workspace in this file records direction '{direction}', not one of {DIRECTIONS}.")
+            slots[direction][0].append(ws)
+            slots[direction][1].append({collection.peak_tag: collection for collection in collections})
+        return slots
+
+    def _restore_direction(self, direction: str, filenames: list[str], *, nxstress_slots: dict) -> bool:
+        """Load one direction from the files a saved state lists for it.
+
+        Project files load as they do interactively (`_load_direction`). An
+        NXstress file contributes the workspaces it holds for *this* direction: a
+        state saved after an NXstress load lists the `.nxs` once per workspace, so
+        each distinct file is taken once. Mixed lists are loaded file by file, in
+        order.
+
+        A file that cannot be loaded is reported through `failureMsg` and leaves
+        the direction empty, as a failed project-file load does.
+
+        Args:
+            direction: One of `DIRECTIONS`.
+            filenames: The files the state lists for it.
+            nxstress_slots: NXstress files already read during this restore, by
+                name, so that one listed for several directions is read once. A
+                file that failed to read is held as its exception, and reported
+                only for the first direction that lists it.
+
+        Returns:
+            Whether every file loaded.
+        """
+        if not any(is_nxstress_path(filename) for filename in filenames):
+            return self._load_direction(direction, filenames)
+
+        # remove existing stress as it will need to be recreated
+        self.stress = None
+        workspaces: list = []
+        peaks: list = []
+        loaded_all = True
+        for filename in dict.fromkeys(filenames):
+            if is_nxstress_path(filename):
+                if filename not in nxstress_slots:
+                    try:
+                        nxstress_slots[filename] = self._read_nxstress_slots(filename)
+                    except Exception as e:
+                        nxstress_slots[filename] = e
+                        self.failureMsg.emit(f"Failed to load {filename}", str(e), traceback.format_exc())
+                if isinstance(nxstress_slots[filename], Exception):
+                    workspaces, peaks, loaded_all = [], [], False
+                    break
+                loaded, loaded_peaks = nxstress_slots[filename][direction]
+                if not loaded:
+                    self.failureMsg.emit(
+                        f"Failed to load {filename} for direction {direction}",
+                        f"'{Path(filename).name}' holds no workspace for direction {direction}.",
+                        "",
+                    )
+                    workspaces, peaks, loaded_all = [], [], False
+                    break
+                workspaces.extend(loaded)
+                peaks.extend(loaded_peaks)
+            else:
+                ws, p = self.load_hidra_project_file(filename, direction)
+                if ws is None:
+                    workspaces, peaks, loaded_all = [], [], False
+                    break
+                workspaces.append(ws)
+                peaks.append(p)
+
+        setattr(self, f"_e{direction}", workspaces)
+        setattr(self, f"_e{direction}_peaks", peaks)
+        setattr(self, f"_e{direction}_strain", None)
+        if direction == "11":
+            # As the e11 setter does: the peak tags on offer come from e11.
+            self._peakTags = list(peaks[0].keys()) if peaks else []
+            self.propertyUpdated.emit("peakTags")
+        return loaded_all
+
     def get_filenames_for_direction(self, direction):
         return [w.hidra_project_file for w in getattr(self, f"e{direction}")]
 
@@ -409,27 +656,24 @@ class Model(QObject):
         with open(filename) as f:
             data = json.load(f)
 
-        self._selectedPeak = data["peak_tag"]
-
-        # A session restores whole or not at all: a failure in any direction leaves
-        # the model empty, rather than computing stress from the directions that
-        # did load -- or from a strain an earlier session left behind.
-        for direction in ("11", "22", "33"):
-            if not self._load_direction(direction, data[f"filenames_{direction}"]):
+        # A session restores whole or not at all: a file that fails to load, in any
+        # direction, leaves the model empty, rather than computing stress from the
+        # directions that did load -- or from a strain an earlier session left behind.
+        nxstress_slots: dict = {}
+        for direction in DIRECTIONS:
+            if not self._restore_direction(direction, data[f"filenames_{direction}"], nxstress_slots=nxstress_slots):
                 self._restore_failed()
                 return
-            if getattr(self, f"e{direction}"):
-                if not self.check_peak_for_direction(direction):
-                    self.failureMsg.emit(
-                        f"Failed to restore {filename}",
-                        f"Peak {self.selectedPeak} is not in e{direction}.",
-                        "",
-                    )
-                    self._restore_failed()
-                    return
-                self.create_strain(direction)
         self._peakTags = list(self._e11_peaks[0].keys()) if len(self._e11_peaks) > 0 else []
         self.propertyUpdated.emit("peakTags")
+        # Set only once the peak tags are offered: the window answers them by
+        # selecting the first, and the saved peak must win.
+        self._selectedPeak = data["peak_tag"]
+        # A peak one direction lacks is not a failed load: what loaded is kept, and
+        # the window names the gap (`validate_selection`).
+        for direction in DIRECTIONS:
+            if getattr(self, f"e{direction}") and self.check_peak_for_direction(direction):
+                self.create_strain(direction)
 
         d0_data = data["d0"]
         if d0_data is None:
@@ -439,7 +683,19 @@ class Model(QObject):
         else:
             d0 = (d0_data["d0"], d0_data["d0_error"], d0_data["vx"], d0_data["vy"], d0_data["vz"])
 
-        self.calculate_stress(data["stress_case"], data["youngs_modulus"], data["poisson_ratio"], d0)
+        stress_case = data["stress_case"]
+        directions = DIRECTIONS if stress_case == "diagonal" else DIRECTIONS[:2]
+        if all(self.validate_selection(direction) is None for direction in directions):
+            self.calculate_stress(stress_case, data["youngs_modulus"], data["poisson_ratio"], d0)
+        else:
+            # A direction the stress case needs is empty -- the state listed no file
+            # for it -- or lacks the peak. As in the window, stress waits for complete
+            # inputs, and the window says which is missing; the constants still restore
+            # to the form. d0 does not: the form reads it from the stress, and there is
+            # none yet.
+            self._stressCase = stress_case
+            self._youngs_modulus = data["youngs_modulus"]
+            self._poisson_ratio = data["poisson_ratio"]
 
         self.propertyUpdated.emit("modelUpdated")
 

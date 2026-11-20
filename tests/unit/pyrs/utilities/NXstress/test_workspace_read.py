@@ -2,6 +2,7 @@
 Tests for NXstress workspace read functionality (Part 2)
 """
 
+import h5py
 import numpy as np
 from nexusformat.nexus import (
     NXsample,
@@ -269,6 +270,22 @@ class TestReadErrors:
         nxs = NXstress(nxstress_file, mode="r")
         with pytest.raises(RuntimeError, match="context manager"):
             nxs.read()
+
+    @pytest.mark.parametrize("group", ["FIT", "peaks"])
+    def test_entry_missing_a_required_group_raises(self, minimal_HidraWorkspace, tmp_path, group):
+        """NXstress requires both (`minOccurs="1"`); without one the workspaces cannot be recovered."""
+        # Arrange
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
+        nxstress_file = tmp_path / "missing_group.nxs"
+        with NXstress(nxstress_file, mode="w") as nxs:
+            nxs.write([ws], [[]])
+        with h5py.File(nxstress_file, "r+") as f:
+            del f[f"entry/{group}"]
+
+        # Act / Assert
+        with NXstress(nxstress_file, mode="r") as nxs:
+            with pytest.raises(RuntimeError, match=rf"has no {group} group, which NXstress requires"):
+                nxs.read()
 
 
 class TestStandaloneMethods:

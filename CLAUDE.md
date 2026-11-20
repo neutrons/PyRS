@@ -33,7 +33,7 @@ computations behind the UI, and the established calibration (`FitCalibration`).
 4. **Test incrementally** — Each step should be testable on its own.
 5. **Review after major changes** — Delegate review to a sub-agent via the `Agent` tool.
 6. **Ground truths** — ALWAYS record key findings in [docs/ground_truths.md](docs/ground_truths.md) for future reference. Update the file with new findings, and link to it from related documentation and code comments.
-7. **Deferred defects** — A defect in the PyRS codebase that you find but do not fix gets one numbered, dated line in [docs/deferred_defects.md](docs/deferred_defects.md), and is listed in the PR's commit message.
+7. **Deferred defects** — A defect in the PyRS codebase that you find but do not fix gets an entry in [docs/deferred_defects.md](docs/deferred_defects.md) (one numbered, dated line, with its details indented beneath it), and is listed in the PR's commit message.
 
 ## 🔄 Standard Workflow for Every Request
 
@@ -204,6 +204,7 @@ Notes:
   serially: `pixi run test-unit -n 0`. The ring-calibration tier is serial (see its marker). CI runs
   each tier as its own job (`test-ci-unit`, `test-ci-ring-calibration`, `test-ci-integration`,
   `test-ci-gui`, under `xvfb-run`, #1100, #1101).
+- No tier needs a display: with neither `DISPLAY` nor `WAYLAND_DISPLAY` set, `tests/ui/conftest.py` creates an offscreen `QApplication` before its modules import mantidqt — see [docs/ground_truths.md](docs/ground_truths.md).
 - **Every test has a 300-second timeout** (`timeout`/`timeout_method` in
   `pyproject.toml`, via `pytest-timeout`). A hang is a failure, not an infinite
   wait. `timeout_method = "thread"` is deliberate: a test blocked inside Qt's C++

@@ -60,8 +60,8 @@ class CombineRunsModel(QObject):
             # data. That shape is supported rather than merely tolerated:
             # `_Peaks.init_group` and `_Fit.init_group` write a valid empty
             # PEAKS/FIT group, recording the writer's `UNDEFINED_PEAK_TAG` sentinel
-            # as the fit model, and `NXstress._rejectFitModelMismatch` has a branch
-            # for an entry carrying that sentinel -- such an entry cannot be
+            # as the fit model, and NXstress's `_append.reject_fit_model_mismatch`
+            # has a branch for an entry carrying that sentinel -- such an entry cannot be
             # appended to, because it records no discriminator values for the rows
             # already in it.
             with NXstress(Path(fileout), "w") as nx:

@@ -138,6 +138,28 @@ def report_save_failure(parent, target: str, save_err: Exception) -> None:
     pop_message(parent, f"Failed to save '{Path(target).name}'", str(save_err), "error")
 
 
+# Qt separates the name filters of a file dialog with two semicolons; one
+# semicolon is part of a filter's text, so it would merge them into one choice.
+FILE_FILTER_SEPARATOR = ";;"
+
+
+def load_file_filter(*filters: str) -> str:
+    """A file-dialog filter offering NXstress files only when NXstress I/O is on.
+
+    `nxstress.enable` switches the whole NXstress feature set, loading included,
+    so a load dialog must not offer `.nxs` files while it is false. Read when
+    called, so the dialog follows the current configuration.
+
+    Args:
+        filters: The dialog's other format filters, in order; NXstress follows them.
+
+    Returns:
+        The filters joined by `FILE_FILTER_SEPARATOR`, one choice each in the dialog.
+    """
+    parts = [*filters, nxstress_file_filter()] if Config["nxstress.enable"] else list(filters)
+    return FILE_FILTER_SEPARATOR.join(parts)
+
+
 def nxstress_save_available(ws: Optional["HidraWorkspace"]) -> bool:
     """Whether NXstress output can be offered for a workspace: NXstress must be
     enabled in the config, and the workspace must have the instrument geometry
@@ -257,7 +279,7 @@ def browse_file(parent, caption, default_dir, file_filter, file_list=False, save
         file_filter = "All Files (*.*)"
     else:
         checkdatatypes.check_string_variable("File filter", file_filter)
-        file_filter = "{};;All Files (*.*)".format(file_filter)
+        file_filter = f"{file_filter}{FILE_FILTER_SEPARATOR}All Files (*.*)"
 
     if save_file:
         # browse file name to save to

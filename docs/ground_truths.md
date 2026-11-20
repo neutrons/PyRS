@@ -3647,3 +3647,36 @@ the Docs: `docs/user/source`), so nothing caught it.
   warnings left are docstring-format and duplicate-description notes from the API pages.
 - **User docs:** `docs/user/source/conf.py` still uses plain `Mock` objects. It builds, because it documents
   nothing they replace.
+
+---
+
+## Collecting `tests/ui` without a display needs a `QApplication` first (2026-11-05)
+
+Found while rebasing the NXstress PR stack from an SSH session with no `DISPLAY`. Every test tier,
+unit included, failed at *collection* on the eight `tests/ui/` modules:
+
+```
+ImportError: Cannot load backend 'QtAgg' which requires the 'qt' interactive framework, as 'headless' is currently running
+```
+
+Each of those modules imports mantidqt at module scope, and mantidqt selects matplotlib's `QtAgg`
+backend on import. matplotlib 3.10.9 (PyQt6 6.11.2 here) accepts that backend only if a
+`QApplication` already exists or an X/Wayland display can be opened; it does not consult
+`QT_QPA_PLATFORM`. `-m` deselects tests only after their modules are imported, so a tier's marker
+filter cannot keep these modules out. Measured with `DISPLAY` and `WAYLAND_DISPLAY` unset:
+
+```
+QT_QPA_PLATFORM=offscreen, import mantidqt.MPLwidgets              -> ImportError (above)
+QT_QPA_PLATFORM=offscreen, QApplication([]) first, then the import  -> backend QtAgg
+QT_QPA_PLATFORM unset, QApplication([])                              -> aborts (no platform plugin)
+```
+
+A `DISPLAY` that names a reachable server also passes; one naming no server (`:99`) fails. Runs from
+a desktop session or under CI's `xvfb-run` always had one, which is why this went unnoticed.
+
+**Why this matters going forward:** `tests/ui/conftest.py` now sets `QT_QPA_PLATFORM=offscreen`
+(unless already set) and creates a `QApplication` when neither `DISPLAY` nor `WAYLAND_DISPLAY` is
+set. pytest imports that conftest before the modules beside it, so every tier now runs with no
+display at all, and with a display nothing changes. A test module that imports mantidqt or a viewer
+at module scope belongs under `tests/ui/`, where this applies; placed elsewhere, it would bring the
+collection failure back.

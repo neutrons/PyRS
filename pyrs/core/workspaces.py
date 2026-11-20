@@ -131,17 +131,21 @@ class HidraWorkspace:
     @property
     @restores("_project_file_name")
     def hidra_project_file(self) -> Optional[str]:
-        """Name of the associated HiDRA project file.
+        """Name of the file this workspace was loaded from.
 
-        Read-only, and **restorable**: normally set as a side effect of
-        `load_hidra_project`, which means a workspace rebuilt from any other
-        source -- an NXstress file, say -- could not record where it came from.
-        A reader restores it through
+        A HiDRA project file, or -- for a workspace read from NXstress -- the
+        `.nxs` file. One field serves both because a workspace comes from one or
+        the other, never both, and what its consumers want is the same: the file
+        to load it from again (the strain/stress viewer's saved state), or to
+        name as the source of a fit.
+
+        Read-only, and **restorable**: set as a side effect of
+        `load_hidra_project`, and restored by the NXstress reader through
         `pyrs.utilities.restorable_property.restore`.
 
         Returns:
-            The project file name, or None for a workspace that was not loaded
-            from one and has not had the value restored.
+            The file name, or None for a workspace that was not loaded from a
+            file and has not had the value restored.
         """
         return self._project_file_name
 

@@ -653,13 +653,13 @@ class TestFitTailAppend:
         # Arrange
         logs = minimal_HidraWorkspace(with_instrument=False, sub_runs=np.array([1, 2, 3, 4, 5]))._sample_logs
         first = _Peaks.indexed([self._collection(createPeakCollection, "Fe110", [1, 2, 3])], logs)
-        peaks = _Peaks.init_group(first, logs)
+        peaks = _Peaks.init_group(first, logs, run_boundary=True)
         pp = _PeakParameters.init_group(first)
         bp = _BackgroundParameters.init_group(first)
         second = _Peaks.indexed([self._collection(createPeakCollection, "Si111", [4, 5])], logs)
 
         # Act
-        _Peaks.init_group(second, logs, data=peaks)
+        _Peaks.init_group(second, logs, data=peaks, run_boundary=True)
         _PeakParameters.init_group(second, data=pp)
         _BackgroundParameters.init_group(second, data=bp)
 

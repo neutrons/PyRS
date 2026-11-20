@@ -1,6 +1,7 @@
 import numpy as np
 from pyrs.core.peak_profile_utility import PeakShape, BackgroundFunction, get_parameter_dtype
 from pyrs.peaks import PeakCollection, PeakCollectionLite  # type: ignore
+from pyrs.utilities.config import Config
 import pytest
 import warnings
 
@@ -146,7 +147,7 @@ def check_peak_collection(
     np.testing.assert_equal(peaks.get_subruns(), subruns)
     np.testing.assert_equal(peaks.get_chisq(), chisq)
     assert len(peaks.get_fit_status()) == NUM_SUBRUN
-    assert peaks.runnumber == -1  # tests don't have real data
+    assert peaks.runnumber == Config["nxstress.default_run_number"]  # tests don't have real data
     assert peaks.projectfilename == ""  # tests don't have real data
 
     # check raw/native parameters
@@ -318,8 +319,48 @@ def test_peak_collection_lite():
     np.testing.assert_equal(obs, 0.0)
     np.testing.assert_equal(obs_error, 0.0)
     assert len(peaks.get_d_reference()[0]) == SIZE
-    assert peaks.runnumber == -1  # never has a run number
+    assert peaks.runnumber == Config["nxstress.default_run_number"]  # never has a run number
     assert peaks.projectfilename == ""  # never came from a file
+
+
+class TestRunNumberDefault:
+    """A collection that records no run number takes the configured value, read when created.
+
+    The default comes from `nxstress.default_run_number`, and is looked up when
+    the collection is constructed rather than when the module is imported -- so
+    an override, a test's or a deployment's, is seen. A signature default would
+    be frozen at import.
+    """
+
+    def test_an_unset_run_number_takes_the_configured_default(self, config_override):
+        # Arrange
+        config_override({"nxstress": {"default_run_number": -7}})
+
+        # Act
+        peaks = PeakCollection("Fe110", PeakShape.GAUSSIAN, BackgroundFunction.LINEAR)
+
+        # Assert
+        assert peaks.runnumber == -7
+
+    def test_an_explicit_run_number_is_kept(self, config_override):
+        # Arrange
+        config_override({"nxstress": {"default_run_number": -7}})
+
+        # Act
+        peaks = PeakCollection("Fe110", PeakShape.GAUSSIAN, BackgroundFunction.LINEAR, runnumber=1327)
+
+        # Assert
+        assert peaks.runnumber == 1327
+
+    def test_the_lite_collection_reports_the_configured_default(self, config_override):
+        # Arrange
+        config_override({"nxstress": {"default_run_number": -7}})
+
+        # Act
+        peaks = PeakCollectionLite("dummy", strain=np.zeros(2), strain_error=np.zeros(2))
+
+        # Assert
+        assert peaks.runnumber == -7
 
 
 if __name__ == "__main__":

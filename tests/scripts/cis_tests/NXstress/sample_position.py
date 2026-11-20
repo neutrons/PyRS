@@ -10,7 +10,7 @@ Shows that:
 
 Run from the repository root:
 
-    pixi run python tests/scripts/NXstress/sample_position.py [output-dir]
+    pixi run python tests/scripts/cis_tests/NXstress/sample_position.py [output-dir]
 """
 
 import h5py

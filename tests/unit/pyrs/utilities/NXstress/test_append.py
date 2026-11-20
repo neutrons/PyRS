@@ -27,7 +27,11 @@ from nexusformat.nexus import NXentry, NXfield, nxopen
 
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.peaks.peak_collection import PeakCollection
-from pyrs.utilities.NXstress._definitions import DEFAULT_TAG, appendable, tail_append
+from pyrs.utilities.NXstress._definitions import DEFAULT_TAG, appendable, deferred_appends, tail_append
+from pyrs.utilities.NXstress import _append
+from pyrs.utilities.NXstress._peaks import IndexedPeaks
+from pyrs.utilities.NXstress._sample import _Sample
+from pyrs.utilities.NXstress._workspace_key import WorkspaceKey
 from pyrs.utilities.NXstress.NXstress import NXstress
 
 
@@ -865,7 +869,7 @@ class TestPreconditions:
         reaches the mutation phase's failure path the only way left: by making
         `_sample.tail_append` raise once the entry times and the instrument
         wavelength have already grown. The guarantee under test is the
-        `except BaseException` invalidation in `_append`, not the trigger.
+        `except BaseException` invalidation in `NXstress._appendToEntry`, not the trigger.
         """
         # Arrange
         from pyrs.utilities.NXstress import _sample
@@ -1003,6 +1007,46 @@ class TestPreconditionsAddedAfterReview:
             with pytest.raises(RuntimeError, match=r"no longer usable"):
                 nx.write([good], [good_peaks])
 
+    def test_a_foreign_peaks_column_raises(self, written, minimal_HidraWorkspace, minimal_PeakCollection):
+        """Another producer's reflection field: read ignores it, but an append would leave it short."""
+        # Arrange
+        with h5py.File(written, "a") as f:
+            f["entry/peaks"].create_dataset("foreign_field", data=np.zeros(f["entry/peaks/h"].shape[0]))
+        before = digest(written)
+        incoming, incoming_peaks = workspace(
+            minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(4, 5, 6)
+        )
+        good, good_peaks = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="33", sub_runs=(7, 8))
+
+        # Act / Assert
+        with NXstress(written, "a") as nx:
+            with pytest.raises(RuntimeError, match=r"\['foreign_field'\], which are neither PyRS's own"):
+                nx.write([incoming], [incoming_peaks])
+            with pytest.raises(RuntimeError, match=r"no longer usable"):
+                nx.write([good], [good_peaks])
+        assert digest(written) == before
+
+    def test_an_entry_without_peak_collections_is_named(
+        self, discriminated, tmp_path, minimal_HidraWorkspace, minimal_PeakCollection
+    ):
+        """The CombineRuns export shape records no fit model: said, not "does not match `_undefined_`".
+
+        Called directly: through `write`, the entry's missing discriminator columns are
+        refused first. This check is the one that must hold if that order changes.
+        """
+        # Arrange
+        path = tmp_path / "unfitted.nxs"
+        ws, _ = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="11", sub_runs=(1, 2, 3))
+        with NXstress(path, "w") as nx:
+            nx.write([ws], [[]])
+        _, incoming_peaks = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(4, 5))
+        indexed = [IndexedPeaks(WorkspaceKey(), collection) for collection in incoming_peaks]
+
+        # Act / Assert
+        with nxopen(str(path), "r") as root:
+            with pytest.raises(_append.InvariantViolated, match=r"holds no `PeakCollection`s"):
+                _append.reject_fit_model_mismatch(root["entry"], indexed)
+
 
 class TestOneWorkspacePerKey:
     """An appended workspace may not share a workspace key with one already in the entry.
@@ -1026,7 +1070,9 @@ class TestOneWorkspacePerKey:
 
         # Act / Assert
         with NXstress(written, "a") as nx:
-            with pytest.raises(RuntimeError, match=r"workspace key \{'direction': '11'\}.*already holds"):
+            with pytest.raises(
+                RuntimeError, match=r"workspace key \{'direction': '11', 'run_number': -1\}.*already holds"
+            ):
                 nx.write([ws], [peaks])
             with pytest.raises(RuntimeError, match=r"no longer usable"):
                 nx.write([ws], [peaks])
@@ -1090,7 +1136,9 @@ class TestPeakCoverage:
 
         # Act / Assert
         with NXstress(path, "a") as nx:
-            with pytest.raises(RuntimeError, match=r"this entry's scan point\(s\) \[3\] have no peaks"):
+            with pytest.raises(
+                RuntimeError, match=r"this entry's \(run, scan point\) pair\(s\) \[\(-1, 3\)\] have no peaks"
+            ):
                 nx.write([incoming], [peaks])
         assert digest(path) == before
 
@@ -1143,7 +1191,7 @@ class TestWriterEmitsResizableDatasets:
     list of names, so a field added afterwards is covered automatically -- the
     idiom of `test_definitions.py`.
 
-    The production counterpart is `NXstress._validateAppendableShapes`, which
+    The production counterpart is `_append.validate_appendable_shapes`, which
     runs the same sweep in the pre-flight pass. These reimplement the walk
     locally rather than calling it: a detector that shares its implementation
     with the code under test cannot fail independently of it.
@@ -1305,7 +1353,7 @@ class TestAppendableDatasetsAreDeclaredByTheirOwner:
         with NXstress(path, "r") as nx:
             entry = nx._root["entry"]
             n_scan = len(entry["SAMPLE_DESCRIPTION"]["scan_point"].nxdata)
-            declared = set(NXstress._appendableDatasets(entry))
+            declared = set(_append.appendable_datasets(entry))
 
         # Assert
         with h5py.File(path, "r") as f:
@@ -1351,7 +1399,7 @@ class TestAppendableDatasetsAreDeclaredByTheirOwner:
 
         # Act
         with NXstress(path, "r") as nx:
-            declared = set(NXstress._appendableDatasets(nx._root["entry"]))
+            declared = set(_append.appendable_datasets(nx._root["entry"]))
 
         # Assert
         assert growable_on_disk, "no resizable datasets were written at all"
@@ -1412,3 +1460,278 @@ class TestTailAppendHelper:
         with nxopen(path, "rw") as root:
             with pytest.raises(RuntimeError, match=r"trailing shape"):
                 tail_append(root["entry"]["field"], np.zeros((1, 25)))
+
+
+class TestRunIndexOnAppend:
+    """Appending under the run index: a new run is a new workspace, and the index must exist.
+
+    An entry identifies each scan point by `(run, scan point)`, and records whether
+    the run is part of its workspace key. Every refusal below is made before any
+    resize, so the file is unchanged byte for byte.
+    """
+
+    @staticmethod
+    def with_run(minimal_HidraWorkspace, minimal_PeakCollection, *, direction, sub_runs, run, peak_tag="Fe110"):
+        ws, peaks = workspace(
+            minimal_HidraWorkspace, minimal_PeakCollection, direction=direction, sub_runs=sub_runs, peak_tag=peak_tag
+        )
+        points = np.array(sub_runs)
+        runs = np.asarray(run) if isinstance(run, list) else np.full(len(points), run)
+        ws.set_sample_log("run_number", points, runs)
+        return ws, peaks
+
+    @pytest.fixture
+    def run_1327(self, discriminated, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path):
+        """An entry holding run 1327, direction 11, scan points 1-3."""
+        path = tmp_path / "run_1327.nxs"
+        ws, peaks = self.with_run(
+            minimal_HidraWorkspace, minimal_PeakCollection, direction="11", sub_runs=(1, 2, 3), run=1327
+        )
+        with NXstress(path, "w") as nx:
+            nx.write([ws], [peaks])
+        return path
+
+    def test_a_new_run_in_the_same_direction_is_a_new_workspace(
+        self, run_1327, minimal_HidraWorkspace, minimal_PeakCollection
+    ):
+        """Case A: same direction, same peak tag, same scan points -- only the run differs."""
+        # Arrange
+        ws, peaks = self.with_run(
+            minimal_HidraWorkspace, minimal_PeakCollection, direction="11", sub_runs=(1, 2, 3), run=1328
+        )
+
+        # Act
+        with NXstress(run_1327, "a") as nx:
+            nx.write([ws], [peaks])
+        with NXstress(run_1327, "r") as nx:
+            workspaces, peakss = nx.read()
+
+        # Assert
+        assert len(workspaces) == 2
+        assert [int(collections[0].runnumber) for collections in peakss] == [1327, 1328]
+        assert [w.get_sub_runs().raw_copy().tolist() for w in workspaces] == [[1, 2, 3], [1, 2, 3]]
+
+    def test_a_repeated_run_and_scan_point_is_refused(self, run_1327, minimal_HidraWorkspace, minimal_PeakCollection):
+        # Arrange -- a new direction, but run 1327's scan point 3 again
+        ws, peaks = self.with_run(
+            minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(3, 4), run=1327
+        )
+        before = digest(run_1327)
+
+        # Act / Assert
+        with NXstress(run_1327, "a") as nx:
+            with pytest.raises(RuntimeError, match=r"\(1327, 3\)"):
+                nx.write([ws], [peaks])
+        assert digest(run_1327) == before
+
+    def test_an_incoming_workspace_holding_several_runs_is_refused(
+        self, run_1327, minimal_HidraWorkspace, minimal_PeakCollection
+    ):
+        # Arrange
+        ws, peaks = self.with_run(
+            minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(1, 2), run=[1331, 1332]
+        )
+        before = digest(run_1327)
+
+        # Act / Assert
+        with NXstress(run_1327, "a") as nx:
+            with pytest.raises(RuntimeError, match=r"hold several runs"):
+                nx.write([ws], [peaks])
+        assert digest(run_1327) == before
+
+    def test_an_entry_merged_from_several_runs_is_refused(
+        self, discriminated, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
+    ):
+        """Its workspace key carries no run, so anything appended would join the merged workspace."""
+        # Arrange
+        path = tmp_path / "merged.nxs"
+        merged, merged_peaks = self.with_run(
+            minimal_HidraWorkspace, minimal_PeakCollection, direction="11", sub_runs=(1, 2), run=[1327, 1328]
+        )
+        with NXstress(path, "w") as nx:
+            nx.write([merged], [merged_peaks])
+        ws, peaks = self.with_run(
+            minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(1, 2), run=1331
+        )
+        before = digest(path)
+
+        # Act / Assert
+        with NXstress(path, "a") as nx:
+            with pytest.raises(RuntimeError, match=r"merged from several runs"):
+                nx.write([ws], [peaks])
+        assert digest(path) == before
+
+    @pytest.mark.parametrize(
+        "stripped",
+        [("peaks",), ("SAMPLE_DESCRIPTION",), ("peaks", "SAMPLE_DESCRIPTION")],
+        ids=["peaks-only", "sample-only", "both"],
+    )
+    def test_an_entry_without_the_run_index_is_refused(
+        self, run_1327, minimal_HidraWorkspace, minimal_PeakCollection, stripped
+    ):
+        # Arrange -- strip the run index, as an older PyRS would have written the entry
+        with h5py.File(run_1327, "r+") as f:
+            for group in stripped:
+                del f[f"entry/{group}/run_number"]
+            if len(stripped) == 2:
+                del f["entry/peaks"].attrs["run_number_is_boundary"]
+        ws, peaks = self.with_run(
+            minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(1, 2), run=1331
+        )
+        before = digest(run_1327)
+
+        # Act / Assert
+        with NXstress(run_1327, "a") as nx:
+            with pytest.raises(RuntimeError, match=r"before PyRS recorded run numbers"):
+                nx.write([ws], [peaks])
+        assert digest(run_1327) == before
+
+    def test_raw_data_file_list_grows_on_append(self, run_1327, minimal_HidraWorkspace, minimal_PeakCollection):
+        # Arrange
+        ws, peaks = self.with_run(
+            minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(1, 2), run=1331
+        )
+        ws.set_sample_log("Filename", np.array([1, 2]), np.array([b"HB2B_1331.h5"] * 2))
+
+        # Act
+        with NXstress(run_1327, "a") as nx:
+            nx.write([ws], [peaks])
+
+        # Assert
+        with h5py.File(run_1327, "r") as f:
+            assert [name.decode() for name in f["entry/FIT/raw_data_file"][()]] == [
+                "test_workspace.h5",
+                "HB2B_1331.h5",
+            ]
+
+    def test_an_appended_run_reads_back_with_its_own_data(
+        self, run_1327, minimal_HidraWorkspace, minimal_PeakCollection
+    ):
+        """A new run in a new direction, at the same scan points as the entry's."""
+        # Arrange
+        ws, peaks = self.with_run(
+            minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(1, 2, 3), run=1331
+        )
+
+        # Act
+        with NXstress(run_1327, "a") as nx:
+            nx.write([ws], [peaks])
+        with NXstress(run_1327, "r") as nx:
+            workspaces, peakss = nx.read()
+
+        # Assert
+        assert [(w.direction, int(collections[0].runnumber)) for w, collections in zip(workspaces, peakss)] == [
+            ("11", 1327),
+            ("22", 1331),
+        ]
+        assert [w.get_sample_log_values("run_number").tolist() for w in workspaces] == [[1327] * 3, [1331] * 3]
+
+    def test_two_workspaces_without_run_numbers_collide_on_append(
+        self, discriminated, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
+    ):
+        """Both take the default run number, so a repeated scan point cannot be attributed."""
+        # Arrange
+        path = tmp_path / "no_runs.nxs"
+        ws, peaks = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="11", sub_runs=(1, 2, 3))
+        with NXstress(path, "w") as nx:
+            nx.write([ws], [peaks])
+        other, other_peaks = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(3, 4))
+        before = digest(path)
+
+        # Act / Assert
+        with NXstress(path, "a") as nx:
+            with pytest.raises(RuntimeError, match=r"\(-1, 3\)"):
+                nx.write([other], [other_peaks])
+        assert digest(path) == before
+
+
+class TestAFailureWhileComputingWritesNothing:
+    """Every group's rows are computed and checked before the first is written.
+
+    Each case passes the pre-flight checks and used to fail part-way through the
+    commit, after the entry times and some groups had already grown. Now it is a
+    refusal like any other: `InvariantViolated`, the instance invalidated, and the
+    file byte-for-byte unchanged.
+    """
+
+    @staticmethod
+    def refused(path: Path, ws: HidraWorkspace, peaks: list[PeakCollection]) -> None:
+        before = digest(path)
+        with NXstress(path, "a") as nx:
+            with pytest.raises(_append.InvariantViolated, match=r"cannot append") as refusal:
+                nx.write([ws], [peaks])
+        assert str(refusal.value).count("cannot append") == 1
+        assert digest(path) == before
+
+    def test_missing_sample_position(self, written, minimal_HidraWorkspace, minimal_PeakCollection):
+        # Arrange
+        ws, peaks = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(4, 5, 6))
+        del ws._sample_logs["vx"]
+
+        # Act / Assert
+        self.refused(written, ws, peaks)
+
+    def test_wavelength_of_an_unsupported_type(self, written, minimal_HidraWorkspace, minimal_PeakCollection):
+        # Arrange
+        ws, peaks = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(4, 5, 6))
+        ws.set_wavelength_from_value(np.float32(1.5))
+
+        # Act / Assert
+        self.refused(written, ws, peaks)
+
+    def test_non_numeric_temperature(self, discriminated, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path):
+        # Arrange
+        path = tmp_path / "temperature.nxs"
+        first, first_peaks = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="11", sub_runs=(1, 2))
+        first.set_sample_log("temperature", np.array([1, 2]), np.array([300.0, 301.0]))
+        with NXstress(path, "w") as nx:
+            nx.write([first], [first_peaks])
+        ws, peaks = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(3, 4))
+        ws.set_sample_log("temperature", np.array([3, 4]), np.array(["warm", "warm"]))
+
+        # Act / Assert
+        self.refused(path, ws, peaks)
+
+    def test_sample_group_on_its_own_grows_nothing(self, written, minimal_HidraWorkspace, minimal_PeakCollection):
+        """A group's append path is reachable without `NXstress`; it too computes before it writes."""
+        # Arrange -- a run number that is not whole fails only when the run column is computed
+        ws, _ = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(4, 5, 6))
+        ws.set_sample_log("run_number", np.array([4, 5, 6]), np.array([1331.5] * 3))
+
+        # Act / Assert
+        with nxopen(written, "rw") as root:
+            sd = root["entry/SAMPLE_DESCRIPTION"]
+            before = (len(sd["scan_point"]), len(sd["run_number"]))
+            with pytest.raises(ValueError, match=r"1331\.5"):
+                _Sample.init_group([ws._sample_logs], data=sd)
+            assert (len(sd["scan_point"]), len(sd["run_number"])) == before
+
+    def test_computing_an_append_writes_nothing(self, written, minimal_HidraWorkspace, minimal_PeakCollection):
+        """The property itself, for a valid append: all of `commit` runs, and nothing on disk changes.
+
+        Pins every group at once, including any added later that grows a dataset
+        without going through `tail_append`.
+        """
+        # Arrange
+        ws, peaks = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(4, 5, 6))
+        before = digest(written)
+
+        # Act
+        with nxopen(written, "rw") as root:
+            entry = root["entry"]
+            plan = _append.preflight(entry, [ws], [peaks])
+            with deferred_appends() as pending:
+                NXstress(written, "a")._appendEntryTimes(entry, [ws])
+                _append.commit(entry, [ws], plan)
+
+        # Assert
+        assert pending, "nothing was collected: the groups did not grow through `tail_append`"
+        assert digest(written) == before
+
+    def test_deferrals_do_not_nest(self):
+        """An inner deferral would collect separately, and its rows would be written apart from the rest."""
+        # Act / Assert
+        with deferred_appends():
+            with pytest.raises(RuntimeError, match=r"does not nest"):
+                with deferred_appends():
+                    pass

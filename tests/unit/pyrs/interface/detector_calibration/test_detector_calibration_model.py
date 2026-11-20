@@ -87,7 +87,7 @@ def test_missing_mask_falls_back_to_none(monkeypatch, tmp_path, recorder):
 )
 def test_get_fitted_diffraction_data_sub_runs_not_starting_at_one() -> None:
     """`fit_peaks` fills `fitted_ws` by position over `sub_runs`. Recorded under
-    DD-2 in `plans/PR_review/deferred-defects.md`."""
+    DD-2 in `docs/deferred_defects.md`."""
     # Arrange
     model = DetectorCalibrationModel(None)
     model._calibration_obj = SimpleNamespace(fitted_ws=["five", "six", "seven"], sub_runs=np.array([5, 6, 7]))

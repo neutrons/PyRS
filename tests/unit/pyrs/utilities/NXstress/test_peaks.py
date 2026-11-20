@@ -23,7 +23,7 @@ class TestPeaks:
         ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=False)
 
         logs = ws._sample_logs
-        peaks = _Peaks._init(logs)
+        peaks = _Peaks._init(logs, run_boundary=True)
 
         assert isinstance(peaks, NXreflections)
 
@@ -74,7 +74,7 @@ class TestPeaks:
             N_subrun=N_subrun,
         )
 
-        peaks = _Peaks.init_group(_Peaks.indexed([peak0], ws._sample_logs), ws._sample_logs)
+        peaks = _Peaks.init_group(_Peaks.indexed([peak0], ws._sample_logs), ws._sample_logs, run_boundary=True)
 
         assert isinstance(peaks, NXreflections)
 
@@ -135,7 +135,7 @@ class TestPeaks:
             N_subrun=N_subrun,
         )
 
-        peaks = _Peaks.init_group(_Peaks.indexed([peak0, peak1], ws._sample_logs), ws._sample_logs)
+        peaks = _Peaks.init_group(_Peaks.indexed([peak0, peak1], ws._sample_logs), ws._sample_logs, run_boundary=True)
 
         # Should have 2 * N_subrun rows
         assert peaks["h"].shape[0] == 2 * N_subrun
@@ -227,7 +227,7 @@ class TestPeaks:
             N_subrun=N_subrun,
         )
 
-        peaks = _Peaks.init_group(_Peaks.indexed([peak0], ws._sample_logs), ws._sample_logs)
+        peaks = _Peaks.init_group(_Peaks.indexed([peak0], ws._sample_logs), ws._sample_logs, run_boundary=True)
 
         # qx, qy, qz exist but remain empty (implementation doesn't populate them)
         assert "qx" in peaks
@@ -265,7 +265,7 @@ class TestPeaks:
         )
 
         # Act
-        peaks = _Peaks.init_group(_Peaks.indexed([peak0], ws._sample_logs), ws._sample_logs)
+        peaks = _Peaks.init_group(_Peaks.indexed([peak0], ws._sample_logs), ws._sample_logs, run_boundary=True)
 
         # Assert: values are the sample coordinates, not NaN
         for peak_axis, coord_axis in zip(("sx", "sy", "sz"), ("vx", "vy", "vz")):
@@ -303,7 +303,7 @@ class TestPeaks:
         )
 
         # Act
-        peaks = _Peaks.init_group(_Peaks.indexed([peak0], ws._sample_logs), ws._sample_logs)
+        peaks = _Peaks.init_group(_Peaks.indexed([peak0], ws._sample_logs), ws._sample_logs, run_boundary=True)
 
         # Assert: length and values follow the collection's sub-runs, on every axis
         for peak_axis, coord_axis in zip(("sx", "sy", "sz"), ("vx", "vy", "vz")):
@@ -333,7 +333,7 @@ class TestPeaks:
         )
 
         # Act
-        peaks = _Peaks.init_group(_Peaks.indexed([peak0], ws._sample_logs), ws._sample_logs)
+        peaks = _Peaks.init_group(_Peaks.indexed([peak0], ws._sample_logs), ws._sample_logs, run_boundary=True)
 
         # Assert
         for peak_axis in ("sx", "sy", "sz"):
@@ -366,7 +366,7 @@ class TestPeaksTailAppend:
             N_subrun=3,
             sub_runs=np.array([1, 2, 3]),
         )
-        peaks = _Peaks.init_group(_Peaks.indexed([first], logs), logs)
+        peaks = _Peaks.init_group(_Peaks.indexed([first], logs), logs, run_boundary=True)
         before = np.asarray(peaks["scan_point"].nxdata).copy()
 
         second = createPeakCollection(
@@ -381,7 +381,7 @@ class TestPeaksTailAppend:
         )
 
         # Act
-        returned = _Peaks.init_group(_Peaks.indexed([second], logs), logs, data=peaks)
+        returned = _Peaks.init_group(_Peaks.indexed([second], logs), logs, data=peaks, run_boundary=True)
 
         # Assert
         assert returned is peaks
@@ -408,7 +408,7 @@ class TestPeaksTailAppend:
             N_subrun=3,
             sub_runs=np.array([1, 2, 3]),
         )
-        peaks = _Peaks.init_group(_Peaks.indexed([first], logs), logs)
+        peaks = _Peaks.init_group(_Peaks.indexed([first], logs), logs, run_boundary=True)
         second = createPeakCollection(
             peak_tag="Al111",
             peak_profile="Gaussian",
@@ -421,7 +421,7 @@ class TestPeaksTailAppend:
         )
 
         # Act
-        _Peaks.init_group(_Peaks.indexed([second], logs), logs, data=peaks)
+        _Peaks.init_group(_Peaks.indexed([second], logs), logs, data=peaks, run_boundary=True)
 
         # Assert
         names = [v.decode() if isinstance(v, bytes) else str(v) for v in peaks["phase_name"].nxdata]
@@ -452,7 +452,7 @@ class TestPeaksTailAppend:
                 N_subrun=len(points),
                 sub_runs=np.array(points),
             )
-            peaks = _Peaks.init_group(_Peaks.indexed([collection], logs), logs, data=peaks)
+            peaks = _Peaks.init_group(_Peaks.indexed([collection], logs), logs, data=peaks, run_boundary=True)
         assert peaks is not None
 
         # Act

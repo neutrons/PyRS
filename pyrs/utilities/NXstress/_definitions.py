@@ -4,6 +4,9 @@ pyrs/utilities/NXstress/_definitions.py
 Constants and definitions used by NeXus NXstress-compatible I/O.
 """
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from enum import Enum, StrEnum
 from datetime import datetime
 import h5py
@@ -137,6 +140,8 @@ def appendable_dtype(incoming: np.dtype, on_disk: np.dtype) -> bool:
     mutation phase, after other groups have already grown. A float onto an integer
     dataset raises nothing and is silently truncated. So: text onto text, or a
     number that casts within its kind (an integer onto a float, not the reverse).
+    Narrowing within a kind -- int64 onto int32, float64 onto float32 -- is
+    accepted: it is how PyRS writes its own columns (`h`/`k`/`l`, `scan_point`).
 
     Args:
         incoming: dtype of the values to append.
@@ -201,13 +206,19 @@ def _field_label(field) -> str:
     return f"an unattached {tuple(field.shape)} `NXfield`"
 
 
+# The appends collected by `deferred_appends`, or None outside it.
+_PENDING: ContextVar[list | None] = ContextVar("nxstress_pending_appends", default=None)
+
+
 def tail_append(field, values) -> None:
     """Grow `field` along its first axis and write `values` after its current end.
 
-    The `cur = shape[0]; resize(cur + N); arr[cur:] = ...` shape that
-    `_Peaks._append_peak` and `_fit.py`'s `_append_peak` methods already use,
-    extracted so that every group outside the peak-index family grows the same
-    way and the refusal below lives in exactly one place.
+    The `cur = shape[0]; resize(cur + N); arr[cur:] = ...` shape, kept in one place
+    so that every group grows the same way and the refusals below live in exactly
+    one place.
+
+    Inside `deferred_appends` nothing is written: the append is checked now and
+    collected, and `apply_appends` writes it later, together with every other.
 
     Args:
         field: The `NXfield` to extend.
@@ -216,12 +227,70 @@ def tail_append(field, values) -> None:
 
     Raises:
         RuntimeError: If the field was written non-resizably -- i.e. by a PyRS
-            predating `growable` -- if `values` is a scalar, or if the trailing
-            axes disagree.
+            predating `growable` -- if `values` is a scalar, if the trailing axes
+            disagree, or if the values cannot be stored in the field's dtype.
 
     Example:
         >>> tail_append(group["scan_point"], np.array([4, 5]))  # doctest: +SKIP
     """
+    values = _checked_rows(field, values)
+    pending = _PENDING.get()
+    if pending is not None:
+        pending.append((field, values))
+    else:
+        _grow(field, values)
+
+
+@contextmanager
+def deferred_appends() -> Iterator[list]:
+    """Collect every `tail_append` made inside, checked but not written.
+
+    An append computes every group's rows first and writes none until all of them
+    have been computed and checked: a failure part-way through computing then
+    leaves the entry untouched. Pass what this yields to `apply_appends`.
+
+    Yields:
+        The collected `(field, values)` pairs, in the order they were made.
+    """
+    if _PENDING.get() is not None:
+        raise RuntimeError("NXstress: `deferred_appends` does not nest; use `appended_together` inside it.")
+    pending: list = []
+    token = _PENDING.set(pending)
+    try:
+        yield pending
+    finally:
+        _PENDING.reset(token)
+
+
+def apply_appends(pending: list) -> None:
+    """Write the appends `deferred_appends` collected, in order."""
+    for field, values in pending:
+        _grow(field, values)
+
+
+@contextmanager
+def appended_together(*, enabled: bool = True) -> Iterator[None]:
+    """Write the `tail_append`s made inside only once all of them are computed.
+
+    For a group's own append path, which is reachable on its own as well as
+    from `NXstress`: inside an outer `deferred_appends` it joins that collection,
+    so the whole append is still written at once; on its own it collects, and
+    writes when the block completes. Nothing is written if the block raises.
+
+    Args:
+        enabled: False makes it a no-op, for a method shared by a fresh write,
+            whose new group is built in memory: `appended_together(enabled=data is not None)`.
+    """
+    if not enabled or _PENDING.get() is not None:
+        yield
+        return
+    with deferred_appends() as pending:
+        yield
+    apply_appends(pending)
+
+
+def _checked_rows(field, values) -> np.ndarray:
+    """`values` as rows that `field` can take, or a `RuntimeError` saying why not."""
     values = np.asarray(values)
     if not appendable(field):
         raise RuntimeError(
@@ -252,8 +321,25 @@ def tail_append(field, values) -> None:
             "entry is written."
         )
 
-    start = current[0]
-    field.resize((start + values.shape[0],) + current[1:])
+    # Checked here because h5py checks only when it writes, after the resize. An
+    # object array counts as text in `appendable_dtype` whatever it holds, so one
+    # holding numbers is given its numeric dtype first, and one holding anything
+    # else but text is refused.
+    if values.dtype.kind == "O" and values.size and not any(isinstance(v, (str, bytes)) for v in values.ravel()):
+        values = np.asarray(values.tolist())
+    text_elements = values.dtype.kind != "O" or all(isinstance(v, (str, bytes)) for v in values.ravel())
+    if not (appendable_dtype(values.dtype, field.dtype) and text_elements):
+        raise RuntimeError(
+            f"NXstress: cannot append to {_field_label(field)}: values of type {values.dtype} "
+            f"cannot be stored in its type, {np.dtype(field.dtype)}.\n"
+            "  A dataset keeps the type the entry was first written with."
+        )
+    return values
+
+
+def _grow(field, values: np.ndarray) -> None:
+    start = tuple(field.shape)[0]
+    field.resize((start + values.shape[0],) + tuple(field.shape)[1:])
     field[start:] = values
 
 
@@ -365,6 +451,14 @@ DEFAULT_TAG = HidraConstants.DEFAULT_MASK
 UNDEFINED_PEAK_TAG = "_undefined_"
 
 NO_LOG = "_no_log_"
+
+#: The run index's column, on `peaks` and `SAMPLE_DESCRIPTION`, and the sample log
+#: it is read from (see `_runs`). Here, in the leaf module, because `_discriminator`
+#: reserves it and `_runs` reads and writes it, and neither imports the other.
+RUN_NUMBER = "run_number"
+
+#: `peaks` attribute recording whether the run is part of the workspace key.
+RUN_BOUNDARY_ATTRIBUTE = "run_number_is_boundary"
 
 
 def group_naming_scheme(base_name: str, suffix: int | str) -> str:

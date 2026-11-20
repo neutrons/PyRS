@@ -15,7 +15,8 @@ Writing NXstress needs **instrument geometry**, and the project files these
 fixtures start from have none: each has an ``instrument/geometry setup/detector``
 group, but it is **empty** -- the three datasets it should contain are simply
 absent, which is why ``get_instrument_setup()`` returns ``None``. So none of them
-can be saved as NXstress.
+can be saved as NXstress, and every NXstress test of those workflows had to use
+synthetic workspaces.
 
 Each fixture copies one real file and fills that group in from
 ``HB2B_938_peak.h5``, another real HB2B file in this repository, so the values are
@@ -23,12 +24,18 @@ real instrument parameters rather than invented ones. Everything else -- sample
 logs, reduced diffraction data and fit results -- is copied verbatim, and the
 original file is left in place.
 
-* ``HB2B_1327`` -- spec 04's ``## Verification`` asks for a ``.nxs`` written "from
-  a real HB2B dataset" with ``peaks/sx,sy,sz`` non-NaN. Every file with finite
-  ``vx``/``vy``/``vz`` lacked geometry, and every file with geometry had
-  non-finite coordinates (spec 04's Follow-up 7 F7.10); 1327 was chosen for its
-  coordinates. A test whose subject were synthesised would be circular, which is
-  why the base file was chosen for its coordinates rather than for its geometry.
+The first fixture, ``HB2B_1327_with_instrument.h5``, exists so that a ``.nxs``
+can be written from a real HB2B dataset with ``peaks/sx,sy,sz`` non-NaN. Every
+file with finite ``vx``/``vy``/``vz`` lacked geometry, and every file with
+geometry had non-finite coordinates; 1327 was chosen for its coordinates. The
+others let the NXstress round trips of the strain/stress viewer and of
+TextureFitting run on real data:
+
+* ``HB2B_1328``, ``HB2B_1331`` and ``HB2B_1332`` -- with 1327, the runs the
+  strain/stress tests have always used together;
+* ``HB2B_1320`` -- the file ``tests/ui/test_stress_strain_viewer.py`` loads;
+* ``3393_PWHT-TD``, ``3394_PWHT-ND`` and ``3395_PWHT-LD`` -- one sample measured
+  in three directions, with a finite reference d-spacing;
 * ``HB2B_1599_texture`` -- TextureFitting offers *Save as NXstress...* only for a
   workspace with geometry, and no texture project file (reduced data that are
   out-of-plane ``eta_<angle>`` patterns) has any. This one lets the viewer's
@@ -36,12 +43,12 @@ original file is left in place.
 
 Peak tags
 ---------
-1327's tags are renamed, ``peakN`` -> ``peak`` + the digit three times, because
-``_Peaks._parse_peak_tag`` needs a digit run whose length is a multiple of three
-and refuses ``peak0``. This gives phase name ``peak`` with Miller indices (0,0,0)
-and (1,1,1). **The indices carry no physical claim** -- the source records
-``d reference`` as 1.0 for one peak and NaN for the other, so these tags never
-identified a reflection.
+1327's tags are renamed, ``peakN`` -> ``peak`` + the digit three times: when it
+was built, ``_Peaks._parse_peak_tag`` refused ``peak0``. **The indices carry no
+physical claim** -- the source records ``d reference`` as 1.0 for one peak and NaN
+for the other, so these tags never identified a reflection. The later fixtures
+keep their tags unchanged: NXstress now writes a tag naming no lattice plane with
+hkl ``(0, 0, 0)``, meaning "unknown", and warns.
 
 The mask
 --------
@@ -97,6 +104,13 @@ FIXTURES = {
     fixture.source: fixture
     for fixture in (
         Fixture("HB2B_1327", peak_tag_renames={"peak0": "peak000", "peak1": "peak111"}),
+        Fixture("HB2B_1328"),
+        Fixture("HB2B_1331"),
+        Fixture("HB2B_1332"),
+        Fixture("HB2B_1320"),
+        Fixture("3393_PWHT-TD"),
+        Fixture("3394_PWHT-ND"),
+        Fixture("3395_PWHT-LD"),
         Fixture("HB2B_1599_texture"),
     )
 }

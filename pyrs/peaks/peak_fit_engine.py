@@ -4,6 +4,7 @@ from mantid.simpleapi import DeleteWorkspace, RenameWorkspace
 import numpy as np
 from pyrs.core import mantid_helper
 from pyrs.core.peak_profile_utility import BackgroundFunction, PeakShape
+from pyrs.utilities.config import default_run_number
 
 __all__ = ["PeakFitEngine"]
 
@@ -42,10 +43,10 @@ class PeakFitEngine:
             if "run_number" in hidraworkspace.get_sample_log_names():
                 self._runnumber = hidraworkspace.get_sample_log_value("run_number")
             else:
-                self._runnumber = -1
+                self._runnumber = default_run_number()
 
         except AssertionError:
-            self._runnumber = -1
+            self._runnumber = default_run_number()
 
         # create a
         self._peak_function = PeakShape.getShape(peak_function_name)

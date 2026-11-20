@@ -39,7 +39,7 @@ from pyrs.utilities.restorable_property import is_restorable, restore
 
 from pyrs.utilities.convertdatatypes import to_text
 
-from ._definitions import allowed_identifier
+from ._definitions import RUN_NUMBER, allowed_identifier
 
 
 _logger = logging.getLogger(__name__)
@@ -72,6 +72,7 @@ RESERVED_PEAK_COLUMNS = frozenset(
         "sx",
         "sy",
         "sz",
+        RUN_NUMBER,  # the run index's own column (see `_runs`)
     }
 )
 

@@ -19,7 +19,7 @@ from pyrs.calibration.mantid_peakfit_calibration import FitCalibration
 )
 def test_fit_peaks_looks_up_reference_peaks_by_position(monkeypatch: pytest.MonkeyPatch) -> None:
     """`get_diff_peaks` indexes the per-position powder tables, so it must be given a
-    position. Recorded under DD-2 in `plans/PR_review/deferred-defects.md`."""
+    position. Recorded under DD-2 in `docs/deferred_defects.md`."""
     # Arrange
     calibration = object.__new__(FitCalibration)
     calibration._keep_subrun_list = [True, True, True]

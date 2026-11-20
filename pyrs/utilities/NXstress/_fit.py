@@ -27,6 +27,7 @@ from ._definitions import (
     GROUP_NAME,
     group_naming_scheme,
     growable,
+    appended_together,
     tail_append,
     diffractogram_detector_mask,
     nxstress_diffractogram_keys,
@@ -53,6 +54,19 @@ REQUIRED PARAMETERS FOR NXstress:
 │        ├─ @axes                          (attribute: string)
 │        └─ @signal                        (attribute: string)
 """
+
+
+def require_defined_title(group) -> None:
+    """Refuse to append to a parameters group whose `title` names no profile.
+
+    `_append_peak` fills an undefined title in, which is a write outside
+    `tail_append`: right for a fresh group in memory, not for one on disk.
+    """
+    if group["title"] == UNDEFINED_PEAK_TAG:
+        raise RuntimeError(
+            f"NXstress: cannot append to '{group.nxname}': its `title` names no fitted profile, so the "
+            "incoming parameters could not be checked against it."
+        )
 
 
 class _PeakParameters:
@@ -105,9 +119,13 @@ class _PeakParameters:
         # position-aligned groups grow by the same row count in the same sorted order,
         # which is what preserves the alignment across an append.
         pp = data if data is not None else cls._init([item.collection for item in indexed])
+        if data is not None:
+            require_defined_title(pp)
 
-        for item in sorted(indexed, key=IndexedPeaks.sort_key):
-            cls._append_peak(pp, item.collection)
+        # On append, every row is computed before any is written: see `appended_together`.
+        with appended_together(enabled=data is not None):
+            for item in sorted(indexed, key=IndexedPeaks.sort_key):
+                cls._append_peak(pp, item.collection)
 
         return pp
 
@@ -129,32 +147,20 @@ class _PeakParameters:
         #   and all parameter values will be in the expected column.
         # We have one new parameter value for each of 'N_scan' subruns.
 
-        N_scan = len(peaks.sub_runs)
-        cur_rows = pp["center"].shape[0]
-        new_rows = cur_rows + N_scan
-
         ## In the following, make sure to include _only_ the peak-function parameters.
         params_value, params_error = peaks.get_effective_params()
 
-        pp["center"].resize((new_rows,))
-        pp["center_errors"].resize((new_rows,))
-        pp["height"].resize((new_rows,))
-        pp["height_errors"].resize((new_rows,))
-        pp["fwhm"].resize((new_rows,))
-        pp["fwhm_errors"].resize((new_rows,))
-        pp["form_factor"].resize((new_rows,))
-        pp["form_factor_errors"].resize((new_rows,))
-
-        pp["center"][cur_rows:] = params_value["Center"].astype(np.float64)
-        pp["center_errors"][cur_rows:] = params_error["Center"].astype(np.float64)
-        pp["height"][cur_rows:] = params_value["Height"].astype(np.float64)
-        pp["height_errors"][cur_rows:] = params_error["Height"].astype(np.float64)
-        pp["fwhm"][cur_rows:] = params_value["FWHM"].astype(np.float64)
-        pp["fwhm_errors"][cur_rows:] = params_error["FWHM"].astype(np.float64)
+        # By `tail_append`, so that an append can compute every group before writing any.
+        tail_append(pp["center"], params_value["Center"].astype(np.float64))
+        tail_append(pp["center_errors"], params_error["Center"].astype(np.float64))
+        tail_append(pp["height"], params_value["Height"].astype(np.float64))
+        tail_append(pp["height_errors"], params_error["Height"].astype(np.float64))
+        tail_append(pp["fwhm"], params_value["FWHM"].astype(np.float64))
+        tail_append(pp["fwhm_errors"], params_error["FWHM"].astype(np.float64))
 
         # Voigt or Pseudo-Voigt: Lorentzian fraction
-        pp["form_factor"][cur_rows:] = (1.0 - params_value["Mixing"]).astype(np.float64)
-        pp["form_factor_errors"][cur_rows:] = params_error["Mixing"].astype(np.float64)
+        tail_append(pp["form_factor"], (1.0 - params_value["Mixing"]).astype(np.float64))
+        tail_append(pp["form_factor_errors"], params_error["Mixing"].astype(np.float64))
 
         return pp
 
@@ -305,9 +311,13 @@ class _BackgroundParameters:
         # required 'background_parameters' subgroup
         #   -- position-aligned with PEAKS and `_PeakParameters`; see that class's `init_group`.
         bp = data if data is not None else cls._init([item.collection for item in indexed])
+        if data is not None:
+            require_defined_title(bp)
 
-        for item in sorted(indexed, key=IndexedPeaks.sort_key):
-            cls._append_peak(bp, item.collection)
+        # On append, every row is computed before any is written: see `appended_together`.
+        with appended_together(enabled=data is not None):
+            for item in sorted(indexed, key=IndexedPeaks.sort_key):
+                cls._append_peak(bp, item.collection)
 
         return bp
 
@@ -328,23 +338,13 @@ class _BackgroundParameters:
         ## In the following, make sure to include _only_ the background parameters.
         params_value, params_error = peaks.get_effective_params()
 
-        N_scan = len(peaks.sub_runs)
-        cur_rows = bp["A0"].shape[0]
-        new_rows = cur_rows + N_scan
-
-        bp["A0"].resize((new_rows,))
-        bp["A0_errors"].resize((new_rows,))
-        bp["A1"].resize((new_rows,))
-        bp["A1_errors"].resize((new_rows,))
-        bp["A2"].resize((new_rows,))
-        bp["A2_errors"].resize((new_rows,))
-
-        bp["A0"][cur_rows:,] = params_value["A0"].astype(np.float64)
-        bp["A0_errors"][cur_rows:,] = params_error["A0"].astype(np.float64)
-        bp["A1"][cur_rows:,] = params_value["A1"].astype(np.float64)
-        bp["A1_errors"][cur_rows:,] = params_error["A1"].astype(np.float64)
-        bp["A2"][cur_rows:,] = params_value["A2"].astype(np.float64)
-        bp["A2_errors"][cur_rows:,] = params_error["A2"].astype(np.float64)
+        # By `tail_append`, so that an append can compute every group before writing any.
+        tail_append(bp["A0"], params_value["A0"].astype(np.float64))
+        tail_append(bp["A0_errors"], params_error["A0"].astype(np.float64))
+        tail_append(bp["A1"], params_value["A1"].astype(np.float64))
+        tail_append(bp["A1_errors"], params_error["A1"].astype(np.float64))
+        tail_append(bp["A2"], params_value["A2"].astype(np.float64))
+        tail_append(bp["A2_errors"], params_error["A2"].astype(np.float64))
 
         return bp
 
@@ -492,10 +492,11 @@ class _Diffractogram:
             # attributes and the `fit`/`fit_errors` placeholders are entry-wide and
             # already correct, so they are left alone.
             two_theta, values, errors = cls._concatenated_diffraction(wss, maskName)
-            tail_append(data["scan_point"], np.concatenate([ws.get_sub_runs().raw_copy() for ws in wss]))
-            tail_append(data[GROUP_NAME.DGRAM_TWO_THETA_NAME], two_theta)
-            tail_append(data[GROUP_NAME.DGRAM_DIFFRACTOGRAM], values)
-            tail_append(data[GROUP_NAME.DGRAM_DIFFRACTOGRAM_ERRORS], errors)
+            with appended_together():
+                tail_append(data["scan_point"], np.concatenate([ws.get_sub_runs().raw_copy() for ws in wss]))
+                tail_append(data[GROUP_NAME.DGRAM_TWO_THETA_NAME], two_theta)
+                tail_append(data[GROUP_NAME.DGRAM_DIFFRACTOGRAM], values)
+                tail_append(data[GROUP_NAME.DGRAM_DIFFRACTOGRAM_ERRORS], errors)
             return data
 
         dg = cls._init(wss)
@@ -552,7 +553,7 @@ class _Diffractogram:
             prefix: Path prefix for the returned keys.
 
         Returns:
-            Path -> `NXfield`, for `NXstress._validateAppendableShapes`.
+            Path -> `NXfield`, for `_append.validate_appendable_shapes`.
         """
         return row_aligned_fields(data, prefix)
 
@@ -644,6 +645,21 @@ class _Fit:
     ##    coordinate system (e.g. usually `d-spacing`).
     ##
     @classmethod
+    def _raw_data_files(cls, logss: list[SampleLogs]) -> list[str]:
+        """The distinct `Filename` values of every input, in first-seen order.
+
+        Read per scan point rather than once per input, because a workspace merged
+        from several runs in PyRS carries each run's file name on its own points.
+        """
+        names: list[str] = []
+        for logs in logss:
+            for value in np.atleast_1d(logs["Filename"]):
+                name = to_text(value)
+                if name not in names:
+                    names.append(name)
+        return names
+
+    @classmethod
     @validate_call_
     def _init(cls, logss: list[SampleLogs], *, processing_description: str, processing_time) -> NXprocess:
         # Initialize the 'FIT' (NXprocess) group:
@@ -657,12 +673,14 @@ class _Fit:
         # Required information fields:
         fit["date"] = NXfield(processing_time)
         fit["program"] = NXfield("PyRS")
-        # The NXstress schema allows one `raw_data_file` per FIT group, so a
-        # multi-workspace entry records the first input's. Nothing is lost:
-        # `Filename` is a per-scan-point log and is not one of
-        # `_Sample.NXstress_logs`, so every input's filenames are retained in
-        # full under SAMPLE_DESCRIPTION/logs.
-        fit["raw_data_file"] = NXfield(to_text(logss[0]["Filename"][0]))
+        # Every raw data file the entry was reduced from, once each: the NXstress
+        # schema defines `raw_data_file` as "the raw data file name(s) used ... This
+        # can be a list". Growable, because an append adds the files it brings.
+        # Per scan point, the same information is retained in full under
+        # SAMPLE_DESCRIPTION/logs/Filename.
+        fit["raw_data_file"] = NXfield(
+            np.array(cls._raw_data_files(logss), dtype=FIELD_DTYPE.STRING.value), **growable(1)
+        )
 
         note = NXnote(
             type="text/plain",
@@ -686,6 +704,29 @@ class _Fit:
         processing_time: str | None = None,
         data: NXprocess | None = None,
     ):
+        # On append, every row of every subgroup is computed before any is written:
+        # see `appended_together`.
+        with appended_together(enabled=data is not None):
+            return cls._build_group(
+                wss,
+                indexed,
+                logss,
+                processing_description=processing_description,
+                processing_time=processing_time,
+                data=data,
+            )
+
+    @classmethod
+    def _build_group(
+        cls,
+        wss: list[HidraWorkspace],
+        indexed: list[IndexedPeaks],
+        logss: list[SampleLogs],
+        *,
+        processing_description: str,
+        processing_time: str | None,
+        data: NXprocess | None,
+    ):
         # Initialize a new 'FIT' (NXprocess) group:
         #   (see `_definitions.group_naming_scheme`).
 
@@ -695,6 +736,10 @@ class _Fit:
             # The NXnote description and the process timestamp record the FIRST write;
             # an append grows the data, it does not restate when the entry was made.
             fit = data
+            on_disk = set(to_text(name) for name in np.atleast_1d(fit["raw_data_file"].nxdata))
+            added = [name for name in cls._raw_data_files(logss) if name not in on_disk]
+            if added:
+                tail_append(fit["raw_data_file"], np.array(added, dtype=FIELD_DTYPE.STRING.value))
             _PeakParameters.init_group(indexed, data=fit[GROUP_NAME.PEAK_PARAMETERS])
             _BackgroundParameters.init_group(indexed, data=fit[GROUP_NAME.BACKGROUND_PARAMETERS])
         else:
@@ -742,7 +787,7 @@ class _Fit:
                 # An append must find the group already there: a mask the target entry
                 # has no DIFFRACTOGRAM for would need a new group with no history for
                 # the scan points already on disk, which is schema restructuring rather
-                # than a tail-append. `NXstress._classifyAppend` rejects that case
+                # than a tail-append. `_append.run_checks` rejects that case
                 # before anything here is reached; this is the backstop.
                 if dgram_name not in fit:
                     raise RuntimeError(
@@ -773,13 +818,17 @@ class _Fit:
         than listed -- their `title` is the group's one entry-wide scalar and drops
         out for being scalar, not by being named here.
 
+        Plus `raw_data_file`, which is aligned with neither: it is the list of raw
+        data files, and an append adds the files it brings. It is declared so that
+        the pre-flight confirms it can grow.
+
         Args:
             fit: The target entry's existing `FIT` group.
 
         Returns:
-            Path -> `NXfield`, for `NXstress._validateAppendableShapes`.
+            Path -> `NXfield`, for `_append.validate_appendable_shapes`.
         """
-        found: dict = {}
+        found: dict = {f"{GROUP_NAME.FIT}/raw_data_file": fit["raw_data_file"]}
         for name in fit:
             child = fit[name]
             prefix = f"{GROUP_NAME.FIT}/{name}"
@@ -793,7 +842,7 @@ class _Fit:
     def validateAppend(cls, wss: list[HidraWorkspace], fit) -> None:
         """Check incoming diffraction against every existing DIFFRACTOGRAM group.
 
-        The mask *set* is checked by `NXstress._classifyAppend`; this checks the
+        The mask *set* is checked by `_append.run_checks`; this checks the
         shape of what would go into each group that is already there.
 
         Args:

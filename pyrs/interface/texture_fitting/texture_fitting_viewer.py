@@ -12,6 +12,8 @@ from qtpy.QtCore import Qt  # type: ignore
 from pyrs.interface.ui.diffdataviews import PeakFitSetupView, GeneralDiffDataView
 from pyrs.interface.gui_helper import (
     dotted,
+    FILE_FILTER_SEPARATOR,
+    load_file_filter,
     nxstress_file_filter,
     nxstress_save_available,
     pop_message,
@@ -47,7 +49,6 @@ class FileLoad(QWidget):
         self._parent: Any = parent
         super().__init__(parent)
         self.name = name
-        self.fileType = f"HidraProjectFile (*.h5);;{nxstress_file_filter()};;All Files (*)"
         layout = QHBoxLayout()
         if name is not None:
             label = QLabel(name)
@@ -78,8 +79,11 @@ class FileLoad(QWidget):
         self._parent.fit_summary.fit_table_operator.fit_result = None
 
     def openFileDialog(self):
+        # Built when the dialog opens: whether `.nxs` is offered follows
+        # `nxstress.enable`, which switches NXstress loading too.
+        file_type = load_file_filter("HidraProjectFile (*.h5)") + FILE_FILTER_SEPARATOR + "All Files (*)"
         project_files, _ = QFileDialog.getOpenFileNames(
-            self, self.name, "", self.fileType, options=QFileDialog.DontUseNativeDialog
+            self, self.name, "", file_type, options=QFileDialog.DontUseNativeDialog
         )
 
         if project_files:

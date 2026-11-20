@@ -207,7 +207,10 @@ class _Instrument:
             # Append (spec 04c): geometry, detector shift and the masks are entry-wide
             # and already written; `wavelength` is the one per-scan-point field here, so
             # it is the only thing that grows. That the incoming geometry agrees with the
-            # entry's is checked by `validateAppend`, before any mutation anywhere.
+            # entry's is checked by `validateAppend`, before any mutation anywhere --
+            # re-checked here, as `_InputData` and `_Sample` do, since this method is
+            # reachable on its own.
+            cls.validateAppend(wss, data)
             tail_append(
                 data[GROUP_NAME.MONOCHROMATOR]["wavelength"],
                 np.asarray(wavelength, dtype=np.float64),
@@ -423,7 +426,7 @@ class _Instrument:
             instrument: The target entry's existing `instrument` group.
 
         Returns:
-            Path -> `NXfield`, for `NXstress._validateAppendableShapes`.
+            Path -> `NXfield`, for `_append.validate_appendable_shapes`.
         """
         path = f"{GROUP_NAME.INSTRUMENT}/{GROUP_NAME.MONOCHROMATOR}/wavelength"
         mono = instrument[GROUP_NAME.MONOCHROMATOR] if GROUP_NAME.MONOCHROMATOR in instrument else None

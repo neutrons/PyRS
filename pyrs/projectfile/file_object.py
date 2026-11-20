@@ -10,6 +10,7 @@ import numpy
 from pathlib import Path
 from pyrs import __version__
 from pyrs.utilities import checkdatatypes
+from pyrs.utilities.config import default_run_number
 from pyrs.utilities.convertdatatypes import to_float, to_int
 from pyrs.utilities.file_util import to_filepath
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, HidraSetup
@@ -1008,8 +1009,8 @@ class HidraProjectFile:
                 raise RuntimeError("more than one run number: {}".format(values_set))
             return values_set.pop()
         except KeyError:
-            # field is missing
-            return -1
+            # field is missing: the configured "no run number" value
+            return default_run_number()
 
     def read_log_value(self, log_name):
         """Get a log's value

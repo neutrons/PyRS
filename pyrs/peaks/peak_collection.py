@@ -9,6 +9,8 @@ from pyrs.core.peak_profile_utility import (
 )
 from pyrs.dataobjects import SubRuns  # type: ignore
 from pyrs.dataobjects.constants import HidraConstants
+from pyrs.utilities.config import default_run_number
+from pyrs.utilities.unset import Unset
 from typing import Tuple, Union
 from uncertainties import unumpy
 from uncertainties import ufloat
@@ -219,8 +221,8 @@ class PeakCollectionLite:
 
     @property
     def runnumber(self) -> int:
-        """Negative one means it was never set"""
-        return -1
+        """The configured "no run number" value (`nxstress.default_run_number`): never set."""
+        return default_run_number()
 
     @property
     def projectfilename(self) -> str:
@@ -242,7 +244,7 @@ class PeakCollection:
         d_reference: Union[float, np.ndarray] = np.nan,
         d_reference_error: Union[float, np.ndarray] = 0.0,
         projectfilename: str = "",
-        runnumber: int = -1,
+        runnumber: int | Unset = Unset,
         *,
         mask: str = HidraConstants.DEFAULT_MASK,
     ) -> None:
@@ -256,6 +258,10 @@ class PeakCollection:
             Peak profile
         background_type : str
             Background type
+        runnumber : int, optional
+            Run the peaks were fitted from. When not supplied, the configured
+            "no run number" value, `nxstress.default_run_number` -- looked up
+            here rather than in the signature, so a runtime override is seen.
 
         """
         # Init variables from input
@@ -263,7 +269,7 @@ class PeakCollection:
         self._mask = mask
         self._filename: str = ""
         self.projectfilename = projectfilename  # use the setter
-        self._runnumber: int = runnumber
+        self._runnumber: int = default_run_number() if runnumber is Unset else runnumber
 
         # Init other parameters
         self._peak_profile = PeakShape.getShape(peak_profile)

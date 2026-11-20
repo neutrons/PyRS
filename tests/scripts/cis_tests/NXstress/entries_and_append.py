@@ -11,12 +11,11 @@ Shows that:
 4. a refused append leaves the file byte-for-byte unchanged and makes the
    `NXstress` instance unusable;
 5. a single-workspace viewer refuses a two-entry file rather than showing one
-   entry. The file is left in the output directory for the GUI steps in
-   `plans/PRs/phase-2.md`.
+   entry. The file is left in the output directory for the PR's GUI steps.
 
 Run from the repository root:
 
-    pixi run python tests/scripts/NXstress/entries_and_append.py [output-dir]
+    pixi run python tests/scripts/cis_tests/NXstress/entries_and_append.py [output-dir]
 """
 
 from _fixtures import check, nxstress_config, output_dir, run, section, sha256, synthetic_peaks, synthetic_workspace

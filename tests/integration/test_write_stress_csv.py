@@ -1,5 +1,6 @@
 import pytest
 from os import remove
+import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
@@ -129,6 +130,53 @@ def test_write_summary_33calculated_nan_csv(test_data_dir: str):
 
     # cleanup
     remove(stress_csv_filename)
+
+
+@pytest.fixture
+def facade_1331_1332(test_data_dir: str) -> StressFacade:
+    """Two directions whose grids only partly overlap: most stress-grid points lack one of them."""
+    sample11 = StrainField(test_data_dir + "/HB2B_1331.h5", peak_tag="peak0")
+    sample22 = StrainField(test_data_dir + "/HB2B_1332.h5", peak_tag="peak0")
+    stress = StressField(sample11, sample22, None, 200, 0.3, stress_type="in-plane-strain")  # type: ignore
+    return StressFacade(stress)
+
+
+def csv_rows(filename) -> tuple[list[str], list[list[str]]]:
+    """The column names and every body row of a stress CSV, split into cells."""
+    lines = [line.rstrip("\n").split(", ") for line in open(filename) if not line.startswith("#")]
+    return lines[0], lines[1:]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("kind", ["summary", "full"])
+def test_every_row_matches_the_header(facade_1331_1332: StressFacade, tmp_path, kind: str):
+    """A row with surplus cells shifts every later value under the wrong column name."""
+    # Arrange
+    filename = str(tmp_path / f"{kind}.csv")
+
+    # Act
+    getattr(SummaryGeneratorStress(filename, facade_1331_1332), f"write_{kind}_csv")()
+
+    # Assert
+    header, rows = csv_rows(filename)
+    assert {len(row) for row in rows} == {len(header)}
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("kind", ["summary", "full"])
+def test_d0_is_the_consensus_at_each_point(facade_1331_1332: StressFacade, tmp_path, kind: str):
+    """d0 is read at each row's grid point, whichever direction measured it."""
+    # Arrange
+    filename = str(tmp_path / f"{kind}.csv")
+    expected = facade_1331_1332.d_reference.values
+
+    # Act
+    getattr(SummaryGeneratorStress(filename, facade_1331_1332), f"write_{kind}_csv")()
+
+    # Assert
+    header, rows = csv_rows(filename)
+    d0 = [float(row[header.index("d0")] or "nan") for row in rows]
+    np.testing.assert_allclose(d0, expected, rtol=1e-7)
 
 
 EXPECTED_FILE_FULL_CSV_1320 = "tests/data/HB2B_StressStrain_peak0_Full_expected_1320.csv"

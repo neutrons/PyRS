@@ -91,7 +91,7 @@ class _FakeDiffPlotView(_FakeFitSetupView):
 
 class TestSubRunNumbersAreNotPositions:
     """Typed sub-runs are numbers, not positions. Recorded under DD-2 in
-    `plans/PR_review/deferred-defects.md`."""
+    `docs/deferred_defects.md`."""
 
     @pytest.mark.xfail(reason="DD-2: one typed sub-run is used as a 1-based position", raises=IndexError, strict=True)
     def test_plot_diff_data_one_typed_sub_run(self, peak_model: PeakFittingModel) -> None:

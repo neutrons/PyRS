@@ -16,7 +16,7 @@ from pyrs.interface.detector_calibration.detector_calibration_crtl import Detect
 def test_update_diff_view_sub_runs_not_starting_at_one() -> None:
     """The keep list is positional, over the model's sub-runs. A sub-run number
     used as a position raised `IndexError`, which the view swallows, so nothing
-    was drawn. Recorded under DD-2 in `plans/PR_review/deferred-defects.md`."""
+    was drawn. Recorded under DD-2 in `docs/deferred_defects.md`."""
     # Arrange
     drawn: list = []
     plot = SimpleNamespace(

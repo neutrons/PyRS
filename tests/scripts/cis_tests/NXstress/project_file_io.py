@@ -12,11 +12,11 @@ Shows that:
 4. the strain/stress viewer's model refuses a project file whose `direction` log
    disagrees with the direction it was selected as. The file, a real HB2B run
    with a `direction` log of "22" added, is left in the output directory for the
-   GUI steps in `plans/PRs/phase-2.md`.
+   PR's GUI steps.
 
 Run from the repository root:
 
-    pixi run python tests/scripts/NXstress/project_file_io.py [output-dir]
+    pixi run python tests/scripts/cis_tests/NXstress/project_file_io.py [output-dir]
 """
 
 import os

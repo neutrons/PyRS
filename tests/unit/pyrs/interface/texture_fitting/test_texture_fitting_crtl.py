@@ -19,7 +19,7 @@ def _crtl(sub_runs: list[int]) -> TextureFittingCrtl:
 class TestTrimDataIncludeList:
     """The typed include list holds sub-run numbers, which are not positions.
 
-    Recorded under DD-2 in `plans/PR_review/deferred-defects.md`.
+    Recorded under DD-2 in `docs/deferred_defects.md`.
     """
 
     @pytest.mark.xfail(reason="DD-2: included sub-runs are used as 0-based positions", raises=IndexError, strict=True)
@@ -64,7 +64,7 @@ class _FitWorkspace:
 
 @pytest.mark.xfail(reason="DD-2: the first sub-run number is used as a spectrum index", raises=IndexError, strict=True)
 def test_fit_peaks_sub_runs_not_starting_at_one() -> None:
-    """Recorded under DD-2 in `plans/PR_review/deferred-defects.md`."""
+    """Recorded under DD-2 in `docs/deferred_defects.md`."""
     # Arrange
     fit = SimpleNamespace(fitted=_FitWorkspace(3), difference=_FitWorkspace(3))
     model = SimpleNamespace(

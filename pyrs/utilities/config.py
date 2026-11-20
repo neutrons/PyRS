@@ -1,5 +1,6 @@
 """
-NXstress / legacy-IO output configuration, backed by `neutrons_standard.Config`.
+NXstress / legacy-IO configuration, backed by `neutrons_standard.Config`. `nxstress.enable` switches the
+whole NXstress (.nxs) feature set -- loading as well as saving.
 
 Import `Config` from *this* module -- never `from neutrons_standard...import Config`
 directly anywhere else in this codebase. `neutrons_standard.init("pyrs")` must run
@@ -54,6 +55,13 @@ def _bare_suffix(value: str) -> str:
     return value
 
 
+def _non_zero(value: int) -> int:
+    """A default run number of 0 would read as a real run, so it is refused."""
+    if value == 0:
+        raise ValueError("must not be 0 -- a run that records no number needs a value no real run has")
+    return value
+
+
 def _distinct(value: list) -> list:
     if len(set(value)) != len(value):
         raise ValueError(f"names the same field more than once: {value}")
@@ -63,6 +71,7 @@ def _distinct(value: list) -> list:
 NonBlankText = Annotated[str, AfterValidator(_non_blank)]
 BareSuffix = Annotated[str, AfterValidator(_bare_suffix)]
 DiscriminatorFields = Annotated[list[NonBlankText], AfterValidator(_distinct)]
+NonZeroInt = Annotated[int, AfterValidator(_non_zero)]
 
 
 class _Section(BaseModel):
@@ -85,6 +94,7 @@ class _NXstress(_Section):
     instrument_short_name: NonBlankText
     discriminator_fields: DiscriminatorFields
     allow_partial_peak_coverage: bool
+    default_run_number: NonZeroInt
 
 
 class _LegacyIO(_Section):
@@ -155,6 +165,16 @@ def _describe(error: ErrorDetails) -> str:
     if error["type"] == "extra_forbidden":
         return "not a PyRS configuration key; is it misspelled, or in the wrong section?"
     return error["msg"]
+
+
+def default_run_number() -> int:
+    """The run number of anything that records none: `nxstress.default_run_number`.
+
+    PyRS's single "no run number" value -- a `PeakCollection` built without one, a
+    project file without a `run_number` log, and the run index NXstress keys scan
+    points by. Read when called, so an override is seen.
+    """
+    return int(Config["nxstress.default_run_number"])
 
 
 def validate_config() -> None:
