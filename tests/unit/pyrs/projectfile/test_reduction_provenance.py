@@ -272,12 +272,12 @@ def test_rebuild_without_geometry_says_what_to_pass(tmp_path):
 
 
 def test_file_without_a_record_reads_as_before(tmp_path):
-    # Arrange - what a reduction before #1053 part B wrote
+    # Arrange - what a reduction before #1053 part B wrote (now with the file's format, #1098)
     path = tmp_path / "old.h5"
     write(path, calibration_file="calibration.json")
 
     # Act / Assert
-    assert read(path) == {"calibration_file": "calibration.json"}
+    assert read(path) == {"calibration_file": "calibration.json", "calibration_format": "json"}
 
 
 MASK = {"source": "file", "file": "/HFIR/HB2B/shared/CALIBRATION/HB2B_Mask_Latest.xml", "sha256": "f00d" * 16}
@@ -363,3 +363,52 @@ def test_file_without_reduction_group_has_no_reduction_entry(tmp_path, calibrate
 
     # Act / Assert
     assert "reduction" not in read(path)
+
+
+def test_record_names_the_calibration_format(tmp_path, calibrated):
+    """The project file says whether the calibration file was JSON or NeXus (#1098)"""
+    # Arrange
+    path = tmp_path / "reduced.h5"
+
+    # Act
+    write(path, instrument=calibrated)
+    record = read(path)
+
+    # Assert
+    assert record["calibration_file"].endswith(".json") and record["calibration_format"] == "json"
+
+
+@pytest.mark.parametrize("file_format", ["json", "nexus"])
+def test_missing_error_is_recorded_as_not_refined(tmp_path, file_format):
+    """The reduced file records -1 for an error the calibration file does not give, and every other value and error
+    as given (#1098)"""
+    import json
+
+    from pyrs.utilities.calibration_nexus import write_calibration_nexus
+
+    # Arrange - the calibration without Rot_y's error
+    if file_format == "json":
+        path = tmp_path / "HB2B_CAL.json"
+        write_calibration_to_json(SHIFT, ERROR, 1.5306, 1e-5, 1, str(path), geometry=GEOMETRY)
+        stored = json.loads(path.read_text())
+        del stored["error_Rot_y"]
+        path.write_text(json.dumps(stored))
+    else:
+        path = tmp_path / "HB2B_CAL.nxs"
+        write_calibration_nexus(str(path), SHIFT, ERROR, 1.5306, 1e-5, 1, GEOMETRY)
+        with h5py.File(path, "a") as nexus:
+            del nexus["entry/instrument/detector/transformations/rotation_y_errors"]
+    instrument = HidraSetup(GEOMETRY)
+    instrument.load_calibration_file(str(path))
+    reduced = tmp_path / "reduced.h5"
+
+    # Act
+    write(reduced, instrument=instrument)
+    calibration = read(reduced)["calibration"]
+
+    # Assert
+    expected_errors = ERROR.convert_to_dict()
+    expected_errors["Rot_y"] = -1.0
+    assert {name: calibration[f"error_{name}"] for name in expected_errors} == pytest.approx(expected_errors)
+    assert {name: calibration[name] for name in SHIFT.convert_to_dict()} == pytest.approx(SHIFT.convert_to_dict())
+    assert calibration["error_Lambda"] == pytest.approx(1e-5) and calibration["Lambda"] == pytest.approx(1.5306)

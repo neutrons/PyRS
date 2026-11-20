@@ -20,23 +20,33 @@ from pyrs.calibration.pixel_pos_calibration import (
 )
 from pyrs.core.detector_model import from_shift, to_shift
 from tests.util.instrument_helpers import default_hb2b_geometry
-from tests.util.ring_calibration_helpers import synthetic_calibration_workspace
+from tests.util.ring_calibration_helpers import (
+    SMALL_ARMS,
+    SMALL_POWDERS,
+    SYNTHETIC_TRUE_PARAMS,
+    converged_synthetic_calibration,
+    synthetic_calibration_workspace,
+)
 
-TRUE_PARAMS = np.array([0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.656, 1.5308])
+# a full ring calibration of the synthetic run: its own serial tier (#1101)
+pytestmark = pytest.mark.ring_calibration
+
+TRUE_PARAMS = np.array(SYNTHETIC_TRUE_PARAMS)
 MONO = 1.54
 
 
 @pytest.fixture(scope="module")
-def workspace():
-    return synthetic_calibration_workspace(default_hb2b_geometry(), TRUE_PARAMS)
+def small_workspace():
+    """Six of the eleven sub-runs, for what the round loop records or warns (#1101): the loop runs, at about
+    half the cost"""
+    return synthetic_calibration_workspace(default_hb2b_geometry(), TRUE_PARAMS, SMALL_ARMS, SMALL_POWDERS)
 
 
 @pytest.fixture(scope="module")
-def converged_run(workspace):
-    """The default calibration, and the diagnostics list it overwrote (seeded with a stale entry); one run
-    shared by every test that only inspects it (#1101)"""
-    diagnostics = ["stale"]
-    return calibrate_rings(workspace, MONO, diagnostics=diagnostics), diagnostics
+def converged_run():
+    """The default calibration of the full synthetic run, and the diagnostics list it overwrote (seeded with a stale
+    entry): one run per test process, shared with the driver, window and diagnostics tests (#1101)"""
+    return converged_synthetic_calibration()
 
 
 @pytest.fixture(scope="module")
@@ -45,7 +55,7 @@ def converged(converged_run):
 
 
 @pytest.fixture(scope="module")
-def unconverged(workspace):
+def unconverged(small_workspace):
     """Three rounds that cannot converge, each refinement warning once: the round-limit warning and every
     round's warnings in one run (#1101)"""
     real_iterate = PixelCalibration.iterate
@@ -60,14 +70,14 @@ def unconverged(workspace):
         # recorded, not asserted here: a missing warning then fails the test that checks it, not the fixture
         with warnings.catch_warnings(record=True) as warned:
             warnings.simplefilter("always")
-            calibration = calibrate_rings(workspace, MONO, max_rounds=3)
+            calibration = calibrate_rings(small_workspace, MONO, max_rounds=3)
     return calibration, warned
 
 
 @pytest.fixture(scope="module")
-def one_extraction(workspace):
+def one_extraction(small_workspace):
     """One extraction of the ring points, outside calibrate_rings (#1101: shared; each test takes a copy)"""
-    return extract_ring_points(workspace, MONO, strips=5)
+    return extract_ring_points(small_workspace, MONO, strips=5)
 
 
 def test_rounds_stop_below_half_the_precision(converged):
@@ -83,7 +93,7 @@ def test_rounds_stop_below_half_the_precision(converged):
     assert converged.warning_log == [] and converged.extraction_converged is True
 
 
-def test_rounds_recover_the_true_geometry(converged, workspace):
+def test_rounds_recover_the_true_geometry(converged):
     # Act - compared as pixel 2theta (Rot_y, Shift_x and 2theta_0 are degenerate)
     change = pixel_two_theta_change(converged, TRUE_PARAMS, converged.calibration_array)
 
@@ -122,10 +132,21 @@ def test_single_extraction_has_no_rounds_in_provenance(one_extraction):
     assert calibration.extraction_rounds is None and "extraction_rounds" not in calibration.provenance()
 
 
-def test_one_round_is_the_single_extraction(workspace):
+@pytest.fixture(scope="module")
+def _one_round_once(small_workspace):
+    return calibrate_rings(small_workspace, MONO, max_rounds=1)
+
+
+@pytest.fixture
+def one_round(_one_round_once):
+    """One round on the small run (a fresh copy per test)"""
+    return copy.deepcopy(_one_round_once)
+
+
+def test_one_round_is_the_single_extraction(one_round):
     """max_rounds=1 reproduces the workflow before #1038: no second extraction, no warning"""
     # Act
-    calibration = calibrate_rings(workspace, MONO, max_rounds=1)
+    calibration = one_round
 
     # Assert - nothing to judge: neither converged nor not
     assert len(calibration.extraction_rounds) == 1 and calibration.warning_log == []
@@ -164,18 +185,22 @@ def test_diagnostics_are_the_last_rounds(converged_run):
     assert diagnostics and "stale" not in diagnostics
 
 
-def test_start_is_recorded_after_several_rounds(workspace):
+def test_start_is_recorded_after_several_rounds(small_workspace):
     """Later rounds start where the previous ended; the first round's record keeps the real start"""
     # Arrange
     start = TRUE_PARAMS.copy()
 
     # Act
-    calibration = calibrate_rings(workspace, MONO, start=start)
+    calibration = calibrate_rings(small_workspace, MONO, start=start, max_rounds=2)
 
     # Assert
     assert len(calibration.extraction_rounds) >= 2
     first = calibration.extraction_rounds[0]["start"]
-    assert first["source"] == "given starting calibration" and first["values"] == pytest.approx(list(start))
+    # 2theta_0 held (#1090): the given start, re-expressed at 2theta_0 = 0 (the same detector)
+    l2 = float(np.median(calibration.ring_points.l2))
+    expected = np.r_[from_shift(calibration.model.with_two_theta_0(to_shift(start[:7]), 0.0, l2)), start[7]]
+    assert first["source"].startswith("given starting calibration; re-expressed at 2theta_0 = 0")
+    assert first["values"] == pytest.approx(list(expected))
     assert calibration.provenance()["extraction_rounds"][0]["start"] == first
 
 
@@ -187,13 +212,14 @@ def test_nominal_start_is_recorded(converged):
     assert first["values"] == pytest.approx([0.0] * 7 + [MONO])
 
 
-def test_second_call_appends_its_rounds(converged, workspace):
-    """e.g. a GUI recipe with "iterate" twice: both calls' rounds, numbered on"""
+def test_second_call_appends_its_rounds(one_round, small_workspace):
+    """e.g. a GUI recipe with "iterate" twice: both calls' rounds, numbered on. The first call is one round on the
+    small run; the numbering does not depend on whether the first call converged"""
     # Arrange
-    earlier = list(converged.extraction_rounds)
+    earlier = list(one_round.extraction_rounds)
 
     # Act
-    again = continue_rounds(copy.deepcopy(converged), workspace, max_rounds=2)
+    again = continue_rounds(one_round, small_workspace, max_rounds=2)
 
     # Assert
     rounds = again.extraction_rounds
@@ -203,13 +229,13 @@ def test_second_call_appends_its_rounds(converged, workspace):
 
 
 @pytest.mark.parametrize("start", [np.zeros(7), np.zeros((2, 8))], ids=["seven", "two-d"])
-def test_start_of_wrong_shape_raises(workspace, start):
+def test_start_of_wrong_shape_raises(small_workspace, start):
     # Act / Assert
     with pytest.raises(ValueError, match="8 values"):
-        calibrate_rings(workspace, MONO, start=start)
+        calibrate_rings(small_workspace, MONO, start=start)
 
 
-def test_zero_rounds_raises_before_extracting(workspace, monkeypatch):
+def test_zero_rounds_raises_before_extracting(small_workspace, monkeypatch):
     # Arrange - the extraction takes most of the time: a bad limit must not wait for it
     def no_extraction(*args, **kwargs):
         raise AssertionError("extracted before checking the round limit")
@@ -218,7 +244,7 @@ def test_zero_rounds_raises_before_extracting(workspace, monkeypatch):
 
     # Act / Assert
     with pytest.raises(ValueError, match="max_rounds"):
-        calibrate_rings(workspace, MONO, max_rounds=0)
+        calibrate_rings(small_workspace, MONO, max_rounds=0)
 
 
 def test_precision_of_unrefined_calibration_raises(one_extraction):
@@ -277,3 +303,33 @@ def test_step_is_the_larger_change(converged):
     # Act / Assert
     for record in converged.extraction_rounds[1:]:
         assert record["step_deg"] == max(record["pixel_step_deg"], record["ring_step_deg"])
+
+
+def test_later_rounds_keep_the_sub_run_selection(small_workspace):
+    """The rings are extracted again from the chosen sub-runs only (was a driver test, #1101). The five chosen
+    span the arm range (76-103 deg), so the calibration stops at no bound; with four, Rot_y does"""
+    # Act
+    calibration = calibrate_rings(
+        small_workspace, MONO, sub_runs=[1, 3, 4, 5, 6], passes=2, polish=False, max_rounds=2
+    )
+
+    # Assert
+    assert len(calibration.extraction_rounds) == 2
+    assert set(calibration.ring_points.sub_run.tolist()) == {1, 3, 4, 5, 6}
+    assert not [message for message in calibration.warning_log if "bound" in message]
+
+
+def test_freed_two_theta_0_stays_freed_in_later_rounds(small_workspace, one_extraction):
+    """continue_rounds builds each round's calibration with the first one's hold (#1090)"""
+    # Arrange
+    calibration = PixelCalibration(
+        copy.deepcopy(one_extraction), small_workspace.get_instrument_setup(), wavelength=MONO, hold_two_theta_0=False
+    )
+
+    # Act - one short pass per round: only the second round's object matters
+    result = continue_rounds(calibration, small_workspace, passes=1, polish=False, max_rounds=2)
+
+    # Assert
+    assert len(result.extraction_rounds) == 2 and result is not calibration
+    assert not result.two_theta_0_held
+    assert any("TTH_0" in stage.free_parameters for stage in result.stages)

@@ -172,7 +172,8 @@ class HidraSetup:
         RuntimeError
             if the file cannot be read as a calibration (as read_calibration_file)
         ValueError
-            if it is neither a .json nor a .nxs file, or a NeXus file would be applied differently
+            if it is neither a .json nor a .nxs file, a NeXus file would be applied differently, or a JSON file
+            gives no wavelength (``Lambda``, #1098: reduction must not apply 0)
         OSError
             if a .nxs file is not HDF5 (as a malformed .json raises its JSON error)
         """

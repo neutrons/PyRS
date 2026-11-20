@@ -1935,7 +1935,8 @@ The Detector Calibration window can run the ring-based calibration (user-approve
 - **Checked:**
   - With the driver's settings (strips 5, "iterate", trf, the same mask and starting
     calibration), the window's calibration file on HB2B_3510 is **identical** to
-    `pyrs-pixel-calibration`'s (`test_ring_based_calibration_matches_driver`).
+    `pyrs-pixel-calibration`'s. Checked by `test_ring_based_calibration_matches_driver` until #1101, which
+    stopped it running the driver (`test_ring_based_calibration_uses_driver_defaults`; see #1101's section).
   - The same holds headless on a synthetic run.
 
 **Export, for both methods:**
@@ -3075,7 +3076,10 @@ becomes this check), `PyRsCore`, and the calibration GUI's "From file…" overla
   only add a note to the reduction record, a NeXus file whose pixel layout is missing or not PyRS's is
   refused when the calibration is read, before any reduction work: the chain is defined on those pixels. A
   `.nxs` that is not HDF5 raises `OSError`, as a malformed `.json` raises its JSON error.
-- **GUI:** the predicted-rings "From file…" dialog offers `*.json *.nxs`. The window's **Load Calibration** (a
+- **GUI:** the predicted-rings "From file…" dialog offers `*.json *.nxs`. So does Manual Reduction's calibration
+  browser (#1098). It had offered `hdf5 (*hdf)` since the original manual-reduction UI (the Model-View-Presenter
+  refactor carried it over unchanged), which showed neither JSON nor NeXus calibrations unless "All Files" was
+  chosen. The window's **Load Calibration** (a
   starting calibration for the table) still reads JSON only (`_initalize_calibration` parses it directly);
   phase 3.
 - **Verified:**
@@ -3281,6 +3285,69 @@ Found while testing; all four are fixed, see the next section ([deferred_defects
   longer returns a stale result.
 
 Tests: `tests/unit/pyrs/core/test_polefigurecalculator.py`. Each new test fails without its fix.
+## Calibration drivers in the package; one shared ring calibration for the unit tier (2026-11-18, #1101)
+
+**Drivers moved into the package** (user decision): `scripts/pyrs_pixel_calibration.py` and
+`scripts/pyrs_calibration.py` held the workflows themselves.
+- Their tests sat in `tests/unit/scripts/`, which mirrors no package, and five test files loaded the ring driver
+  by file path.
+- The workflows are now `pyrs/calibration/ring_driver.py` and `pyrs/calibration/peakfit_driver.py`. The scripts
+  are thin command-line wrappers, and the entry points name the package modules.
+- Commands and options are unchanged.
+- The ring calibration's provenance now records `"driver": "pyrs.calibration.ring_driver"` (it was
+  `"scripts/pyrs_pixel_calibration.py"`).
+
+**One shared ring calibration:**
+- **The repeated run:** the ring-rounds, driver, window-model and diagnostics tests each ran the same full ring
+  calibration of the same synthetic run, 25–30 s each time.
+- **Computed once:** `tests/util/ring_calibration_helpers.converged_synthetic_calibration()` computes it once
+  per test process (cached) and hands out copies.
+- **For tests of what a caller passes on or does around the calibration:** `use_cached_calibrate_rings`
+  answers `calibrate_rings` from that cache, and records each call's settings.
+- **The window comparison is still real on both sides:** the window's own ring path (extraction, rounds, error
+  estimate, Export) runs for real, against the driver given the cached calibration.
+- **Bookkeeping tests of the round loop** run on six of the eleven sub-runs (`SMALL_ARMS`): the round-limit
+  warning, warnings kept, one round, the start recorded, a second call, and the sub-run selection.
+  - With 4 sub-runs (25 ring points), Rot_y stops at its bound.
+- **Moved:** the driver's sub-run check moved to `test_ring_rounds.py`, because it tests `calibrate_rings`.
+
+**Measured** on `next`, serial, no coverage:
+
+| | Before | After |
+|---|---|---|
+| Unit tier | 6 min 5 s | **3 min 52 s** |
+| `test_ring_calibration_method.py` | 112 s | 62 s |
+| `test_ring_rounds.py` | 96 s | 50 s |
+| ring driver tests | 54 s | 8 s |
+| `test_calibration_diagnostics.py` | 24 s | 33 s (it computes the shared run first when run serially) |
+
+Coverage of `pyrs` is identical: 8,791 lines before and after, with no line losing coverage.
+
+**Parallel, `pixi run test-unit`:**
+- **Wall time:** 3 min 30 s on `next`, 2 min 40 s after the restructure.
+- **Why the parallel gain is smaller:** `--dist loadscope` gives the four modules that use the shared calibration
+  their own workers, and each worker computes it (about 60 s each, with eight workers competing for the CPU).
+
+**A separate tier** (user decision): the tests that run or use a full ring calibration carry
+`@pytest.mark.ring_calibration`.
+- `pixi run test-ring-calibration` runs them in one process, so the shared calibration is computed once.
+- `test-unit` leaves them out.
+- CI runs the tier as its own job, `tests (ring-calibration)`.
+- **Measured:**
+
+  | Tier | Tests | Wall time |
+  |---|---|---|
+  | `test-unit` | 1270 | **36 s** |
+  | `test-ring-calibration` | 104 | 2 min 48 s |
+
+  Measured after merging `next` with #1120. Every test is in exactly one tier: unit, ring-calibration,
+  integration and gui collect 1637 tests in total, the whole suite.
+- **Codecov:** `codecov.yml` now waits for 4 uploads, one per tier.
+- **Rejected alternatives:**
+  - one `xdist_group` in the unit tier computes the calibration once, but runs the four modules one after another,
+    so `test-unit` stays at about 2.5 min;
+  - a calibration shared through a locked file on disk saves only 20–30 s, for more infrastructure.
+
 ## Ring-calibration tests: shared runs and design-study tests removed (2026-11, #1101)
 
 - **The unit tier was 96% ring-calibration tests** by time: 12.2 of 12.7 min. The cost was tests each repeating a
@@ -3310,6 +3377,20 @@ Tests: `tests/unit/pyrs/core/test_polefigurecalculator.py`. Each new test fails 
     range), not three. 60° (below the range) is no longer checked.
   - Integer indices in `estimate_errors(hold=...)` are no longer tested directly. `refine` shares the same
     index handling.
+- **The GUI window = driver test no longer runs the driver** (user decision). It is renamed
+  `test_ring_based_calibration_uses_driver_defaults`. From the written file's provenance, it checks that the
+  window ran with what the driver uses:
+  - the parser's strips, passes, polish and round limit;
+  - `PixelCalibration`'s default method;
+  - every sub-run kept;
+  - the nominal start at the run's wavelength.
+
+  It also checks the window's max nfev of 300 reached the refinement. The driver sets none, and on HB2B_3510 the
+  cap does not bind: the files were bit-identical while the test ran the driver. It still checks the ring
+  marks, the rounds and the method switch. 79 → 46 s on this workstation.
+  - **What is lost:** the bit-for-bit comparison on real data. `test_ring_path_equals_the_driver` compares
+    the window's model with the driver bit for bit, but on synthetic data. Real data is checked by
+    `test_driver_rounds_agree_with_the_reference` (integration) against the reference calibration.
 ## Parallel test tiers on CI (2026-11, #1100)
 
 CI runs the three test tiers as three jobs (`test-tier` matrix: `tests (unit)`, `tests (integration)`,
@@ -3369,3 +3450,181 @@ coverage, at `b443d7a5`:
   DD-27. Then remove the override; mypy should then report nothing. qtpy's documented alternative is mypy
   `always_true = ["PYQT6"]`, `always_false = ["PYQT5", "PYSIDE2", "PYSIDE6"]`, so that mypy never follows the
   PySide6 branch.
+
+## 2θ₀ held at 0 in single-run calibrations (2026-11, #1090 step a)
+
+**Rule (user decisions, #1090):**
+- HB2B never calibrates at more than one sample–detector distance. At one distance, 2θ₀ trades **exactly**
+  against Rot_y and Shift_x, so a single run cannot determine it.
+- **A single-run calibration holds 2θ₀ at 0**, in both methods and every recipe. Only a joint fit over several
+  monochromators frees it, with the 2θ₀ values constrained to average 0 (#1090 step b).
+
+**Implementation:** `PixelCalibration(..., hold_two_theta_0=True)` and `FitCalibration(..., hold_two_theta_0=True)`,
+both defaults.
+- Every stage drops 2θ₀ from its free parameters, and every error estimate (`estimate_errors`, `errors_at_current`)
+  keeps it fixed. Its error is written −1 (not refined), and the provenance's refinement settings say
+  `"two_theta_0": "held at 0 (#1090)"`.
+- Anything that would refine 2θ₀ raises `ValueError`: `calibrate_tth0`, `PixelCalibration.refine` or
+  `FitCalibration.FitDetector` with TTH_0 free, an initial guess that includes it, `set_two_theta_0(≠ 0)`. The
+  calibration window refuses a recipe containing "tth0" before any routine runs.
+- **A start with 2θ₀ ≠ 0** (a loaded file, the window's table, `calibrate_rings(start=...)`) is re-expressed at
+  2θ₀ = 0 with the exact hand-back (`DetectorModel.with_two_theta_0`). No pixel's 2θ changes, and the start's
+  `source` records it.
+- **The λ + 2θ₀ stage** (`calibrate_wave_shift`, the third stage of every "iterate" pass) refines **Shift_x,
+  Rot_y and λ** while 2θ₀ is held: the directions 2θ₀ trades against. With λ alone, the staged passes did not
+  converge without the joint polish. On synthetic data:
+
+  | Third stage, no polish | 3 passes | Until converged |
+  |---|---|---|
+  | λ alone | 737 mdeg | 304 mdeg, 50 passes |
+  | Shift_x + Rot_y + λ | **0.48 mdeg** | **5·10⁻⁴ mdeg, 6 passes** |
+  | (2θ₀ + λ, with 2θ₀ freed) | | 0.03 mdeg, 13 passes |
+
+- **Rot_y's bound is ±10°** (it was ±5°) in CalibrateRotation, CalibrateGeometry, FullCalibration, the held λ stage and
+  the span `estimate_errors` takes from FullCalibration. Shift_x keeps ±0.05 m (user decision). With 2θ₀ held,
+  Rot_y carries the monochromator's 2θ₀ offset as well as the detector's tilt: about 7° on HB2B_3489 (Si331). At
+  ±5° it stopped at the bound in every stage, and only `estimate_errors`, whose bounds are relative, moved it.
+
+**Measured** with `pyrs-pixel-calibration` (`run_calibration`, mask `HB2B_Mask_12-18-19.xml`), the branch against
+`next` (2θ₀ refined, Rot_y ±5°):
+
+| Run | Pixel-2θ change | Precision | rms | λ change |
+|---|---|---|---|---|
+| HB2B_3510 (Si422) | 0.00 mdeg | 6.3 mdeg | 17.03 mdeg, unchanged | 6·10⁻¹² Å |
+| HB2B_3489 (Si331) | 0.14 mdeg | 10.6 mdeg | 29.03 mdeg, unchanged | 1·10⁻⁶ Å |
+| HB2B_4971 (Si422) | 0.00 mdeg | 2.3 mdeg | 6.54 mdeg, unchanged | 1·10⁻¹² Å |
+
+- Rot_y and Shift_x now carry 2θ₀'s share. Every geometry parameter gets a real error after the polish; before,
+  Shift_x, Rot_y and 2θ₀ were flagged −2.
+- Refined 2θ₀ was 0.86° and 1.47° (Si422) and 2.30° (Si331), consistent with a per-monochromator offset.
+- **Tests:**
+  - those that check the degeneracy itself run with `hold_two_theta_0=False`;
+  - the FitCalibration gold-file smoke test `test_all_refinements` also runs with 2θ₀ freed, as its gold file
+    was made;
+  - the others compare with the truth re-expressed at 2θ₀ = 0.
+
+## Poisson bin variance in reduction (2026-11-19, #1109)
+
+**Change (user-approved, 2026-11-19).** `PyHB2BReduction.histogram_by_numpy` (`pyrs/core/reduce_hb2b_pyrs.py`) no
+longer gives a zero-count pixel σ = 1 before histogramming. A 2θ bin's data variance is now the Poisson variance of
+its total count, **σ²_bin = Σ Nᵢ**; before, it was Σ Nᵢ + n₀ (n₀ = empty pixels in the bin). Unchanged:
+- empty bins (Σ Nᵢ = 0) still get intensity 0 and σ = 1;
+- the vanadium normalisation I = Σ N · V_max / Σ V and its σ propagation;
+- pixel selection (mask, vanadium ≥ 0.9);
+- intensities.
+
+The full write-up, with equations and figures, is the user-documentation page *Intensity Uncertainties*
+(`docs/user/source/math/uncertainty.rst`).
+
+**Why.** A bin total is Poisson with variance Σ λᵢ, estimated without bias by Σ Nᵢ. The per-pixel floor (also
+pyFAI's `poisson` model, `variance = max(1, N)`) adds n₀, which measures sparsity, not uncertainty: by
+R(λ) = 1 + e^(−λ)/λ, that is ×10 at λ = 0.1 counts per pixel. This is a bin-level argument. Pixel-level uses (2D
+fits, per-pixel weighting) would need model-based per-pixel variances λ̂ᵢ.
+
+**Evidence** (pixelation study, `docs/pixelation-uncertainty-plan` branch, `docs/ground_truths.md` there):
+- **Former inflation measured on HB2B_5344** (autoreduction settings): background σ 1.5–1.8× too large; inflation
+  equals the Poisson prediction (median ratio 0.996–1.005); the same for 360–1,440 bins and 3° wedges.
+- **Mantid `FitPeaks` does not rescale errors by χ²**, so σ passes straight into reported peak errors.
+- **Monte Carlo on the real detector** (0.066 counts per pixel, 600 realisations): centre pull width 0.58–0.61
+  (former) → 0.96–1.01 (Poisson); intensity 0.41–0.44 → 0.99–1.05; no strain bias with either (≤ 1–2 µε); weak-peak
+  fit failures 24 % → 0 % (HB2B_3489 sub-run 10).
+- **Real data, event split.** HB2B_5344 was split into 10 independent pulse slices. Observed / predicted variance:
+  - former: 0.036 (< 0.05 counts/px), 0.07, 0.40, 0.84 (> 1);
+  - Poisson: 0.999, 1.005, 1.013, 1.04;
+  - pyFAI `azimuthal`: 0.997–1.000 sparse, 0.82–0.98 in peak bins.
+
+  A 3° wedge agrees.
+
+**Effect on results.**
+- **Errors:** σ falls in sparse bins. Weak-peak strain errors fall ~2.3× (HB2B_3489 Ni: 85 → 37 µε), strong-peak
+  errors ~5 %.
+- **Fitted values** move within their errors from the re-weighting alone, even when the peak model is correct. They shift systematically where the pseudo-Voigt misfits the peak: −5.7 µε mean (5344), +27.6 µε (3489 Ni).
+- **χ²:** the reduced χ² becomes ≈ 1.
+
+**Effect on `FitCalibration`** (approved by the user, 2026-11-19, option 1). `FitCalibration` fits peaks in η-wedge
+reductions, so its weights change too.
+- **Gold smoke test** (`test_all_refinements`, one evaluation per routine): the parameter values are unchanged.
+  `error_TTH_0` 1.141 → 1.383 and `error_Lambda` 0.01822 → 0.01884; the gold file `HB2B_mantid_calib.json` was
+  updated.
+- **`test_held_refinement_on_a_real_run`** (one sub-run, at most 3 evaluations): Rot_y now stays at 0. With
+  5 residuals it moves them by only ~1e-3° per 0.1°, so it is nearly unconstrained there. The test now checks
+  Shift_x and λ, which are constrained. Converged on that sub-run: old Shift_x −4.71 mm, Rot_y −0.22°, λ 1.53424;
+  new −7.16 mm, 0.00°, 1.53678 Å; both RMS 0.0159°.
+- **Full refinement of HB2B_3510** (all sub-runs, `calibrate_wave_shift` + `FullCalibration`, 2θ₀ held at 0):
+
+  | | Rot_x | Rot_y | Rot_z | λ (Å) | RMS |
+  |---|---|---|---|---|---|
+  | old σ | +3.215 ± 0.049° | 0.274 ± 0.088° | 0.162 ± 0.024° | 1.53088 | 0.0244° |
+  | new σ | −1.230 ± 0.076° | 0.958 ± 0.062° | −0.001 ± 0.014° | 1.53117 | 0.0240° |
+  | ring calibration (reference, unaffected) | 0.29 ± 0.50° | 4.35 ± 0.90° | 0.185 ± 0.029° | 1.53057 | 0.0170° |
+
+  The shifts agree within 1σ. The rotations move far beyond their errors at the same RMS, and neither result
+  matches the ring calibration (the new σ is closer in Rot_x, the old in Rot_z and λ). **`FitCalibration`'s
+  rotations are poorly determined on 3510 under either weighting** (DD-30). The variance change exposes this; it
+  does not cause it. The GUI's default calibration is the ring calibration (#1038), which this change does not
+  affect.
+
+**Open:** the fit-level event-split scatter of peak centres exceeds the reported errors 1.3–1.7× for every
+variance rule; 8 groups, to be re-analysed with robust statistics.
+
+**Tests:** `tests/unit/pyrs/core/test_reduce_hb2b_pyrs.py` (σ² = Σ N with empty pixels, empty bins σ = 1,
+vanadium propagation, vanadium-dead pixels). Three of its six tests fail on the former code.
+## NeXus calibration files in the GUI and command line (2026-11-19, #1098 phase 3)
+
+- **Reading:** every place a calibration file is chosen reads `.json` or `.nxs` through
+  `read_calibration_file`, the reader reduction uses:
+  - Manual Reduction (step 1, #1114);
+  - the calibration window's **Load Calibration** and a recipe's `input_calibration`;
+  - `pyrs-calibration`'s `"old calibration"` (`FitCalibration.get_archived_calibration`).
+
+  `read_calibration_values` returns the eight values by name.
+  - **A file the window cannot read** (missing, not a calibration) shows a pop-up and changes nothing: neither
+    the table nor the remembered start file, which a saved recipe would carry.
+  - **Missing parameters** in a JSON start (user decision, 2026-11-19): `read_calibration_values` raises
+    `IncompleteCalibrationError`, which names them and carries the values with them as 0.
+    - The window asks "Continue with 0 for …?"; No changes nothing.
+    - `pyrs-calibration` cannot ask, so it stops with the error.
+    - Reduction reads a missing shift, rotation or 2θ₀ as 0, as before.
+    - **Reduction refuses a calibration without a usable wavelength** (user decisions, 2026-11-19): a JSON
+      without `Lambda`, or a JSON or NeXus `Lambda` that is zero, negative or not a number, including a
+      project file's record that stored `Lambda: 0.0`. It would otherwise apply that wavelength. This is `require_wavelength` in `read_calibration_file`, `read_calibration_json_file` and
+      `calibration_from_dict`, true by default. Only a calibration start turns it off: the window asks, `pyrs-calibration` stops.
+      Manual Reduction shows the refusal in a pop-up.
+    - The legacy `two_theta_0` key counts as TTH_0.
+  - **A value given without its error** (user decision, 2026-11-19) is read with error −1 (not refined), in both
+    readers and so also in reduction.
+    - Before, the JSON reader raised `RuntimeError` ("Missing key parameter"), and the NeXus reader refused a
+      missing `<name>_errors` or `wavelength_errors`.
+    - Only `error_TTH_0` was already optional.
+    - **Still refused:** a missing `Status` by both readers, and a missing `Lambda` by reduction.
+    - **NeXus:** any missing value, the wavelength or the status is refused.
+    - **JSON:** a missing shift, rotation or 2θ₀ is read as 0 by reduction, and refused only as a start
+      (`IncompleteCalibrationError`).
+- **Export:** "Also write NeXus (with diagnostics)", ticked by default, adds `HB2B_CAL_<time>.nxs` beside the
+  folder or archive copy.
+  - It is written after the JSON targets, from the same values and provenance, with the method's diagnostics.
+  - The latest files stay JSON only (#1054).
+  - **User decision (2026-11-11):** the JSON targets alone decide success. A failed NeXus copy leaves no file (a
+    temporary file plus rename, shared with the JSON writer), the window warns, and the terminal line says why.
+  - Diagnostics that cannot be built give a NeXus copy without them, with the same warning.
+- **Project file:** the CALIBRATION group records `calibration_format` (`json` or `nexus`) beside
+  `calibration_file` and `calibration_file_sha256`.
+- **User docs:** "Calibration files: JSON and NeXus" in `docs/user/source/basics/basics.rst`.
+- **Deferred:** DD-29, an order-dependent NeXus reduction test that exists on `next` too, found here.
+
+## Developer docs build on Sphinx 9 (2026-11-20)
+
+`sphinx-build docs/developer/source` crashed on Sphinx 9.2 before writing any page. CI builds only the user docs (Read
+the Docs: `docs/user/source`), so nothing caught it.
+
+- **The `pyrs.interface` crash:** `conf.py` put plain `unittest.mock.Mock()` objects into `sys.modules` for
+  mantid, h5py, Qt, nexusformat and `pyrs.interface`. Sphinx 9's autodoc reads `__name__` from every module it
+  documents, which a plain `Mock` refuses, so `automodule:: pyrs.interface` raised `AttributeError: __name__`.
+  - **Fix:** `autodoc_mock_imports = MOCK_MODULES`, Sphinx's own mocks.
+- **The hook crash:** `remove_duplicate_from_index` (`autodoc-process-docstring`) set `options["noindex"]`. In
+  Sphinx 9 the options are an object.
+  - **Fix:** the hook sets `options.no_index` when item assignment fails.
+- **Result:** the build exits 0, and the `HidraProjectFile` duplicate entry stays out of the index. The roughly 137
+  warnings left are docstring-format and duplicate-description notes from the API pages.
+- **User docs:** `docs/user/source/conf.py` still uses plain `Mock` objects. It builds, because it documents
+  nothing they replace.

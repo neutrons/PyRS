@@ -8,10 +8,12 @@ HB2B_Latest_<Si...>.json and <Si...>/HB2B_CAL_<time>.json.
 import json
 import os
 from types import SimpleNamespace
+from typing import Any, Optional
 
 import numpy as np
 import pytest
 
+from pyrs.calibration.pixel_refinement import PixelCalibration
 from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.detector_model import from_shift
 from pyrs.interface.detector_calibration import detector_calibration_model as model_module
@@ -24,10 +26,19 @@ from pyrs.interface.detector_calibration.detector_calibration_model import (
 )
 from pyrs.utilities.calibration_file_io import read_calibration_json_file
 from tests.util.instrument_helpers import default_hb2b_geometry
-from tests.util.ring_calibration_helpers import synthetic_calibration_workspace
+from tests.util.ring_calibration_helpers import (
+    SYNTHETIC_MONO,
+    SYNTHETIC_TRUE_PARAMS,
+    converged_synthetic_calibration,
+    synthetic_calibration_workspace,
+    use_cached_calibrate_rings,
+)
 
-TRUE_PARAMS = np.array([0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.656, 1.5308])
-MONO_WAVELENGTH = 1.540
+# a full ring calibration of the synthetic run: its own serial tier (#1101)
+pytestmark = pytest.mark.ring_calibration
+
+TRUE_PARAMS = np.array(SYNTHETIC_TRUE_PARAMS)
+MONO_WAVELENGTH = SYNTHETIC_MONO
 
 
 @pytest.fixture(scope="module")
@@ -110,18 +121,32 @@ def refined(workspace):
 
 
 def _driver():
-    import importlib.util
-    from pathlib import Path
+    from pyrs.calibration import ring_driver
 
-    spec = importlib.util.spec_from_file_location(
-        "pyrs_pixel_calibration", Path(__file__).resolve().parents[5] / "scripts" / "pyrs_pixel_calibration.py"
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return ring_driver
+
+
+def _rounds_from_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make the window's "iterate" rounds return the shared real calibration of this run, for tests of what the
+    window does around them (#1101): what the rounds do is test_ring_rounds.py's. The calibration handed in is
+    refined once, as the real rounds refine it in place, so a restore of it is a real restore."""
+
+    def cached_rounds(
+        calibration: PixelCalibration, workspace: Any, diagnostics: Optional[list] = None, **kwargs: Any
+    ) -> PixelCalibration:
+        calibration.iterate(passes=1, polish=False)
+        result, fits = converged_synthetic_calibration()
+        if diagnostics is not None:
+            diagnostics[:] = fits
+        return result
+
+    monkeypatch.setattr(model_module, "continue_rounds", cached_rounds)
 
 
 def test_ring_path_equals_the_driver(workspace, refined, tmp_path, monkeypatch):
+    """The window's own ring path (extraction, "iterate" rounds, error estimate, Export) against the driver,
+    whose ring calibration of the same run is the shared real one (#1101)"""
+
     # Arrange - the real driver, with the NeXus conversion replaced by the synthetic run
     class _Converter:
         def __init__(self, nexus_file, mask_file=None):
@@ -131,10 +156,13 @@ def test_ring_path_equals_the_driver(workspace, refined, tmp_path, monkeypatch):
             return workspace
 
     monkeypatch.setattr("pyrs.core.nexus_conversion.NeXusConvertingApp", _Converter)
+    calls = use_cached_calibrate_rings(monkeypatch)
     nexus = tmp_path / "HB2B_0001.nxs.h5"
     nexus.write_bytes(b"")
     driver_file = tmp_path / "driver.json"
     driver = _driver().run_calibration(str(nexus), str(driver_file), mask_file=None)
+    # precondition: the driver asked for exactly the shared calibration (any drift in its settings fails here)
+    assert [call["cached"] for call in calls] == [True]
 
     # Act
     gui_model, (values, errors, r_sum, rmse) = refined
@@ -153,7 +181,7 @@ def test_ring_path_equals_the_driver(workspace, refined, tmp_path, monkeypatch):
         k: v for k, v in driver_provenance.items() if k not in varying
     }
     assert gui_provenance["inputs"]["interface"] == "PyRS detector calibration GUI"
-    assert driver_provenance["inputs"]["driver"] == "scripts/pyrs_pixel_calibration.py"
+    assert driver_provenance["inputs"]["driver"] == "pyrs.calibration.ring_driver"
     assert rmse == driver.stages[-1].rmse and errors[-1][6] == -1.0
 
 
@@ -416,6 +444,7 @@ def test_new_run_clears_ring_state(workspace, monkeypatch, tmp_path):
     # Arrange - a ring-based result from run A, then load run B
     gui_model = _model(workspace)
     gui_model.extract_rings(3)
+    _rounds_from_cache(monkeypatch)
     gui_model.calibrate_detector(["iterate"])
     monkeypatch.setattr(model_module, "FitCalibration", lambda **kwargs: _stand_in(workspace))
 
@@ -839,6 +868,8 @@ def test_failed_recipe_after_iterate_restores_all(workspace, monkeypatch, rounds
     gui_model.set_max_rounds(rounds)
     gui_model.extract_rings(DEFAULT_STRIPS)
     before = _ring_state(gui_model)
+    if rounds > 1:  # several rounds change the plots' state too; the one-round case runs for real
+        _rounds_from_cache(monkeypatch)
 
     def failing(self, *args, **kwargs):
         raise RuntimeError("error estimate failed")
@@ -1028,3 +1059,99 @@ def test_partial_write_names_what_was_written(refined, shared, monkeypatch):
     for report in (str(failure.value).split("written so far:")[1], lines[0].split("written:")[1]):
         assert archived in report and "HB2B_Latest_Si422.json" in report and "HB2B_Latest.json" not in report
     assert not (shared / "HB2B_Latest.json").exists() and len(lines) == 1
+
+
+@pytest.mark.parametrize("method", [METHOD_RING, METHOD_FITCALIBRATION])
+def test_tth0_routine_is_refused(workspace, method):
+    """2theta_0 is held at 0 in a single-run calibration (#1090): a recipe asking to refine it alone is refused
+    before any routine runs"""
+    # Arrange
+    gui_model = _model(workspace, method)
+    before = gui_model.current_calibration_array
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="2theta_0, which is held at 0"):
+        gui_model.calibrate_detector(["shifts", "tth0"])
+    np.testing.assert_array_equal(gui_model.current_calibration_array, before)
+
+
+# ---------------------------------------------------------------- the NeXus copy (#1098 step 3)
+
+
+def _calibration_values(path):
+    from pyrs.utilities.calibration_file_io import read_calibration_values
+
+    return list(read_calibration_values(str(path)).values())
+
+
+def test_export_nexus_copy_beside_the_folder_copy(refined, tmp_path):
+    from pyrs.utilities.calibration_nexus import read_calibration_nexus_diagnostics
+
+    # Arrange
+    gui_model, _ = refined
+
+    # Act
+    written = gui_model.export_calibration(str(tmp_path), nexus=True)
+
+    # Assert - the JSON, then the NeXus copy of the same calibration with the ring diagnostics
+    json_file, nexus_file = written
+    assert nexus_file == json_file[: -len(".json")] + ".nxs" and gui_model.nexus_problem is None
+    assert _calibration_values(nexus_file) == _calibration_values(json_file)
+    assert {"ring_points", "strip_fits"} <= set(read_calibration_nexus_diagnostics(nexus_file)["tables"])
+
+
+def test_export_nexus_copy_beside_the_archive_only(refined, tmp_path, shared):
+    # Arrange
+    gui_model, _ = refined
+
+    # Act
+    written = gui_model.export_calibration(latest=True, archive=True, nexus=True)
+
+    # Assert - the latest file stays JSON only (#1054 decision)
+    archive, latest, nexus_file = written
+    assert os.path.basename(latest) == "HB2B_Latest.json"
+    assert nexus_file == archive[: -len(".json")] + ".nxs"
+    assert sorted(os.listdir(os.path.dirname(archive))) == sorted(map(os.path.basename, (archive, nexus_file)))
+
+
+def test_failed_nexus_copy_keeps_the_json(refined, tmp_path, monkeypatch):
+    """User decision (#1098): the JSON decides success; a failed NeXus copy leaves nothing and says why"""
+    from pyrs.utilities import calibration_nexus
+
+    # Arrange
+    gui_model, _ = refined
+
+    def failing(file_name, *args, **kwargs):
+        with open(file_name, "w") as partial:
+            partial.write("half a file")
+        raise OSError("disk full")
+
+    monkeypatch.setattr(calibration_nexus, "write_calibration_nexus", failing)
+
+    # Act
+    written = gui_model.export_calibration(str(tmp_path), nexus=True)
+
+    # Assert
+    assert [os.path.basename(path) for path in written] == os.listdir(tmp_path)  # no .nxs, no temporary file
+    assert written[0].endswith(".json") and "disk full" in gui_model.nexus_problem
+    assert "was not written" in gui_model.nexus_problem
+
+
+def test_nexus_copy_without_diagnostics_says_so(refined, tmp_path, monkeypatch):
+    from pyrs.utilities.calibration_nexus import read_calibration_nexus_diagnostics
+
+    # Arrange
+    gui_model, _ = refined
+
+    def no_diagnostics(*args, **kwargs):
+        raise RuntimeError("strip fits lost")
+
+    monkeypatch.setattr(model_module.PixelCalibration, "diagnostics", no_diagnostics)
+
+    # Act
+    json_file, nexus_file = gui_model.export_calibration(str(tmp_path), nexus=True)
+
+    # Assert - the calibration is written; its diagnostics are not, and the user is told
+    assert _calibration_values(nexus_file) == _calibration_values(json_file)
+    assert read_calibration_nexus_diagnostics(nexus_file) is None
+    assert "no diagnostics" in gui_model.nexus_problem and "strip fits lost" in gui_model.nexus_problem

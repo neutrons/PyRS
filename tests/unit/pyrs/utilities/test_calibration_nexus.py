@@ -200,15 +200,70 @@ def test_file_without_transformations_raises(tmp_path):
         read_calibration_nexus(str(path))
 
 
-def test_missing_error_raises(tmp_path):
+_TRANSFORMATIONS = "entry/instrument/detector/transformations/"
+_PARAMETERS = ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda")
+
+
+def _error_vector(shifts_error, wavelength_error):
+    return list(from_shift(shifts_error)) + [wavelength_error]
+
+
+@pytest.mark.parametrize(
+    "field, parameter",
+    [
+        (_TRANSFORMATIONS + "shift_x_errors", "Shift_x"),
+        (_TRANSFORMATIONS + "shift_y_errors", "Shift_y"),
+        (_TRANSFORMATIONS + "shift_z_errors", "Shift_z"),
+        (_TRANSFORMATIONS + "rotation_x_errors", "Rot_x"),
+        (_TRANSFORMATIONS + "rotation_y_errors", "Rot_y"),
+        (_TRANSFORMATIONS + "rotation_z_errors", "Rot_z"),
+        ("entry/instrument/monochromator/wavelength_errors", "Lambda"),
+    ],
+)
+def test_missing_error_reads_as_not_refined(tmp_path, field, parameter):
+    """A value without its error is read with error -1, not refused (user decision, #1098): only that error"""
     # Arrange
     path = _write(tmp_path / "cal.nxs")
     with h5py.File(path, "a") as nexus:
-        del nexus["entry/instrument/detector/transformations/shift_x_errors"]
+        del nexus[field]
+    expected = _error_vector(ERROR, WAVELENGTH_ERROR)
+    expected[_PARAMETERS.index(parameter)] = -1.0
+
+    # Act
+    shifts, shifts_error, wavelength, wavelength_error, _ = read_calibration_nexus(path)
+
+    # Assert - every value as written; every error as written except the missing one
+    np.testing.assert_allclose(_error_vector(shifts_error, wavelength_error), expected)
+    np.testing.assert_allclose(_error_vector(shifts, wavelength), _error_vector(SHIFT, WAVELENGTH))
+
+
+@pytest.mark.parametrize(
+    "field", ["entry/instrument/monochromator/wavelength", "entry/instrument/detector/calibration_method/status"]
+)
+def test_missing_wavelength_or_status_raises(tmp_path, field):
+    """Only an error may be missing: the wavelength and the status are refused, even for a start (#1098)"""
+    # Arrange
+    path = _write(tmp_path / "cal.nxs")
+    with h5py.File(path, "a") as nexus:
+        del nexus[field]
 
     # Act / Assert
-    with pytest.raises(RuntimeError, match="shift_x_errors"):
+    with pytest.raises(RuntimeError, match="missing"):
         read_calibration_nexus(path)
+    with pytest.raises(RuntimeError, match="missing"):
+        calibration_file_io.read_calibration_values(path, allow_missing=True)
+
+
+def test_nexus_values_are_read_with_allow_missing(tmp_path):
+    """allow_missing changes nothing for a complete NeXus file: its own values"""
+    # Arrange
+    path = _write(tmp_path / "cal.nxs")
+
+    # Act
+    values = calibration_file_io.read_calibration_values(path, allow_missing=True)
+
+    # Assert
+    np.testing.assert_allclose(list(values.values()), _error_vector(SHIFT, WAVELENGTH))
 
 
 def test_unrefined_calibration_is_refused(tmp_path):
@@ -416,3 +471,34 @@ def test_provenance_stored_as_a_group_raises_valueerror(tmp_path):
     # Act / Assert
     with pytest.raises(ValueError, match="expected a data field"):
         read_calibration_nexus_provenance(path)
+
+
+def test_calibration_values_same_from_json_and_nexus(tmp_path):
+    """The window's and pyrs-calibration's start reader (#1098) gives the same eight values for either format"""
+    # Arrange
+    json_file, nexus_file = _write_json(tmp_path / "cal.json"), _write(tmp_path / "cal.nxs")
+
+    # Act
+    from_json = calibration_file_io.read_calibration_values(json_file)
+    from_nexus = calibration_file_io.read_calibration_values(nexus_file)
+
+    # Assert
+    assert list(from_json) == list(calibration_file_io.CALIBRATION_PARAMETERS)
+    assert from_json == from_nexus
+    assert from_nexus["TTH_0"] == pytest.approx(0.85294) and from_nexus["Lambda"] == pytest.approx(WAVELENGTH)
+
+
+def test_calibration_values_of_raw_run_raises(tmp_path):
+    with pytest.raises(ValueError, match="raw event data"):
+        calibration_file_io.read_calibration_values(str(tmp_path / "HB2B_3510.nxs.h5"))
+
+
+def test_nexus_with_zero_wavelength_is_refused(tmp_path):
+    """The NeXus reader refuses an unusable wavelength for reduction as the JSON one does (#1098)"""
+    # Arrange
+    path = str(tmp_path / "cal.nxs")
+    write_calibration_nexus(path, SHIFT, ERROR, 0.0, WAVELENGTH_ERROR, STATUS, GEOMETRY, PROVENANCE)
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="unusable wavelength"):
+        calibration_file_io.read_calibration_file(path)

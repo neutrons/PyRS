@@ -68,13 +68,14 @@ After implementation:
 - For UI work, actually exercise the feature in a browser — type checking and tests verify code correctness, not feature correctness.
 
 ### Step 5: Code Review Process (For Major Changes)
-<!-- cherry-pick 30231c18: reviewer links below changed from .github/agents/ to .claude/agents/ -->
 After a significant feature or refactor, delegate review using the `Agent` tool. Prefer the project's purpose-built reviewers in [.claude/agents/](.claude/agents/):
 - [security-reviewer](.claude/agents/security-reviewer.md) — security-focused review.
 - [design-reviewer](.claude/agents/design-reviewer.md) — architecture and design review.
 - [test-reviewer](.claude/agents/test-reviewer.md) — test-coverage review.
 
-Brief the sub-agent with what changed, why, the files touched, and what to focus on. Address findings, then update documentation.
+Brief the sub-agent with what changed, why, the files touched, and what to focus on.
+
+**After a review, bring the user the findings with your recommendation and wait for their choice before acting on them, unless a finding is an outright bug in the change itself.** Then update documentation.
 
 ## 📦 Environment & Launching
 
@@ -101,11 +102,7 @@ When the user needs to choose, prefer these well-integrated options:
 - **Scientific computing:** scipy.
 
 ### Dev tooling
-- **Testing:** pytest (+ pytest-cov).
-- **Linting:** ruff.
-- **Formatting:** black.
 - **Type checking:** mypy, run by a pre-commit hook as `pixi run mypy pyrs scripts tests`, the same command as CI's lint job. Run that command, not mypy on single files, before pushing.
-- **Docs:** Sphinx or MkDocs.
 
 ### Agent Skills
 - Follow the official spec: https://agentskills.io/specification.
@@ -114,73 +111,16 @@ When the user needs to choose, prefer these well-integrated options:
 
 Always include:
 1. **Type hints** on parameters and return values.
-2. **Docstrings** — Google-style for public functions and classes.
-3. **Specific exceptions** with clear messages.
+2. **Docstrings** — Google-style (`Args:`, `Returns:`, `Raises:`, and `Example:` where it helps) for public functions and classes, also in modules whose older code uses NumPy-style.
+3. **Specific exceptions** with clear messages that name the offending value (`f"... got {value}"`).
 4. **Input validation** at boundaries.
 5. **Comments only when the WHY is non-obvious** — never narrate what the code does.
 
-Example:
-
-```python
-from typing import Optional
-
-
-def example_function(
-    data: list[float],
-    threshold: float = 0.5,
-    normalize: bool = True,
-) -> list[float]:
-    """
-    Process data with filtering and optional normalization.
-
-    Args:
-        data: Raw measurement values from sensor.
-        threshold: Minimum value to keep (default: 0.5).
-        normalize: Whether to normalize to [0, 1] range (default: True).
-
-    Returns:
-        Processed data values.
-
-    Raises:
-        ValueError: If data is empty or threshold is negative.
-
-    Example:
-        >>> example_function([0.1, 0.7, 1.2], threshold=0.5)
-        [0.58, 1.0]
-    """
-    if not data:
-        raise ValueError("Data cannot be empty")
-    if threshold < 0:
-        raise ValueError(f"Threshold must be non-negative, got {threshold}")
-
-    filtered = [x for x in data if x >= threshold]
-    if not filtered:
-        return []
-
-    if normalize:
-        max_val = max(filtered)
-        return [x / max_val for x in filtered]
-    return filtered
-```
+Full examples (a function, a test, module and class docstrings): [docs/developer/source/code_style.rst](docs/developer/source/code_style.rst).
 
 ## 🧪 Testing Guidelines
 
-Every test follows Arrange-Act-Assert:
-
-```python
-def test_example_function_filters_correctly():
-    """Test that values below threshold are removed."""
-    # Arrange
-    input_data = [0.1, 0.5, 0.7, 1.0]
-    threshold = 0.6
-
-    # Act
-    result = example_function(input_data, threshold=threshold)
-
-    # Assert
-    assert len(result) == 2
-    assert all(x >= threshold for x in result)
-```
+Every test follows Arrange-Act-Assert, with `# Arrange`, `# Act` and `# Assert` comments.
 
 Always cover:
 1. **Normal cases** — typical inputs.
@@ -205,13 +145,14 @@ test_init_strain_without_filenames_raises
 
 ### Test tiers, markers, and locations
 
-Tests are split into three tiers so the fast ones can be run without waiting on
-real data or being interrupted by GUI pop-ups. **Put every new test in the tier
+Tests are split into four tiers so the fast ones can be run without waiting on
+real data, a full ring calibration, or GUI pop-ups. **Put every new test in the tier
 matching what it actually touches, and apply the marker that tier requires.**
 
 | Tier | Location | Marker | Run with |
 |---|---|---|---|
 | Unit | `tests/unit/<module-path>/`, mirroring the `pyrs/` package layout | *none* | `pixi run test-unit` |
+| Ring calibration | `tests/unit/<module-path>/`, beside the unit tests | `@pytest.mark.ring_calibration` | `pixi run test-ring-calibration` |
 | Integration | `tests/integration/` (flat) | `@pytest.mark.integration` | `pixi run test-integration` |
 | GUI | `tests/ui/` | `@pytest.mark.gui` **and** `@pytest.mark.integration` | `pixi run test-gui` |
 | By-hand scripts | `tests/scripts/` | *n/a — never collected* | run the file directly |
@@ -220,6 +161,12 @@ Marker definitions, registered in `pyproject.toml`:
 
 - **`integration`** — exercises real file I/O (`tests/data`, the `/HFIR`
   archive) or a multi-component workflow.
+- **`ring_calibration`** — runs a full ring calibration of the synthetic run, or
+  uses the shared one (`tests/util/ring_calibration_helpers.py`:
+  `converged_synthetic_calibration`, `use_cached_calibrate_rings`). That
+  calibration takes ~30 s and is cached per process, so the tier runs serially
+  and computes it once; in the parallel unit tier every worker would compute it
+  again (#1101).
 - **`gui`** — requires a display (xvfb or offscreen). Constructing or driving a
   Qt widget is the usual reason, but it is not the only one: taking the `qapp`
   fixture is enough on its own (it builds a real `QApplication`, which aborts
@@ -254,8 +201,9 @@ Notes:
   built once). The GUI tier stays serial: its tests share one window per module.
   So a test must not depend on another test's order or write a fixed file name
   into the working folder; use `tmp_path`. To debug with `--pdb` or `-s`, run
-  serially: `pixi run test-unit -n 0`. CI runs each tier as its own job
-  (`test-ci-unit`, `test-ci-integration`, `test-ci-gui`, under `xvfb-run`, #1100).
+  serially: `pixi run test-unit -n 0`. The ring-calibration tier is serial (see its marker). CI runs
+  each tier as its own job (`test-ci-unit`, `test-ci-ring-calibration`, `test-ci-integration`,
+  `test-ci-gui`, under `xvfb-run`, #1100, #1101).
 - **Every test has a 300-second timeout** (`timeout`/`timeout_method` in
   `pyproject.toml`, via `pytest-timeout`). A hang is a failure, not an infinite
   wait. `timeout_method = "thread"` is deliberate: a test blocked inside Qt's C++
@@ -292,27 +240,11 @@ Trigger a review when:
 - Marking major work as complete.
 - The user asks.
 
-When delegating to a sub-agent via the `Agent` tool, hand over a self-contained brief: what changed, why, the files touched, and the specific concerns to weigh (style, tests, docs, bugs, perf, security). Sub-agents do not see your conversation — give them the context they need to make judgment calls.
+Use the reviewers in [.claude/agents/](.claude/agents/) (see Step 5 above). When delegating to a sub-agent via the `Agent` tool, hand over a self-contained brief: what changed, why, the files touched, and the specific concerns to weigh (style, tests, docs, bugs, perf, security). Sub-agents do not see your conversation — give them the context they need to make judgment calls.
 
 ## 📚 Documentation Standards
 
-Module docstring:
-
-```python
-"""
-Module for data preprocessing operations.
-
-Provides functions for cleaning and normalizing experimental data from
-the XYZ instrument. Typical workflow:
-
-1. Load raw data with load_data().
-2. Clean with remove_outliers().
-3. Normalize with normalize_values().
-4. Export with save_processed_data().
-"""
-```
-
-Class docstring: describe purpose, key attributes, and a usage example.
+Module and class docstrings: purpose, typical workflow, a usage example ([code_style.rst](docs/developer/source/code_style.rst)).
 
 ## 🚨 Common Scenarios
 
@@ -341,14 +273,6 @@ Users may be scientists new to software engineering. Always:
 - Provide context for decisions.
 - Offer to explain concepts if the user looks new to them.
 - Encourage good practices gently — don't lecture.
-
-## ⚡ Efficiency Guidelines
-
-1. **Parallelize independent tool calls** — multiple `Read`/`Grep`/`Bash` calls go in one message when there are no dependencies.
-2. **Use `Agent` with `subagent_type="Explore"`** for broad codebase exploration spanning more than ~3 queries; for narrower lookups, just use `Grep`/`Bash` directly.
-3. **Prefer dedicated tools** — `Read`/`Edit`/`Write` over `cat`/`sed`/`echo` via `Bash`.
-4. **Don't re-read files you just edited** — `Edit` errors if it failed.
-5. **Give brief progress updates** at key moments — finding something, changing direction, hitting a blocker.
 
 ---
 

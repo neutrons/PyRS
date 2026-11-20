@@ -1,6 +1,5 @@
 """Integration test of the ring-based calibration driver on a real calibration run"""
 
-import importlib.util
 import json
 from pathlib import Path
 
@@ -8,6 +7,7 @@ import numpy as np
 import pytest
 
 from pyrs.calibration.pixel_pos_calibration import DetectorModel
+from pyrs.calibration import ring_driver
 from pyrs.utilities.calibration_file_io import check_calibration_status, read_calibration_json_file
 from tests.util.instrument_helpers import default_hb2b_geometry
 
@@ -23,13 +23,7 @@ REFERENCE_FILE = REPO / "tests" / "data" / "calibration_tests" / "HB2B_3510_ring
 
 @pytest.fixture(scope="module")
 def driver():
-    # loaded by path: importing it as scripts.pyrs_pixel_calibration makes mypy see the file twice
-    spec = importlib.util.spec_from_file_location(
-        "pyrs_pixel_calibration", REPO / "scripts" / "pyrs_pixel_calibration.py"
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return ring_driver
 
 
 def test_driver_calibrates_hb2b_3510(tmp_path, driver, capsys):

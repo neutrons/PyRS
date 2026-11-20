@@ -5,17 +5,26 @@ Synthetic ring points and synthetic detector images for testing the ring-based d
 calibration (:mod:`pyrs.calibration.pixel_pos_calibration`) without real data.
 """
 
-from typing import Optional, Sequence
+import copy
+import functools
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from scipy.optimize import brentq
 
 from pyrs.calibration.pixel_pos_calibration import DetectorModel, RingPoints
+from pyrs.calibration.ring_rounds import DEFAULT_MAX_ROUNDS
 from pyrs.calibration.powder_standards import HB2B_STANDARDS, PowderStandard
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 from pyrs.core.peak_profile_utility import pseudo_voigt
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.constants import HidraConstants
+
+if TYPE_CHECKING:
+    import pytest
+
+    from pyrs.calibration.pixel_refinement import PixelCalibration
+    from pyrs.calibration.ring_extraction import StripFit
 
 NI, FE, _MO = HB2B_STANDARDS
 
@@ -183,3 +192,100 @@ def synthetic_calibration_workspace(
         counts = synthetic_detector_image(instrument_setup, true_params, arm, powder, l2=l2, rng=rng, **image_kwargs)
         workspace.set_raw_counts(int(sub_run), counts)
     return workspace
+
+
+# ---------------------------------------------------------------- one shared ring calibration (#1101)
+
+# The synthetic calibration run several test modules calibrate with the driver's settings: the same full
+# calibration (extraction in strips, staged refinement, polish, rounds until converged), 25-30 s each time.
+SYNTHETIC_TRUE_PARAMS = (0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.656, 1.5308)
+SYNTHETIC_MONO = 1.54
+# The settings the shared calibration is made with, passed explicitly so a change of calibrate_rings' own
+# defaults cannot make the cache answer for settings it was not made with (review, #1101). They are the
+# driver's defaults; test_ring_driver.py checks the driver passes exactly these.
+CACHED_SETTINGS: Dict[str, Any] = dict(strips=5, sub_runs=None, passes=3, polish=True, max_rounds=DEFAULT_MAX_ROUNDS)
+# Every other sub-run of RUN_4971 (6 of 11, Ni and Fe, the whole arm range), for tests of what the round loop
+# records or warns, which need the loop to run but not the full run's accuracy: 35 ring points against 65, one
+# round in 4.5 s against 8 s. With 4 sub-runs (25 points) Rot_y stops at its bound.
+SMALL_ARMS = RUN_4971_ARMS[::2]
+SMALL_POWDERS = RUN_4971_POWDERS[::2]
+
+
+def _workspace_digest(workspace: HidraWorkspace) -> str:
+    """A digest of what a ring calibration reads from a run: counts, the 2theta, sy and L2 logs and the default
+    detector mask the extraction applies. Equal for two runs built the same way."""
+    import hashlib
+
+    digest = hashlib.sha1()
+    for sub_run in workspace.get_sub_runs():
+        digest.update(np.ascontiguousarray(workspace.get_detector_counts(int(sub_run))).tobytes())
+    for name in (HidraConstants.TWO_THETA, "sy", HidraConstants.L2):
+        digest.update(np.asarray(workspace.get_sample_log_values(name), dtype=float).tobytes())
+    mask = workspace.get_detector_mask(True)
+    digest.update(b"no mask" if mask is None else np.ascontiguousarray(mask).tobytes())
+    return digest.hexdigest()
+
+
+@functools.lru_cache(maxsize=1)
+def _converged_synthetic_run() -> Tuple[str, "PixelCalibration", List["StripFit"]]:
+    from pyrs.calibration.ring_rounds import calibrate_rings
+    from tests.util.instrument_helpers import default_hb2b_geometry
+
+    workspace = synthetic_calibration_workspace(default_hb2b_geometry(), SYNTHETIC_TRUE_PARAMS)
+    diagnostics: list = ["stale"]  # calibrate_rings must replace, not extend, the list it is given
+    calibration = calibrate_rings(workspace, SYNTHETIC_MONO, diagnostics=diagnostics, **CACHED_SETTINGS)
+    return _workspace_digest(workspace), calibration, diagnostics
+
+
+def converged_synthetic_calibration() -> Tuple["PixelCalibration", List["StripFit"]]:
+    """The calibration of the synthetic run (``synthetic_calibration_workspace`` with the default geometry and
+    :data:`SYNTHETIC_TRUE_PARAMS`, wavelength :data:`SYNTHETIC_MONO`, :data:`CACHED_SETTINGS`): computed once per
+    test process, a fresh copy each call.
+
+    Returns:
+        ``(calibration, strip_fits)``: the ``PixelCalibration`` and the last round's strip fits.
+    """
+    _, calibration, diagnostics = _converged_synthetic_run()
+    return copy.deepcopy(calibration), copy.deepcopy(diagnostics)
+
+
+def use_cached_calibrate_rings(monkeypatch: "pytest.MonkeyPatch", any_settings: bool = False) -> List[Dict[str, Any]]:
+    """Replace ``calibrate_rings`` (where the driver looks it up) by the cached calibration when it is asked for
+    exactly that calibration; any other call runs the real one. The cached result is the real function's, so
+    what comes after it (error estimate, files, summary) runs as before.
+
+    Args:
+        monkeypatch: The test's ``MonkeyPatch``.
+        any_settings: Answer every call on the synthetic run from the cache, whatever its settings: for tests of
+            which settings a caller passes on, not of what they do (``calibrate_rings``' own tests cover that).
+
+    Returns:
+        The settings of every call, in order, with ``"cached"`` saying whether the cache answered.
+    """
+    import inspect
+
+    from pyrs.calibration import pixel_pos_calibration, ring_rounds
+
+    real = ring_rounds.calibrate_rings
+    signature = inspect.signature(real)
+    calls: List[Dict[str, Any]] = []
+
+    def stand_in(*args: Any, **kwargs: Any) -> "PixelCalibration":
+        bound = signature.bind(*args, **kwargs)
+        bound.apply_defaults()  # the real function's defaults, not copies of them
+        arguments = dict(bound.arguments)
+        workspace, diagnostics = arguments.pop("workspace"), arguments.pop("diagnostics")
+        settings = dict(arguments, wavelength=float(arguments["wavelength"]))
+        made_with = settings["start"] is None and settings["wavelength"] == SYNTHETIC_MONO
+        made_with = made_with and all(settings[name] == value for name, value in CACHED_SETTINGS.items())
+        cached = (any_settings or made_with) and _workspace_digest(workspace) == _converged_synthetic_run()[0]
+        calls.append(dict(settings, cached=cached))
+        if not cached:
+            return real(*args, **kwargs)
+        calibration, fits = converged_synthetic_calibration()
+        if diagnostics is not None:
+            diagnostics[:] = fits
+        return calibration
+
+    monkeypatch.setattr(pixel_pos_calibration, "calibrate_rings", stand_in)
+    return calls

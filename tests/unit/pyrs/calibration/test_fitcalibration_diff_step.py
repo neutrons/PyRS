@@ -44,21 +44,29 @@ def test_diff_step_values():
 
 
 @pytest.mark.parametrize(
-    "stage, expected",
+    "hold, stage, expected",
     [
-        ("calibrate_shiftx", [SHIFT]),
-        ("calibrate_shifty", [SHIFT]),
-        ("calibrate_distance", [SHIFT]),
-        ("calibrate_tth0", [ANGLE]),
-        ("calibrate_wave_length", [WAVELENGTH]),
-        ("calibrate_wave_shift", [ANGLE, WAVELENGTH]),
-        ("CalibrateShift", [SHIFT] * 3),
-        ("CalibrateRotation", [ANGLE] * 3),
-        ("CalibrateGeometry", [SHIFT] * 3 + [ANGLE] * 4),
-        ("FullCalibration", [SHIFT] * 3 + [ANGLE] * 4 + [WAVELENGTH]),
+        (True, "calibrate_shiftx", [SHIFT]),
+        (True, "calibrate_shifty", [SHIFT]),
+        (True, "calibrate_distance", [SHIFT]),
+        (True, "calibrate_wave_length", [WAVELENGTH]),
+        # 2theta_0 held (the default, #1090): Shift_x, Rot_y and the wavelength in the wavelength stage
+        (True, "calibrate_wave_shift", [SHIFT, ANGLE, WAVELENGTH]),
+        (True, "CalibrateShift", [SHIFT] * 3),
+        (True, "CalibrateRotation", [ANGLE] * 3),
+        (True, "CalibrateGeometry", [SHIFT] * 3 + [ANGLE] * 3),
+        (True, "FullCalibration", [SHIFT] * 3 + [ANGLE] * 3 + [WAVELENGTH]),
+        # 2theta_0 freed (a joint fit)
+        (False, "calibrate_tth0", [ANGLE]),
+        (False, "calibrate_wave_shift", [ANGLE, WAVELENGTH]),
+        (False, "CalibrateGeometry", [SHIFT] * 3 + [ANGLE] * 4),
+        (False, "FullCalibration", [SHIFT] * 3 + [ANGLE] * 4 + [WAVELENGTH]),
     ],
 )
-def test_stage_passes_per_parameter_steps(calibration, stage, expected):
+def test_stage_passes_per_parameter_steps(calibration, hold, stage, expected):
+    # Arrange
+    calibration._hold_tth0 = hold
+
     # Act
     getattr(calibration, stage)()
 
@@ -77,3 +85,40 @@ def test_lm_method_passes_steps_too(calibration):
     # Assert
     np.testing.assert_array_equal(calibration.calls[0]["diff_step"], [ANGLE] * 3)
     assert "bounds" not in calibration.calls[0]
+
+
+@pytest.mark.parametrize(
+    "hold, stage, half_widths",
+    [
+        (True, "calibrate_wave_length", [0.025]),
+        (True, "calibrate_shiftx", [0.05]),
+        (True, "calibrate_shifty", [0.05]),
+        (True, "calibrate_distance", [0.1]),
+        (True, "calibrate_wave_shift", [0.05, 10.0, 0.025]),
+        (True, "CalibrateShift", [0.05, 0.05, 0.15]),
+        (True, "CalibrateRotation", [5.0, 10.0, 5.0]),
+        (True, "CalibrateGeometry", [0.05, 0.05, 0.05, 5.0, 10.0, 5.0]),
+        (True, "FullCalibration", [0.05, 0.05, 0.15, 5.0, 10.0, 5.0, 0.05]),
+        (False, "calibrate_tth0", [5.0]),
+        (False, "calibrate_wave_shift", [5.0, 0.025]),
+        (False, "CalibrateGeometry", [0.05, 0.05, 0.05, 5.0, 10.0, 5.0, 5.0]),
+        (False, "FullCalibration", [0.05, 0.05, 0.15, 5.0, 10.0, 5.0, 5.0, 0.05]),
+    ],
+)
+def test_stage_passes_bounds(calibration, hold, stage, half_widths):
+    """Each stage's bounds: +/- the half-width about 0, about the current wavelength for the wavelength (the last
+    free parameter of the stages that refine it); Rot_y +/-10 deg (#1090)"""
+    # Arrange
+    calibration._hold_tth0 = hold
+    refines_wavelength = stage in ("calibrate_wave_length", "calibrate_wave_shift", "FullCalibration")
+    centre = np.zeros(len(half_widths))
+    if refines_wavelength:
+        centre[-1] = 1.54
+
+    # Act
+    getattr(calibration, stage)()
+
+    # Assert
+    lower, upper = calibration.calls[0]["bounds"]
+    np.testing.assert_allclose(lower, centre - half_widths)
+    np.testing.assert_allclose(upper, centre + half_widths)

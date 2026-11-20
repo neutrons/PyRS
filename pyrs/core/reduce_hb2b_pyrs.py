@@ -450,9 +450,11 @@ class PyHB2BReduction:
         pixel_2theta_array = np.ma.masked_where(masked_pixels, pixel_2theta_array).compressed()
         pixel_count_array = np.ma.masked_where(masked_pixels, pixel_count_array).compressed()
 
-        # construct data variance array
+        # Poisson variance of each bin's total count: sigma^2_bin = sum of the bin's pixel counts. A zero-count
+        # pixel adds nothing; giving it sigma = 1 (the former rule, also pyFAI's "poisson" floor) added the number
+        # of empty pixels to the variance and overstated sigma up to 5x in sparse bins. Empty bins keep sigma = 1
+        # below. Evidence: docs/ground_truths.md, "Poisson bin variance in reduction" (#1109).
         pixel_var_array = np.sqrt(pixel_count_array)
-        pixel_var_array[pixel_var_array == 0.0] = 1.0
 
         # Call numpy to histogram raw counts and variance
         data_hist, bin_edges = np.histogram(pixel_2theta_array, bins=two_theta_bins, weights=pixel_count_array)

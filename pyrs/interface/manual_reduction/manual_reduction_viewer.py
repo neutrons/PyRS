@@ -145,7 +145,7 @@ class ManualReductionViewer(QMainWindow):
             self,
             caption="Choose and set up the calibration file",
             default_dir=self._model.get_default_calibration_dir(),
-            file_filter="hdf5 (*hdf)",
+            file_filter="Calibration (*.json *.nxs)",  # reduction reads either (#1054); "All Files" is added
             file_list=False,
             save_file=False,
         )
@@ -284,7 +284,8 @@ class ManualReductionViewer(QMainWindow):
                 calibration=calibration_file,
                 vanadium_file=vanadium_file,
             )
-        except RuntimeError as run_err:
+        # ValueError: e.g. a calibration file without a wavelength (#1098) or of another format; OSError: unreadable
+        except (RuntimeError, ValueError, OSError) as run_err:
             pop_message(self, "Failed to reduce {}".format(jobs[0][1]), str(run_err), message_type="error")
             return
 

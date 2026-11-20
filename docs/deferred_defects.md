@@ -152,7 +152,57 @@ without renumbering.
   **Why it is deferred.** Unreachable today, and outside a lint fix. To be fixed with the scoped-enum change,
   when the override is removed.
 
-- **DD-28**, 2026-11-17: PyRS reads Mantid workspaces through `MatrixWorkspace.readX`/`readY`, which Mantid 7.0
+- **DD-28**, 2026-11-18: `pyrs-calibration` (`pyrs/calibration/peakfit_driver.py:main`, until #1101
+  `scripts/pyrs_calibration.py`) raises `UnboundLocalError` unless the input JSON sets every optional key.
+  - **Cause:** `main()` assigns `REFINE_METHOD`, `nexus_file`, `CalibName`, `KEEP_SUB_RUNS`,
+    `INSTRUMENT_CALIBRATION`, `DATA_MASK`, `SAVE_CALIB`, `WRITE_LATEST` and `HFIR_CYCLE` inside its loop over the
+    JSON keys. Python therefore treats them as locals of `main()`, and the module-level defaults are never read.
+  - **Reproduced:** `{"powder scan": 3510, "method": "full"}` stops at `if nexus_file is None:` before reading any
+    data. The template the tool writes (`template.json`) fails the same way, and so does any input without a
+    `"method"` key, at `if "+" in REFINE_METHOD`.
+  - **Since:** the code dates from 7a6068b5 (2023-07-18).
+  - **Untested:** `test_peakfit_driver.py` checks only the usage text, so no test catches this.
+  - **Fix:** start `main()` from a settings dict made from the defaults and update it from the JSON. Add a unit test
+    that runs `main()` on a minimal JSON with `FitCalibration` replaced by a stand-in.
+
+  **Found during:** the code review of #1101, which moved the file unchanged.
+  **Why it is deferred.** A production change, outside a pure move. It needs its own approval.
+- **DD-31**, 2026-11-19: `check_sweeping_motor` (`pyrs/core/nexus_conversion.py`) removes motors from
+  `motor_search` while iterating over it (`for motor in motor_search: ... motor_search.pop(...)`).
+  - **Effect:** the motor after each removed one is never tested, so a sweeping motor can stay in the list used to
+    correct the first sub-run's start time. On HB2B_5344, `sx` and `2theta` are removed and `sy` and `omega` are
+    skipped, so `sy` stays in; HB2B_3489 and HB2B_1017 are similar.
+  - **Impact so far:** none found. The start time was unchanged on 5340, 5344, 1017 and 3489.
+  - **Fix:** build the list with a comprehension, `[m for m in motor_search if runObj[m].size() <= num_points]`.
+  - **Found during:** the pixelation study (#1106), which reproduced the start-time correction outside PyRS.
+  - **Why it is deferred:** a production change outside the approved #1109 change.
+- **DD-30**, 2026-11-19: `FitCalibration` (`pyrs/calibration/mantid_peakfit_calibration.py`) determines the detector
+  rotations poorly on HB2B_3510.
+  - **Reproduced:** with 2θ₀ held at 0 and all sub-runs, two σ weightings give solutions of equal RMS (0.0244° and
+    0.0240°) whose Rot_x differs by 4.4° (+3.215° against −1.230°, quoted errors 0.05–0.08°). Rot_z also differs
+    (0.162° against −0.001°).
+  - **Comparison:** the ring calibration of the same run gives Rot_x 0.29 ± 0.50°, Rot_z 0.185 ± 0.029°.
+  - **Effect:** `FitCalibration`'s quoted rotation errors understate how far its result can move. Its η-wedge
+    residuals constrain the rotations weakly.
+  - **Found during:** #1109 (Poisson bin variance in reduction), which changed `FitCalibration`'s peak weights.
+  - **Why it is deferred:** a change to the established calibration, outside #1109, needing its own approval.
+
+- **DD-29**, 2026-11-19: `tests/integration/test_nexus_calibration_reduction.py::test_nexus_and_json_reduce_bit_identically[eta-slices]`
+  depends on the test order.
+  - **Cause:** it compares `get_diffraction_data(sub_run)`, whose default is the whole-detector pattern (mask
+    `None`). An `eta_step=3.0` reduction makes only `eta_*` patterns.
+  - **Why it passes today:** the module-scoped `workspace` still holds the `[whole-detector]` case's patterns,
+    and that case runs first.
+  - **Failure:** run alone, or on another xdist worker (`-n` without `--dist loadscope`), it raises
+    `RuntimeError: Mask ID None does not exist`.
+  - **Same on `next`:** checked on a scratch checkout. The pixi tasks use `--dist loadscope`, so CI passes.
+  - **Fix:** compare every mask the reduction made (`eta_*` here), not only the default one, so the case checks
+    what it reduced.
+
+  **Found during:** #1098 step 4, running the project-file and NeXus reduction tests together.
+  **Why it is deferred.** A test defect outside #1098, and CI is not affected.
+
+- **DD-33**, 2026-11-17: PyRS reads Mantid workspaces through `MatrixWorkspace.readX`/`readY`, which Mantid 7.0
   deprecates in favour of `x()`/`y()` (`pyrs/peaks/peak_fit_engine.py:133,140`, the peak-fitting, texture-fitting
   and detector-calibration controllers, and `tests/unit/pyrs/peaks/test_peak_fit_engine.py:706`). They still work
   and emit `DeprecationWarning`; a future Mantid release will remove them.

@@ -38,23 +38,34 @@ def calibration(monkeypatch):
     return fit
 
 
+G = ["Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z"]
+
+
 @pytest.mark.parametrize(
-    "routine, free",
+    "hold, routine, free",
     [
-        ("calibrate_wave_length", ["Lambda"]),
-        ("calibrate_shiftx", ["Shift_x"]),
-        ("calibrate_shifty", ["Shift_y"]),
-        ("calibrate_distance", ["Shift_z"]),
-        ("calibrate_tth0", ["TTH_0"]),
-        ("calibrate_wave_shift", ["TTH_0", "Lambda"]),
-        ("CalibrateShift", ["Shift_x", "Shift_y", "Shift_z"]),
-        ("CalibrateRotation", ["Rot_x", "Rot_y", "Rot_z"]),
-        ("CalibrateGeometry", ["Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0"]),
-        ("FullCalibration", ["Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda"]),
+        (True, "calibrate_wave_length", ["Lambda"]),
+        (True, "calibrate_shiftx", ["Shift_x"]),
+        (True, "calibrate_shifty", ["Shift_y"]),
+        (True, "calibrate_distance", ["Shift_z"]),
+        # 2theta_0 held (the default, #1090): Shift_x and Rot_y take its place in the wavelength stage
+        (True, "calibrate_wave_shift", ["Shift_x", "Rot_y", "Lambda"]),
+        (True, "CalibrateShift", ["Shift_x", "Shift_y", "Shift_z"]),
+        (True, "CalibrateRotation", ["Rot_x", "Rot_y", "Rot_z"]),
+        (True, "CalibrateGeometry", G),
+        (True, "FullCalibration", G + ["Lambda"]),
+        # 2theta_0 freed (a joint fit)
+        (False, "calibrate_tth0", ["TTH_0"]),
+        (False, "calibrate_wave_shift", ["TTH_0", "Lambda"]),
+        (False, "CalibrateGeometry", G + ["TTH_0"]),
+        (False, "FullCalibration", G + ["TTH_0", "Lambda"]),
     ],
 )
-def test_routine_records_one_step_under_its_name(calibration, routine, free):
+def test_routine_records_one_step_under_its_name(calibration, hold, routine, free):
     """Regression (#1053 prototype): wrapped routines were recorded as the helper calibrate_single"""
+    # Arrange
+    calibration._hold_tth0 = hold
+
     # Act
     getattr(calibration, routine)()
 
@@ -299,3 +310,112 @@ def test_new_start_resets_errors_and_status(calibration, tmp_path):
     status = read_calibration_json_file(str(path))[4]
     with pytest.raises(RuntimeError, match="never successfully refined"):
         check_calibration_status(status)
+
+
+def test_held_calibrate_tth0_raises(calibration):
+    """2theta_0 is held at 0 in a single-run calibration (#1090): the routine that refines it alone is refused"""
+    # Act / Assert
+    with pytest.raises(ValueError, match="2theta_0 is held"):
+        calibration.calibrate_tth0()
+    assert calibration.steps == []
+
+
+@pytest.mark.parametrize("routine, size", [("CalibrateGeometry", 7), ("FullCalibration", 8)])
+def test_held_guess_with_two_theta_0_raises(calibration, routine, size):
+    """An initial guess that includes 2theta_0 is refused while it is held (#1090), as in PixelCalibration"""
+    # Act / Assert
+    with pytest.raises(ValueError, match="initial guess"):
+        getattr(calibration, routine)(np.zeros(size))
+    assert calibration.steps == []
+
+
+@pytest.mark.parametrize("logs, expected", [([None, None], 0.985), ([0.95, 0.97], 0.96)])
+def test_held_start_uses_run_l2(calibration, logs, expected):
+    """The re-expression is exact at the L2 the reduction uses: each sub-run's L2 log, else the arm length"""
+    # Arrange
+    calibration._hidra_ws = SimpleNamespace(get_sub_runs=lambda: [1, 2], get_l2=lambda sub_run: logs[sub_run - 1])
+
+    # Act
+    l2 = calibration._run_l2(SimpleNamespace(arm_length=0.985))
+
+    # Assert
+    assert l2 == pytest.approx(expected)
+
+
+def test_held_start_without_geometry_raises(calibration):
+    # Arrange
+    calibration._hidra_ws = None
+
+    # Act / Assert
+    with pytest.raises(RuntimeError, match="detector geometry"):
+        calibration.set_calibration_array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.54])
+
+
+@pytest.mark.parametrize("hold, expected", [(True, "held at 0 (#1090)"), (False, "refined")])
+def test_provenance_records_the_hold(calibration, hold, expected):
+    # Arrange
+    _with_inputs(calibration)._hold_tth0 = hold
+
+    # Act
+    refinement = calibration.provenance()["inputs"]["refinement"]
+
+    # Assert
+    assert refinement["two_theta_0"] == expected
+
+
+def test_held_fit_detector_with_two_theta_0_raises(calibration):
+    """No FitCalibration refinement frees 2theta_0 while it is held (#1090), whichever routine calls FitDetector"""
+    # Act / Assert
+    with pytest.raises(ValueError, match="2theta_0 is held"):
+        calibration.calibrate_single(initial_guess=[0.0], LL=[-5.0], UL=[5.0], i_index=6)
+    assert calibration.steps == []
+
+
+def test_archived_nexus_start_is_read(calibration, tmp_path):
+    """pyrs-calibration's "old calibration" may be a NeXus calibration file (#1098)"""
+    # Arrange
+    from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
+    from pyrs.utilities.calibration_nexus import write_calibration_nexus
+
+    _with_inputs(calibration)
+    path = tmp_path / "archived.nxs"
+    shifts = DENEXDetectorShift(0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.0)
+    geometry = DENEXDetectorGeometry(1024, 1024, 0.3 / 1024, 0.3 / 1024, 0.985, False)
+    write_calibration_nexus(str(path), shifts, DENEXDetectorShift(*[0.01] * 7), 1.53, 1e-4, 1, geometry)
+
+    # Act
+    calibration.get_archived_calibration(str(path))
+
+    # Assert
+    np.testing.assert_allclose(calibration.get_calib(), [0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.0, 1.53])
+    assert calibration.provenance()["start"]["source"]["file"] == str(path)
+
+
+def test_incomplete_archived_start_is_refused(calibration, tmp_path):
+    """pyrs-calibration cannot ask, so an "old calibration" without some parameters stops with their names (#1098)"""
+    import json as _json
+
+    from pyrs.core.instrument_geometry import DENEXDetectorShift
+    from pyrs.utilities.calibration_file_io import IncompleteCalibrationError, write_calibration_to_json
+
+    # Arrange
+    path = tmp_path / "archived.json"
+    refused = DENEXDetectorShift(0.004, -0.003, 0.002, 0.3, -0.2, 0.1, 0.0)  # non-zero: a partial apply would show
+    write_calibration_to_json(refused, DENEXDetectorShift(*[0.01] * 7), 1.53, 1e-4, 1, str(path))
+    stored = _json.loads(path.read_text())
+    del stored["Rot_y"], stored["error_Rot_y"]
+    path.write_text(_json.dumps(stored))
+
+    good = tmp_path / "good.json"
+    write_calibration_to_json(
+        DENEXDetectorShift(*[0.0] * 7), DENEXDetectorShift(*[0.01] * 7), 1.52, 1e-4, 1, str(good)
+    )
+    _with_inputs(calibration)
+    calibration.get_archived_calibration(str(good))  # an earlier start the refused one must not replace
+    before = calibration.get_calib().copy()
+
+    # Act / Assert
+    with pytest.raises(IncompleteCalibrationError, match="Rot_y"):
+        calibration.get_archived_calibration(str(path))
+    np.testing.assert_array_equal(calibration.get_calib(), before)
+    assert calibration.provenance()["start"]["source"]["file"] == str(good)

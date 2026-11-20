@@ -2,6 +2,7 @@
 from pyrs.utilities import checkdatatypes
 from pyrs.core.instrument_geometry import DENEXDetectorShift, DENEXDetectorGeometry
 import json
+import math
 import warnings
 
 
@@ -10,7 +11,8 @@ def check_calibration_dictionary(calib_dict):
 
     The 2theta offset is stored as ``TTH_0`` (as written by ``DENEXDetectorShift.convert_to_dict``);
     files using the legacy key ``two_theta_0`` are accepted and moved to ``TTH_0`` (#1021). Missing
-    parameters are set to 0 with an error of -1.
+    parameters are set to 0 with an error of -1; a parameter given without its error gets an error of -1
+    (not refined, #1098).
 
     Parameters
     ----------
@@ -44,8 +46,10 @@ def check_calibration_dictionary(calib_dict):
         if key not in calib_dict:
             calib_dict[key] = 0
             calib_dict["error_{}".format(key)] = -1
-    # TTH_0 used to be ignored, so a file giving it without its error loaded; keep accepting such files
-    calib_dict.setdefault("error_TTH_0", -1)
+    # a value given without its error is read with error -1, not refined (user decision, #1098); TTH_0 used to be
+    # ignored, so files giving it without its error were always accepted
+    for key in keys:
+        calib_dict.setdefault("error_{}".format(key), -1)
 
     return calib_dict
 
@@ -107,8 +111,28 @@ def calibration_format(calibration_file_name):
     raise ValueError(f"Calibration file must be a .json or .nxs file, got {calibration_file_name!r}")
 
 
-def read_calibration_file(calibration_file_name):
+def _check_wavelength(wavelength, calibration_file_name):
+    """Refuse a wavelength reduction cannot apply: zero, negative or not a number (user decision, #1098)."""
+    try:
+        value = float(wavelength)
+    except (TypeError, ValueError):
+        value = float("nan")
+    if not (math.isfinite(value) and value > 0):
+        raise ValueError(
+            f"calibration {calibration_file_name} gives an unusable wavelength (Lambda = {wavelength!r}); "
+            "it cannot be applied"
+        )
+
+
+def read_calibration_file(calibration_file_name, require_wavelength=True):
     """A calibration from a JSON or NeXus calibration file (#1054): the one reader reduction uses
+
+    Parameters
+    ----------
+    require_wavelength: bool
+        refuse a file without a usable wavelength: no ``Lambda``, or one that is zero, negative or not a number
+        (user decision, #1098: reduction must not apply a wavelength of 0); only a start for a new calibration
+        may read it as 0 (:func:`read_calibration_values`).
 
     Returns
     -------
@@ -118,16 +142,92 @@ def read_calibration_file(calibration_file_name):
     Raises
     ------
     ValueError
-        If the extension is not ``.json`` or ``.nxs`` (:func:`calibration_format`)
+        If the extension is not ``.json`` or ``.nxs`` (:func:`calibration_format`), or the file has no usable
+        wavelength and ``require_wavelength`` is True
     """
     if calibration_format(calibration_file_name) == "nexus":
         from pyrs.utilities.calibration_nexus import read_calibration_nexus
 
-        return read_calibration_nexus(calibration_file_name)
-    return read_calibration_json_file(calibration_file_name)
+        calibration = read_calibration_nexus(calibration_file_name)
+        if require_wavelength:
+            _check_wavelength(calibration[2], calibration_file_name)
+        return calibration
+    return read_calibration_json_file(calibration_file_name, require_wavelength=require_wavelength)
 
 
-def read_calibration_json_file(calibration_file_name):
+CALIBRATION_PARAMETERS = ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0", "Lambda")
+
+
+class IncompleteCalibrationError(ValueError):
+    """A calibration file without some of the eight parameters (user decision, #1098): refused unless the
+    caller accepts them as 0.
+
+    Attributes
+    ----------
+    missing: list of str
+        the parameters the file does not give
+    values: dict
+        the eight values as reduction reads the file: the missing ones 0
+    """
+
+    def __init__(self, calibration_file_name, missing, values):
+        self.missing = list(missing)
+        self.values = dict(values)
+        super().__init__(
+            f"{calibration_file_name} does not give {', '.join(self.missing)}; reduction would read "
+            f"{'it' if len(self.missing) == 1 else 'them'} as 0"
+        )
+
+
+def _missing_parameters(calibration_file_name):
+    """The parameters a JSON calibration file does not give (the legacy ``two_theta_0`` counts as TTH_0); none
+    for NeXus, whose reader refuses an incomplete file."""
+    if calibration_format(calibration_file_name) != "json":
+        return []
+    with open(calibration_file_name, "r") as calibration_file:
+        given = json.load(calibration_file)
+    return [
+        name
+        for name in CALIBRATION_PARAMETERS
+        if name not in given and not (name == "TTH_0" and "two_theta_0" in given)
+    ]
+
+
+def read_calibration_values(calibration_file_name, allow_missing=False):
+    """The eight calibration values of a JSON or NeXus calibration file, by name (#1098)
+
+    Reads the file with :func:`read_calibration_file`, the reader reduction uses, so a start loaded into the
+    calibration window or ``pyrs-calibration`` is read exactly as reduction would read it.
+
+    Parameters
+    ----------
+    allow_missing: bool
+        accept a file without some parameters, read as 0 as reduction reads them; by default it is refused
+        (user decision, #1098), so a start is never silently 0
+
+    Returns
+    -------
+    dict
+        ``{"Shift_x": ..., ..., "TTH_0": ..., "Lambda": ...}`` in :data:`CALIBRATION_PARAMETERS` order
+
+    Raises
+    ------
+    IncompleteCalibrationError
+        If parameters are missing and ``allow_missing`` is False; it carries the values with them as 0
+    ValueError
+        If the extension is not ``.json`` or ``.nxs``, or the file is not a calibration
+    """
+    # read as a start: a missing wavelength is reported below with the other missing parameters, and may be 0
+    shifts, _, wavelength, _, _ = read_calibration_file(calibration_file_name, require_wavelength=False)
+    values = dict(shifts.convert_to_dict(), Lambda=float(wavelength))
+    values = {name: float(values[name]) for name in CALIBRATION_PARAMETERS}
+    missing = _missing_parameters(calibration_file_name)
+    if missing and not allow_missing:
+        raise IncompleteCalibrationError(calibration_file_name, missing, values)
+    return values
+
+
+def read_calibration_json_file(calibration_file_name, require_wavelength=True):
     """Import calibration file in json format
 
     Example:  input JSON
@@ -174,10 +274,10 @@ def read_calibration_json_file(calibration_file_name):
     if calib_dict is None:
         raise RuntimeError("Failed to load JSON calibration file {}".format(calibration_file_name))
 
-    return calibration_from_dict(calib_dict, calibration_file_name)
+    return calibration_from_dict(calib_dict, calibration_file_name, require_wavelength=require_wavelength)
 
 
-def calibration_from_dict(calib_dict, calibration_file_name=""):
+def calibration_from_dict(calib_dict, calibration_file_name="", require_wavelength=True):
     """A calibration as read from its dictionary (the calibration JSON's keys)
 
     Parameters
@@ -187,12 +287,19 @@ def calibration_from_dict(calib_dict, calibration_file_name=""):
         ``two_theta_0`` is accepted (:func:`check_calibration_dictionary`)
     calibration_file_name : str
         where the dictionary came from, for the shift and for error messages
+    require_wavelength : bool
+        refuse a dictionary without a usable ``Lambda`` (#1098); see :func:`read_calibration_file`
 
     Returns
     -------
     ~tuple
         (DENEXDetectorShift, DENEXDetectorShift, float, float, int) as :func:`read_calibration_json_file`
     """
+    # a calibration without its wavelength cannot be applied: reduction would use 0 (user decision, #1098)
+    if require_wavelength:
+        if "Lambda" not in calib_dict:
+            raise ValueError(f"calibration {calibration_file_name} gives no wavelength (Lambda); it cannot be applied")
+        _check_wavelength(calib_dict["Lambda"], calibration_file_name)
     # check for properly formated dictionary
     calib_dict = check_calibration_dictionary(dict(calib_dict))
 

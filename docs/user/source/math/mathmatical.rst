@@ -69,20 +69,17 @@ Figure 4 illustrates how specific regions from the 2D η map are isolated for re
 
 Uncertainties Propagation
 -------------------------
-Uncertainties in the measured neutron events are propagated to the reduced 1D pattern using the following relation:
+Each reduced point is a 2θ bin that sums the counts of many pixels. Its uncertainty is the Poisson
+uncertainty of that total count:
 
 .. math::
 
-   \delta I_{n}(2\theta) =  \sum_{n=0}^{N}\delta I_{n}
+   \sigma^{2}_{bin} = \sum_{i \in bin} N_{i}
 
-Where the uncertainty of each pixel takes the form of Poisson statistics.
-
-.. math::
-
-   \delta I_{n} &=& \sqrt{I_{n}}  \quad    if I>0 \\[0.5cm]
-                &=& 1             \qquad   if I=0
-
-A pixel with no count is assumed to have an uncertainty of 1.
+A zero-count pixel adds nothing to this sum. Before #1109, each zero-count pixel was given an uncertainty
+of 1, which overstated the uncertainty of sparse bins. A bin without counts is reported with intensity 0
+and uncertainty 1. With vanadium normalisation, the counts, the bin's vanadium and the largest vanadium
+bin are propagated as independent quantities. See :doc:`uncertainty` for the derivation and the evidence.
 
 
 Instrument Calibration

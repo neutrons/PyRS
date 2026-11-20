@@ -4,7 +4,7 @@ import tempfile
 import time
 import warnings
 from collections import Counter
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from mantid.kernel import Logger
@@ -47,7 +47,8 @@ CALIBRATION_METHODS = (METHOD_RING, METHOD_FITCALIBRATION)
 DEFAULT_STRIPS = 5
 
 # recipe routine -> stage method; both calibrations have these methods. "iterate" is ring-based only:
-# repeated Shift -> Rotation -> wavelength + 2theta_0 passes, then a joint refinement
+# repeated Shift -> Rotation -> wavelength + 2theta_0 passes, then a joint refinement. While 2theta_0 is held (#1090,
+# the default) "wavelength_tth0" refines Shift_x, Rot_y and the wavelength, and "tth0" is refused
 RECIPE_STAGES = {
     "wavelength": "calibrate_wave_length",
     "wavelength_tth0": "calibrate_wave_shift",
@@ -71,6 +72,8 @@ CALIBRATION_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 # a recipe ending with one of these has refined every parameter jointly: its errors come from
 # estimate_errors (2theta_0 held), as the driver's; after other recipes no value may move again
 JOINT_ROUTINES = (ITERATE_ROUTINE, "full")
+# routines that refine 2theta_0 alone: refused while it is held at 0 in a single-run calibration (#1090)
+TWO_THETA_0_ROUTINES = ("tth0",)
 
 # geometries the 2D view can draw predicted rings for (#1039)
 RING_GEOMETRY_NOMINAL = "Nominal"
@@ -153,15 +156,10 @@ def _write_atomically(
     """Write a calibration JSON to a temporary file next to ``file_name``, then rename it into place.
 
     ``provenance`` (#1053) is written beside the values, the same block in every file of one export.
-
-    The rename replaces an existing file in one step (never a truncated file); the file gets
-    :data:`CALIBRATION_FILE_MODE` and the folder's group, whoever wrote it before.
     """
-    folder, name = os.path.split(os.path.abspath(file_name))
-    handle, temporary = tempfile.mkstemp(prefix=f".{name}.", suffix=".json", dir=folder)
-    os.close(handle)
-    try:
-        write_calibration_to_json(
+    _replace_atomically(
+        file_name,
+        lambda temporary: write_calibration_to_json(
             DENEXDetectorShift(*values[:7]),
             DENEXDetectorShift(*errors[:7]),
             float(values[7]),
@@ -170,7 +168,50 @@ def _write_atomically(
             temporary,
             provenance=provenance,
             geometry=geometry,
-        )
+        ),
+    )
+
+
+def _write_nexus_atomically(
+    values: np.ndarray,
+    errors: np.ndarray,
+    status: int,
+    file_name: str,
+    geometry: DENEXDetectorGeometry,
+    provenance: Optional[Dict[str, Any]] = None,
+    diagnostics: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Write a NeXus calibration (#1054, with its diagnostics) to a temporary file, then rename it into place."""
+    from pyrs.utilities.calibration_nexus import write_calibration_nexus
+
+    _replace_atomically(
+        file_name,
+        lambda temporary: write_calibration_nexus(
+            temporary,
+            DENEXDetectorShift(*values[:7]),
+            DENEXDetectorShift(*errors[:7]),
+            float(values[7]),
+            float(errors[7]),
+            int(status),
+            geometry,
+            provenance=provenance,
+            diagnostics=diagnostics,
+        ),
+    )
+
+
+def _replace_atomically(file_name: str, write: Callable[[str], None]) -> None:
+    """Write ``file_name`` with ``write`` into a temporary file next to it, then rename it into place.
+
+    The rename replaces an existing file in one step (never a truncated file); the file gets
+    :data:`CALIBRATION_FILE_MODE` and the folder's group, whoever wrote it before. A failure removes the
+    temporary file.
+    """
+    folder, name = os.path.split(os.path.abspath(file_name))
+    handle, temporary = tempfile.mkstemp(prefix=f".{name}.", suffix=os.path.splitext(name)[1], dir=folder)
+    os.close(handle)
+    try:
+        write(temporary)
         _share_with_folder_group(temporary, CALIBRATION_FILE_MODE)
         os.replace(temporary, file_name)
     except BaseException:
@@ -229,6 +270,8 @@ class DetectorCalibrationModel(QObject):
         self._keep_list: Optional[np.ndarray] = None
         self._ring_extraction: Dict[str, Any] = {}  # extraction settings, for the provenance (#1053)
         self.provenance_problem: Optional[str] = None  # why the last export's provenance is incomplete
+        # why the last export's NeXus copy is missing or has no diagnostics (#1098); the JSON was still written
+        self.nexus_problem: Optional[str] = None
         self._ring_recipes: List[List[str]] = []
         self.calibration_warnings: List[str] = []
         self.extraction_warnings: List[str] = []
@@ -372,6 +415,7 @@ class DetectorCalibrationModel(QObject):
         latest: bool = False,
         latest_mono: bool = False,
         archive: bool = False,
+        nexus: bool = False,
     ) -> List[str]:
         """Write the chosen method's calibration to the chosen targets (#1087).
 
@@ -390,14 +434,21 @@ class DetectorCalibrationModel(QObject):
         truncated file, and a "latest" file is never newer than its archive. One log line lists the files
         written; a refused export is not logged, its error is shown to the user (user decision).
 
+        With ``nexus`` (#1098), a NeXus copy with the calibration's diagnostics is also written, after the JSON
+        files, beside the folder or archive copy (``HB2B_CAL_<time>.nxs``); the "latest" files stay JSON only.
+        User decision: the JSON targets alone decide whether the export succeeded. If the NeXus copy cannot be
+        written, nothing of it is left behind, the export still returns the JSON files, and
+        :attr:`nexus_problem` and the log line say why it is missing.
+
         Args:
             folder: Existing folder for a copy that is not shared, or None.
             latest: Write ``HB2B_Latest.json``.
             latest_mono: Write ``HB2B_Latest_<Si...>.json``.
             archive: Write the archive copy.
+            nexus: Also write the NeXus copy, with diagnostics.
 
         Returns:
-            The files written, in order.
+            The files written, in order; the NeXus copy last, if it was written.
 
         Raises:
             ValueError: If no target is chosen, a folder is combined with a shared target, or a "latest" file is
@@ -443,8 +494,32 @@ class DetectorCalibrationModel(QObject):
                 _LOG.error(f"Calibration export: writing {target} failed ({write_err}); written: {done}")
                 raise OSError(f"writing {target} failed ({write_err}); written so far: {done}") from write_err
             written.append(target)
-        _LOG.notice(f"Calibration ({self.method}, status {status}) exported to: {', '.join(written)}")
+        self.nexus_problem = None
+        if nexus:
+            nexus_target = os.path.splitext(targets[0])[0] + ".nxs"
+            try:
+                if geometry is None:
+                    raise RuntimeError("the run's detector geometry is not known")
+                diagnostics = self._export_diagnostics()
+                _write_nexus_atomically(values, errors, status, nexus_target, geometry, provenance, diagnostics)
+                written.append(nexus_target)
+            except Exception as nexus_err:  # noqa: BLE001 - the JSON targets alone decide success (#1098)
+                self.nexus_problem = f"the NeXus copy {nexus_target} was not written: {nexus_err}"
+        note = f"; {self.nexus_problem}" if self.nexus_problem else ""
+        _LOG.notice(f"Calibration ({self.method}, status {status}) exported to: {', '.join(written)}{note}")
         return written
+
+    def _export_diagnostics(self) -> Optional[Dict[str, Any]]:
+        """The chosen method's diagnostics for the NeXus copy, or None (with :attr:`nexus_problem` saying why)."""
+        try:
+            if self.method == METHOD_RING:
+                if self._ring_calibration is None:  # _export_values refuses this before any file is written
+                    raise RuntimeError("nothing has been refined with the ring-based calibration")
+                return self._ring_calibration.diagnostics(self._ring_diagnostics)
+            return self._calibration_obj.diagnostics()
+        except Exception as build_err:  # noqa: BLE001 - diagnostics must never stop the export
+            self.nexus_problem = f"the NeXus copy has no diagnostics: {build_err}"
+            return None
 
     def _run_geometry(self) -> Optional[DENEXDetectorGeometry]:
         """The loaded run's detector geometry, or None if no run is loaded."""
@@ -546,7 +621,8 @@ class DetectorCalibrationModel(QObject):
             self._ring_recipes = []  # a new start: earlier recipes are not part of this calibration
             return
         self._calibration_obj.set_calibration_array(params_list)
-        self._calibration_obj.set_inst_shifts_wl(params_list)
+        # the start as set: re-expressed at 2theta_0 = 0 while it is held (#1090), so the peaks shown are its
+        self._calibration_obj.set_inst_shifts_wl(self._calibration_obj.get_calib())
         self._fit_recipes = []  # a new start: earlier recipes are not part of this calibration
 
     def extract_rings(self, strips: int = DEFAULT_STRIPS) -> Tuple[int, int, float, float]:
@@ -660,6 +736,13 @@ class DetectorCalibrationModel(QObject):
         return _x, self._calibration_obj._calibration[y_item, 1:]
 
     def calibrate_detector(self, fit_recipe):
+        held = [routine for routine in fit_recipe if routine in TWO_THETA_0_ROUTINES]
+        if held:
+            # refused before any routine runs, so nothing is half-done
+            raise ValueError(
+                f"{held} refine 2theta_0, which is held at 0 in a single-run calibration (#1090): it trades exactly "
+                "against Rot_y and Shift_x at one sample-detector distance"
+            )
         if self.method == METHOD_RING:
             return self._calibrate_rings(fit_recipe)
         if self._calibration_obj is not None:
