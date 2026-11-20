@@ -13,6 +13,7 @@ Funded by the `Office of Energy Science <https://www.energy.gov/science/bes/basi
 .. toctree::
    :maxdepth: 2
 
+   code_style
    design/project_file
    design/nexus/IO_prototype
 
