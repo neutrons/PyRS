@@ -2,7 +2,6 @@ import os
 import sys
 import warnings
 
-from unittest import mock
 
 # Ensure the 'pyrs' package is in the path:
 # - current dir is `docs/developer/source`.
@@ -39,8 +38,9 @@ MOCK_MODULES = [
     "nexusformat",
     "nexusformat.nexus",
 ]
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = mock.Mock()
+# Sphinx's own mocks: a plain ``unittest.mock.Mock`` in ``sys.modules`` has no ``__name__``, which Sphinx 9's autodoc
+# reads from every documented module, so ``automodule:: pyrs.interface`` crashed the whole build
+autodoc_mock_imports = MOCK_MODULES
 
 # Filter specific Pydantic warnings about Mocks
 warnings.filterwarnings("ignore", message=".*Mock name.*is not a Python type.*")
@@ -394,7 +394,10 @@ def remove_duplicate_from_index(app, what, name, obj, options, lines):
     # This identifies the "short" path causing the conflict
     # and tells Sphinx: "Don't index this one for cross-references"
     if name == "pyrs.projectfile.HidraProjectFile":
-        options["noindex"] = True
+        try:
+            options["noindex"] = True  # Sphinx < 9: the options are a dict
+        except TypeError:
+            options.no_index = True  # Sphinx 9: an options object, read by attribute
 
 
 def setup(app):
