@@ -1,7 +1,9 @@
+import h5py
 import numpy as np
 import pytest
 
 from pyrs.core.workspaces import HidraWorkspace
+from pyrs.dataobjects.constants import HidraConstants
 from pyrs.dataobjects.sample_logs import SampleLogs
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from tests.util.workspace_helpers import make_minimal_HidraWorkspace
@@ -277,11 +279,60 @@ def test_recorded_calibration_is_loaded_apart(tmp_path):
 
 
 def test_no_record_no_recorded_calibration(tmp_path):
-    # Act
+    """A file whose reduction recorded nothing has no applied calibration to report"""
+    # Arrange / Act - a project file written without a reduction record
     readback = _project_with_record(tmp_path)
 
     # Assert
     assert readback.get_recorded_calibration() is None
+
+
+def test_record_of_no_calibration_is_none(tmp_path):
+    """A reduction that recorded applying no calibration (source "none") is no applied calibration"""
+    from pyrs.core.instrument_geometry import DENEXDetectorGeometry, HidraSetup
+
+    # Arrange - an instrument with no calibration loaded
+    instrument = HidraSetup(DENEXDetectorGeometry(4, 4, 0.001, 0.001, 2.0, False))
+
+    # Act
+    readback = _project_with_record(tmp_path, instrument)
+
+    # Assert
+    assert readback.get_recorded_calibration() is None
+
+
+class _Warnings:
+    """Stands in for the workspace's Mantid logger, keeping what it warns"""
+
+    def __init__(self):
+        self.messages = []
+
+    def warning(self, message):
+        self.messages.append(message)
+
+    def __getattr__(self, name):
+        return lambda *args, **kwargs: None
+
+
+def test_unreadable_record_warns_and_the_data_loads(tmp_path):
+    """The record is optional: one that cannot be read is warned about and the data still load"""
+    # Arrange - a calibration record whose JSON is damaged
+    path = _project_file(tmp_path, "project.h5", _calibrated_instrument(tmp_path, 0.3))
+    with h5py.File(path, "a") as f:
+        group = f[f"{HidraConstants.INSTRUMENT}/{HidraConstants.CALIBRATION}"]
+        del group["calibration_json"]
+        group["calibration_json"] = "{not json"
+    ws = HidraWorkspace("readback")
+    ws._log = _Warnings()
+
+    # Act
+    with HidraProjectFile(str(path), HidraProjectFileMode.READONLY) as project:
+        ws.load_hidra_project(project, load_raw_counts=False, load_reduced_diffraction=False)
+
+    # Assert
+    assert ws.get_recorded_calibration() is None
+    np.testing.assert_array_equal(ws.get_sub_runs(), [1, 2, 3])
+    assert any("applied calibration could not be read" in message for message in ws._log.messages)
 
 
 def _calibrated_instrument(tmp_path, rot_z):

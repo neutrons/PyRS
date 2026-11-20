@@ -473,6 +473,11 @@ class _Instrument:
                 "  Masks are entry-wide and are written once, so a different array cannot be recorded."
             )
 
+        # an entry written before #1099 recorded the nominal detector and the instrument's arm length, while a
+        # workspace now carries the calibration reduction applied and the L2 it used: say so, as the refusal is
+        # then about the entry's age, not the data
+        transformations = instrument[GROUP_NAME.DETECTOR]["transformations"]
+        before_1099 = "arm_rotation" not in transformations
         for label, existing, incoming, key in (
             ("instrument geometry", existing_geometry, incoming_geometry, cls._geometry_key),
             ("detector shift", existing_shift, incoming_shift, cls._shift_key),
@@ -484,6 +489,12 @@ class _Instrument:
                     f"    on disk:  {key(existing)}\n"
                     f"    incoming: {key(incoming)}\n"
                     "  A single NXentry describes one instrument configuration."
+                    + (
+                        "\n  The entry was written before PyRS recorded the calibration reduction applied and the "
+                        "arm length it used (#1099); write a new entry instead."
+                        if before_1099
+                        else ""
+                    )
                 )
 
     @classmethod

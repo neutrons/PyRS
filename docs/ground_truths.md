@@ -3639,3 +3639,16 @@ the Docs: `docs/user/source`), so nothing caught it.
   (`translation_*`, `distance`, `two_theta_zero`), which carry the same values.
 - **Tested:** applied independently of `DetectorModel`, the written chain reproduces `lab_positions` at every scan
   point to 1e-12 m.
+- **Errors survive a round trip.** Reading an NXstress entry back sets both the workspace's shift and its recorded
+  calibration with the entry's errors (`_Instrument.shiftErrorFromNexus`), so writing it again keeps them. Before
+  the code-review fix they came back as −1.
+- **Which errors are written:** the workspace's own shift, with the recorded errors only when the recorded shift is
+  that same shift; with no shift, the recorded calibration. Errors are never lent to a different shift.
+- **Mixed files record none.** Appending a project file reduced with another calibration (or none) clears the
+  recorded calibration, with a warning, so NXstress does not label every scan point with the first file's.
+- **An unreadable record is optional:** it is warned about, the recorded calibration stays None, and the data load.
+- **Appending to an entry written before #1099:** allowed when the calibration matches (there is no arm angle to
+  grow). A refusal there says the entry predates #1099 and to write a new entry.
+- **Fresh reductions carry no geometry (DD-30):** a project file that reduction writes to a new path has no
+  instrument geometry, so NXstress cannot be written from it until the geometry is added. See
+  [deferred_defects.md](deferred_defects.md).

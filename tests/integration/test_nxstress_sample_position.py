@@ -199,6 +199,30 @@ def test_transformations_all_reachable(nxstress_from_real_data):
     assert set(reached) == links, f"unreachable: {sorted(links - set(reached))}"
 
 
+def test_detector_chain_follows_the_real_run(nxstress_from_real_data):
+    """The arm angle and arm length come from the run's own logs and geometry (#1099).
+
+    This file carries no calibration, so every parameter's error is unknown (-1).
+    """
+    # Arrange
+    workspace, _, nxs = nxstress_from_real_data
+    transformations = nxs["entry/instrument/DETECTOR/transformations"]
+
+    # Act
+    arm_rotation = transformations["arm_rotation"][()]
+    arm_length = transformations["arm_length"][()]
+    errors = {name: transformations[name][()] for name in transformations if name.endswith("_errors")}
+
+    # Assert - one arm angle per scan point, -(its 2theta log); no L2 log, so the geometry's arm length
+    np.testing.assert_allclose(arm_rotation, -workspace.get_sample_log_values("2theta"))
+    assert arm_length == pytest.approx(workspace.get_instrument_setup().arm_length)
+    assert set(errors) == {
+        f"{name}_errors"
+        for name in ("shift_x", "shift_y", "shift_z", "rotation_x", "rotation_y", "rotation_z", "two_theta_0")
+    }
+    assert all(np.all(value == -1) for value in errors.values())
+
+
 def test_pv_log_names_round_trip(nxstress_from_real_data):
     """Verify real PV-log names survive identifier encoding, via local_name."""
     # Arrange
