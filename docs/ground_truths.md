@@ -813,6 +813,16 @@ never hitting an NFS-unrecoverable lock again.
 practice for any future code that constructs its own `QSettings`), but
 were never what fixed this.
 
+**Reverted (2026-11-20):** at the maintainer's request,
+[scripts/pyrsplot.py](../scripts/pyrsplot.py) is back to its pre-2026-08
+form (the `next_revert` branch): no `XDG_CONFIG_HOME` redirect and no
+org/app identity, so PyRS again uses Qt's default `~/.config/QtProject.conf`.
+The diagnosis above still holds: on an NFS home directory the "Could not
+remove our own lock file" failure can return, and this section is the
+place to start if it does. The test-suite redirect in
+[tests/conftest.py](../tests/conftest.py) is unchanged — tests still keep
+Qt state in a disposable temp directory.
+
 **Why this matters going forward:** if a similar "permission denied /
 device or resource busy removing our own lock file" resurfaces
 elsewhere, check, in order: (a) whether the affected settings file is
