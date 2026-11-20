@@ -201,3 +201,12 @@ without renumbering.
 
   **Found during:** #1098 step 4, running the project-file and NeXus reduction tests together.
   **Why it is deferred.** A test defect outside #1098, and CI is not affected.
+
+- **DD-33**, 2026-11-17: PyRS reads Mantid workspaces through `MatrixWorkspace.readX`/`readY`, which Mantid 7.0
+  deprecates in favour of `x()`/`y()` (`pyrs/peaks/peak_fit_engine.py:133,140`, the peak-fitting, texture-fitting
+  and detector-calibration controllers, and `tests/unit/pyrs/peaks/test_peak_fit_engine.py:706`). They still work
+  and emit `DeprecationWarning`; a future Mantid release will remove them.
+
+  **Found during:** the Mantid 7 upgrade (see [ground_truths.md](ground_truths.md)).
+  **Why it is deferred.** `pyrs/peaks/` and the UI computations are scientific production code; the swap needs
+  its own approval under the constitution.
