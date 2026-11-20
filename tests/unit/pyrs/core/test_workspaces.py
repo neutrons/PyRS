@@ -1,7 +1,9 @@
+import h5py
 import numpy as np
 import pytest
 
 from pyrs.core.workspaces import HidraWorkspace
+from pyrs.dataobjects.constants import HidraConstants
 from pyrs.dataobjects.sample_logs import SampleLogs
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from tests.util.workspace_helpers import make_minimal_HidraWorkspace
@@ -236,3 +238,144 @@ class TestDirection:
 
         with pytest.raises(ValueError, match=r"no single direction.*\['11', '22'\]"):
             ws.direction
+
+
+def _project_with_record(tmp_path, instrument=None):
+    """A project file written from the minimal workspace, with the reduction's calibration record if given"""
+    ws = make_minimal_HidraWorkspace(sub_runs=np.array([1, 2, 3]))
+    path = tmp_path / "project.h5"
+    project = HidraProjectFile(str(path), HidraProjectFileMode.OVERWRITE)
+    ws.save_experimental_data(project, sub_runs=ws.get_sub_runs(), ignore_raw_counts=True)
+    if instrument is not None:
+        project.write_reduction_provenance(instrument=instrument)
+    project.save(False)
+    readback = HidraWorkspace("readback")
+    with HidraProjectFile(str(path), HidraProjectFileMode.READONLY) as project:
+        readback.load_hidra_project(project, load_raw_counts=False, load_reduced_diffraction=False)
+    return readback
+
+
+def test_recorded_calibration_is_loaded_apart(tmp_path):
+    """The calibration reduction applied is kept with its errors (#1099), and is not the shift reduction applies"""
+    from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift, HidraSetup
+    from pyrs.utilities.calibration_file_io import write_calibration_to_json
+
+    # Arrange - a reduction's record of a calibration file
+    shift = DENEXDetectorShift(0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.25)
+    errors = DENEXDetectorShift(1e-4, 2e-4, 3e-4, 0.01, 0.02, 0.03, -1.0)
+    calibration = tmp_path / "HB2B_CAL.json"
+    write_calibration_to_json(shift, errors, 1.5306, 1e-5, 1, str(calibration))
+    instrument = HidraSetup(DENEXDetectorGeometry(4, 4, 0.001, 0.001, 2.0, False))
+    instrument.load_calibration_file(str(calibration))
+
+    # Act
+    readback = _project_with_record(tmp_path, instrument)
+
+    # Assert
+    recorded_shift, recorded_errors = readback.get_recorded_calibration()
+    assert recorded_shift.convert_to_dict() == pytest.approx(shift.convert_to_dict())
+    assert recorded_errors.convert_to_dict() == pytest.approx(errors.convert_to_dict())
+    assert readback.get_detector_shift() is None  # reduction of this project still applies none by default
+
+
+def test_no_record_no_recorded_calibration(tmp_path):
+    """A file whose reduction recorded nothing has no applied calibration to report"""
+    # Arrange / Act - a project file written without a reduction record
+    readback = _project_with_record(tmp_path)
+
+    # Assert
+    assert readback.get_recorded_calibration() is None
+
+
+def test_record_of_no_calibration_is_none(tmp_path):
+    """A reduction that recorded applying no calibration (source "none") is no applied calibration"""
+    from pyrs.core.instrument_geometry import DENEXDetectorGeometry, HidraSetup
+
+    # Arrange - an instrument with no calibration loaded
+    instrument = HidraSetup(DENEXDetectorGeometry(4, 4, 0.001, 0.001, 2.0, False))
+
+    # Act
+    readback = _project_with_record(tmp_path, instrument)
+
+    # Assert
+    assert readback.get_recorded_calibration() is None
+
+
+class _Warnings:
+    """Stands in for the workspace's Mantid logger, keeping what it warns"""
+
+    def __init__(self):
+        self.messages = []
+
+    def warning(self, message):
+        self.messages.append(message)
+
+    def __getattr__(self, name):
+        return lambda *args, **kwargs: None
+
+
+def test_unreadable_record_warns_and_the_data_loads(tmp_path):
+    """The record is optional: one that cannot be read is warned about and the data still load"""
+    # Arrange - a calibration record whose JSON is damaged
+    path = _project_file(tmp_path, "project.h5", _calibrated_instrument(tmp_path, 0.3))
+    with h5py.File(path, "a") as f:
+        group = f[f"{HidraConstants.INSTRUMENT}/{HidraConstants.CALIBRATION}"]
+        del group["calibration_json"]
+        group["calibration_json"] = "{not json"
+    ws = HidraWorkspace("readback")
+    ws._log = _Warnings()
+
+    # Act
+    with HidraProjectFile(str(path), HidraProjectFileMode.READONLY) as project:
+        ws.load_hidra_project(project, load_raw_counts=False, load_reduced_diffraction=False)
+
+    # Assert
+    assert ws.get_recorded_calibration() is None
+    np.testing.assert_array_equal(ws.get_sub_runs(), [1, 2, 3])
+    assert any("applied calibration could not be read" in message for message in ws._log.messages)
+
+
+def _calibrated_instrument(tmp_path, rot_z):
+    from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift, HidraSetup
+    from pyrs.utilities.calibration_file_io import write_calibration_to_json
+
+    calibration = tmp_path / f"HB2B_CAL_{rot_z}.json"
+    shift = DENEXDetectorShift(0.001, -0.002, 0.003, 0.1, -0.2, rot_z, 0.25)
+    write_calibration_to_json(shift, DENEXDetectorShift(*[1e-4] * 7), 1.5306, 1e-5, 1, str(calibration))
+    instrument = HidraSetup(DENEXDetectorGeometry(4, 4, 0.001, 0.001, 2.0, False))
+    instrument.load_calibration_file(str(calibration))
+    return instrument
+
+
+def _project_file(tmp_path, name, instrument=None):
+    ws = make_minimal_HidraWorkspace(sub_runs=np.array([1, 2, 3]))
+    path = tmp_path / name
+    project = HidraProjectFile(str(path), HidraProjectFileMode.OVERWRITE)
+    ws.save_experimental_data(project, sub_runs=ws.get_sub_runs(), ignore_raw_counts=True)
+    if instrument is not None:
+        project.write_reduction_provenance(instrument=instrument)
+    project.save(False)
+    return path
+
+
+@pytest.mark.parametrize("second", ["same", "other", "none"])
+def test_appended_file_keeps_only_a_shared_calibration(tmp_path, second):
+    """Files reduced with different calibrations (or one without) record none for the whole (#1099): NXstress must
+    not label every scan point with the first file's"""
+    # Arrange
+    first = _project_file(tmp_path, "a.h5", _calibrated_instrument(tmp_path, 0.3))
+    other = {"same": _calibrated_instrument(tmp_path, 0.3), "other": _calibrated_instrument(tmp_path, 0.4)}
+    appended = _project_file(tmp_path, "b.h5", other.get(second))
+    ws = HidraWorkspace("combined")
+    with HidraProjectFile(str(first), HidraProjectFileMode.READONLY) as project:
+        ws.load_hidra_project(project, load_raw_counts=False, load_reduced_diffraction=True)
+
+    # Act
+    with HidraProjectFile(str(appended), HidraProjectFileMode.READONLY) as project:
+        ws.append_hidra_project(project)
+
+    # Assert
+    if second == "same":
+        assert ws.get_recorded_calibration()[0].rotation_z == pytest.approx(0.3)
+    else:
+        assert ws.get_recorded_calibration() is None
