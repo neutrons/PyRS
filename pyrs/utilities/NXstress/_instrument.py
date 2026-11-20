@@ -133,10 +133,13 @@ class _Instrument:
         """The calibration applied to `ws`'s data: the shift the workspace carries (e.g. read back from
         NXstress) with no known errors, else the one its project file recorded with its errors (#1099), else
         none (the nominal detector)."""
-        if ws.get_detector_shift() is not None:
-            return ws.get_detector_shift(), None
         recorded = ws.get_recorded_calibration()
-        return (recorded[0], recorded[1]) if recorded is not None else (None, None)
+        shift = ws.get_detector_shift()
+        if shift is None:
+            return (recorded[0], recorded[1]) if recorded is not None else (None, None)
+        # the errors belong to the shift only if the recorded calibration is that shift (e.g. NXstress read-back)
+        same = recorded is not None and _Instrument._shift_key(recorded[0]) == _Instrument._shift_key(shift)
+        return shift, (recorded[1] if same else None)
 
     @staticmethod
     def _effective_geometry(ws: HidraWorkspace) -> DENEXDetectorGeometry | None:
@@ -482,6 +485,16 @@ class _Instrument:
                     f"    incoming: {key(incoming)}\n"
                     "  A single NXentry describes one instrument configuration."
                 )
+
+    @classmethod
+    def shiftErrorFromNexus(cls, instrument) -> DENEXDetectorShift | None:
+        """The calibration's errors written beside the chain (`<name>_errors`, since #1099), or None for an entry
+        written before them or without a calibration."""
+        trans = instrument[GROUP_NAME.DETECTOR]["transformations"]
+        names = ("shift_x", "shift_y", "shift_z", "rotation_x", "rotation_y", "rotation_z", "two_theta_0")
+        if not all(f"{name}_errors" in trans for name in names):
+            return None
+        return DENEXDetectorShift(*(float(trans[f"{name}_errors"].nxdata) for name in names))
 
     @classmethod
     @validate_call_

@@ -605,3 +605,29 @@ class TestDetectorChainIsTheCalibrationFiles:
         # Assert
         assert shift.convert_to_dict() == pytest.approx(self.SHIFT.convert_to_dict())
         assert geometry.arm_length == pytest.approx(2.0)
+
+
+def test_errors_survive_a_read_back_and_rewrite(minimal_HidraWorkspace, minimal_PeakCollection, tmp_path):
+    """Read back and written again (e.g. after refitting peaks), NXstress keeps the calibration's errors (#1099)"""
+    # Arrange - a workspace carrying the recorded calibration and its errors, written once
+    ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
+    shift = DENEXDetectorShift(0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.656)
+    errors = DENEXDetectorShift(1e-4, 2e-4, 3e-4, 0.01, 0.02, 0.03, 0.004)
+    ws.set_detector_shift(None)
+    ws.set_recorded_calibration(shift, errors)
+    peaks = [minimal_PeakCollection(N_subrun=3)]
+    first, second = tmp_path / "first.nxs", tmp_path / "second.nxs"
+    with NXstress(first, "w") as nx:
+        nx.write([ws], [peaks])
+
+    # Act - read back and written again
+    with NXstress(first, "r") as nx:
+        workspaces, peakss = nx.read()
+    with NXstress(second, "w") as nx:
+        nx.write(workspaces, peakss)
+    from nexusformat.nexus import nxload
+
+    read_errors = _Instrument.shiftErrorFromNexus(nxload(str(second), "r")["entry"]["instrument"])
+
+    # Assert
+    assert read_errors.convert_to_dict() == pytest.approx(errors.convert_to_dict())

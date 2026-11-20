@@ -12,6 +12,11 @@ from typing import Any, Optional, Tuple
 _logger = logging.getLogger(__name__)
 
 
+def _shift_values(recorded):
+    """The seven calibration values of a recorded calibration, to compare two (#1099); None for none."""
+    return None if recorded is None else tuple(recorded[0].convert_to_dict().values())
+
+
 class HidraWorkspace:
     """
     This workspace is the central data structure to manage all the raw and/or processed data.
@@ -613,17 +618,26 @@ class HidraWorkspace:
         """Keep the calibration the reduction applied (shift and errors), from the file's calibration record
         (#1053, #1099). A file with no record (reduced before #1053, or never calibrated) keeps None; a record
         that cannot be read is warned about and kept None, as the file must still load."""
-        self._recorded_calibration = None
+        self._recorded_calibration = self._read_recorded_calibration(hidra_file)
+
+    def _read_recorded_calibration(self, hidra_file):
+        """``(shift, shift_error)`` the file's reduction applied, or None (no record, or unreadable: warned)."""
         try:
             record = hidra_file.read_reduction_provenance()
             if record.get("source", "none") == "none" or "calibration" not in record:
-                return
+                return None
             instrument = hidra_file.read_reduction_instrument(self._instrument_setup)
         except Exception as read_err:  # noqa: BLE001 - the record is optional; the data must load
             self._log.warning(f"applied calibration could not be read: {type(read_err).__name__}: {read_err}")
-            return
-        if instrument.geometry_shift is not None:
-            self._recorded_calibration = (instrument.geometry_shift, instrument.geometry_shift_error)
+            return None
+        if instrument.geometry_shift is None:
+            return None
+        return instrument.geometry_shift, instrument.geometry_shift_error
+
+    def set_recorded_calibration(self, shift, shift_error=None) -> None:
+        """Set the calibration applied to this data and its errors (#1099), e.g. as read back from NXstress;
+        None for none. Reduction never applies it (that is :meth:`set_detector_shift`)."""
+        self._recorded_calibration = None if shift is None else (shift, shift_error)
 
     def append_hidra_project(self, hidra_file):
         """
@@ -649,6 +663,16 @@ class HidraWorkspace:
 
         # # load masks
         # self._load_masks(hidra_file)
+
+        # the appended data must have had the same calibration applied, or none can be claimed for the whole (#1099)
+        appended = self._read_recorded_calibration(hidra_file)
+        if _shift_values(appended) != _shift_values(self._recorded_calibration):
+            if self._recorded_calibration is not None or appended is not None:
+                self._log.warning(
+                    f"{hidra_file.name} was reduced with a different calibration (or none) than the data before it; "
+                    "the combined data records no applied calibration"
+                )
+            self._recorded_calibration = None
 
     def get_detector_mask(self, is_default, mask_id=None):
         """Get detector mask

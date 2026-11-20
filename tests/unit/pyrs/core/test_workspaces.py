@@ -282,3 +282,49 @@ def test_no_record_no_recorded_calibration(tmp_path):
 
     # Assert
     assert readback.get_recorded_calibration() is None
+
+
+def _calibrated_instrument(tmp_path, rot_z):
+    from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift, HidraSetup
+    from pyrs.utilities.calibration_file_io import write_calibration_to_json
+
+    calibration = tmp_path / f"HB2B_CAL_{rot_z}.json"
+    shift = DENEXDetectorShift(0.001, -0.002, 0.003, 0.1, -0.2, rot_z, 0.25)
+    write_calibration_to_json(shift, DENEXDetectorShift(*[1e-4] * 7), 1.5306, 1e-5, 1, str(calibration))
+    instrument = HidraSetup(DENEXDetectorGeometry(4, 4, 0.001, 0.001, 2.0, False))
+    instrument.load_calibration_file(str(calibration))
+    return instrument
+
+
+def _project_file(tmp_path, name, instrument=None):
+    ws = make_minimal_HidraWorkspace(sub_runs=np.array([1, 2, 3]))
+    path = tmp_path / name
+    project = HidraProjectFile(str(path), HidraProjectFileMode.OVERWRITE)
+    ws.save_experimental_data(project, sub_runs=ws.get_sub_runs(), ignore_raw_counts=True)
+    if instrument is not None:
+        project.write_reduction_provenance(instrument=instrument)
+    project.save(False)
+    return path
+
+
+@pytest.mark.parametrize("second", ["same", "other", "none"])
+def test_appended_file_keeps_only_a_shared_calibration(tmp_path, second):
+    """Files reduced with different calibrations (or one without) record none for the whole (#1099): NXstress must
+    not label every scan point with the first file's"""
+    # Arrange
+    first = _project_file(tmp_path, "a.h5", _calibrated_instrument(tmp_path, 0.3))
+    other = {"same": _calibrated_instrument(tmp_path, 0.3), "other": _calibrated_instrument(tmp_path, 0.4)}
+    appended = _project_file(tmp_path, "b.h5", other.get(second))
+    ws = HidraWorkspace("combined")
+    with HidraProjectFile(str(first), HidraProjectFileMode.READONLY) as project:
+        ws.load_hidra_project(project, load_raw_counts=False, load_reduced_diffraction=True)
+
+    # Act
+    with HidraProjectFile(str(appended), HidraProjectFileMode.READONLY) as project:
+        ws.append_hidra_project(project)
+
+    # Assert
+    if second == "same":
+        assert ws.get_recorded_calibration()[0].rotation_z == pytest.approx(0.3)
+    else:
+        assert ws.get_recorded_calibration() is None
