@@ -61,6 +61,7 @@ from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorSh
 from pyrs.utilities import checkdatatypes
 
 __all__ = [
+    "detector_transformations",
     "write_calibration_nexus",
     "read_calibration_nexus",
     "read_calibration_nexus_provenance",
@@ -82,6 +83,51 @@ def _value(value: float, units: Optional[str] = None) -> NXfield:
     if units is not None:
         field.attrs["units"] = units
     return field
+
+
+def detector_transformations(
+    shifts: Optional[DENEXDetectorShift],
+    shifts_error: Optional[DENEXDetectorShift],
+    arm_length: float,
+    arm_rotation: Optional[NXfield] = None,
+) -> NXtransformations:
+    """The detector's placement as an ``NXtransformations`` group: :func:`~pyrs.core.detector_model.transformation_chain`
+    written as NeXus, each calibration parameter with its ``<name>_errors`` beside it. The calibration file and
+    NXstress output both write it (#1054, #1099), so both describe the detector as reduction places it.
+
+    The detector's ``depends_on`` must name ``transformations/`` + the first (innermost) transformation,
+    :data:`CALIBRATION_TRANSFORMATIONS` ``[0][0]``; each transformation's ``depends_on`` names the next, the last ".".
+
+    Args:
+        shifts: Detector shift, rotations and 2theta_0, or None for the nominal geometry.
+        shifts_error: Their errors (or the -1 / -2 codes), or None: -1 (not refined) for every one.
+        arm_length: Sample-to-detector distance L2 (m).
+        arm_rotation: The ``arm_rotation`` field to write, e.g. one value per scan point (NXstress); default: 0,
+            as a calibration file stores it (the arm angle belongs to each sub-run).
+
+    Returns:
+        The group, to store as the detector's ``transformations``.
+    """
+    if shifts_error is None:
+        shifts_error = DENEXDetectorShift(*([-1.0] * 7))
+    transformations = NXtransformations()
+    chain = transformation_chain(shifts, arm_length)
+    errors = transformation_chain(shifts_error, arm_length)  # the parameters' errors, by name
+    for index, (step, error) in enumerate(zip(chain, errors)):
+        if step.name == "arm_rotation" and arm_rotation is not None:
+            field = arm_rotation
+            field.attrs["units"] = step.units
+        else:
+            field = _value(step.value, step.units)
+        field.attrs["transformation_type"] = step.transformation_type
+        field.attrs["vector"] = np.array(step.vector, dtype=np.float64)
+        field.attrs["depends_on"] = chain[index + 1].name if index + 1 < len(chain) else "."
+        if step.name == "arm_rotation":
+            field.attrs["note"] = "-(DAS arm 2theta), per sub-run; not a calibration parameter"
+        transformations[step.name] = field
+        if step.parameter is not None:
+            transformations[step.name + "_errors"] = _value(error.value, step.units)
+    return transformations
 
 
 def write_calibration_nexus(
@@ -152,20 +198,7 @@ def write_calibration_nexus(
         note["data"] = NXfield(provenance_text)
     detector["calibration_method"] = note
 
-    transformations = NXtransformations()
-    chain = transformation_chain(shifts, geometry.arm_length)
-    errors = transformation_chain(shifts_error, geometry.arm_length)  # the parameters' errors, by name
-    for index, (step, error) in enumerate(zip(chain, errors)):
-        field = _value(step.value, step.units)
-        field.attrs["transformation_type"] = step.transformation_type
-        field.attrs["vector"] = np.array(step.vector, dtype=np.float64)
-        field.attrs["depends_on"] = chain[index + 1].name if index + 1 < len(chain) else "."
-        if step.name == "arm_rotation":
-            field.attrs["note"] = "set per sub-run to -(DAS arm 2theta); not a calibration parameter"
-        transformations[step.name] = field
-        if step.parameter is not None:
-            transformations[step.name + "_errors"] = _value(error.value, step.units)
-    detector["transformations"] = transformations
+    detector["transformations"] = detector_transformations(shifts, shifts_error, geometry.arm_length)
 
     monochromator = NXmonochromator()
     monochromator["wavelength"] = _value(wave_length, "angstrom")

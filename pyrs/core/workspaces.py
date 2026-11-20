@@ -47,6 +47,9 @@ class HidraWorkspace:
         # instrument
         self._instrument_setup = None
         self._instrument_geometry_shift = None  # geometry shift
+        # the calibration reduction applied, from a project file's record (#1099): kept apart from the shift
+        # above, which reduction applies when no calibration file is given (PowderPatternCalculator)
+        self._recorded_calibration = None
 
         # sample logs
         self._sample_logs = SampleLogs()  # sample logs: [log name, sub run] = value
@@ -603,6 +606,25 @@ class HidraWorkspace:
         # load the wave length
         self._load_wave_length(hidra_file)
 
+        # the calibration the reduction applied, as the file recorded it (#1099)
+        self._load_recorded_calibration(hidra_file)
+
+    def _load_recorded_calibration(self, hidra_file) -> None:
+        """Keep the calibration the reduction applied (shift and errors), from the file's calibration record
+        (#1053, #1099). A file with no record (reduced before #1053, or never calibrated) keeps None; a record
+        that cannot be read is warned about and kept None, as the file must still load."""
+        self._recorded_calibration = None
+        try:
+            record = hidra_file.read_reduction_provenance()
+            if record.get("source", "none") == "none" or "calibration" not in record:
+                return
+            instrument = hidra_file.read_reduction_instrument(self._instrument_setup)
+        except Exception as read_err:  # noqa: BLE001 - the record is optional; the data must load
+            self._log.warning(f"applied calibration could not be read: {type(read_err).__name__}: {read_err}")
+            return
+        if instrument.geometry_shift is not None:
+            self._recorded_calibration = (instrument.geometry_shift, instrument.geometry_shift_error)
+
     def append_hidra_project(self, hidra_file):
         """
         Load HIDRA project file
@@ -664,6 +686,15 @@ class HidraWorkspace:
         :return: AnglerDetectorShift instance
         """
         return self._instrument_geometry_shift
+
+    def get_recorded_calibration(self):
+        """The calibration a reduction applied to this data, as its project file recorded it (#1099).
+
+        Returns:
+            ``(shift, shift_error)`` (``DENEXDetectorShift``; the error None if not recorded), or None if the file
+            records no calibration. Unlike :meth:`get_detector_shift`, reduction never applies it.
+        """
+        return self._recorded_calibration
 
     def get_reduced_diffraction_data_set(self, mask_id=None):
         """Get reduced diffraction data set including 2theta and intensities

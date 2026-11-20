@@ -7,7 +7,7 @@ from collections.abc import Callable
 import logging
 
 import numpy as np
-from nexusformat.nexus import NXcollection, NXinstrument, NXdetector_module
+from nexusformat.nexus import NXcollection, NXinstrument, NXdetector_module, NXfield
 import pytest
 
 from pyrs.core.detector_model import rotation_matrix
@@ -139,52 +139,39 @@ class TestInstrument:
         self,
         minimal_HidraWorkspace: Callable[..., HidraWorkspace],
     ):
-        """Verify all 8 transformations exist and depends_on chain is correct"""
+        """The detector chain is the calibration file's (#1099): its names, in DetectorModel's order, innermost first"""
         ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
 
         inst = _Instrument.init_group([ws])
 
         detector = inst["DETECTOR"]
-        assert "transformations" in detector
-
         trans = detector["transformations"]
-
-        # Verify all 8 transformations exist
-        expected_transforms = [
-            "translation_x",
-            "translation_y",
-            "translation_z",
-            "distance",
-            "rotation_x",
-            "rotation_y",
+        # spelled out here rather than imported from the writer, so this fails if the writer changes
+        chain = [
+            "shift_x",
+            "shift_y",
             "rotation_z",
-            "two_theta_zero",
+            "rotation_y",
+            "rotation_x",
+            "arm_length",
+            "shift_z",
+            "two_theta_0",
+            "arm_rotation",
         ]
-
-        for name in expected_transforms:
-            assert name in trans
-            # Each transformation should have required attributes
+        for name in chain:
             assert "transformation_type" in trans[name].attrs
             assert "vector" in trans[name].attrs
-            assert "depends_on" in trans[name].attrs
 
-        # Verify depends_on chain
-        # First transformation depends on '.'
-        assert trans["translation_x"].attrs["depends_on"] == "."
-
-        # Subsequent transformations form a chain. Each names the previous one as a
-        # sibling: NeXus resolves a relative `depends_on` from the group enclosing
-        # it, which for these attributes is `transformations` itself.
-        assert trans["translation_y"].attrs["depends_on"] == "translation_x"
-        assert trans["translation_z"].attrs["depends_on"] == "translation_y"
-        assert trans["distance"].attrs["depends_on"] == "translation_z"
-
-        # The detector's depends_on is the chain's ENTRY POINT, so it must name the
-        # LAST link -- traversal follows each field's own depends_on back to ".".
-        # This previously asserted "translation_x", the first link, whose depends_on
-        # is "." -- a chain that terminates immediately, leaving the other seven
-        # transformations written but unreachable.
-        assert detector["depends_on"] == "transformations/two_theta_zero"
+        # the detector enters at the innermost transformation; each names the next outward, the last "."
+        assert detector["depends_on"] == "transformations/shift_x"
+        links = [str(trans[name].attrs["depends_on"]) for name in chain]
+        assert links == chain[1:] + ["."]
+        # 2theta_0 swings about Y (the scattering plane), as reduction applies it
+        np.testing.assert_array_equal(trans["two_theta_0"].attrs["vector"], [0.0, 1.0, 0.0])
+        # each calibration parameter has its error; the arm length and angle are not calibration parameters
+        assert {name for name in trans if name.endswith("_errors")} == {
+            f"{name}_errors" for name in chain if name not in ("arm_length", "arm_rotation")
+        }
 
     # The instrument identity comes from config, not from the workspace: the Hidra
     # project format records no instrument name anywhere. Overriding it is what lets
@@ -286,7 +273,7 @@ class TestInstrument:
         inst = _Instrument.init_group([ws])
         detector = inst["DETECTOR"]
         trans = detector["transformations"]
-        written = {name for name in trans}
+        written = {name for name in trans if "transformation_type" in trans[name].attrs}  # not the `_errors`
 
         # Act: follow depends_on from the detector until '.', resolving each value
         # by the NeXus rule -- it raises on a link that does not resolve.
@@ -297,10 +284,10 @@ class TestInstrument:
 
 
 def _written_order(detector) -> list:
-    """The chain's links in WRITE order, read from the file rather than assumed.
+    """The chain's links outermost first, read from the file rather than assumed.
 
-    Traversal from the entry point yields reverse write order, since each link
-    depends on the one written before it.
+    Traversal from the entry point goes innermost first (#1099: the detector enters at the transformation
+    applied first to a pixel), so composing the reversed traversal left to right gives outer @ ... @ inner.
     """
     return [link.nxname for link in reversed(resolve_depends_on(detector))]
 
@@ -334,11 +321,8 @@ class TestDetectorRotationOrder:
     `pyrs.core.detector_model.rotation_matrix`, the rotation the reduction
     actually uses.
 
-    **`two_theta_zero` is deliberately excluded.** Its axis is a separate open
-    question — the writer emits it about `ex` while the reduction applies
-    two-theta about Y, after folding `two_theta_0` into the arm angle as a scalar
-    offset rather than as a transformation. Carried forward; see README
-    Section 2.1.
+    `two_theta_0` and the arm angle are not rotations of the detector about its own centre, so they are left
+    out here; `TestDetectorChainIsTheCalibrationFiles` checks the whole chain against pixel positions (#1099).
     """
 
     ROTATIONS = ("rotation_x", "rotation_y", "rotation_z")
@@ -501,3 +485,123 @@ class TestMaskGroupHoldsOnlyRealMasks:
         assert recovered.ndim == 1
         nrows, ncols = ws.get_instrument_setup().detector_size
         assert recovered.shape == (nrows * ncols,)
+
+
+def _chain_matrix(transformations, entry: str, arm: float) -> np.ndarray:
+    """The 4x4 transform of a whole chain, built from the fields' attributes alone (innermost first)."""
+    total = np.eye(4)
+    name = entry
+    while name != ".":
+        link = transformations[name]
+        value = arm if name == "arm_rotation" else float(link.nxdata)
+        vector = np.asarray(link.attrs["vector"], dtype=float)
+        step = np.eye(4)
+        if str(link.attrs["transformation_type"]) == "translation":
+            step[:3, 3] = value * vector
+        else:
+            step[:3, :3] = _rodrigues(vector, value)
+        total = step @ total
+        name = str(link.attrs["depends_on"])
+    return total
+
+
+class TestDetectorChainIsTheCalibrationFiles:
+    """NXstress describes the detector exactly as reduction places it (#1099): the calibration file's chain, the
+    arm angle per scan point, the arm length reduction used, the applied calibration's errors."""
+
+    SHIFT = DENEXDetectorShift(0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.656)
+    ARMS = (76.0, 90.0, 103.0)
+
+    def _workspace(self, minimal_HidraWorkspace, l2=None):
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
+        ws.set_detector_shift(self.SHIFT)
+        ws.set_sample_log("2theta", np.array([1, 2, 3]), np.array(self.ARMS))
+        if l2 is not None:
+            ws.set_sample_log("L2", np.array([1, 2, 3]), np.array(l2, dtype=float))
+        return ws
+
+    def test_chain_places_pixels_as_reduction_does(self, minimal_HidraWorkspace):
+        """Applied without DetectorModel, the chain reproduces DetectorModel.lab_positions at every scan point"""
+        from pyrs.core.detector_model import DetectorModel
+
+        # Arrange - an L2 log unlike the instrument's arm length, so the one reduction uses is checked
+        ws = self._workspace(minimal_HidraWorkspace, l2=[1.95, 1.95, 1.95])
+        detector = _Instrument.init_group([ws])["DETECTOR"]
+        trans = detector["transformations"]
+        model = DetectorModel(ws.get_instrument_setup())
+        index_0, index_1 = np.meshgrid(np.arange(4), np.arange(4), indexing="ij")
+        local = np.concatenate([model.local_positions(index_0, index_1), np.ones(index_0.shape + (1,))], axis=-1)
+        entry = str(detector["depends_on"]).split("/")[-1]
+
+        for scan_point, arm_log in enumerate(self.ARMS):
+            # Act
+            arm = float(trans["arm_rotation"].nxdata[scan_point])
+            placed = (local @ _chain_matrix(trans, entry, arm).T)[..., :3]
+
+            # Assert - the arm angle is -(the 2theta log), and the pixels are where reduction puts them
+            assert arm == -arm_log
+            expected = model.lab_positions(index_0, index_1, -arm_log, 1.95, self.SHIFT)
+            np.testing.assert_allclose(placed, expected, rtol=0, atol=1e-12)
+
+    def test_errors_are_the_recorded_calibrations(self, minimal_HidraWorkspace):
+        """A workspace loaded from a project file carries the calibration reduction applied and its errors"""
+        # Arrange - no shift of its own, the recorded calibration instead
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
+        ws.set_detector_shift(None)
+        errors = DENEXDetectorShift(1e-4, 2e-4, 3e-4, 0.01, 0.02, 0.03, -1.0)
+        ws._recorded_calibration = (self.SHIFT, errors)
+
+        # Act
+        trans = _Instrument.init_group([ws])["DETECTOR"]["transformations"]
+
+        # Assert
+        assert bool(trans.attrs["calibrated"])
+        assert float(trans["rotation_z"].nxdata) == pytest.approx(1.2)
+        assert float(trans["two_theta_0"].nxdata) == pytest.approx(0.656)
+        assert float(trans["shift_x_errors"].nxdata) == pytest.approx(1e-4)
+        assert float(trans["rotation_y_errors"].nxdata) == pytest.approx(0.02)
+        assert float(trans["two_theta_0_errors"].nxdata) == -1.0
+
+    def test_errors_unknown_are_not_refined(self, minimal_HidraWorkspace):
+        """A shift with no recorded errors (e.g. read back from NXstress) writes -1, not refined"""
+        # Act
+        trans = _Instrument.init_group([self._workspace(minimal_HidraWorkspace)])["DETECTOR"]["transformations"]
+
+        # Assert
+        assert {float(trans[name].nxdata) for name in trans if name.endswith("_errors")} == {-1.0}
+
+    def test_differing_l2_is_refused(self, minimal_HidraWorkspace):
+        """One NXentry holds one detector placement; HB2B uses one distance"""
+        # Arrange
+        ws = self._workspace(minimal_HidraWorkspace, l2=[1.95, 1.95, 1.90])
+
+        # Act / Assert
+        with pytest.raises(RuntimeError, match="L2"):
+            _Instrument.init_group([ws])
+
+    def test_missing_arm_angle_is_nan(self, minimal_HidraWorkspace):
+        """Without a 2theta log (synthetic data) the arm angle is unknown, not 0"""
+        # Act
+        trans = _Instrument.init_group([minimal_HidraWorkspace(sub_runs=[1, 2, 3])])["DETECTOR"]["transformations"]
+
+        # Assert
+        assert np.isnan(trans["arm_rotation"].nxdata).all()
+
+    def test_old_layout_reads_back_the_same(self, minimal_HidraWorkspace):
+        """An entry NXstress wrote before #1099 (translation_*, distance, two_theta_zero) reads as before"""
+        # Arrange - rename the chain to the old layout, as an old file has it
+        inst = _Instrument.init_group([self._workspace(minimal_HidraWorkspace)])
+        trans = inst["DETECTOR"]["transformations"]
+        old = {"shift_x": "translation_x", "shift_y": "translation_y", "shift_z": "translation_z"}
+        old.update({"arm_length": "distance", "two_theta_0": "two_theta_zero"})
+        for new, name in old.items():
+            trans[name] = NXfield(float(trans[new].nxdata))
+            del trans[new]
+        del trans["arm_rotation"]
+
+        # Act
+        geometry, shift, _ = _Instrument.instrumentFromNexus(inst)
+
+        # Assert
+        assert shift.convert_to_dict() == pytest.approx(self.SHIFT.convert_to_dict())
+        assert geometry.arm_length == pytest.approx(2.0)

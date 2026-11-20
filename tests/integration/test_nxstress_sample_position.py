@@ -194,8 +194,9 @@ def test_transformations_all_reachable(nxstress_from_real_data):
     # the NeXus rule -- it raises on a link that does not resolve.
     reached = [link.nxname for link in resolve_depends_on(detector)]
 
-    # Assert
-    assert set(reached) == set(transformations), f"unreachable: {sorted(set(transformations) - set(reached))}"
+    # Assert - every transformation; the `<name>_errors` beside them (#1099) are not links of the chain
+    links = {name for name in transformations if "transformation_type" in transformations[name].attrs}
+    assert set(reached) == links, f"unreachable: {sorted(links - set(reached))}"
 
 
 def test_pv_log_names_round_trip(nxstress_from_real_data):

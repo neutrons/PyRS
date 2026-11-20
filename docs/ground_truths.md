@@ -3608,3 +3608,34 @@ the Docs: `docs/user/source`), so nothing caught it.
   warnings left are docstring-format and duplicate-description notes from the API pages.
 - **User docs:** `docs/user/source/conf.py` still uses plain `Mock` objects. It builds, because it documents
   nothing they replace.
+
+## NXstress detector chain is the calibration file's (2026-11-20, #1099)
+
+- **Before:** NXstress wrote its own detector chain, and it did not place pixels where reduction does.
+  - **Order:** entering at the detector's `depends_on` (the innermost transformation, the NeXus rule) gave
+    two_theta_zero → Rz → Ry → Rx → distance → z → y → x. That is the reverse of `DetectorModel.lab_positions`.
+  - **2θ₀ axis:** about X.
+  - **Arm angle:** missing.
+  - **Impact:** nothing in PyRS read the chain (`instrumentFromNexus` reads the values by name), so reduction was
+    unaffected; only external NeXus tools were misled.
+- **Now:** `calibration_nexus.detector_transformations`, shared with the calibration file, writes it:
+  - shift_x, shift_y, rotation_z, rotation_y, rotation_x, arm_length, shift_z, two_theta_0 (about Y), arm_rotation;
+  - each calibration parameter with its `<name>_errors`;
+  - the detector's `depends_on` is `transformations/shift_x`.
+- **Arm angle:** `arm_rotation` holds one value per scan point, −(the `2theta` log), and grows on append. It is NaN
+  where there is no `2theta` log (synthetic data).
+- **Arm length (user decision):** a single value, the runs' `L2` log when present (the one reduction uses), else
+  the instrument's. An entry whose L2 differs between scan points is refused.
+- **Errors (user decision):** those of the applied calibration. −1 where none are known.
+- **NXstress used to write the nominal detector for real data.** A workspace loaded from a project file never
+  got the calibration reduction applied: only FitCalibration and NXstress read-back set its shift. So every
+  NXstress file written from reduced data said `calibrated = False`.
+  - **Fix:** loading now keeps the file's recorded calibration (shift and errors, `get_recorded_calibration()`),
+    and NXstress writes that.
+  - **Kept apart from `get_detector_shift()` on purpose:** `PowderPatternCalculator` applies the workspace's shift
+    whenever no calibration file is given. Setting the shift would have made reducing a project file again,
+    without a calibration file, silently switch from the nominal geometry to the recorded one.
+- **Old files (user decision: read only):** `instrumentFromNexus` reads the new names first, then the old ones
+  (`translation_*`, `distance`, `two_theta_zero`), which carry the same values.
+- **Tested:** applied independently of `DetectorModel`, the written chain reproduces `lab_positions` at every scan
+  point to 1e-12 m.
