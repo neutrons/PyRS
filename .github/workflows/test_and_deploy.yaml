@@ -24,6 +24,11 @@ jobs:
   test-tier:
     name: tests (${{ matrix.tier }})
     runs-on: ubuntu-latest
+    # id-token lets the Codecov upload authenticate by OIDC instead of a CODECOV_TOKEN secret,
+    # which Codecov requires for every non-fork branch (it rejected all next uploads without one)
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -72,14 +77,16 @@ jobs:
           ls -la coverage.xml || echo "No coverage.xml found"
 
       - name: upload coverage to codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         if: github.actor != 'dependabot[bot]'
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: ./coverage.xml
           flags: ${{ matrix.tier }}
           name: codecov-${{ matrix.tier }}
-          fail_ci_if_error: false
+          # A rejected upload on next/main must be visible (it went unnoticed for two years);
+          # on PRs a Codecov outage should not block merging.
+          fail_ci_if_error: ${{ github.event_name == 'push' }}
           verbose: true
 
   tests:
