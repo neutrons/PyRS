@@ -77,7 +77,8 @@ jobs:
           package-name: ${{ env.PKG_NAME }}
           local-channel: ${{ runner.temp }}/local-channel/
           post-cleanup: none
-          extra-channels: mantid-ornl/label/rc neutrons mantid
+          # mantid first: mantid-ornl has no 7.x yet (docs/ground_truths.md)
+          extra-channels: mantid neutrons
 
       - name: Check out grype config
         uses: actions/checkout@v7

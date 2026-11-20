@@ -37,7 +37,7 @@ def written(tmp_path_factory):
     project_path = folder / "reduced.h5"
     reducer.save_diffraction_data(str(project_path))
     # the detector geometry, as a project file converted by NeXusConvertingApp.save has it: a reduction's own save
-    # does not write it (DD-30), and NXstress needs it
+    # does not write it (DD-34), and NXstress needs it
     with HidraProjectFile(str(project_path), HidraProjectFileMode.READWRITE) as project:
         project.write_instrument_geometry(HidraSetup(reducer._hydra_ws.get_instrument_setup()))
     workspace = HidraWorkspace("reduced")

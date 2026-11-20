@@ -2,7 +2,7 @@
 name = "pyrs"
 description = "Data reduction and visualization of neutron data measured at the HFIR HB2B instrument"
 dynamic = ["version"]
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 license = { text = "MIT" }
 keywords = ["neutrons", "python"]
 readme = "README.rst"
@@ -78,9 +78,8 @@ platforms = ["linux-64"]
 [tool.pixi.dependencies]
 python = "*"
 pip = "*"
-# <7.1, not <6.17: the dev feature (in default and dev) takes Mantid nightlies, which are 7.0 only since
-# 2026-11. prod and qa keep <6.17 in their features, and the published package keeps it in run-dependencies.
-mantidworkbench = ">=6.16.0,<7.1"
+# Mantid 7.0 (Python 3.13 only) is released on mantid/label/main; dev takes the 7.0 nightlies.
+mantidworkbench = ">=7.0.0,<7.1"
 qtpy = "*"
 uncertainties = "*"
 libarchive = "*"
@@ -103,7 +102,7 @@ hatchling = "*"
 versioningit = "*"
 
 [tool.pixi.package.run-dependencies]
-mantidworkbench = ">=6.16.0, <6.17"
+mantidworkbench = ">=7.0.0, <7.1"
 qtpy = "*"
 uncertainties = "*"
 libarchive = "*"
@@ -164,7 +163,7 @@ versioningit = "*"
 [tool.pixi.feature.dev.dependencies]
 python = "*"
 pip = "*"
-mantidworkbench = { version = ">=6.16.0", channel = "mantid/label/nightly" }
+mantidworkbench = { version = ">=7.0.0", channel = "mantid/label/nightly" }
 mantid = { channel = "mantid/label/nightly" }
 mantidqt = { channel = "mantid/label/nightly" }
 uncertainties = "*"
@@ -180,9 +179,10 @@ pydantic = ">=2.7.3,<3"
 [tool.pixi.feature.qa.dependencies]
 python = "*"
 pip = "*"
-mantidworkbench = { version = ">=6.16.0, <6.17", channel = "mantid-ornl/label/rc" }
-mantid = { channel = "mantid-ornl/label/rc" }
-mantidqt = { channel = "mantid-ornl/label/rc" }
+# mantid-ornl/label/rc has no 7.x build yet (2026-11): take the upstream release until it does.
+mantidworkbench = { version = ">=7.0.0, <7.1", channel = "mantid/label/main" }
+mantid = { channel = "mantid/label/main" }
+mantidqt = { channel = "mantid/label/main" }
 uncertainties = "*"
 libarchive = "*"
 pandas = "*"
@@ -197,7 +197,7 @@ py-rattler = "==0.24.0"
 [tool.pixi.feature.prod.dependencies]
 python = "*"
 pip = "*"
-mantidworkbench = { version = ">=6.16.0, <6.17", channel = "mantid/label/main" }
+mantidworkbench = { version = ">=7.0.0, <7.1", channel = "mantid/label/main" }
 mantid = { channel = "mantid/label/main" }
 mantidqt = { channel = "mantid/label/main" }
 uncertainties = "*"

@@ -3,6 +3,26 @@
 Key findings recorded here for future reference. Link to this file from related
 documentation and code comments when relevant.
 
+## Upgrade to Mantid 7.0 (2026-11)
+
+Mantid 7.0.0 (released on `mantid/label/main`; 7.0 nightlies on
+`mantid/label/nightly`) is built **only for Python 3.13** and moves Qt 5 → Qt 6.11.
+As of 2026-11-17 the ORNL channels (`mantid-ornl/label/main`, `/rc`) stop at
+6.16.1.x — there is no 7.x build there yet. Consequences:
+
+- `requires-python` is `>=3.13`, and every pin (base, `prod`, `qa`, `dev`, package
+  run-dependencies) is `mantidworkbench >=7.0.0,<7.1`.
+- The `qa` feature temporarily takes Mantid from `mantid/label/main` instead of
+  `mantid-ornl/label/rc`. Switch it back once ORNL publishes a 7.x RC.
+- CI's `pkg-install` `extra-channels` lists `mantid` **before** any `mantid-ornl`
+  label. Under strict channel priority a higher-priority channel that carries
+  *any* `mantidworkbench` hides every build of it in lower channels, so
+  `mantid-ornl/label/rc` first makes `>=7.0` unsatisfiable.
+- Mantid 7 deprecates (does not remove) `MatrixWorkspace.readX/readY/readE/dataX/...`
+  in favour of `x()/y()/e()` and `mutableX()/...`. PyRS still calls `readX`/`readY`
+  (peak fitting, UI controllers); they emit `DeprecationWarning` but work. See
+  [deferred_defects.md](deferred_defects.md).
+
 ## Mantid ecosystem moved to Python 3.12 across all channels (2026-07)
 
 As of early July 2026, every Mantid conda channel used by this project —
@@ -747,8 +767,9 @@ constructing `QApplication` and a `QFileDialog` still wrote
 content and by a live, reproduced infinite `.rmlock`-chaining loop against
 that exact file). So setting an org/app name does nothing to isolate
 `QFileDialog`'s settings — it only affects code that explicitly
-constructs its own `QSettings()`/`QSettings(org, app)`, which nothing in
-`pyrs/` does.
+constructs its own `QSettings()`, which nothing in `pyrs/` does (the
+calibration viewer's `QSettings("neutrons", "PyRS")` names its own
+org/app, so it is unaffected too).
 
 **Actual root cause, in two parts:**
 1. Every Qt/PyQt process on the machine that ever opens a `QFileDialog`
@@ -789,7 +810,8 @@ symptom, just against the now-private file instead of the shared one.
 Moving the file off the contention path was necessary but not
 sufficient; it needed to also move off NFS.
 
-**Actual fix** ([scripts/pyrsplot.py](../scripts/pyrsplot.py)): redirect
+**Fix #3 (reverted 2026-11-20, see below)** (was in
+[scripts/pyrsplot.py](../scripts/pyrsplot.py)): redirect
 `XDG_CONFIG_HOME` to `<tempfile.gettempdir()>/pyrs-qt-config-<user>` —
 i.e. **local disk** (verified here to be `xfs` on `/`, not NFS),
 namespaced per OS user (`getpass.getuser()`) so it can't collide with
@@ -807,11 +829,28 @@ Trade-off accepted: this directory is local to whichever compute/login
 node the session happens to run on (typical at a shared, multi-node
 facility), so "recent places" history does not follow the user between
 nodes and may be cleared by OS temp-directory housekeeping. That's a
-purely cosmetic loss — nothing in `pyrs/` reads this state — traded for
-never hitting an NFS-unrecoverable lock again.
-`setOrganizationName()`/`setApplicationName()` calls were kept (correct
+purely cosmetic loss — nothing in `pyrs/` reads the dialog history (the
+calibration viewer's remembered export folder, added later in #1087, did
+live there too) — traded for never hitting an NFS-unrecoverable lock again.
+`setOrganizationName()`/`setApplicationName()` calls were kept until the
+2026-11-20 revert (correct
 practice for any future code that constructs its own `QSettings`), but
 were never what fixed this.
+
+**Reverted (2026-11-20):** at the maintainer's request,
+[scripts/pyrsplot.py](../scripts/pyrsplot.py) is back to its pre-2026-08
+form (the `next_revert` branch): no `XDG_CONFIG_HOME` redirect and no
+org/app identity, so PyRS again uses Qt's default `~/.config/QtProject.conf`.
+The calibration viewer's remembered export folder
+(`QSettings("neutrons", "PyRS")`,
+[detector_calibration_viewer.py](../pyrs/interface/detector_calibration/detector_calibration_viewer.py))
+moves with it, from `<tmp>/pyrs-qt-config-<user>/neutrons/PyRS.conf` back
+to `~/.config/neutrons/PyRS.conf`: it now follows the user between nodes,
+but sits on NFS too. The diagnosis above still holds: on an NFS home
+directory the "Could not remove our own lock file" failure can return, for
+either file, and this section is the place to start if it does. The test-suite redirect in
+[tests/conftest.py](../tests/conftest.py) is unchanged — tests still keep
+Qt state in a disposable temp directory.
 
 **Why this matters going forward:** if a similar "permission denied /
 device or resource busy removing our own lock file" resurfaces
@@ -3649,6 +3688,6 @@ the Docs: `docs/user/source`), so nothing caught it.
 - **An unreadable record is optional:** it is warned about, the recorded calibration stays None, and the data load.
 - **Appending to an entry written before #1099:** allowed when the calibration matches (there is no arm angle to
   grow). A refusal there says the entry predates #1099 and to write a new entry.
-- **Fresh reductions carry no geometry (DD-30):** a project file that reduction writes to a new path has no
+- **Fresh reductions carry no geometry (DD-34):** a project file that reduction writes to a new path has no
   instrument geometry, so NXstress cannot be written from it until the geometry is added. See
   [deferred_defects.md](deferred_defects.md).
