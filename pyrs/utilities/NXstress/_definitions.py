@@ -411,17 +411,17 @@ def suffix_from_group_name(group_name: str, base_name: str) -> str:
 
 # NeXus `validItemName`, the authoritative rule for what may appear in a group or
 # field name. Reproduced verbatim from `nxdl.xsd` of the NeXus definitions
-# repository (`nexusformat/definitions`, NXDL v2026.01, commit 004da96e):
+# repository (`nexusformat/definitions`, release v2026.01):
 #
 #     <xs:pattern value="[a-zA-Z0-9_]([a-zA-Z0-9_.]*[a-zA-Z0-9_])?" />
 #     <xs:maxLength value="63" />
 #
 # The rule is NOT shipped by the installed `nexusformat` package, and it is not
 # in the NXstress application definition either -- it belongs to the NXDL schema
-# that governs all of them. The application definition itself is vendored at
-# `docs/developer/source/design/nexus/NXstress.nxdl.xml`; this rule lives here,
-# beside the code that enforces it. `plans/NXstress-prod/probes/` reads the
-# upstream file live and fails if either value below has drifted from it.
+# that governs all of them. Both are vendored, verbatim, under
+# `docs/developer/source/design/nexus/NeXuS-definitions/`; this rule lives here,
+# beside the code that enforces it. `test_vendored_definitions.py` reads that
+# `nxdl.xsd` and fails if either value below has drifted from it.
 #
 # Two consequences that are easy to get wrong, and were:
 #   * '.' is legal in the INTERIOR only -- never leading or trailing;

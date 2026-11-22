@@ -231,7 +231,7 @@ class _Peaks:
         #
         # NXstress requires `peaks/sx,sy,sz` and defines them as the *sample position
         # in the sample reference frame* (see the vendored application definition at
-        # `docs/developer/source/design/nexus/NXstress.nxdl.xml`). In PyRS that
+        # `docs/developer/source/design/nexus/NeXuS-definitions/applications/NXstress.nxdl.xml`). In PyRS that
         # quantity is `PointList.(vx, vy, vz)` -- NOT the stage-position logs that
         # happen to be spelled `sx`/`sy`/`sz`, which the stress/strain workflow does
         # not use. Those remain available in their own right, under

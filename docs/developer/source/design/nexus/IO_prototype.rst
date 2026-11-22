@@ -23,27 +23,61 @@ Schema reference
 ----------------
 
 The authoritative ``NXstress`` application definition is vendored into this
-directory as :download:`NXstress.nxdl.xml <NXstress.nxdl.xml>`, copied verbatim
-from the NeXus definitions repository:
+directory as :download:`NXstress.nxdl.xml <NeXuS-definitions/applications/NXstress.nxdl.xml>`,
+inside an abbreviated copy of the NeXus definitions repository,
+``NeXuS-definitions/``, that keeps upstream's own layout.  It holds only:
 
-* source: ``nexusformat/definitions``, ``applications/NXstress.nxdl.xml``
-* definitions release: ``v2026.01`` (the repository's release tag -- not the
-  ``version="1.0"`` attribute on the file's own root element, which is the NXDL
-  schema-language version and a different thing)
-* commit: ``004da96ef29bc6b7529e1f8e5d9415cd000bccb8`` ("Update copytright dates to 2026")
-* sha256: ``bee46c0723720bc440570cc8f74be37cea6145b15b7e6f4c3ec00c421144b905``
+* ``applications/NXstress.nxdl.xml``, the application definition;
+* the 14 base classes it names directly, in ``base_classes/``: ``NXbeam``,
+  ``NXdata``, ``NXdetector``, ``NXentry``, ``NXinstrument``, ``NXnote``,
+  ``NXobject``, ``NXparameters``, ``NXprocess``, ``NXreflections``, ``NXsample``,
+  ``NXsource``, ``NXtransformations`` and ``NXuser``;
+* ``nxdl.xsd`` and ``nxdlTypes.xsd``, the NXDL schema language itself.  It
+  defines ``validItemName``, the rule for group and field names, which the
+  application definition does not carry.
 
-It is a *snapshot*, not a submodule.  Refresh it by re-copying from an updated
-checkout and updating the three provenance values above.
+The base classes those 14 refer to in turn (61 classes in all) are not included:
+they describe components, such as choppers and mirrors, that an ``NXstress`` file
+does not use.
+
+Every file is copied verbatim from:
+
+* source: ``nexusformat/definitions``
+* release: ``v2026.01``, the repository's release tag.  This is not the
+  ``version="1.0"`` attribute on each file's root element, which is the NXDL
+  schema-language version and a different thing.
+* commit: ``0ad0f784950eefea5675e725d2ecb10a5f83e8ad``, the commit the tag names.
+
+``NXstress.nxdl.xml`` was first vendored from commit ``004da96e`` (2026-01-07),
+which this record previously described as release ``v2026.01``.  It is not the
+release: the tag, made on 2026-02-19, contains it.  All 17 files are
+byte-identical at both commits, so the copy did not change when the record was
+corrected.
+
+The sha256 of every file is recorded in ``NeXuS-definitions.sha256`` beside this
+document, in ``sha256sum`` format.  To verify the copy::
+
+    cd docs/developer/source/design/nexus && sha256sum -c NeXuS-definitions.sha256
+
+``tests/unit/pyrs/utilities/NXstress/test_vendored_definitions.py`` re-checks the
+same checksums on every commit.  It also checks that every class the application
+definition names is present, and that the ``validItemName`` rule PyRS enforces
+matches ``nxdl.xsd``.
+
+It is a *snapshot*, not a submodule.  To refresh it, copy each file from a new
+release tag with ``git show <tag>:<path>``, keeping the layout.  Then regenerate
+``NeXuS-definitions.sha256`` (``find NeXuS-definitions -type f | sort | xargs
+sha256sum``), and update the release and commit above.
 
 Note that the schema is **not** the validator.  The NeXus-org ``NXstress``
 validator lives in its own repository and is still not present here; the
 installed ``nexusformat`` 1.0.8 package has no validator capability at all.
 
 Identifier names are constrained by ``validItemName``, defined in ``nxdl.xsd``
-of the same repository rather than in the application definition itself.  That
-rule is reproduced, with its provenance, beside the code that implements it in
-``pyrs/utilities/NXstress/_definitions.py``.
+(vendored above) rather than in the application definition itself.  That rule is
+reproduced beside the code that implements it, in
+``pyrs/utilities/NXstress/_definitions.py``, and the test above checks the two
+against each other.
 
 Primary ``NXentry`` group
 -------------------------
