@@ -9,8 +9,9 @@ codecov:
   notify:
     after_n_builds: 4
 
-# Disable codecov comments in every PR
-comment: false
+# One coverage comment per PR, posted once all four tiers have uploaded
+comment:
+  after_n_builds: 4
 
 # files to ignore
 ignore:
