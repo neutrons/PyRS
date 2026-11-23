@@ -130,14 +130,14 @@ class PeakFitEngine:
         center = []
 
         for wksp_index in range(self._mtd_wksp.getNumberHistograms()):
-            x_vals = self._mtd_wksp.readX(wksp_index)
+            x_vals = self._mtd_wksp.x(wksp_index)
             i_min, i_max = x_vals.searchsorted([x_min, x_max])
             if i_min >= i_max:
                 msg = "Failed to find requested x-range({} < {}) ".format(x_min, x_max)
                 msg += "in data with x-range ({} < {})".format(x_vals[0], x_vals[-1])
                 self._log.warning(msg)
                 continue  # don't use this workspace index
-            y_vals = self._mtd_wksp.readY(wksp_index)[i_min:i_max]
+            y_vals = self._mtd_wksp.y(wksp_index)[i_min:i_max]
             y_offset = np.abs(y_vals.max())
 
             # add the first moment to the list of centers

@@ -145,8 +145,8 @@ class DetectorCalibrationCrtl:
                     if fitted_ws is not None:
                         for fit_ws in fitted_ws:
                             for i_sub in range(len(self._model.reduction_masks)):
-                                xvec = fit_ws.readX(int(i_sub))[1:]
-                                yvec = fit_ws.readY(int(i_sub))[1:]
+                                xvec = fit_ws.x(int(i_sub))[1:]
+                                yvec = fit_ws.y(int(i_sub))[1:]
                                 _ax.plot_diffraction(
                                     xvec,
                                     yvec,
