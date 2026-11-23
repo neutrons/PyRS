@@ -3,7 +3,7 @@
 codecov:
   # Codecov's default branch is master and its settings page won't save, so name it here
   branch: next
-  # CI uploads coverage once per test tier (unit, ring-calibration, integration, gui): 
+  # CI uploads coverage once per test tier (unit, ring-calibration, integration, gui):
   # report only once all four have arrived, so an early upload alone never shows as a
   # coverage drop
   notify:
