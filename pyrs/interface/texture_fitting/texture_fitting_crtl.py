@@ -116,11 +116,11 @@ class TextureFittingCrtl:
 
     def fit_peaks(self, fit_range_table, peak_function_name, background_function_name, out_of_plane_angle=None):
         def _extract_fitted_data(fit_ws):
-            diff_data = np.zeros((self._model.sub_runs.size, len(fit_ws.readX(int(self._model.sub_runs[0])))))
+            diff_data = np.zeros((self._model.sub_runs.size, len(fit_ws.x(int(self._model.sub_runs[0])))))
             tth_data = np.zeros_like(diff_data)
             for i_sub in range(self._model.sub_runs.size):
-                tth_data[i_sub, :] = fit_ws.readX(int(i_sub))
-                diff_data[i_sub, :] = fit_ws.readY(int(i_sub))
+                tth_data[i_sub, :] = fit_ws.x(int(i_sub))
+                diff_data[i_sub, :] = fit_ws.y(int(i_sub))
 
             return tth_data, diff_data
 
