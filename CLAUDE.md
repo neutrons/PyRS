@@ -76,9 +76,6 @@ When the user needs to choose, prefer these well-integrated options:
 - **Scientific computing:** scipy.
 
 ### Dev tooling
-- **Testing:** pytest (+ pytest-cov).
-- **Linting:** ruff.
-- **Formatting:** black.
 - **Type checking:** mypy, run by a pre-commit hook as `pixi run mypy pyrs scripts tests`, the same command as CI's lint job. Run that command, not mypy on single files, before pushing.
 - **Docs:** Sphinx or MkDocs.
 
@@ -94,74 +91,9 @@ Always include:
 4. **Input validation** at boundaries.
 5. **Comments only when the WHY is non-obvious** — never narrate what the code does.
 
-Example:
-
-```python
-from typing import Optional
-
-
-def example_function(
-    data: list[float],
-    threshold: float = 0.5,
-    normalize: bool = True,
-) -> list[float]:
-    """
-    Process data with filtering and optional normalization.
-
-    Args:
-        data: Raw measurement values from sensor.
-        threshold: Minimum value to keep (default: 0.5).
-        normalize: Whether to normalize to [0, 1] range (default: True).
-
-    Returns:
-        Processed data values.
-
-    Raises:
-        ValueError: If data is empty or threshold is negative.
-
-    Example:
-        >>> example_function([0.1, 0.7, 1.2], threshold=0.5)
-        [0.58, 1.0]
-    """
-    if not data:
-        raise ValueError("Data cannot be empty")
-    if threshold < 0:
-        raise ValueError(f"Threshold must be non-negative, got {threshold}")
-
-    filtered = [x for x in data if x >= threshold]
-    if not filtered:
-        return []
-
-    if normalize:
-        max_val = max(filtered)
-        return [x / max_val for x in filtered]
-    return filtered
-```
-
 ## 🧪 Testing Guidelines
 
-Every test follows Arrange-Act-Assert:
-
-```python
-def test_example_function_filters_correctly():
-    """Test that values below threshold are removed."""
-    # Arrange
-    input_data = [0.1, 0.5, 0.7, 1.0]
-    threshold = 0.6
-
-    # Act
-    result = example_function(input_data, threshold=threshold)
-
-    # Assert
-    assert len(result) == 2
-    assert all(x >= threshold for x in result)
-```
-
-Always cover:
-1. **Normal cases** — typical inputs.
-2. **Edge cases** — empty inputs, single items, max values.
-3. **Error cases** — invalid inputs, type errors.
-4. **Integration** — components working together.
+Every test follows Arrange-Act-Assert.
 
 Naming: `test_<function_name>_<scenario>_<expected_outcome>`, **kept under 60
 characters**. Omit any part the module or class name already carries — a test in
@@ -180,57 +112,9 @@ test_init_strain_without_filenames_raises
 
 ### Test tiers, markers, and locations
 
-Tests are split into three tiers so the fast ones can be run without waiting on
-real data or being interrupted by GUI pop-ups. **Put every new test in the tier
-matching what it actually touches, and apply the marker that tier requires.**
-
-| Tier | Location | Marker | Run with |
-|---|---|---|---|
-| Unit | `tests/unit/<module-path>/`, mirroring the `pyrs/` package layout | *none* | `pixi run test-unit` |
-| Integration | `tests/integration/` (flat) | `@pytest.mark.integration` | `pixi run test-integration` |
-| GUI | `tests/ui/` | `@pytest.mark.gui` **and** `@pytest.mark.integration` | `pixi run test-gui` |
-| By-hand scripts | `tests/scripts/` | *n/a — never collected* | run the file directly |
-
-Marker definitions, registered in `pyproject.toml`:
-
-- **`integration`** — exercises real file I/O (`tests/data`, the `/HFIR`
-  archive) or a multi-component workflow.
-- **`gui`** — requires a display (xvfb or offscreen). Constructing or driving a
-  Qt widget is the usual reason, but it is not the only one: taking the `qapp`
-  fixture is enough on its own (it builds a real `QApplication`, which aborts
-  with no display), as is importing any module that pulls in matplotlib's
-  `QtAgg` backend at module scope. If the module cannot be *imported* headless,
-  it is `gui` — `python -c 'import <module>'` with `DISPLAY` and
-  `QT_QPA_PLATFORM` unset is the check.
-
-Notes:
-
-- Markers are enforced by `addopts = "--strict-markers"`: an unregistered marker
-  is an error, not a silent no-op. Register new markers in `pyproject.toml`.
-- `test-gui` selects `-m gui`; `test-integration` selects
-  `-m 'integration and not gui'`. GUI tests therefore carry **both** markers —
-  `gui` alone would drop them from the integration tier.
-- A test is a *unit* test only if it needs no real file and no widget. If it
-  loads a fixture file purely for convenience, prefer rewriting it against a
-  synthetic fixture and keeping it in the unit tier.
-- Apply a whole-module marker with `pytestmark = pytest.mark.integration` rather
-  than decorating every function.
-- `tests/util/` holds shared helper modules and fixtures, not tests of its own
-  (beyond tests *for* those helpers); `tests/scripts/` is excluded from
-  collection via `norecursedirs`.
-- `test-gui` sets `QT_QPA_PLATFORM=offscreen` itself, so no window ever appears.
-  The full `pixi run test` does **not** — it is the task CI drives under
-  `xvfb-run`, and a pixi task `env` would override that. Export
-  `QT_QPA_PLATFORM=offscreen` yourself before running the full suite on a
-  workstation with a real desktop session, or it will stall on the GUI tier
-  until the timeout below fires — see [docs/ground_truths.md](docs/ground_truths.md).
-- **Every test has a 300-second timeout** (`timeout`/`timeout_method` in
-  `pyproject.toml`, via `pytest-timeout`). A hang is a failure, not an infinite
-  wait. `timeout_method = "thread"` is deliberate: a test blocked inside Qt's C++
-  event loop never returns to the interpreter, so the default `signal` method
-  cannot interrupt it — verified. The watchdog dumps every thread's stack, which
-  names the blocking line. Override per-test with `@pytest.mark.timeout(N)` for a
-  genuinely long-running case rather than raising the global limit.
+Put every new test in the tier matching what it touches (unit, integration, GUI) and apply that
+tier's marker. The tier table, marker rules and timeout policy are in
+[tests/CLAUDE.md](tests/CLAUDE.md), which loads when you work under `tests/`.
 
 ## 🔍 Code Review Process
 
@@ -244,23 +128,8 @@ When delegating to a sub-agent via the `Agent` tool, hand over a self-contained 
 
 ## 📚 Documentation Standards
 
-Module docstring:
-
-```python
-"""
-Module for data preprocessing operations.
-
-Provides functions for cleaning and normalizing experimental data from
-the XYZ instrument. Typical workflow:
-
-1. Load raw data with load_data().
-2. Clean with remove_outliers().
-3. Normalize with normalize_values().
-4. Export with save_processed_data().
-"""
-```
-
-Class docstring: describe purpose, key attributes, and a usage example. See [.github/copilot-instructions.md](.github/copilot-instructions.md) for the full template.
+Module docstrings state the module's purpose and typical workflow; class docstrings describe
+purpose, key attributes, and a usage example.
 
 ## 🚨 Common Scenarios
 
@@ -289,14 +158,6 @@ Users may be scientists new to software engineering. Always:
 - Provide context for decisions.
 - Offer to explain concepts if the user looks new to them.
 - Encourage good practices gently — don't lecture.
-
-## ⚡ Efficiency Guidelines
-
-1. **Parallelize independent tool calls** — multiple `Read`/`Grep`/`Bash` calls go in one message when there are no dependencies.
-2. **Use `Agent` with `subagent_type="Explore"`** for broad codebase exploration spanning more than ~3 queries; for narrower lookups, just use `Grep`/`Bash` directly.
-3. **Prefer dedicated tools** — `Read`/`Edit`/`Write` over `cat`/`sed`/`echo` via `Bash`.
-4. **Don't re-read files you just edited** — `Edit` errors if it failed.
-5. **Give brief progress updates** at key moments — finding something, changing direction, hitting a blocker.
 
 ---
 

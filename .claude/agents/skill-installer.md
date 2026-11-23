@@ -1,5 +1,6 @@
 ---
 name: skill-installer
+model: sonnet
 description: Use when the user asks to install, add, pull, or set up domain-specific skills — e.g. "install the neutron reflectometry skills", "add SANS skills", "set up skills for diffraction". Also invoke proactively before planning any neutron science task (SANS, diffraction, reflectometry, spectroscopy, inelastic scattering) when no domain skills are yet installed in .claude/agents/.
 ---
 
