@@ -59,7 +59,7 @@ Tests
 -----
 
 Every test follows Arrange-Act-Assert, with ``# Arrange``, ``# Act`` and ``# Assert`` comments. Test naming, the
-test tiers and their markers are in ``CLAUDE.md`` ("Testing Guidelines").
+test tiers and their markers are in ``CLAUDE.md`` ("Testing Guidelines") and ``tests/CLAUDE.md``.
 
 .. code-block:: python
 
