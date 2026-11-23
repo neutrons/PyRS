@@ -1,11 +1,10 @@
-# Codecov reads only one config file, so all settings live here (there used to be a
-# codecov.yaml beside this one, whose settings were silently ignored).
+# Configuration file for codecov reporting code coverage
 
 codecov:
   # Codecov's default branch is master and its settings page won't save, so name it here
   branch: next
-  # CI uploads coverage once per test tier (unit, ring-calibration, integration, gui; #1100,
-  # #1101): report only once all four have arrived, so an early upload alone never shows as a
+  # CI uploads coverage once per test tier (unit, ring-calibration, integration, gui): 
+  # report only once all four have arrived, so an early upload alone never shows as a
   # coverage drop
   notify:
     after_n_builds: 4
