@@ -1,7 +1,24 @@
-# CI uploads coverage once per test tier (unit, ring-calibration, integration, gui; #1100, #1101):
-# report only once all four have arrived, so an early upload alone never shows as a coverage drop
+# Codecov reads only one config file, so all settings live here (there used to be a
+# codecov.yaml beside this one, whose settings were silently ignored).
+
 codecov:
+  # Codecov's default branch is master and its settings page won't save, so name it here
+  branch: next
+  # CI uploads coverage once per test tier (unit, ring-calibration, integration, gui; #1100,
+  # #1101): report only once all four have arrived, so an early upload alone never shows as a
+  # coverage drop
   notify:
     after_n_builds: 4
-comment:
-  after_n_builds: 4
+
+# Disable codecov comments in every PR
+comment: false
+
+# files to ignore
+ignore:
+  - pyrs/_version.py
+  - pyrs/icons/icons_*.py
+
+# Fixes report prefix paths from CI dynamic coverage action
+# from https://docs.codecov.io/docs/fixing-paths
+fixes:
+  - "*/pyrs/::/pyrs/"
