@@ -3,7 +3,12 @@ from pyrs.utilities import checkdatatypes
 from pyrs.core.instrument_geometry import DENEXDetectorShift, DENEXDetectorGeometry
 import json
 import math
+import os
 import warnings
+
+import h5py
+
+from pyrs.core.monosetting import MonoSetting
 
 
 def check_calibration_dictionary(calib_dict):
@@ -561,3 +566,82 @@ def read_calibration_provenance(calibration_file_name):
             stacklevel=2,
         )
     return provenance
+
+
+# the shared calibrations: HB2B_Latest_<mono>.json per monochromator, HB2B_Latest.json the transition fallback (#1096)
+SHARED_CALIBRATION_DIR = "/HFIR/HB2B/shared/CALIBRATION"
+
+
+def _first_log_value(nexus_file: "h5py.File", log_name: str):
+    """The first value of ``/entry/DASlogs/<log_name>``, or None if the run file has no such log."""
+    path = f"entry/DASlogs/{log_name}/value"
+    if path not in nexus_file:
+        return None
+    values = nexus_file[path][()]
+    return values.flat[0] if getattr(values, "size", 0) else None
+
+
+def monochromator_of_run(run_file: str) -> MonoSetting:
+    """The monochromator a run was measured with, read from the NeXus run file.
+
+    The ``MonoSetting`` log if the file has one, else the ``mrot`` log, the way ``NeXusConvertingApp`` finds it.
+    It is read from the run file, not the converted workspace, which keeps only the nominal wavelength: Si333 and
+    Si511 share 1.452 A, so the wavelength cannot tell them apart.
+
+    Args:
+        run_file: HB2B NeXus run file.
+
+    Returns:
+        The monochromator.
+
+    Raises:
+        FileNotFoundError: If ``run_file`` does not exist.
+        ValueError: If the file has neither log, or ``mrot`` matches no monochromator.
+    """
+    if not os.path.isfile(run_file):
+        raise FileNotFoundError(f"Run file {run_file} does not exist")
+    with h5py.File(run_file, "r") as nexus_file:
+        mono_index = _first_log_value(nexus_file, "MonoSetting")
+        if mono_index is not None:
+            try:
+                return MonoSetting.getFromIndex(mono_index)
+            except IndexError as err:
+                raise ValueError(f"{run_file}: invalid MonoSetting log: {err}") from err
+        mrot = _first_log_value(nexus_file, "mrot")
+    if mrot is None:
+        raise ValueError(f"{run_file} has neither a MonoSetting nor an mrot log: cannot tell its monochromator")
+    return MonoSetting.getFromRotation(float(mrot))
+
+
+def retrieve_calibration(run_file: str, folder: str = SHARED_CALIBRATION_DIR) -> str:
+    """The shared calibration for the run's monochromator: ``<folder>/HB2B_Latest_<mono>.json``.
+
+    A calibration belongs to one monochromator: its wavelength and its 2theta_0 are that monochromator's. While
+    some monochromators have no per-monochromator file yet, a missing one falls back to ``HB2B_Latest.json`` with a
+    warning (#1096). Once every monochromator in use has one, the fallback becomes a refusal.
+
+    Args:
+        run_file: HB2B NeXus run file, which gives the monochromator.
+        folder: Folder holding the shared calibrations.
+
+    Returns:
+        Path of the calibration file to apply.
+
+    Raises:
+        FileNotFoundError: If neither the per-monochromator file nor the ``HB2B_Latest.json`` fallback exists.
+        ValueError: If the run's monochromator cannot be determined (see :func:`monochromator_of_run`).
+    """
+    mono = monochromator_of_run(run_file).name
+    per_mono = os.path.join(folder, f"HB2B_Latest_{mono}.json")
+    if os.path.isfile(per_mono):
+        return per_mono
+    fallback = os.path.join(folder, "HB2B_Latest.json")
+    if not os.path.isfile(fallback):
+        raise FileNotFoundError(f"No calibration for {mono} in {folder}: neither {per_mono} nor {fallback} exists")
+    warnings.warn(
+        f"No {os.path.basename(per_mono)} in {folder} for a {mono} run: falling back to {fallback}, whose wavelength "
+        f"and 2theta_0 may belong to another monochromator",
+        UserWarning,
+        stacklevel=2,
+    )
+    return fallback

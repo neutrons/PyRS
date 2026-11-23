@@ -210,3 +210,15 @@ without renumbering.
   **Found during:** the Mantid 7 upgrade (see [ground_truths.md](ground_truths.md)).
   **Why it is deferred.** `pyrs/peaks/` and the UI computations are scientific production code; the swap needs
   its own approval under the constitution.
+
+- **DD-34**, 2026-11-23: `MonoSetting.Si511` is an alias of `MonoSetting.Si333` (`pyrs/core/monosetting.py`).
+  - **Cause:** the two members share the value 1.452, and a Python `Enum` makes a repeated value an alias of the
+    first member. `list(MonoSetting)` has six members, and `getFromIndex(1)`, `getFromRotation(-1.5)` and
+    `MonoSetting.Si511.name` all give `Si333`.
+  - **Effect:** a Si511 run is reported as Si333. The wavelength is the same, but the 2θ₀ of the two
+    monochromators differs (#1090), and a calibration belongs to one monochromator. `ring_driver`'s recorded
+    `monochromator` is wrong for Si511 too. #1096's `retrieve_calibration` would pick `HB2B_Latest_Si333.json`
+    for a Si511 run.
+  - **Fix (needs approval):** give each member a distinct value, keeping the wavelength through `__float__`.
+  - **Found during:** #1096 step 1. **Why it is deferred:** `MonoSetting` is scientific production code.
+    The three Si511 cases in `test_calibration_file_io.py` are strict `xfail` until it is fixed.

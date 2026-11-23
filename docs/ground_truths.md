@@ -3647,3 +3647,12 @@ the Docs: `docs/user/source`), so nothing caught it.
   warnings left are docstring-format and duplicate-description notes from the API pages.
 - **User docs:** `docs/user/source/conf.py` still uses plain `Mock` objects. It builds, because it documents
   nothing they replace.
+
+## Reading the monochromator from a run file (#1096)
+
+- **Where:** `entry/DASlogs/MonoSetting/value` (an index into `MonoSetting.getFromIndex`'s list), else
+  `entry/DASlogs/mrot/value` (`MonoSetting.getFromRotation`). The test-data runs (`HB2B_1017`, `1118`, `1431`,
+  `938`: `mrot` −19.2, Si422; `3489`: −168.8, Si331) have no `MonoSetting` log.
+- **Si333 and Si511 are not told apart.** `MonoSetting.Si511` is an alias of `Si333` (same value 1.452, so Python's
+  `Enum` merges them): `list(MonoSetting)` has six members. See DD-34 in
+  [deferred_defects.md](deferred_defects.md). `retrieve_calibration` is correct for the other five until it is fixed.

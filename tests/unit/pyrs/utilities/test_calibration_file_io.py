@@ -427,3 +427,133 @@ def test_record_with_zero_wavelength_is_refused():
     # Act / Assert
     with pytest.raises(ValueError, match="unusable wavelength"):
         calibration_file_io.calibration_from_dict(record, "the project file's record")
+
+
+def _write_run_file(path, mono_index=None, mrot=None):
+    """A minimal NeXus run file holding only the logs the monochromator is read from."""
+    import h5py
+
+    with h5py.File(path, "w") as run:
+        if mono_index is not None:
+            run.create_dataset("entry/DASlogs/MonoSetting/value", data=np.array([mono_index, mono_index]))
+        if mrot is not None:
+            run.create_dataset("entry/DASlogs/mrot/value", data=np.array([mrot, mrot]))
+    return str(path)
+
+
+MONO_BY_INDEX = ["Si333", "Si511", "Si422", "Si331", "Si400", "Si311", "Si220"]
+MONO_BY_MROT = [
+    ("Si333", -39.5),
+    ("Si511", -1.5),
+    ("Si422", -19.2),
+    ("Si331", -168.8),
+    ("Si400", 15.0),
+    ("Si311", -10.0),
+    ("Si220", -180.0),
+]
+
+# DD-34: MonoSetting.Si511 is an alias of Si333, so a Si511 run is reported as Si333
+SI511_ALIAS = pytest.mark.xfail(strict=True, reason="DD-34: MonoSetting.Si511 is an alias of Si333")
+
+
+def _si511_xfail(params):
+    return [pytest.param(*p, marks=SI511_ALIAS) if "Si511" in p else p for p in params]
+
+
+@pytest.mark.parametrize("index, mono", _si511_xfail(enumerate(MONO_BY_INDEX)))
+def test_monochromator_of_run_from_monosetting(tmp_path, index, mono):
+    """The MonoSetting log gives the monochromator, Si333 and Si511 included."""
+    run_file = _write_run_file(tmp_path / "run.nxs.h5", mono_index=index)
+
+    assert calibration_file_io.monochromator_of_run(run_file).name == mono
+
+
+@pytest.mark.parametrize("mono, mrot", _si511_xfail(MONO_BY_MROT))
+def test_monochromator_of_run_from_mrot(tmp_path, mono, mrot):
+    """Without a MonoSetting log, mrot gives the monochromator."""
+    run_file = _write_run_file(tmp_path / "run.nxs.h5", mrot=mrot)
+
+    assert calibration_file_io.monochromator_of_run(run_file).name == mono
+
+
+def test_monochromator_of_run_monosetting_wins_over_mrot(tmp_path):
+    """A file with both logs is read through MonoSetting, as NeXusConvertingApp does."""
+    run_file = _write_run_file(tmp_path / "run.nxs.h5", mono_index=3, mrot=-19.2)
+
+    assert calibration_file_io.monochromator_of_run(run_file).name == "Si331"
+
+
+def test_monochromator_of_run_without_logs_raises(tmp_path):
+    run_file = _write_run_file(tmp_path / "run.nxs.h5")
+
+    with pytest.raises(ValueError, match="neither a MonoSetting nor an mrot"):
+        calibration_file_io.monochromator_of_run(run_file)
+
+
+def test_monochromator_of_run_unmatched_mrot_raises(tmp_path):
+    run_file = _write_run_file(tmp_path / "run.nxs.h5", mrot=100.0)
+
+    with pytest.raises(ValueError, match="Unable to determine monosetting"):
+        calibration_file_io.monochromator_of_run(run_file)
+
+
+def test_monochromator_of_run_bad_index_raises(tmp_path):
+    run_file = _write_run_file(tmp_path / "run.nxs.h5", mono_index=9)
+
+    with pytest.raises(ValueError, match="invalid MonoSetting"):
+        calibration_file_io.monochromator_of_run(run_file)
+
+
+def test_monochromator_of_run_missing_file_raises(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        calibration_file_io.monochromator_of_run(str(tmp_path / "absent.nxs.h5"))
+
+
+def _shared_folder(tmp_path, *names):
+    for name in names:
+        (tmp_path / name).write_text("{}")
+    return str(tmp_path)
+
+
+@pytest.mark.parametrize("index, mono", _si511_xfail(enumerate(MONO_BY_INDEX)))
+def test_retrieve_calibration_picks_run_monochromator(tmp_path, index, mono):
+    """Each monochromator, Si333 and Si511 included, gets its own file, not its neighbour's."""
+    folder = _shared_folder(tmp_path, "HB2B_Latest.json", *(f"HB2B_Latest_{m}.json" for m in MONO_BY_INDEX))
+    run_file = _write_run_file(tmp_path / "run.nxs.h5", mono_index=index)
+
+    result = calibration_file_io.retrieve_calibration(run_file, folder)
+
+    assert result == os.path.join(folder, f"HB2B_Latest_{mono}.json")
+
+
+def test_retrieve_calibration_from_mrot(tmp_path):
+    folder = _shared_folder(tmp_path, "HB2B_Latest_Si331.json", "HB2B_Latest_Si422.json")
+    run_file = _write_run_file(tmp_path / "run.nxs.h5", mrot=-168.8)
+
+    assert calibration_file_io.retrieve_calibration(run_file, folder).endswith("HB2B_Latest_Si331.json")
+
+
+def test_retrieve_calibration_missing_falls_back_with_warning(tmp_path):
+    """No per-monochromator file yet: HB2B_Latest.json, and the user is told."""
+    folder = _shared_folder(tmp_path, "HB2B_Latest.json", "HB2B_Latest_Si422.json")
+    run_file = _write_run_file(tmp_path / "run.nxs.h5", mrot=-168.8)
+
+    with pytest.warns(UserWarning, match="HB2B_Latest_Si331.json"):
+        result = calibration_file_io.retrieve_calibration(run_file, folder)
+
+    assert result == os.path.join(folder, "HB2B_Latest.json")
+
+
+def test_retrieve_calibration_nothing_available_raises(tmp_path):
+    folder = _shared_folder(tmp_path, "HB2B_Latest_Si422.json")
+    run_file = _write_run_file(tmp_path / "run.nxs.h5", mrot=-168.8)
+
+    with pytest.raises(FileNotFoundError, match="Si331"):
+        calibration_file_io.retrieve_calibration(run_file, folder)
+
+
+def test_retrieve_calibration_real_run_file():
+    """A real HB2B run (mrot = -19.2, Si422) from the test data."""
+    run_file = os.path.join(os.path.dirname(__file__), "../../../data/HB2B_1017.nxs.h5")
+
+    assert calibration_file_io.monochromator_of_run(run_file).name == "Si422"

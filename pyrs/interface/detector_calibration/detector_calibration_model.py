@@ -29,7 +29,11 @@ from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
 from pyrs.calibration.ring_extraction import column_at_two_theta
 from pyrs.core.detector_model import DetectorModel, to_shift
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
-from pyrs.utilities.calibration_file_io import read_calibration_file, write_calibration_to_json
+from pyrs.utilities.calibration_file_io import (  # noqa: F401  SHARED_CALIBRATION_DIR is re-exported
+    SHARED_CALIBRATION_DIR,
+    read_calibration_file,
+    write_calibration_to_json,
+)
 
 # terminal only, no log file: the files each Export wrote, or what was written when a write fails partway (#1087)
 _LOG = Logger("PyRS detector calibration")
@@ -66,7 +70,6 @@ ITERATE_PASSES = 3
 
 # Export: the user's folder always; with the shared flag also the HB2B calibration that reduction
 # picks up (HB2B_Latest.json), its per-monochromator copy and a timestamped archive copy
-SHARED_CALIBRATION_DIR = "/HFIR/HB2B/shared/CALIBRATION"
 # FitCalibration's archive name format, to the second so that two exports in one minute do not collide
 CALIBRATION_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 # a recipe ending with one of these has refined every parameter jointly: its errors come from
