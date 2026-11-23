@@ -452,15 +452,8 @@ MONO_BY_MROT = [
     ("Si220", -180.0),
 ]
 
-# DD-34: MonoSetting.Si511 is an alias of Si333, so a Si511 run is reported as Si333
-SI511_ALIAS = pytest.mark.xfail(strict=True, reason="DD-34: MonoSetting.Si511 is an alias of Si333")
 
-
-def _si511_xfail(params):
-    return [pytest.param(*p, marks=SI511_ALIAS) if "Si511" in p else p for p in params]
-
-
-@pytest.mark.parametrize("index, mono", _si511_xfail(enumerate(MONO_BY_INDEX)))
+@pytest.mark.parametrize("index, mono", list(enumerate(MONO_BY_INDEX)))
 def test_monochromator_of_run_from_monosetting(tmp_path, index, mono):
     """The MonoSetting log gives the monochromator, Si333 and Si511 included."""
     run_file = _write_run_file(tmp_path / "run.nxs.h5", mono_index=index)
@@ -468,7 +461,7 @@ def test_monochromator_of_run_from_monosetting(tmp_path, index, mono):
     assert calibration_file_io.monochromator_of_run(run_file).name == mono
 
 
-@pytest.mark.parametrize("mono, mrot", _si511_xfail(MONO_BY_MROT))
+@pytest.mark.parametrize("mono, mrot", MONO_BY_MROT)
 def test_monochromator_of_run_from_mrot(tmp_path, mono, mrot):
     """Without a MonoSetting log, mrot gives the monochromator."""
     run_file = _write_run_file(tmp_path / "run.nxs.h5", mrot=mrot)
@@ -515,7 +508,7 @@ def _shared_folder(tmp_path, *names):
     return str(tmp_path)
 
 
-@pytest.mark.parametrize("index, mono", _si511_xfail(enumerate(MONO_BY_INDEX)))
+@pytest.mark.parametrize("index, mono", list(enumerate(MONO_BY_INDEX)))
 def test_retrieve_calibration_picks_run_monochromator(tmp_path, index, mono):
     """Each monochromator, Si333 and Si511 included, gets its own file, not its neighbour's."""
     folder = _shared_folder(tmp_path, "HB2B_Latest.json", *(f"HB2B_Latest_{m}.json" for m in MONO_BY_INDEX))

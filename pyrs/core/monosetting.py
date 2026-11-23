@@ -4,15 +4,26 @@ __all__ = ["MonoSetting"]
 
 
 class MonoSetting(Enum):
-    """Hold the default values for the nominal wavelengths of the monochromator"""
+    """The monochromator settings, each with its nominal wavelength.
 
-    Si333 = 1.452
-    Si511 = 1.452  # same as Si333
-    Si422 = 1.540
-    Si331 = 1.731
-    Si400 = 1.886
-    Si311 = 2.275
-    Si220 = 2.667
+    Si333 and Si511 are different monochromator positions (different ``mrot``) with the same wavelength. Each
+    member's enum value is therefore ``(name, wavelength)``: were it the wavelength alone, ``Enum`` would make Si511
+    an alias of Si333 and a Si511 run would be reported as Si333 (DD-34). ``value`` and ``float()`` give the
+    wavelength.
+    """
+
+    Si333 = ("Si333", 1.452)
+    Si511 = ("Si511", 1.452)  # same wavelength as Si333, a different monochromator position
+    Si422 = ("Si422", 1.540)
+    Si331 = ("Si331", 1.731)
+    Si400 = ("Si400", 1.886)
+    Si311 = ("Si311", 2.275)
+    Si220 = ("Si220", 2.667)
+
+    @property
+    def value(self):  # type: ignore[override]
+        """The nominal wavelength"""
+        return self._value_[1]
 
     def __str__(self):
         """The label of the peak"""
@@ -20,7 +31,7 @@ class MonoSetting(Enum):
 
     def __float__(self):
         """The nominal wavelength"""
-        return self._value_
+        return self._value_[1]
 
     @staticmethod
     def getFromIndex(index):

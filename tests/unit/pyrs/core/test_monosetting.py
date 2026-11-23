@@ -37,5 +37,29 @@ def test_monosetting_conversions():
     assert float(MonoSetting.Si422) == 1.540
 
 
+def test_si333_and_si511_are_distinct_members():
+    """Same wavelength, different monochromator position: not aliases (DD-34)."""
+    assert MonoSetting.Si511 is not MonoSetting.Si333
+    assert len(MonoSetting) == 7
+    assert MonoSetting.Si511.name == "Si511"
+    assert float(MonoSetting.Si511) == float(MonoSetting.Si333) == 1.452
+
+
+def test_value_is_the_wavelength():
+    """peak_fitting_model reads ``.value`` as the wavelength."""
+    assert [m.value for m in MonoSetting] == [float(m) for m in MonoSetting]
+    assert MonoSetting.Si422.value == 1.540
+
+
+@pytest.mark.parametrize("mrot, mono", [(-39.5, MonoSetting.Si333), (-1.5, MonoSetting.Si511)])
+def test_monosetting_from_rotation_tells_si333_si511_apart(mrot, mono):
+    assert MonoSetting.getFromRotation(mrot) is mono
+
+
+def test_monosetting_from_index_tells_si333_si511_apart():
+    assert MonoSetting.getFromIndex(0) is MonoSetting.Si333
+    assert MonoSetting.getFromIndex(1) is MonoSetting.Si511
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

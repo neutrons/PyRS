@@ -3653,6 +3653,6 @@ the Docs: `docs/user/source`), so nothing caught it.
 - **Where:** `entry/DASlogs/MonoSetting/value` (an index into `MonoSetting.getFromIndex`'s list), else
   `entry/DASlogs/mrot/value` (`MonoSetting.getFromRotation`). The test-data runs (`HB2B_1017`, `1118`, `1431`,
   `938`: `mrot` −19.2, Si422; `3489`: −168.8, Si331) have no `MonoSetting` log.
-- **Si333 and Si511 are not told apart.** `MonoSetting.Si511` is an alias of `Si333` (same value 1.452, so Python's
-  `Enum` merges them): `list(MonoSetting)` has six members. See DD-34 in
-  [deferred_defects.md](deferred_defects.md). `retrieve_calibration` is correct for the other five until it is fixed.
+- **Si333 and Si511** share 1.452 A but are different monochromator positions (different `mrot`). `MonoSetting` was
+  an `Enum` valued by wavelength, which made Si511 an alias of Si333 (DD-34, fixed in #1096). Each member's value is
+  now `(name, wavelength)`; `.value` and `float()` give the wavelength.
