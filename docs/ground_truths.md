@@ -3654,5 +3654,5 @@ the Docs: `docs/user/source`), so nothing caught it.
   `entry/DASlogs/mrot/value` (`MonoSetting.getFromRotation`). The test-data runs (`HB2B_1017`, `1118`, `1431`,
   `938`: `mrot` −19.2, Si422; `3489`: −168.8, Si331) have no `MonoSetting` log.
 - **Si333 and Si511** share 1.452 A but are different monochromator positions (different `mrot`). `MonoSetting` was
-  an `Enum` valued by wavelength, which made Si511 an alias of Si333 (DD-34, fixed in #1096). Each member's value is
+  an `Enum` valued by wavelength, which made Si511 an alias of Si333 (fixed in #1096). Each member's value is
   now `(name, wavelength)`; `.value` and `float()` give the wavelength.

@@ -8,7 +8,7 @@ class MonoSetting(Enum):
 
     Si333 and Si511 are different monochromator positions (different ``mrot``) with the same wavelength. Each
     member's enum value is therefore ``(name, wavelength)``: were it the wavelength alone, ``Enum`` would make Si511
-    an alias of Si333 and a Si511 run would be reported as Si333 (DD-34). ``value`` and ``float()`` give the
+    an alias of Si333 and a Si511 run would be reported as Si333. ``value`` and ``float()`` give the
     wavelength.
     """
 

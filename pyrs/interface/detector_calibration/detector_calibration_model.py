@@ -29,11 +29,7 @@ from pyrs.calibration.powder_standards import HB2B_STANDARDS, standard_for_sy
 from pyrs.calibration.ring_extraction import column_at_two_theta
 from pyrs.core.detector_model import DetectorModel, to_shift
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
-from pyrs.utilities.calibration_file_io import (  # noqa: F401  SHARED_CALIBRATION_DIR is re-exported
-    SHARED_CALIBRATION_DIR,
-    read_calibration_file,
-    write_calibration_to_json,
-)
+from pyrs.utilities.calibration_file_io import SHARED_CALIBRATION_DIR, read_calibration_file, write_calibration_to_json
 
 # terminal only, no log file: the files each Export wrote, or what was written when a write fails partway (#1087)
 _LOG = Logger("PyRS detector calibration")

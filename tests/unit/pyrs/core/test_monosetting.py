@@ -38,7 +38,7 @@ def test_monosetting_conversions():
 
 
 def test_si333_and_si511_are_distinct_members():
-    """Same wavelength, different monochromator position: not aliases (DD-34)."""
+    """Same wavelength, different monochromator position: not aliases."""
     assert MonoSetting.Si511 is not MonoSetting.Si333
     assert len(MonoSetting) == 7
     assert MonoSetting.Si511.name == "Si511"
