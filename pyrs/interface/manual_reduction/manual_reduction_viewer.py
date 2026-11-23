@@ -121,10 +121,14 @@ class ManualReductionViewer(QMainWindow):
         self.ui.pushButton_browseMaskFile.setEnabled(not checked)
 
     def _calibration_state(self, state):
-        """Toggle the default HB2B geometry calibration file."""
+        """Toggle the default HB2B geometry calibration: the shared one of each run's own monochromator.
+
+        Unticked, the file in the box (typed or browsed) is applied to every run instead.
+        """
         checked = self._is_checked(state)
         if checked:
-            self.ui.lineEdit_calibrationFile.setText(self._model.get_default_calibration_dir() + "HB2B_Latest.json")
+            self.ui.lineEdit_calibrationFile.clear()
+            self.ui.lineEdit_calibrationFile.setPlaceholderText("HB2B_Latest_<monochromator>.json, chosen per run")
         self.ui.lineEdit_calibrationFile.setEnabled(not checked)
         self.ui.pushButton_browseCalibrationFile.setEnabled(not checked)
 
@@ -272,7 +276,11 @@ class ManualReductionViewer(QMainWindow):
 
         output_dir = str(self.ui.lineEdit_outputDirectory.text().strip())
         mask_file = str(self.ui.lineEdit_maskFile.text().strip()) or None
-        calibration_file = str(self.ui.lineEdit_calibrationFile.text().strip()) or None
+        use_default_calibration = self.ui.checkBox_defaultCalibrationFile.isChecked()
+        # a file the user supplied overrides the default; the default is resolved per run, by the model
+        calibration_file = (
+            None if use_default_calibration else (self.ui.lineEdit_calibrationFile.text().strip() or None)
+        )
         vanadium_file = str(self.ui.lineEdit_vanRunNumber.text().strip()) or None
 
         try:
@@ -283,6 +291,7 @@ class ManualReductionViewer(QMainWindow):
                 mask=mask_file,
                 calibration=calibration_file,
                 vanadium_file=vanadium_file,
+                use_default_calibration=use_default_calibration,
             )
         # ValueError: e.g. a calibration file without a wavelength (#1098) or of another format; OSError: unreadable
         except (RuntimeError, ValueError, OSError) as run_err:

@@ -64,7 +64,16 @@ class ManualReductionCrtl:
 
         diff_view.plot_diffraction(pattern[0], pattern[1], "2theta", "intensity", line_label=info, keep_prev=False)
 
-    def reduce(self, jobs, output_dir, progressbar, mask=None, calibration=None, vanadium_file=None):
+    def reduce(
+        self,
+        jobs,
+        output_dir,
+        progressbar,
+        mask=None,
+        calibration=None,
+        vanadium_file=None,
+        use_default_calibration=False,
+    ):
         """Reduce one or more NeXus files to Hidra project files.
 
         Args:
@@ -72,8 +81,10 @@ class ManualReductionCrtl:
             output_dir: Output directory for the reduced project files.
             progressbar: Qt progress-bar widget updated during reduction.
             mask: Optional mask file path.
-            calibration: Optional calibration file path.
+            calibration: Optional calibration file path, applied to every run (overrides the default).
             vanadium_file: Optional vanadium file path.
+            use_default_calibration: Without ``calibration``, each run gets its own monochromator's shared
+                calibration.
 
         Returns:
             The list of reduced run labels (input order). The first run's
@@ -86,6 +97,7 @@ class ManualReductionCrtl:
             mask=mask,
             calibration=calibration,
             vanadium_file=vanadium_file,
+            use_default_calibration=use_default_calibration,
         )
 
     def select_run(self, label):
