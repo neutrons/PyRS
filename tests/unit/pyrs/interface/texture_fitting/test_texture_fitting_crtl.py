@@ -54,12 +54,12 @@ class _FitWorkspace:
         self._n_spectra = n_spectra
         self._n_bins = n_bins
 
-    def readX(self, index: int) -> np.ndarray:
+    def x(self, index: int) -> np.ndarray:
         if not 0 <= index < self._n_spectra:
             raise IndexError(f"spectrum {index} out of range")
         return np.arange(self._n_bins, dtype=float)
 
-    readY = readX
+    y = x
 
 
 @pytest.mark.xfail(reason="DD-2: the first sub-run number is used as a spectrum index", raises=IndexError, strict=True)
