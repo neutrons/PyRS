@@ -3703,6 +3703,11 @@ the Docs: `docs/user/source`), so nothing caught it.
   became 0, and a missing arm length failed with a message that did not name it.
 - **Tested:** applied independently of `DetectorModel`, the written chain reproduces `lab_positions` at every scan
   point to 1e-12 m.
+- **The chain is a self-consistent choice (user decision, #1132 review R5):** PyRS defines the detector's
+  placement (`DetectorModel.lab_positions`, `CALIBRATION_TRANSFORMATIONS`), and the calibration refines its
+  parameters in that same model; NXstress and the calibration file write exactly that chain. It is not grounded in
+  an external reference (unlike the sample chain, which follows He, *Two-Dimensional X-ray Diffraction*, ch. 8.3),
+  and needs none: the check that matters is that the written chain places pixels where reduction does.
 - **Errors survive a round trip.** Reading an NXstress entry back sets both the workspace's shift and its recorded
   calibration with the entry's errors (`_Instrument.shiftErrorFromNexus`), so writing it again keeps them. Before
   the code-review fix they came back as −1.
