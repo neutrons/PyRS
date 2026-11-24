@@ -19,9 +19,11 @@ As of 2026-11-17 the ORNL channels (`mantid-ornl/label/main`, `/rc`) stop at
   *any* `mantidworkbench` hides every build of it in lower channels, so
   `mantid-ornl/label/rc` first makes `>=7.0` unsatisfiable.
 - Mantid 7 deprecates (does not remove) `MatrixWorkspace.readX/readY/readE/dataX/...`
-  in favour of `x()/y()/e()` and `mutableX()/...`. PyRS still calls `readX`/`readY`
-  (peak fitting, UI controllers); they emit `DeprecationWarning` but work. See
-  [deferred_defects.md](deferred_defects.md).
+  in favour of `x()/y()/e()` and `mutableX()/...`. PyRS called `readX`/`readY`
+  (peak fitting, UI controllers); these were swapped for `x()`/`y()` and the deferred
+  defect **DD-33** was removed from [deferred_defects.md](deferred_defects.md)
+  (2026-11-24). `x()`/`y()` return the same read-only arrays as `readX`/`readY`, so
+  behaviour is unchanged. No `readX/Y/E` or `dataX/Y/E` calls remain in the repo.
 
 ## Mantid ecosystem moved to Python 3.12 across all channels (2026-07)
 

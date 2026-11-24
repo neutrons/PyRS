@@ -73,7 +73,7 @@ def test_plot_diff_and_fitted_data_fitted_none_does_not_raise(
     crtl = PeakFittingCrtl(reloaded)
     fake_view = _FakeFitSetupView()
 
-    # Act -- previously crashed unconditionally on fit_result.fitted.readX(...).
+    # Act -- previously crashed unconditionally on fit_result.fitted.x(...).
     # _FakeFitSetupView is a duck-typed stub, not a PeakFitSetupView subclass.
     crtl.plot_diff_and_fitted_data(fake_view, sub_run_number=1)  # type: ignore[arg-type]
 
