@@ -3083,8 +3083,8 @@ becomes this check), `PyRsCore`, and the calibration GUI's "From file…" overla
   two_theta_0, see *NXstress detector chain is the calibration file's*). Each value is float64 in m or deg, right-handed, in the PyRS frame (+Z beam,
   +Y up), with `<name>_errors` beside it (the JSON's -1 / -2 codes). The reader checks every transformation's
   type, vector, units and `depends_on` against this chain, and refuses (`ValueError`) a file that would be
-  applied differently. It also checks that the detector's `depends_on` starts the chain at `shift_x`, that
-  `arm_rotation` is 0, and that the pixel offsets are PyRS's layout (`DetectorModel.local_positions`:
+  applied differently. It also checks that the detector's `depends_on` starts the chain at `shift_x` (the
+  `arm_rotation` = 0 check was dropped with the field, #1099), and that the pixel offsets are PyRS's layout (`DetectorModel.local_positions`:
   X decreasing with `index_0`, Y increasing with `index_1`). The old NXstress chain, with 2θ₀ about X, would
   be refused. One-element string arrays and shape-(1,) values, as other tools write them, are read. Also
   refused (CodeRabbit review): a transformation with a non-zero NeXus `offset` (`DetectorModel` applies none),
