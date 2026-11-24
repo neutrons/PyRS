@@ -214,3 +214,44 @@ def test_unusable_calibration_is_reported(tmp_path, manual_reduction_window, mon
     # Assert
     assert len(messages) == 1
     assert "no wavelength" in messages[0]
+
+
+def test_default_calibration_is_chosen_per_run(tmp_path, manual_reduction_window, monkeypatch):
+    """Ticked, the default calibration is left to the model, run by run (#1096)"""
+    # Arrange
+    window, _ = manual_reduction_window
+    window.ui.checkBox_defaultCalibrationFile.setChecked(True)
+    run_file = tmp_path / "HB2B_1017.nxs.h5"
+    run_file.write_bytes(b"")
+    window.ui.lineEdit_runNumber.setText(str(run_file))
+    reduced = []
+    monkeypatch.setattr(window._ctrl, "reduce", lambda *args, **kwargs: reduced.append(kwargs) or [])
+
+    # Act
+    window.split_convert_save_nexus()
+
+    # Assert
+    assert reduced[0]["calibration"] is None
+    assert reduced[0]["use_default_calibration"] is True
+    assert window.ui.lineEdit_calibrationFile.text() == ""
+    assert "per run" in window.ui.lineEdit_calibrationFile.placeholderText()
+
+
+def test_supplied_calibration_overrides_the_default(tmp_path, manual_reduction_window, monkeypatch):
+    """Unticking the default and typing a file applies that file to every run (#1096)"""
+    # Arrange
+    window, _ = manual_reduction_window
+    window.ui.checkBox_defaultCalibrationFile.setChecked(False)
+    window.ui.lineEdit_calibrationFile.setText("/my/own/HB2B_CAL.json")
+    run_file = tmp_path / "HB2B_1017.nxs.h5"
+    run_file.write_bytes(b"")
+    window.ui.lineEdit_runNumber.setText(str(run_file))
+    reduced = []
+    monkeypatch.setattr(window._ctrl, "reduce", lambda *args, **kwargs: reduced.append(kwargs) or [])
+
+    # Act
+    window.split_convert_save_nexus()
+
+    # Assert
+    assert reduced[0]["calibration"] == "/my/own/HB2B_CAL.json"
+    assert reduced[0]["use_default_calibration"] is False

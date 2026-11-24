@@ -3650,6 +3650,14 @@ the Docs: `docs/user/source`), so nothing caught it.
 - **User docs:** `docs/user/source/conf.py` still uses plain `Mock` objects. It builds, because it documents
   nothing they replace.
 
+## Reading the monochromator from a run file (#1096)
+
+- **Where:** `entry/DASlogs/MonoSetting/value` (an index into `MonoSetting.getFromIndex`'s list), else
+  `entry/DASlogs/mrot/value` (`MonoSetting.getFromRotation`). The test-data runs (`HB2B_1017`, `1118`, `1431`,
+  `938`: `mrot` −19.2, Si422; `3489`: −168.8, Si331) have no `MonoSetting` log.
+- **Si333 and Si511** share 1.452 A but are different monochromator positions (different `mrot`). `MonoSetting` was
+  an `Enum` valued by wavelength, which made Si511 an alias of Si333 (fixed in #1096). Each member's value is
+  now `(name, wavelength)`; `.value` and `float()` give the wavelength.
 ## Calibration study: what the measurement conditions and the settings change (2026-11, #1097)
 
 A study with no production change: ring calibrations (`calibrate_rings`, default settings unless stated) of 11 powder runs

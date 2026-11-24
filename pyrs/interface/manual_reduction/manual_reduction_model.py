@@ -13,9 +13,13 @@ signal plumbing expected of an MVP model, so the engine stays UI-agnostic and th
 existing public API is untouched.
 """
 
+import warnings
+
+from mantid.simpleapi import Logger
 from qtpy.QtCore import QObject, Signal  # type:ignore
 
 from pyrs.interface.manual_reduction.pyrs_api import ReductionController
+from pyrs.utilities.calibration_file_io import retrieve_calibration
 
 
 def parse_run_numbers(text):
@@ -138,7 +142,16 @@ class ManualReductionModel(QObject):
             project_file_name=project_file_name,
         )
 
-    def reduce_runs(self, jobs, output_dir, progressbar, mask=None, calibration=None, vanadium_file=None):
+    def reduce_runs(
+        self,
+        jobs,
+        output_dir,
+        progressbar,
+        mask=None,
+        calibration=None,
+        vanadium_file=None,
+        use_default_calibration=False,
+    ):
         """Reduce one or more NeXus files and keep the results in memory.
 
         Args:
@@ -146,8 +159,12 @@ class ManualReductionModel(QObject):
             output_dir: Output directory for the reduced project files.
             progressbar: Qt progress-bar widget updated during reduction.
             mask: Optional mask file path.
-            calibration: Optional calibration file path.
+            calibration: Optional calibration file path, applied to every run. It overrides
+                ``use_default_calibration``.
             vanadium_file: Optional vanadium file path.
+            use_default_calibration: Without ``calibration``, give each run the shared calibration of its own
+                monochromator (:func:`~pyrs.utilities.calibration_file_io.retrieve_calibration`), since a batch can
+                span monochromators.
 
         Returns:
             The list of labels actually reduced (in input order). The first
@@ -156,12 +173,15 @@ class ManualReductionModel(QObject):
         self._reduced = {}
         labels = []
         for label, nexus_file in jobs:
+            run_calibration = calibration
+            if calibration is None and use_default_calibration:
+                run_calibration = self._retrieve_run_calibration(nexus_file)
             hidra_ws = self._controller.reduce_hidra_workflow(
                 nexus_file,
                 output_dir,
                 progressbar,
                 mask=mask,
-                calibration=calibration,
+                calibration=run_calibration,
                 vanadium_file=vanadium_file,
             )
             self._reduced[label] = hidra_ws
@@ -171,6 +191,18 @@ class ManualReductionModel(QObject):
             self.set_current_run(labels[0])
 
         return labels
+
+    @staticmethod
+    def _retrieve_run_calibration(nexus_file):
+        """The shared calibration for ``nexus_file``'s monochromator; logs the pick and any fallback warning."""
+        logger = Logger("manual_reduction")
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            calibration = retrieve_calibration(nexus_file)
+        for warning in caught:
+            logger.warning(str(warning.message))
+        logger.information("Calibration for {}: {}".format(nexus_file, calibration))
+        return calibration
 
     def set_current_run(self, label):
         """Make the reduced workspace for ``label`` the current workspace."""
