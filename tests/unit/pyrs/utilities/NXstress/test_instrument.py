@@ -615,6 +615,7 @@ class TestDetectorChainIsTheCalibrationFiles:
             "DETECTOR/transformations/rotation_z",
             "DETECTOR/transformations/two_theta_0",
             "monochromator/wavelength",
+            "DETECTOR/transformations",
         ],
     )
     def test_missing_field_is_refused(self, minimal_HidraWorkspace, path):
@@ -698,7 +699,10 @@ class TestRecordedCalibrationAcrossWorkspaces:
         _, shift, _ = _Instrument.instrumentFromNexus(inst)
         assert shift.convert_to_dict() == pytest.approx(self.SHIFT.convert_to_dict())
         assert _Instrument.shiftErrorFromNexus(inst).convert_to_dict() == pytest.approx(self.ERRORS.convert_to_dict())
-        assert np.asarray(inst["DETECTOR"]["transformations"]["arm_rotation"].nxdata).shape == (6,)
+        np.testing.assert_array_equal(
+            inst["DETECTOR"]["transformations"]["arm_rotation"].nxdata,
+            -np.concatenate([ws.get_sample_log_values("2theta") for ws in wss]),
+        )
 
     def test_append_of_same_recorded_calibration_grows(self, minimal_HidraWorkspace):
         """An append recorded with the entry's calibration is accepted, and its arm angles extend the entry's"""
@@ -711,7 +715,11 @@ class TestRecordedCalibrationAcrossWorkspaces:
         _Instrument.init_group([incoming], inst)
 
         # Assert
-        assert np.asarray(inst["DETECTOR"]["transformations"]["arm_rotation"].nxdata).shape == (6,)
+        first = self._recorded(minimal_HidraWorkspace, [1, 2, 3], self.SHIFT, self.ERRORS)
+        np.testing.assert_array_equal(
+            inst["DETECTOR"]["transformations"]["arm_rotation"].nxdata,
+            -np.concatenate([ws.get_sample_log_values("2theta") for ws in (first, incoming)]),
+        )
 
     def test_append_of_other_recorded_calibration_raises(self, minimal_HidraWorkspace):
         """An append recorded with another calibration is refused before anything is written"""

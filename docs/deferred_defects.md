@@ -226,3 +226,14 @@ without renumbering.
 
   **Found during:** #1099, writing the real-data NXstress test (T1).
   **Why it is deferred.** It predates #1099 and changes what reduction writes, which needs its own approval.
+
+- **DD-36**, 2026-11-24: a refused NXstress write can leave a partial file. `NXstress(path, "w")` creates and opens
+  the file when its `with` block starts (`NXstress.__enter__`), so a write refused after that -- a workspace without
+  a `2theta` log, mixed calibrations, a missing field -- closes an incomplete file (about 800 bytes) at `path`
+  instead of leaving none. GUI saves are not affected: they write a temporary sibling and replace the destination
+  only on success (`gui_helper.write_nxstress_or_report`, see DD-10); scripts and code that use `NXstress`
+  directly are.
+
+  **Found during:** the test review of #1132 (#1099), which adds refusals during a write.
+  **Why it is deferred.** It predates #1099. The fix -- `NXstress` writing a temporary file and renaming it on
+  success -- changes how every NXstress write handles its file, outside the scope of #1132.

@@ -1137,6 +1137,22 @@ class TestIncompleteEntryIsRefusedUpFront:
                 nx.write([ws], [peaks])
         assert digest(written) == before
 
+    def test_append_without_arm_angle_leaves_file_unchanged(
+        self, written, minimal_HidraWorkspace, minimal_PeakCollection
+    ):
+        """Data without a 2theta log cannot be placed, so the append is refused before anything grows (#1132 G9)"""
+        # Arrange
+        ws, peaks = workspace(
+            minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(4, 5, 6), with_arm_angle=False
+        )
+        before = digest(written)
+
+        # Act / Assert
+        with NXstress(written, "a") as nx:
+            with pytest.raises(RuntimeError, match="2theta"):
+                nx.write([ws], [peaks])
+        assert digest(written) == before
+
 
 class TestWriterEmitsResizableDatasets:
     """The property the whole design rests on, and the one nothing was checking.

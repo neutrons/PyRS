@@ -12,9 +12,11 @@ from nexusformat.nexus import (
     NXdetector,
     NXdetector_module,
     NXfield,
+    NXgroup,
     NXinstrument,
     NXmonochromator,
     NXnote,
+    NXobject,
     NXsource,
 )
 import numpy as np
@@ -590,8 +592,15 @@ class _Instrument:
         return geometry, shift, wavelength
 
     @classmethod
-    def _required(cls, instrument, path: str):
+    def _required(cls, instrument: NXgroup, path: str) -> NXobject:
         """The item at `path` under `instrument`, which NXstress always writes.
+
+        Args:
+            instrument: The entry's `NXinstrument` group.
+            path: The item's path relative to it, e.g. `DETECTOR/transformations/shift_x`.
+
+        Returns:
+            The field or group.
 
         Raises:
             RuntimeError: If it is missing, naming it: the write failed or the file is corrupt.

@@ -379,6 +379,22 @@ def test_file_applied_differently_is_refused(tmp_path, change, match):
         read_calibration_nexus(path)
 
 
+@pytest.mark.parametrize(
+    "name, wrong", [("two_theta_0", "shift_x"), ("rotation_z", "shift_z")], ids=["last-link", "middle-link"]
+)
+def test_chain_with_wrong_link_is_refused(tmp_path, name, wrong):
+    """A transformation pointing to the wrong next one would be applied in another order: refused (#1099)"""
+    # Arrange
+    path = _edit(
+        _write(tmp_path / "cal.nxs"),
+        lambda d: d[f"transformations/{name}"].attrs.__setitem__("depends_on", wrong),
+    )
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="depends_on in"):
+        read_calibration_nexus(path)
+
+
 def test_other_tools_string_and_scalar_shapes_read(tmp_path):
     """A one-element string array and shape-(1,) values, as other tools write them, read as ours (review)"""
     # Arrange

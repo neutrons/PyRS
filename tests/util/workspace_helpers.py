@@ -73,7 +73,8 @@ def make_minimal_HidraWorkspace(
     ws.set_sample_log("mrot", subruns, np.zeros(n_subruns, dtype=float))
     if with_arm_angle:
         # real data always has it, and NXstress refuses data without it (#1132 review, G9)
-        ws.set_sample_log("2theta", subruns, 80.0 + 5.0 * np.arange(n_subruns, dtype=float))
+        # from the sub-run numbers, so workspaces over different sub-runs differ and an order bug shows
+        ws.set_sample_log("2theta", subruns, 80.0 + 0.5 * subruns.astype(float))
     # `NXstress._init`/`_Fit._init` read `start_time`/`end_time`/`Filename` sample-log
     # values as bytes (`t.decode("utf-8")`) -- matching what comes back from a real
     # h5py-backed string dataset. A synthetic workspace needs to match that, not a

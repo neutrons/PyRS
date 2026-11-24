@@ -308,7 +308,7 @@ class TestStandaloneMethods:
 
     def test_instrumentFromNexus_standalone(self):
         """Build NXinstrument manually, read with instrumentFromNexus"""
-        # Create NXinstrument group manually
+        # Arrange - an NXinstrument group built by hand
         inst = NXinstrument()
         inst["name"] = "HB2B"
 
@@ -346,15 +346,15 @@ class TestStandaloneMethods:
         det["transformations"] = trans
         inst["DETECTOR"] = det
 
-        # Read back
+        # Act
         geometry, shift, wavelength = _Instrument.instrumentFromNexus(inst)
 
-        # Verify geometry
+        # Assert - geometry
         assert geometry.detector_size == (512, 512)
         np.testing.assert_allclose(geometry.pixel_dimension, (0.001, 0.001))
         np.testing.assert_allclose(geometry.arm_length, 2.0)
 
-        # Verify shift
+        # Assert - shift
         assert shift is not None
         np.testing.assert_allclose(shift.center_shift_x, 0.01)
         np.testing.assert_allclose(shift.center_shift_y, 0.02)
@@ -364,7 +364,7 @@ class TestStandaloneMethods:
         np.testing.assert_allclose(shift.rotation_z, 3.0)
         np.testing.assert_allclose(shift.two_theta_0, 0.5)
 
-        # Verify wavelength
+        # Assert - wavelength
         np.testing.assert_allclose(wavelength, 1.486)
 
     def test_masksFromNexus_standalone(self):
