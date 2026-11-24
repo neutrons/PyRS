@@ -1117,6 +1117,10 @@ class TestIncompleteEntryIsRefusedUpFront:
             ),
             ("entry/SAMPLE_DESCRIPTION/transformations", r"no `transformations` group"),
             ("entry/instrument/monochromator/wavelength", r"no 'monochromator/wavelength'"),
+            (
+                "entry/instrument/DETECTOR/transformations/arm_rotation",
+                r"no 'DETECTOR/transformations/arm_rotation'",
+            ),
         ],
     )
     def test_missing_dataset_raises_and_leaves_the_file_unchanged(
@@ -1465,57 +1469,3 @@ class TestDetectorChainOnAppend:
         with pytest.raises(RuntimeError, match="instrument geometry"):
             with NXstress(path, "a") as nx:
                 nx.write([ws], [peaks])
-
-    @staticmethod
-    def _as_written_before_1099(path):
-        """The detector chain as NXstress wrote it before #1099: old names, no arm angle, no errors"""
-        with h5py.File(path, "a") as f:
-            trans = f["entry/instrument/DETECTOR/transformations"]
-            for new, old in (
-                ("shift_x", "translation_x"),
-                ("shift_y", "translation_y"),
-                ("shift_z", "translation_z"),
-                ("arm_length", "distance"),
-                ("two_theta_0", "two_theta_zero"),
-            ):
-                trans.move(new, old)
-            for name in [name for name in trans if name.endswith("_errors")] + ["arm_rotation"]:
-                del trans[name]
-
-    def test_append_to_an_entry_from_before_1099(
-        self, discriminated, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
-    ):
-        """An old entry with the same calibration takes the append; it has no arm angle to grow"""
-        # Arrange
-        path = tmp_path / "entry.nxs"
-        self._first(minimal_HidraWorkspace, minimal_PeakCollection, path)
-        self._as_written_before_1099(path)
-        ws, peaks = self._second(minimal_HidraWorkspace, minimal_PeakCollection)
-
-        # Act
-        with NXstress(path, "a") as nx:
-            nx.write([ws], [peaks])
-
-        # Assert
-        assert scan_points(path) == [1, 2, 3, 4, 5, 6]
-        with h5py.File(path, "r") as f:
-            assert "arm_rotation" not in f["entry/instrument/DETECTOR/transformations"]
-
-    def test_refusal_names_an_entry_from_before_1099(
-        self, discriminated, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
-    ):
-        """An old entry recorded the nominal detector; data now carrying its calibration is refused, and the
-        message says the entry is the reason"""
-        # Arrange - the old entry written without a calibration
-        path = tmp_path / "entry.nxs"
-        ws, peaks = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="11", sub_runs=(1, 2, 3))
-        ws.set_detector_shift(None)
-        with NXstress(path, "w") as nx:
-            nx.write([ws], [peaks])
-        self._as_written_before_1099(path)
-        calibrated, calibrated_peaks = self._second(minimal_HidraWorkspace, minimal_PeakCollection)
-
-        # Act / Assert
-        with pytest.raises(RuntimeError, match="#1099"):
-            with NXstress(path, "a") as nx:
-                nx.write([calibrated], [calibrated_peaks])

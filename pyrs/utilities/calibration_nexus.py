@@ -28,8 +28,8 @@ Layout (``.nxs``)::
                                             request, the reduced patterns under /patterns
 
 Written and read with ``nexusformat``, as PyRS's NXstress output is. The frame is PyRS's: +Z along the incident
-beam, +Y up. ``arm_rotation`` is stored as 0: the arm angle
-belongs to each sub-run (``-get_detector_2theta()``), not to the calibration. Error codes are the JSON's:
+beam, +Y up. The chain ends at ``two_theta_0``: the file holds the calibration parameters only, and PyRS adds
+each sub-run's arm angle (``-get_detector_2theta()``) when it builds the instrument. Error codes are the JSON's:
 -1 not refined (or held), -2 refined but undetermined.
 """
 
@@ -75,6 +75,9 @@ _TRANSFORMATIONS = _DETECTOR + "/transformations"
 _NOTE = _DETECTOR + "/calibration_method"
 _MONOCHROMATOR = "entry/instrument/monochromator"
 _PROCESS = "entry/calibration"
+_ARM_ROTATION = CALIBRATION_TRANSFORMATIONS[-1][0]
+# a calibration file's chain: CALIBRATION_TRANSFORMATIONS without the arm angle, which belongs to each sub-run
+_CALIBRATION_CHAIN = CALIBRATION_TRANSFORMATIONS[:-1]
 
 
 def _value(value: float, units: Optional[str] = None) -> NXfield:
@@ -89,7 +92,8 @@ def detector_transformations(
     shifts: Optional[DENEXDetectorShift],
     shifts_error: Optional[DENEXDetectorShift],
     arm_length: float,
-    arm_rotation: Optional[NXfield] = None,
+    *,
+    arm_rotation: Optional[NXfield],
 ) -> NXtransformations:
     """The detector's placement as an ``NXtransformations`` group: :func:`~pyrs.core.detector_model.transformation_chain`
     written as NeXus, each calibration parameter with its ``<name>_errors`` beside it. The calibration file and
@@ -102,8 +106,10 @@ def detector_transformations(
         shifts: Detector shift, rotations and 2theta_0, or None for the nominal geometry.
         shifts_error: Their errors (or the -1 / -2 codes), or None: -1 (not refined) for every one.
         arm_length: Sample-to-detector distance L2 (m).
-        arm_rotation: The ``arm_rotation`` field to write, e.g. one value per scan point (NXstress); default: 0,
-            as a calibration file stores it (the arm angle belongs to each sub-run).
+        arm_rotation: The ``arm_rotation`` field ending the chain, one value per scan point (NXstress), or None
+            for a calibration file, whose chain ends at ``two_theta_0``: the arm angle belongs to each sub-run,
+            not to the calibration. The field itself is stored, with its ``units``, ``note`` and chain
+            attributes set on it.
 
     Returns:
         The group, to store as the detector's ``transformations``.
@@ -113,17 +119,18 @@ def detector_transformations(
     transformations = NXtransformations()
     chain = transformation_chain(shifts, arm_length)
     errors = transformation_chain(shifts_error, arm_length)  # the parameters' errors, by name
+    if arm_rotation is None:
+        chain, errors = chain[:-1], errors[:-1]  # arm_rotation is the chain's last link
     for index, (step, error) in enumerate(zip(chain, errors)):
         if step.name == "arm_rotation" and arm_rotation is not None:
             field = arm_rotation
             field.attrs["units"] = step.units
+            field.attrs["note"] = "-(DAS arm 2theta), per scan point; not a calibration parameter"
         else:
             field = _value(step.value, step.units)
         field.attrs["transformation_type"] = step.transformation_type
         field.attrs["vector"] = np.array(step.vector, dtype=np.float64)
         field.attrs["depends_on"] = chain[index + 1].name if index + 1 < len(chain) else "."
-        if step.name == "arm_rotation":
-            field.attrs["note"] = "-(DAS arm 2theta), per sub-run; not a calibration parameter"
         transformations[step.name] = field
         if step.parameter is not None:
             transformations[step.name + "_errors"] = _value(error.value, step.units)
@@ -198,7 +205,9 @@ def write_calibration_nexus(
         note["data"] = NXfield(provenance_text)
     detector["calibration_method"] = note
 
-    detector["transformations"] = detector_transformations(shifts, shifts_error, geometry.arm_length)
+    detector["transformations"] = detector_transformations(
+        shifts, shifts_error, geometry.arm_length, arm_rotation=None
+    )
 
     monochromator = NXmonochromator()
     monochromator["wavelength"] = _value(wave_length, "angstrom")
@@ -320,8 +329,10 @@ def _scalar(field: NXfield, file_name: str) -> Any:
 
 def _check_chain(root: NXgroup, file_name: str) -> NXgroup:
     """The transformations group, after checking it is exactly the chain this PyRS applies (else ValueError):
-    every transformation's type, vector, units and ``depends_on``, the detector's ``depends_on``, and the
-    per-sub-run ``arm_rotation`` stored as 0."""
+    every transformation's type, vector, units and ``depends_on``, and the detector's ``depends_on``.
+
+    The chain is checked up to ``two_theta_0``. An ``arm_rotation`` entry, which PyRS does not write here, is
+    skipped: reduction takes the arm angle from each sub-run, never from the calibration file."""
     detector, transformations = _group(root, _DETECTOR), _group(root, _TRANSFORMATIONS)
     if detector is None or transformations is None:
         raise RuntimeError(f"{file_name}: no {_TRANSFORMATIONS} group; not a PyRS NeXus calibration file")
@@ -330,32 +341,29 @@ def _check_chain(root: NXgroup, file_name: str) -> NXgroup:
     depends_on = _text(field.nxdata) if field is not None else None
     if depends_on != first:
         raise ValueError(f"{file_name}: the detector depends_on {depends_on!r}, expected {first!r}")
-    for index, (name, transformation_type, vector, units, _) in enumerate(CALIBRATION_TRANSFORMATIONS):
+    chain = _CALIBRATION_CHAIN
+    for index, (name, transformation_type, vector, units, _) in enumerate(chain):
         field = _field(transformations, name, file_name)
         if field is None:
             raise RuntimeError(f"{file_name}: transformation {name!r} is missing")
-        expected_next = (
-            CALIBRATION_TRANSFORMATIONS[index + 1][0] if index + 1 < len(CALIBRATION_TRANSFORMATIONS) else "."
-        )
+        expected_next = {chain[index + 1][0]} if index + 1 < len(chain) else {".", _ARM_ROTATION}
         attrs = field.attrs
         found = (
             _text(attrs.get("transformation_type")),
             tuple(float(v) for v in np.asarray(attrs.get("vector", ()), dtype=float).reshape(-1)),
             _text(attrs.get("units")),
-            _text(attrs.get("depends_on")),
         )
-        if found != (transformation_type, vector, units, expected_next):
+        depends_on = _text(attrs.get("depends_on"))
+        if found != (transformation_type, vector, units) or depends_on not in expected_next:
             raise ValueError(
-                f"{file_name}: transformation {name!r} is {found}, expected "
-                f"{(transformation_type, vector, units, expected_next)}; it would be applied differently"
+                f"{file_name}: transformation {name!r} is {found + (depends_on,)}, expected "
+                f"{(transformation_type, vector, units)} and depends_on in {sorted(expected_next)}; "
+                "it would be applied differently"
             )
         # NeXus's optional offset displaces where a transformation acts; DetectorModel has none (#1054 review)
         offset = np.asarray(attrs.get("offset", 0.0), dtype=float)
         if np.any(offset != 0):
             raise ValueError(f"{file_name}: transformation {name!r} has offset {offset.tolist()}; PyRS applies none")
-    arm = _scalar(transformations["arm_rotation"], file_name)
-    if arm != 0.0:
-        raise ValueError(f"{file_name}: arm_rotation is {arm}, expected 0 (the arm angle belongs to each sub-run)")
     return transformations
 
 
@@ -414,7 +422,7 @@ def read_calibration_nexus(
     Raises:
         RuntimeError: If the file is not a PyRS NeXus calibration file (a group or value is missing).
         ValueError: If it would be applied differently from how this PyRS writes it: another transformation
-            chain, a transformation ``offset``, a non-zero ``arm_rotation``, another pixel layout, non-zero
+            chain, a transformation ``offset``, another pixel layout, non-zero
             ``z_pixel_offset``, lengths not in metres, or a group where a data field belongs.
         OSError: If it is not an HDF5 file.
     """

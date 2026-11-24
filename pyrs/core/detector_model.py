@@ -358,13 +358,13 @@ def transformation_chain(
 
     Applied in order to a pixel's uncalibrated position (:meth:`DetectorModel.local_positions`), the chain
     gives its lab position, as :meth:`DetectorModel.lab_positions` does: the one description of the
-    detector's geometry, for the NeXus calibration file (and, later, NXstress output).
+    detector's geometry, for the NeXus calibration file and NXstress output.
 
     Args:
         calibration: Detector shift, rotations and 2theta_0, or None for the nominal geometry.
         arm_length: Sample-to-detector distance L2 (m).
         arm_two_theta: Arm angle in the Mantid/PyRS convention (``-get_detector_2theta()``); a calibration
-            file stores 0, since the arm angle belongs to each sub-run, not to the calibration.
+            file omits the arm angle, which belongs to each sub-run.
 
     Returns:
         The transformations of :data:`CALIBRATION_TRANSFORMATIONS`, with their values.

@@ -53,7 +53,7 @@ class HidraWorkspace:
         self._instrument_setup = None
         self._instrument_geometry_shift = None  # geometry shift
         # the calibration reduction applied, from a project file's record (#1099): kept apart from the shift
-        # above, which reduction applies when no calibration file is given (PowderPatternCalculator)
+        # above, which reduction applies when no calibration file is given (ReductionApp)
         self._recorded_calibration = None
 
         # sample logs

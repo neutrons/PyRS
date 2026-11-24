@@ -334,14 +334,14 @@ class TestStandaloneMethods:
         # Transformations
         trans = NXtransformations()
         trans.attrs["calibrated"] = True
-        trans["distance"] = NXfield(2.0, units="m")
-        trans["translation_x"] = NXfield(0.01, units="m")
-        trans["translation_y"] = NXfield(0.02, units="m")
-        trans["translation_z"] = NXfield(0.03, units="m")
+        trans["arm_length"] = NXfield(2.0, units="m")
+        trans["shift_x"] = NXfield(0.01, units="m")
+        trans["shift_y"] = NXfield(0.02, units="m")
+        trans["shift_z"] = NXfield(0.03, units="m")
         trans["rotation_x"] = NXfield(1.0, units="deg")
         trans["rotation_y"] = NXfield(2.0, units="deg")
         trans["rotation_z"] = NXfield(3.0, units="deg")
-        trans["two_theta_zero"] = NXfield(0.5, units="deg")
+        trans["two_theta_0"] = NXfield(0.5, units="deg")
 
         det["transformations"] = trans
         inst["DETECTOR"] = det

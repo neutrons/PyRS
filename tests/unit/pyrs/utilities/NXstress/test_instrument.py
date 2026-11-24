@@ -7,7 +7,7 @@ from collections.abc import Callable
 import logging
 
 import numpy as np
-from nexusformat.nexus import NXcollection, NXinstrument, NXdetector_module, NXfield, nxload
+from nexusformat.nexus import NXcollection, NXinstrument, NXdetector_module, nxload
 import pytest
 
 from pyrs.core.detector_model import DetectorModel, rotation_matrix
@@ -313,12 +313,12 @@ class TestDetectorRotationOrder:
     """The written rotation order is the reduction's, and that is now asserted.
 
     `_instrument.py` carried `# TODO: check order of rotations here!!!` from the
-    first implementation until this review. The order turned out to be correct,
-    which `probes/a5_transformations_chain.py` established — but a probe is run
-    during an audit, not on every commit, and the two existing chain tests pin
-    *reachability* and *pairwise links*, neither of which would catch a reordering
-    that kept the chain connected. Swapping `rotation_x` and `rotation_z` in the
-    writer leaves both of them green.
+    first implementation until this review. The rotation sub-order turned out to be
+    correct, which `probes/a5_transformations_chain.py` established; the rest of the
+    old chain was not (#1099: 2θ₀ came first and the x/y shifts last). A probe is run
+    during an audit, not on every commit, and the reachability and pairwise-link
+    chain tests would not catch a reordering that kept the chain connected; this
+    class and `TestDetectorChainIsTheCalibrationFiles` (pixel positions) do.
 
     So the claim is asserted against its referent: the composed sub-chain equals
     `pyrs.core.detector_model.rotation_matrix`, the rotation the reduction
@@ -634,50 +634,44 @@ class TestDetectorChainIsTheCalibrationFiles:
         assert arms.shape == (3,)
         assert np.isnan(arms).all()
 
-    @staticmethod
-    def _as_old_layout(inst):
-        """Rename an entry's chain to the layout NXstress wrote before #1099, as an old file has it"""
-        trans = inst["DETECTOR"]["transformations"]
-        old = {"shift_x": "translation_x", "shift_y": "translation_y", "shift_z": "translation_z"}
-        old.update({"arm_length": "distance", "two_theta_0": "two_theta_zero"})
-        for new, name in old.items():
-            trans[name] = NXfield(float(trans[new].nxdata))
-            del trans[new]
-        for name in [name for name in trans if name.endswith("_errors")] + ["arm_rotation"]:
-            del trans[name]
-        return trans
-
-    def test_old_layout_reads_back_the_same(self, minimal_HidraWorkspace):
-        """An entry NXstress wrote before #1099 (translation_*, distance, two_theta_zero) reads as before, with no
-        errors"""
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "DETECTOR/detector_bank/data_size",
+            "DETECTOR/detector_bank/fast_pixel_direction",
+            "DETECTOR/detector_bank/slow_pixel_direction",
+            "DETECTOR/transformations/arm_length",
+            "DETECTOR/transformations/shift_x",
+            "DETECTOR/transformations/shift_y",
+            "DETECTOR/transformations/shift_z",
+            "DETECTOR/transformations/rotation_x",
+            "DETECTOR/transformations/rotation_y",
+            "DETECTOR/transformations/rotation_z",
+            "DETECTOR/transformations/two_theta_0",
+            "monochromator/wavelength",
+        ],
+    )
+    def test_missing_field_is_refused(self, minimal_HidraWorkspace, path):
+        """NXstress writes every field, so a missing one is a failed write or a corrupt file: it is refused by
+        name, never read as 0 (#1132 review, G9)"""
         # Arrange
         inst = _Instrument.init_group([self._workspace(minimal_HidraWorkspace)])
-        self._as_old_layout(inst)
+        parent, name = path.rsplit("/", 1)
+        del inst[parent][name]
 
-        # Act
-        geometry, shift, _ = _Instrument.instrumentFromNexus(inst)
+        # Act / Assert
+        with pytest.raises(RuntimeError, match=f"instrument/{path} is missing"):
+            _Instrument.instrumentFromNexus(inst)
 
-        # Assert
-        assert shift.convert_to_dict() == pytest.approx(self.SHIFT.convert_to_dict())
-        assert geometry.arm_length == pytest.approx(2.0)
-        assert _Instrument.shiftErrorFromNexus(inst) is None
-
-    def test_new_names_win_over_old_ones(self, minimal_HidraWorkspace):
-        """With both layouts' names present, the chain's (#1099) are read"""
+    def test_missing_calibrated_flag_is_refused(self, minimal_HidraWorkspace):
+        """Without the flag, whether the chain holds a calibration is unknown: refused, not read as uncalibrated"""
         # Arrange
         inst = _Instrument.init_group([self._workspace(minimal_HidraWorkspace)])
-        trans = inst["DETECTOR"]["transformations"]
-        trans["translation_x"] = NXfield(9.0)
-        trans["two_theta_zero"] = NXfield(9.0)
-        trans["distance"] = NXfield(9.0)
+        del inst["DETECTOR"]["transformations"].attrs["calibrated"]
 
-        # Act
-        geometry, shift, _ = _Instrument.instrumentFromNexus(inst)
-
-        # Assert
-        assert shift.center_shift_x == pytest.approx(0.004)
-        assert shift.two_theta_0 == pytest.approx(0.656)
-        assert geometry.arm_length == pytest.approx(2.0)
+        # Act / Assert
+        with pytest.raises(RuntimeError, match="'calibrated' attribute"):
+            _Instrument.instrumentFromNexus(inst)
 
 
 def test_errors_survive_a_read_back_and_rewrite(minimal_HidraWorkspace, minimal_PeakCollection, tmp_path):
