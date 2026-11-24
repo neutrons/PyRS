@@ -39,7 +39,7 @@ from ._definitions import (
 )
 from ._transformations import resolve_depends_on
 from pyrs.core.detector_model import CALIBRATION_TRANSFORMATIONS
-from pyrs.utilities.calibration_nexus import detector_transformations
+from pyrs.utilities.calibration_nexus import detector_transformations, shift_from_parameters
 
 
 _logger = logging.getLogger(__name__)
@@ -144,7 +144,7 @@ class _Instrument:
         recorded = ws.get_recorded_calibration()
         shift = ws.get_detector_shift()
         if shift is None:
-            return (recorded[0], recorded[1]) if recorded is not None else (None, None)
+            return recorded if recorded is not None else (None, None)
         # the errors belong to the shift only if the recorded calibration is that shift (e.g. NXstress read-back)
         same = recorded is not None and _Instrument._shift_key(recorded[0]) == _Instrument._shift_key(shift)
         return shift, (recorded[1] if same else None)
@@ -157,7 +157,8 @@ class _Instrument:
         geometry = ws.get_instrument_setup()
         if geometry is None:
             return None
-        l2 = {float(value) for value in (ws.get_l2(sub_run) for sub_run in ws.get_sub_runs()) if value is not None}
+        per_sub_run = [ws.get_l2(sub_run) for sub_run in ws.get_sub_runs()]
+        l2 = {float(value) for value in per_sub_run if value is not None}
         if not l2:
             return geometry
         if len(l2) > 1:
@@ -167,7 +168,7 @@ class _Instrument:
             )
         rows, columns = geometry.detector_size
         pixel_x, pixel_y = geometry.pixel_dimension
-        return DENEXDetectorGeometry(rows, columns, pixel_x, pixel_y, l2.pop(), False)
+        return DENEXDetectorGeometry(rows, columns, pixel_x, pixel_y, l2.pop(), calibrated=False)
 
     @staticmethod
     def _concatenated_arm_rotation(wss: list[HidraWorkspace]) -> np.ndarray:
@@ -493,13 +494,21 @@ class _Instrument:
                 )
 
     @classmethod
-    def shiftErrorFromNexus(cls, instrument) -> DENEXDetectorShift | None:
-        """The calibration's errors written beside the chain (`<name>_errors`), or None when any is missing."""
-        trans = instrument[GROUP_NAME.DETECTOR]["transformations"]
-        names = ("shift_x", "shift_y", "shift_z", "rotation_x", "rotation_y", "rotation_z", "two_theta_0")
-        if not all(f"{name}_errors" in trans for name in names):
-            return None
-        return DENEXDetectorShift(*(float(trans[f"{name}_errors"].nxdata) for name in names))
+    def shiftErrorFromNexus(cls, instrument) -> DENEXDetectorShift:
+        """The calibration's errors written beside the chain: one `<name>_errors` per calibration parameter of
+        `CALIBRATION_TRANSFORMATIONS`, the table the writer uses (-1 where none is known).
+
+        Raises:
+            RuntimeError: If one is missing, naming it: NXstress always writes all of them, so the write failed
+                or the file is corrupt (#1132 review, G8).
+        """
+        chain = f"{GROUP_NAME.DETECTOR}/transformations"
+        errors = {
+            parameter: float(np.asarray(cls._required(instrument, f"{chain}/{name}_errors").nxdata).ravel()[0])
+            for name, _, _, _, parameter in CALIBRATION_TRANSFORMATIONS
+            if parameter is not None
+        }
+        return shift_from_parameters(errors)
 
     @classmethod
     @validate_call_

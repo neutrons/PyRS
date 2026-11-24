@@ -3675,6 +3675,9 @@ the Docs: `docs/user/source`), so nothing caught it.
 - **Arm length (user decision):** a single value, the runs' `L2` log when present (the one reduction uses), else
   the instrument's. An entry whose L2 differs between scan points is refused.
 - **Errors (user decision):** those of the applied calibration. −1 where none are known.
+  **Superseded (user decision, #1132 review G3; implemented by #1141):** −1 is the default (not refined, as
+  in the nominal calibration) and −2 an unknown error, so an error that is not known is written as −2. Until
+  #1141 lands, this PR still writes −1.
 - **NXstress used to write the nominal detector for real data.** A workspace loaded from a project file never
   got the calibration reduction applied: only FitCalibration and NXstress read-back set its shift. So every
   NXstress file written from reduced data said `calibrated = False`.

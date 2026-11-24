@@ -62,6 +62,7 @@ from pyrs.utilities import checkdatatypes
 
 __all__ = [
     "detector_transformations",
+    "shift_from_parameters",
     "write_calibration_nexus",
     "read_calibration_nexus",
     "read_calibration_nexus_provenance",
@@ -86,6 +87,34 @@ def _value(value: float, units: Optional[str] = None) -> NXfield:
     if units is not None:
         field.attrs["units"] = units
     return field
+
+
+def shift_from_parameters(parameters: Mapping[str, float], file_name: str = "") -> DENEXDetectorShift:
+    """A detector shift from its values keyed by calibration parameter name.
+
+    The keys are the parameter names of :data:`CALIBRATION_TRANSFORMATIONS` (``Shift_x`` ... ``TTH_0``). The shift
+    is built by keyword: the table is in chain order, not in the constructor's.
+
+    Args:
+        parameters: Value of every calibration parameter, e.g. the shift's values or their errors.
+        file_name: The calibration file the values came from, if any.
+
+    Returns:
+        The shift.
+
+    Raises:
+        KeyError: If a parameter is missing.
+    """
+    return DENEXDetectorShift(
+        shift_x=parameters["Shift_x"],
+        shift_y=parameters["Shift_y"],
+        shift_z=parameters["Shift_z"],
+        rotation_x=parameters["Rot_x"],
+        rotation_y=parameters["Rot_y"],
+        rotation_z=parameters["Rot_z"],
+        tth_0=parameters["TTH_0"],
+        calibration_file=file_name,
+    )
 
 
 def detector_transformations(
@@ -452,19 +481,13 @@ def read_calibration_nexus(
         )
         status = int(_scalar(fields[_NOTE + "/status"], calibration_file_name))
 
-    def shift(parameters: Dict[str, float], file_name: str = "") -> DENEXDetectorShift:
-        return DENEXDetectorShift(
-            shift_x=parameters["Shift_x"],
-            shift_y=parameters["Shift_y"],
-            shift_z=parameters["Shift_z"],
-            rotation_x=parameters["Rot_x"],
-            rotation_y=parameters["Rot_y"],
-            rotation_z=parameters["Rot_z"],
-            tth_0=parameters["TTH_0"],
-            calibration_file=file_name,
-        )
-
-    return shift(values, calibration_file_name), shift(errors), wave_length, wave_length_error, status
+    return (
+        shift_from_parameters(values, calibration_file_name),
+        shift_from_parameters(errors),
+        wave_length,
+        wave_length_error,
+        status,
+    )
 
 
 def read_calibration_nexus_provenance(calibration_file_name: str) -> Optional[Dict[str, Any]]:

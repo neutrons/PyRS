@@ -632,6 +632,20 @@ class TestDetectorChainIsTheCalibrationFiles:
         with pytest.raises(RuntimeError, match=f"instrument/{path} is missing"):
             _Instrument.instrumentFromNexus(inst)
 
+    @pytest.mark.parametrize(
+        "name", ["shift_x", "shift_y", "shift_z", "rotation_x", "rotation_y", "rotation_z", "two_theta_0"]
+    )
+    def test_missing_error_is_refused(self, minimal_HidraWorkspace, name):
+        """NXstress writes every `<name>_errors` (-1 where none is known), so a missing one is a corrupt file:
+        refused by name, never read as "no errors" (#1132 review, G8)"""
+        # Arrange
+        inst = _Instrument.init_group([self._workspace(minimal_HidraWorkspace)])
+        del inst["DETECTOR"]["transformations"][f"{name}_errors"]
+
+        # Act / Assert
+        with pytest.raises(RuntimeError, match=f"transformations/{name}_errors is missing"):
+            _Instrument.shiftErrorFromNexus(inst)
+
     def test_missing_calibrated_flag_is_refused(self, minimal_HidraWorkspace):
         """Without the flag, whether the chain holds a calibration is unknown: refused, not read as uncalibrated"""
         # Arrange

@@ -667,11 +667,10 @@ class HidraWorkspace:
         # the appended data must have had the same calibration applied, or none can be claimed for the whole (#1099)
         appended = self._read_recorded_calibration(hidra_file)
         if _shift_values(appended) != _shift_values(self._recorded_calibration):
-            if self._recorded_calibration is not None or appended is not None:
-                self._log.warning(
-                    f"{hidra_file.name} was reduced with a different calibration (or none) than the data before it; "
-                    "the combined data records no applied calibration"
-                )
+            self._log.warning(
+                f"{hidra_file.name} was reduced with a different calibration (or none) than the data before it; "
+                "the combined data records no applied calibration"
+            )
             self._recorded_calibration = None
 
     def get_detector_mask(self, is_default, mask_id=None):
