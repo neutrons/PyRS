@@ -99,7 +99,7 @@ def test_arm_angles_and_length_are_the_runs(written):
     workspace, detector = written
     trans = detector["transformations"]
     sub_runs = list(workspace.get_sub_runs())
-    l2 = workspace.get_l2(sub_runs[0])
+    assert workspace.get_l2(sub_runs[0]) is None  # HB2B_3510 has no L2 log: the instrument's arm length
 
     # Act
     arms = np.asarray(trans["arm_rotation"].nxdata)
@@ -107,8 +107,7 @@ def test_arm_angles_and_length_are_the_runs(written):
     # Assert - one arm angle per sub-run, -(2theta log); the arm length reduction used
     assert arms.shape == (len(sub_runs),)
     np.testing.assert_array_equal(arms, [-workspace.get_detector_2theta(sub_run) for sub_run in sub_runs])
-    expected_length = workspace.get_instrument_setup().arm_length if l2 is None else l2
-    assert float(trans["arm_length"].nxdata) == pytest.approx(expected_length)
+    assert float(trans["arm_length"].nxdata) == pytest.approx(workspace.get_instrument_setup().arm_length)
 
 
 def test_chain_places_real_pixels_as_reduction_does(written):

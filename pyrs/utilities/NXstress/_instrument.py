@@ -22,6 +22,7 @@ import json
 
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 from pyrs.core.workspaces import HidraWorkspace
+from pyrs.dataobjects.constants import HidraConstants
 from pyrs.utilities.config import Config
 from pyrs.utilities.pydantic_transition import validate_call_
 
@@ -173,15 +174,20 @@ class _Instrument:
     @staticmethod
     def _concatenated_arm_rotation(wss: list[HidraWorkspace]) -> np.ndarray:
         """`arm_rotation` per scan point, in workspace order: -(the `2theta` log), the convention
-        `DetectorModel` uses; NaN where a sub-run has no `2theta` log (synthetic data), since the angle is then
-        unknown."""
-        values = []
+        `DetectorModel` uses.
+
+        Raises:
+            RuntimeError: If a workspace has no `2theta` log: without the arm angle the detector cannot be
+                placed, so the data are refused (#1132 review, G9), never written with an invented angle.
+        """
+        values: list[float] = []
         for ws in wss:
-            for sub_run in ws.get_sub_runs():
-                try:
-                    values.append(-float(ws.get_detector_2theta(sub_run)))
-                except RuntimeError:
-                    values.append(np.nan)
+            if not ws.has_sample_log(HidraConstants.TWO_THETA):
+                raise RuntimeError(
+                    f"NXstress._instrument: workspace {ws.name!r} has no '{HidraConstants.TWO_THETA}' log; "
+                    "the arm angle is required to place the detector"
+                )
+            values.extend(-float(ws.get_detector_2theta(sub_run)) for sub_run in ws.get_sub_runs())
         return np.asarray(values, dtype=np.float64)
 
     @staticmethod

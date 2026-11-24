@@ -590,18 +590,15 @@ class TestDetectorChainIsTheCalibrationFiles:
         with pytest.raises(RuntimeError, match="L2"):
             _Instrument.init_group([ws])
 
-    def test_missing_arm_angle_is_nan(self, minimal_HidraWorkspace):
-        """Without a 2theta log (synthetic data) the arm angle is unknown, not 0: one NaN per scan point"""
+    def test_missing_arm_angle_is_refused(self, minimal_HidraWorkspace):
+        """Without a 2theta log the detector cannot be placed: the data are refused, naming the workspace, never
+        written with an invented angle (#1132 review, G9)"""
         # Arrange
-        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3])
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], name="no_arm", with_arm_angle=False)
 
-        # Act
-        trans = _Instrument.init_group([ws])["DETECTOR"]["transformations"]
-
-        # Assert
-        arms = np.asarray(trans["arm_rotation"].nxdata)
-        assert arms.shape == (3,)
-        assert np.isnan(arms).all()
+        # Act / Assert
+        with pytest.raises(RuntimeError, match="'no_arm' has no '2theta' log"):
+            _Instrument.init_group([ws])
 
     @pytest.mark.parametrize(
         "path",
@@ -655,6 +652,76 @@ class TestDetectorChainIsTheCalibrationFiles:
         # Act / Assert
         with pytest.raises(RuntimeError, match="'calibrated' attribute"):
             _Instrument.instrumentFromNexus(inst)
+
+
+class TestRecordedCalibrationAcrossWorkspaces:
+    """A workspace loaded from a project file has no detector shift of its own, only the calibration its reduction
+    recorded. A multi-workspace write and an append compare those records (#1132 review, G4)."""
+
+    SHIFT = TestDetectorChainIsTheCalibrationFiles.SHIFT
+    ERRORS = TestDetectorChainIsTheCalibrationFiles.ERRORS
+    OTHER = DENEXDetectorShift(0.004, -0.003, 0.012, 0.3, -0.5, 1.2, 0.7)  # SHIFT with another 2theta_0
+
+    @staticmethod
+    def _recorded(minimal_HidraWorkspace, sub_runs, shift, errors) -> HidraWorkspace:
+        """A workspace as loaded from a project file: the recorded calibration only (none if `shift` is None)."""
+        ws = minimal_HidraWorkspace(sub_runs=sub_runs, with_instrument=True)
+        ws.set_detector_shift(None)
+        if shift is not None:
+            ws.set_recorded_calibration(shift, errors)
+        return ws
+
+    @pytest.mark.parametrize("second", ["other", "none"])
+    def test_differing_recorded_calibrations_are_refused(self, minimal_HidraWorkspace, second):
+        """One entry holds one calibration: runs recorded with another calibration, or with none, are refused"""
+        # Arrange
+        first = self._recorded(minimal_HidraWorkspace, [1, 2, 3], self.SHIFT, self.ERRORS)
+        shift, errors = (self.OTHER, self.ERRORS) if second == "other" else (None, None)
+        other = self._recorded(minimal_HidraWorkspace, [4, 5, 6], shift, errors)
+
+        # Act / Assert
+        with pytest.raises(RuntimeError, match="disagree on detector shift"):
+            _Instrument.init_group([first, other])
+
+    def test_shared_recorded_calibration_merges(self, minimal_HidraWorkspace):
+        """Runs recorded with the same calibration share one entry, with that calibration and its errors"""
+        # Arrange
+        wss = [
+            self._recorded(minimal_HidraWorkspace, sub_runs, self.SHIFT, self.ERRORS)
+            for sub_runs in ([1, 2, 3], [4, 5, 6])
+        ]
+
+        # Act
+        inst = _Instrument.init_group(wss)
+
+        # Assert
+        _, shift, _ = _Instrument.instrumentFromNexus(inst)
+        assert shift.convert_to_dict() == pytest.approx(self.SHIFT.convert_to_dict())
+        assert _Instrument.shiftErrorFromNexus(inst).convert_to_dict() == pytest.approx(self.ERRORS.convert_to_dict())
+        assert np.asarray(inst["DETECTOR"]["transformations"]["arm_rotation"].nxdata).shape == (6,)
+
+    def test_append_of_same_recorded_calibration_grows(self, minimal_HidraWorkspace):
+        """An append recorded with the entry's calibration is accepted, and its arm angles extend the entry's"""
+        # Arrange
+        inst = _Instrument.init_group([self._recorded(minimal_HidraWorkspace, [1, 2, 3], self.SHIFT, self.ERRORS)])
+        incoming = self._recorded(minimal_HidraWorkspace, [4, 5, 6], self.SHIFT, self.ERRORS)
+
+        # Act
+        _Instrument.validateAppend([incoming], inst)
+        _Instrument.init_group([incoming], inst)
+
+        # Assert
+        assert np.asarray(inst["DETECTOR"]["transformations"]["arm_rotation"].nxdata).shape == (6,)
+
+    def test_append_of_other_recorded_calibration_raises(self, minimal_HidraWorkspace):
+        """An append recorded with another calibration is refused before anything is written"""
+        # Arrange
+        inst = _Instrument.init_group([self._recorded(minimal_HidraWorkspace, [1, 2, 3], self.SHIFT, self.ERRORS)])
+        incoming = self._recorded(minimal_HidraWorkspace, [4, 5, 6], self.OTHER, self.ERRORS)
+
+        # Act / Assert
+        with pytest.raises(RuntimeError, match="disagree with the target entry on detector shift"):
+            _Instrument.validateAppend([incoming], inst)
 
 
 def test_errors_survive_a_read_back_and_rewrite(minimal_HidraWorkspace, minimal_PeakCollection, tmp_path):

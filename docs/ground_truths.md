@@ -3670,8 +3670,13 @@ the Docs: `docs/user/source`), so nothing caught it.
   and skips an `arm_rotation` entry if a file has one (no check, no refusal). No calibration NeXus files had
   been written before this, so the old layout (`arm_rotation` = 0) needs no support. Replaces the old shared
   note, which told calibration files they held −(DAS arm 2theta).
-- **Arm angle:** `arm_rotation` holds one value per scan point, −(the `2theta` log), and grows on append. It is NaN
-  where there is no `2theta` log (synthetic data).
+- **Arm angle:** `arm_rotation` holds one value per scan point, −(the `2theta` log), and grows on append. Data
+  without a `2theta` log are refused (user decision, #1132 review G9): without the arm angle the detector cannot
+  be placed, so the write fails, naming the workspace. (It used to write NaN.)
+- **Calibration defaults and L2 (user decisions, #1132 review G9):** a default calibration parameter is 0 with
+  error −1 (the nominal calibration), so a calibration JSON missing a parameter reads as the default
+  (`check_calibration_dictionary`, unchanged). L2 is part of the calibration and is to be compared by its hash
+  (#1141); until then it is compared for exact equality.
 - **Arm length (user decision):** a single value, the runs' `L2` log when present (the one reduction uses), else
   the instrument's. An entry whose L2 differs between scan points is refused.
 - **Errors (user decision):** those of the applied calibration. −1 where none are known.
