@@ -118,6 +118,214 @@ Always include:
 
 Full examples (a function, a test, module and class docstrings): [docs/developer/source/code_style.rst](docs/developer/source/code_style.rst).
 
+## `None` must name a value, not a gap
+
+**Absence must be distinguishable from a falsey value.** `""`, `[]`, `0` and
+`None` each mean something real somewhere, so none of them can also mean "not
+supplied". `arg: Optional[T] = None` is where that collapse usually enters: the
+default makes "the caller decided `None`" and "the caller passed nothing" the same
+observation, and nothing at the call site recovers the difference. An argument
+whose absence would be a wiring bug therefore carries **no default at all** —
+required and keyword-only. `None` is then free to mean what it says.
+
+Two corollaries:
+
+- `None` must name a value in the argument's **domain**, never a gap. A `None`
+  standing in for "not computed yet" makes a half-built object indistinguishable
+  from a finished one; whatever the consumer actually wanted — usually an empty
+  collection — was the right value all along.
+- **Count the fillers.** One filler means absence is a bug, so no default. When
+  two parties fill a field — a model plus a prep hook, or a writer plus a reader
+  deserialising stored rows — absence from *one* of them is the normal case, so
+  the default is correct and the guard moves to whichever filler can tell that it
+  failed. (A row written by an *older version* of the code is not a filler: that is
+  a migration, done with the change, not an ongoing absence to guard against.)
+  For example:
+
+```python
+class ReductionRequest(BaseModel):
+    calibration_file: Optional[str] = None  # the caller never supplies this; a later step fills it
+
+
+def prepare(request: ReductionRequest) -> None:
+    ...
+    raise RuntimeError("calibration_file could not be resolved")  # never a quiet return
+```
+
+Why: requiring a field that a *second* party fills publishes it to the first one, which
+may have no way to supply it correctly. And a guard needs the information to be right: a
+step that sees only the payload cannot tell "this field does not exist here" from "this
+field was lost", so that check belongs in a test that reads the schema instead.
+
+## Keyword-only arguments
+
+Any function or method with more than 3 arguments, or with any argument
+that has a default value, keeps only its first one or two "primary
+subject" arguments positional — every other argument, whether it has a
+default or is required, goes after a bare `*`. This applies even to
+required arguments once the threshold is crossed, so that a function's
+argument list can grow later without breaking a positional call site.
+
+```python
+def reduce_sub_run(
+    run_number: int,
+    *,
+    detector_name: str,
+    calibration_file: str,
+    sub_runs: list[int],
+    output_path: str,
+) -> None: ...
+```
+
+Why: adopted as a general convention rather than from a specific PyRS incident. Many
+existing functions already cross the 3-arg/any-default threshold with positional
+signatures (e.g. `mask_util.save_mantid_mask(mask_vec, h5_name, two_theta, note=None)`);
+they are not swept up retroactively. Keeping required
+arguments positional past that threshold is what causes silent breakage later — a
+caller relying on positional order has no warning when a new required argument is
+inserted in the middle. Apply this when writing or extending a function that crosses
+the threshold, not as a retroactive sweep of existing ones.
+
+## Import placement
+
+**All imports go at the top of the file.** A function-local (deferred)
+import is allowed only when a top-level import would actually break — and
+when it is, the reason goes in a comment on the import line or immediately
+above it, naming the specific cycle or condition:
+
+```python
+def get_handle(self, name: str) -> "Handle":
+    from other_module import Handle  # deferred: other_module imports this module
+
+    ...
+```
+
+The three cases that genuinely justify deferring, and nothing else:
+
+1. **A real circular import.** Name the other module and the direction, as
+   above. "Might be circular" is not a justification — if you have not seen
+   the `ImportError`, move it to the top.
+2. **An optional dependency** not installed in every environment
+   (`nltk`, `sounddevice`, ...). Say which environment lacks it.
+3. **A genuinely expensive module-load** deferred off a hot import path, with
+   a note on what it costs.
+
+Do **not** defer an import to make `unittest.mock.patch` work. `from x import
+f` at module level binds `f` at import time, so patching `x.f` does not reach
+it — but the fix is to import the *module* at the top and call through it,
+which stays patchable:
+
+```python
+import some_module  # top-level
+
+
+def get_resource():
+    return some_module.get_settings().resource_root
+```
+
+Why: a deferred import hides a module's real dependency graph, moves
+`ImportError`s from startup to whenever that branch first runs, and costs a
+`sys.modules` lookup on every call. PyRS already has instances of the shape this
+rule targets — e.g. `pyrs/utilities/NXstress/_peaks.py`'s `from ._fit import
+_PeakParameters, _BackgroundParameters`, `from ._definitions import
+GROUP_NAME, UNDEFINED_PEAK_TAG` and `from pyrs.core.peak_profile_utility import
+PeakShape, BackgroundFunction`, all inside method bodies with no comment
+justifying the deferral. This rule applies to code you touch; existing
+instances are not to be swept up unless asked.
+
+## Private names do not cross module boundaries
+
+A leading underscore means *this module owns this name*. Another module
+importing it is a contradiction in terms, and it is always a signal about
+placement rather than a shortcut worth taking:
+
+```python
+from some_package.internals import PublicThing, _private_helper  # do NOT do this
+```
+
+Two sanctioned fixes, and which one applies is a question about ownership:
+
+1. **The name is genuinely part of that module's contract** and was
+   underscore-prefixed by habit. Drop the underscore, so the module exports it
+   deliberately.
+2. **Two modules both need it and neither owns it.** Extract it to a leaf
+   module they both import. This is the case whenever the import also closes an
+   import cycle — the cycle is the evidence that the name is in the wrong place.
+
+Three things this does **not** forbid:
+
+- `import public_name as _alias`, which is the opposite move: taking a public
+  name and keeping it out of the importing module's own surface. The rule is
+  about the name at its *definition*, not at the call site.
+- A **test** importing a private from the module it is testing —
+  `tests/unit/pyrs/utilities/NXstress/test_peaks_read.py` reaching directly for
+  `_peaks._Peaks` and `_fit._PeakParameters`. That is ordinary white-box
+  testing, and the test breaking on a rename is the intended behaviour rather
+  than collateral damage.
+- A package's own orchestrating module assembling its public surface from its
+  sibling private modules — `pyrs/utilities/NXstress/NXstress.py` importing
+  `_Instrument`/`_Sample`/`_Fit`/`_Peaks` from `_instrument.py`/`_sample.py`/
+  `_fit.py`/`_peaks.py`. These are the package's own internals talking to each
+  other, not one package reaching into another's; see *Private modules are not
+  the same thing as private names* below.
+
+Why: a private name carries no stability contract, so renaming one inside its
+owning module is an unannounced breaking change to code its author never looked
+at — and the underscore is precisely what told that author they were free to
+rename it. This rule applies to code you touch; existing violations are not to
+be swept up unless asked.
+
+### Private modules are not the same thing as private names
+
+`pyrs/utilities/NXstress/` is built from underscore-prefixed *files* —
+`_peaks.py`, `_fit.py`, `_definitions.py`, `_sample.py`, `_instrument.py`,
+`_discriminator.py`, `_input_data.py`, ... — each an implementation detail of the
+`NXstress` package as a whole, not of any one file inside it. That is a
+**layout** choice, answered by *where a file sits*, and this rule does not
+touch it: `NXstress.py` importing `_Peaks` from `_peaks.py` is the package
+assembling its own public surface, the same as the test exception above.
+
+The rule is violated when a module **outside** `pyrs/utilities/NXstress/`
+imports one of these names directly — `pyrs.core` reaching for
+`pyrs.utilities.NXstress._peaks._Peaks` instead of whatever `NXstress`
+re-exports publicly. The leading underscore on a *module* still means
+something; it just answers a narrower question — "is this file part of the
+package's own internals" — than the leading underscore on a *name* crossing a
+boundary the package did not draw.
+
+## Named states are literals, not free text
+
+**A value that names one of a fixed set of states is defined once, as a str-valued
+`Enum` (or a `Literal` type), and every module that writes, reads or compares it
+imports that one definition.** A state spelled out as a bare string at each use
+(`"none"`, `"file"`, `"workspace"`, ...) lets a typo silently become a new state that
+no reader handles, and leaves no single place that lists the states there are.
+
+```python
+class CalibrationSource(str, Enum):
+    NONE = "none"  # nominal calibration: no calibration file applied
+    FILE = "file"  # a calibration file
+    WORKSPACE = "workspace"  # the workspace's own shift
+```
+
+- **Keep the stored strings as the members' values**, so files already written with
+  those strings read back unchanged. A file holding a string that is not a member
+  (e.g. a project file stamped `"unknown"`) is rejected, as the next point says.
+- **A stored string that is not a member is rejected**, with an error naming the
+  file and the value: never passed through as a new state, never turned into
+  `None`, and never mapped to a catch-all member.
+- This pairs with *`None` must name a value, not a gap*: a state is never
+  expressed by borrowing `None`. A value that cannot be stated ("unknown",
+  "mixed", "lost") is not a state at all: it is refused (e.g. a calibration that
+  cannot be identified is rejected, #1141).
+
+Why: the review of PR #1132 found the calibration's source written as free text in
+several modules: `"none"`/`"file"`/`"workspace"` in `HidraSetup`, `"unknown"` in the
+project-file writer, and a `record.get("source", "none")` default in `HidraSetup`'s reader.
+Nothing ties these together, so a misspelling in any one of them is a new,
+unhandled state rather than an error. This rule applies to code you touch; existing
+instances are not to be swept up unless asked.
+
 ## 🧪 Testing Guidelines
 
 Every test follows Arrange-Act-Assert, with `# Arrange`, `# Act` and `# Assert` comments.
