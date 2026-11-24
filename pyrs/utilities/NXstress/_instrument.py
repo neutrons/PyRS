@@ -318,7 +318,7 @@ class _Instrument:
         shift_error = cls._applied_shift(wss[0])[1]
         arm_rotation = NXfield(cls._concatenated_arm_rotation(wss), dtype="float64", **growable(1))
         det["transformations"] = detector_transformations(
-            shift if is_calibrated else None, shift_error, geom.arm_length, arm_rotation=arm_rotation
+            shift, shifts_error=shift_error, arm_length=geom.arm_length, arm_rotation=arm_rotation
         )
         det["depends_on"] = "transformations/" + CALIBRATION_TRANSFORMATIONS[0][0]
         resolve_depends_on(det)  # a writer bug if the chain does not resolve

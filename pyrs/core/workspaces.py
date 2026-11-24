@@ -634,7 +634,7 @@ class HidraWorkspace:
             return None
         return instrument.geometry_shift, instrument.geometry_shift_error
 
-    def set_recorded_calibration(self, shift, shift_error=None) -> None:
+    def set_recorded_calibration(self, shift, shift_error) -> None:
         """Set the calibration applied to this data and its errors (#1099), e.g. as read back from NXstress;
         None for none. Reduction never applies it (that is :meth:`set_detector_shift`)."""
         self._recorded_calibration = None if shift is None else (shift, shift_error)

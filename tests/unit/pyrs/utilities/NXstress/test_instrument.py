@@ -18,6 +18,7 @@ from pyrs.utilities.NXstress._definitions import DEFAULT_TAG
 from pyrs.utilities.NXstress._transformations import resolve_depends_on
 from pyrs.utilities.NXstress.NXstress import NXstress
 from tests.util.mask_helpers import add_named_detector_mask
+from tests.util.transformation_helpers import chain_matrix, rodrigues
 
 
 class TestInstrument:
@@ -295,20 +296,6 @@ def _written_order(detector) -> list:
     return [link.nxname for link in reversed(resolve_depends_on(detector))]
 
 
-def _rodrigues(axis, degrees: float):
-    """Right-handed rotation of `degrees` about `axis`.
-
-    Written here rather than imported from the writer, so
-    `test_rotation_subchain_composes_to_the_reduction_convention` fails when the
-    writer changes rather than tracking it (`plans/audit-process/process.md` 5.3).
-    """
-    k = np.asarray(axis, dtype=float)
-    k = k / np.linalg.norm(k)
-    theta = np.radians(degrees)
-    cross = np.array([[0.0, -k[2], k[1]], [k[2], 0.0, -k[0]], [-k[1], k[0], 0.0]])
-    return np.eye(3) + np.sin(theta) * cross + (1.0 - np.cos(theta)) * (cross @ cross)
-
-
 class TestDetectorRotationOrder:
     """The written rotation order is the reduction's, and that is now asserted.
 
@@ -360,7 +347,7 @@ class TestDetectorRotationOrder:
             if name not in self.ROTATIONS:
                 continue
             link = trans[name]
-            composed = composed @ _rodrigues(link.attrs["vector"], float(link.nxdata))
+            composed = composed @ rodrigues(link.attrs["vector"], float(link.nxdata))
 
         # Assert -- against the referent, not against a restatement of it
         expected = rotation_matrix(np.deg2rad(rot_x), np.deg2rad(rot_y), np.deg2rad(rot_z))
@@ -490,24 +477,6 @@ class TestMaskGroupHoldsOnlyRealMasks:
         assert recovered.shape == (nrows * ncols,)
 
 
-def _chain_matrix(transformations, entry: str, arm: float) -> np.ndarray:
-    """The 4x4 transform of a whole chain, built from the fields' attributes alone (innermost first)."""
-    total = np.eye(4)
-    name = entry
-    while name != ".":
-        link = transformations[name]
-        value = arm if name == "arm_rotation" else float(link.nxdata)
-        vector = np.asarray(link.attrs["vector"], dtype=float)
-        step = np.eye(4)
-        if str(link.attrs["transformation_type"]) == "translation":
-            step[:3, 3] = value * vector
-        else:
-            step[:3, :3] = _rodrigues(vector, value)
-        total = step @ total
-        name = str(link.attrs["depends_on"])
-    return total
-
-
 class TestDetectorChainIsTheCalibrationFiles:
     """NXstress describes the detector exactly as reduction places it (#1099): the calibration file's chain, the
     arm angle per scan point, the arm length reduction used, the applied calibration's errors."""
@@ -549,7 +518,7 @@ class TestDetectorChainIsTheCalibrationFiles:
         for scan_point, arm_log in enumerate(self.ARMS):
             # Act
             arm = float(trans["arm_rotation"].nxdata[scan_point])
-            placed = (local @ _chain_matrix(trans, entry, arm).T)[..., :3]
+            placed = (local @ chain_matrix(trans, entry, arm).T)[..., :3]
 
             # Assert - the arm angle is -(the 2theta log), and the pixels are where reduction puts them
             assert arm == -arm_log

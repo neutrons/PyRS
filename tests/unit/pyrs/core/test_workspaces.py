@@ -2,10 +2,12 @@ import h5py
 import numpy as np
 import pytest
 
+from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift, HidraSetup
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.constants import HidraConstants
 from pyrs.dataobjects.sample_logs import SampleLogs
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
+from pyrs.utilities.calibration_file_io import write_calibration_to_json
 from tests.util.workspace_helpers import make_minimal_HidraWorkspace
 
 
@@ -257,9 +259,6 @@ def _project_with_record(tmp_path, instrument=None):
 
 def test_recorded_calibration_is_loaded_apart(tmp_path):
     """The calibration reduction applied is kept with its errors (#1099), and is not the shift reduction applies"""
-    from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift, HidraSetup
-    from pyrs.utilities.calibration_file_io import write_calibration_to_json
-
     # Arrange - a reduction's record of a calibration file
     shift = DENEXDetectorShift(0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.25)
     errors = DENEXDetectorShift(1e-4, 2e-4, 3e-4, 0.01, 0.02, 0.03, -1.0)
@@ -289,8 +288,6 @@ def test_no_record_no_recorded_calibration(tmp_path):
 
 def test_record_of_no_calibration_is_none(tmp_path):
     """A reduction that recorded applying no calibration (source "none") is no applied calibration"""
-    from pyrs.core.instrument_geometry import DENEXDetectorGeometry, HidraSetup
-
     # Arrange - an instrument with no calibration loaded
     instrument = HidraSetup(DENEXDetectorGeometry(4, 4, 0.001, 0.001, 2.0, False))
 
@@ -336,9 +333,6 @@ def test_unreadable_record_warns_and_the_data_loads(tmp_path):
 
 
 def _calibrated_instrument(tmp_path, rot_z):
-    from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift, HidraSetup
-    from pyrs.utilities.calibration_file_io import write_calibration_to_json
-
     calibration = tmp_path / f"HB2B_CAL_{rot_z}.json"
     shift = DENEXDetectorShift(0.001, -0.002, 0.003, 0.1, -0.2, rot_z, 0.25)
     write_calibration_to_json(shift, DENEXDetectorShift(*[1e-4] * 7), 1.5306, 1e-5, 1, str(calibration))

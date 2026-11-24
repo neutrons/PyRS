@@ -17,7 +17,7 @@ from pyrs.core.workspaces import HidraWorkspace
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities.calibration_file_io import read_calibration_json_file
 from pyrs.utilities.NXstress.NXstress import NXstress
-from tests.unit.pyrs.utilities.NXstress.test_instrument import _chain_matrix
+from tests.util.transformation_helpers import chain_matrix
 
 pytestmark = pytest.mark.integration
 
@@ -126,7 +126,7 @@ def test_chain_places_real_pixels_as_reduction_does(written):
     for scan_point, sub_run in enumerate(workspace.get_sub_runs()):
         # Act
         arm = float(trans["arm_rotation"].nxdata[scan_point])
-        placed = (local @ _chain_matrix(trans, entry, arm).T)[..., :3]
+        placed = (local @ chain_matrix(trans, entry, arm).T)[..., :3]
 
         # Assert
         expected = model.lab_positions(index_0, index_1, -workspace.get_detector_2theta(sub_run), arm_length, shift)

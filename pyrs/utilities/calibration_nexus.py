@@ -90,9 +90,9 @@ def _value(value: float, units: Optional[str] = None) -> NXfield:
 
 def detector_transformations(
     shifts: Optional[DENEXDetectorShift],
+    *,
     shifts_error: Optional[DENEXDetectorShift],
     arm_length: float,
-    *,
     arm_rotation: Optional[NXfield],
 ) -> NXtransformations:
     """The detector's placement as an ``NXtransformations`` group: :func:`~pyrs.core.detector_model.transformation_chain`
@@ -206,7 +206,7 @@ def write_calibration_nexus(
     detector["calibration_method"] = note
 
     detector["transformations"] = detector_transformations(
-        shifts, shifts_error, geometry.arm_length, arm_rotation=None
+        shifts, shifts_error=shifts_error, arm_length=geometry.arm_length, arm_rotation=None
     )
 
     monochromator = NXmonochromator()
