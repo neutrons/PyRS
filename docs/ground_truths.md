@@ -19,9 +19,11 @@ As of 2026-11-17 the ORNL channels (`mantid-ornl/label/main`, `/rc`) stop at
   *any* `mantidworkbench` hides every build of it in lower channels, so
   `mantid-ornl/label/rc` first makes `>=7.0` unsatisfiable.
 - Mantid 7 deprecates (does not remove) `MatrixWorkspace.readX/readY/readE/dataX/...`
-  in favour of `x()/y()/e()` and `mutableX()/...`. PyRS still calls `readX`/`readY`
-  (peak fitting, UI controllers); they emit `DeprecationWarning` but work. See
-  [deferred_defects.md](deferred_defects.md).
+  in favour of `x()/y()/e()` and `mutableX()/...`. PyRS called `readX`/`readY`
+  (peak fitting, UI controllers); these were swapped for `x()`/`y()` and the deferred
+  defect **DD-33** was removed from [deferred_defects.md](deferred_defects.md)
+  (2026-11-24). `x()`/`y()` return the same read-only arrays as `readX`/`readY`, so
+  behaviour is unchanged. No `readX/Y/E` or `dataX/Y/E` calls remain in the repo.
 
 ## Mantid ecosystem moved to Python 3.12 across all channels (2026-07)
 
@@ -3719,3 +3721,59 @@ the Docs: `docs/user/source`), so nothing caught it.
 - **Fresh reductions carry no geometry (DD-34):** a project file that reduction writes to a new path has no
   instrument geometry, so NXstress cannot be written from it until the geometry is added. See
   [deferred_defects.md](deferred_defects.md).
+
+## Calibration study: what the measurement conditions and the settings change (2026-11, #1097)
+
+A study with no production change: ring calibrations (`calibrate_rings`, default settings unless stated) of 11 powder runs
+of IPTS-36131, Si331AF (5352, 5342, 5341) and Si422 (5351, 5347, 5348, 5346, 5345, 5344, 5337, 5338). The write-ups and
+results are in [pixel_calibration_study/](pixel_calibration_study/README.md): the tables of each part, `part1_all_calibrations.csv`
+(86 calibrations, 8 values and errors each), `part2_conditions.csv` and the joint fits `part3_*.json`. The scripts are not
+in the repository.
+Pixel-2θ differences are the largest change over the detector grid; "precision" is `statistical_precision`.
+
+**Settings (one at a time against the default, per run):**
+- **Freeing 2θ₀ changes no pixel's 2θ** (< 0.01 mdeg, 11 runs). It lands at 0.5–0.6° and Rot_y and Shift_x absorb it
+  (5352: Rot_y 2.02 → 1.54°, Shift_x −3.8 → −11.4 mm). The degeneracy of #1090 is exact, so a free 2θ₀ is arbitrary.
+- **One extraction round is not enough:** 25–87 mdeg from the default for the slit runs, 5342 and 5341, several times their
+  precision.
+- **Starting from the previous run's calibration reproduces the default** (≤ 2 mdeg, inside the precision) in 2 rounds.
+- **3, 10 and 15 strips do not help.** The clean runs move ≤ 4 mdeg (exceptions: 5345 at 15 strips, 5338 at 10 and 15,
+  6.5–8 mdeg). 7 of 75 variants did not converge in 10 rounds, all of them the slit runs or large strip counts.
+- **The mask matters for the Si422 gauge-volume runs:** without it 5346 moves 45 mdeg (rms 8 → 17 mdeg) and 5345 19 mdeg.
+
+**Conditions (default calibrations compared within one monochromator):**
+
+| Comparison | Δ pixel 2θ | × its precision | Carried by |
+|---|---|---|---|
+| Si422 slit → 3×3, 3×5, 3×10 GV | 241–245 mdeg | 90–112 | Shift_z (−81 → −59 mm) |
+| Si331AF slit → 3×3, 3×15 GV | 376–386 mdeg | 56–65 | Shift_z (−85 → −60 mm) |
+| Si422 3×3 / 3×5 / 3×10 GV, among themselves | 3.0–5.4 mdeg | 0.9–2.4 | Shift_x |
+| Si331AF 3×3 → 3×15 GV | 21 mdeg | 3.1 | Shift_x |
+| Si422 aligned → shifted | 114 mdeg | 19.5 | Shift_x, Shift_z, Rot_y; λ −3.3σ |
+| Si422 Ni only / Fe only / 3×3 GV | 13–21 mdeg | 5–16 | Rot_y (Shift_x cancels part) |
+
+- **Gauge-volume size does not matter** in these sizes. The slit is a different geometry (the slit run was the deliberate
+  artefact study), so it is not a usable calibration reference. **Position matters:** align the sample.
+- "Carried by" is a one-parameter-at-a-time swap and can overstate Rot_y or Shift_x, which are degenerate.
+- Run 5344's `mrot` log has two samples (−173.67, −23.44) with the mean −98.55: the monochromator was changed at its start.
+  It calibrates as Si422 (λ = 1.5326 Å).
+
+**Joint Si331AF + Si422** (one geometry, one λ per run, 2θ₀ = ±δ/2, all on `PixelCalibration.residual`):
+
+| Pair | δ = 2θ₀(Si331AF) − 2θ₀(Si422) | Pixel 2θ against the run's single-run calibration | rms joint / single |
+|---|---|---|---|
+| 5352 + 5351 (slit), converged in 5 rounds | −0.057 ± 0.043° | 52 mdeg (3.0×), 76 mdeg (9.1×) | 52.5 / 50.0, 26.6 / 23.6 mdeg |
+| 5342 + 5346 (3×3 GV), not converged in 6 rounds | −0.173 ± 0.016° | 33 mdeg (5.5×), 30 mdeg (11.2×) | 19.9 / 17.2, 11.9 / 8.0 mdeg |
+
+- **The constraint is needed.** With both 2θ₀ free the Jacobian has one singular value of about 3·10⁻⁷ (relative; the next
+  is 0.057). Its null vector is (2θ₀_A + 2θ₀_B, Rot_y, Shift_x): per degree of Rot_y, both 2θ₀ move by −1.00° and Shift_x by
+  16 mm. The fit is no better (identical cost), and the sum stays 0.
+- **A second monochromator changes every run's pixel 2θ beyond its precision** (3.0–11.2×, 30–76 mdeg), and the joint
+  rms is 2–4 mdeg higher than the single-run rms. One shared geometry does not describe both runs as well as separate
+  geometries do, so the joint errors (which assume it does) may be optimistic. Whether to use the joint fit for production
+  is not settled by these data.
+- The slit pair's rounds were noisy (steps 12–32 mdeg in rounds 2–4) and the 3×3 pair never fell below the threshold
+  (2–7 mdeg against 2.0 mdeg), though its δ stayed within ±0.003°. Both pairs are unweighted.
+
+**Defaults:** the study found nothing to change: 2θ₀ held at 0, 5 strips, up to 10 rounds, the shared mask, the nominal
+start.
