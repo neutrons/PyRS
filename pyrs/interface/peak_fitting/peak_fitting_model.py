@@ -108,7 +108,7 @@ class PeakFittingModel(QObject):
         """Keep the basename and remove the nxs/h5 extensions."""
         if type(project_file) is list:
             self._project_name = "HB2B" + "".join(
-                ["_{}".format(run.split(".")[0].split("_")[-1]) for run in project_file]
+                ["_{}".format(os.path.basename(run).split(".")[0].split("_")[-1]) for run in project_file]
             )
         else:
             self._project_name = os.path.basename(project_file).split(".")[0]
@@ -119,8 +119,11 @@ class PeakFittingModel(QObject):
             if len(project_file) == 1:
                 project_file = project_file[0]
             else:
-                project_file = project_file[0].split("HB2B")[0] + "".join(
-                    ["HB2B_{}".format(run.split(".")[0].split("_")[-1]) for run in project_file]
+                project_file = os.path.join(
+                    os.path.dirname(project_file[0]),
+                    "".join(
+                        ["HB2B_{}".format(os.path.basename(run).split(".")[0].split("_")[-1]) for run in project_file]
+                    ),
                 )
                 if project_file[-3:] != ".h5":
                     project_file += ".h5"
