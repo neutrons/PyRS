@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 from pyrs.interface.peak_fitting.peak_fitting_model import PeakFittingModel
+from pyrs.peaks.peak_ranges import PeakRangeFileError
 
 
 @pytest.fixture
@@ -110,12 +111,14 @@ def test_peak_range_json_d0_saved_and_loaded_as_float(model, tmp_path):
 
     # Act
     model.save_peak_range_json(str(filename), [[78.0, 85.0], [90.0, 95.0]], ["Peak0", "Peak1"], [1, np.float64(1.2)])
-    _, _, loaded_d0 = model.load_peak_range_json(str(filename))
+    loaded_ranges, _, loaded_d0 = model.load_peak_range_json(str(filename))
 
     # Assert
     assert [entry["d0"] for entry in json.loads(filename.read_text()).values()] == [1.0, 1.2]
     assert loaded_d0 == [1.0, 1.2]
     assert all(type(value) is float for value in loaded_d0)
+    assert type(loaded_ranges) is list and all(type(window) is list for window in loaded_ranges)
+    assert all(type(edge) is float for window in loaded_ranges for edge in window)
 
 
 @pytest.mark.parametrize(
@@ -138,3 +141,26 @@ def test_load_peak_range_json_legacy_list_d0_per_peak(model, tmp_path, legacy_d0
 
     # Assert
     assert loaded_d0 == expected_d0
+
+
+@pytest.mark.parametrize(
+    "ranges, labels, d0",
+    [
+        ([[78.0, 85.0]], ["A"], [0.0]),
+        ([[78.0, 85.0]], ["A"], [float("nan")]),
+        ([[85.0, 78.0]], ["A"], [1.0]),
+        ([[78.0, 85.0], [90.0, 95.0]], ["A", "A"], [1.0, 1.0]),
+        ([[78.0]], ["A"], [1.0]),
+        ([[78.0, 85.0]], ["A", "B"], [1.0]),
+        ([], [], []),
+    ],
+    ids=["zero-d0", "nan-d0", "reversed", "duplicate-label", "short-window", "length-mismatch", "empty"],
+)
+def test_save_peak_range_json_bad_table_raises(model, tmp_path, ranges, labels, d0):
+    # Arrange
+    filename = tmp_path / "peak_range.json"
+
+    # Act / Assert
+    with pytest.raises(PeakRangeFileError):
+        model.save_peak_range_json(str(filename), ranges, labels, d0)
+    assert not filename.exists()
