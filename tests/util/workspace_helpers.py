@@ -22,6 +22,7 @@ def make_minimal_HidraWorkspace(
     name: str = "test_workspace",
     seed: int = SEED,
     with_instrument: bool = True,
+    with_arm_angle: bool = True,
     with_masks: bool = False,
     mask_names: tuple = (),
     with_raw_counts: bool = False,
@@ -43,6 +44,7 @@ def make_minimal_HidraWorkspace(
         seed: Seeds a fresh generator per call, so a workspace's values never
             depend on what was built before it.
         with_instrument: Set a synthetic detector geometry and shift.
+        with_arm_angle: Set the `2theta` (detector arm angle) log, as real data always has.
         with_masks: Set a default mask, plus one named mask per `mask_names`.
         mask_names: The named masks to set, when `with_masks`.
         with_raw_counts: Set raw detector counts for every sub-run.
@@ -69,6 +71,10 @@ def make_minimal_HidraWorkspace(
         "end_time", subruns, np.array([f"2024-01-15T10:{n:02d}:30".encode("utf-8") for n in range(n_subruns)])
     )
     ws.set_sample_log("mrot", subruns, np.zeros(n_subruns, dtype=float))
+    if with_arm_angle:
+        # real data always has it, and NXstress refuses data without it (#1132 review, G9)
+        # from the sub-run numbers, so workspaces over different sub-runs differ and an order bug shows
+        ws.set_sample_log("2theta", subruns, 80.0 + 0.5 * subruns.astype(float))
     # `NXstress._init`/`_Fit._init` read `start_time`/`end_time`/`Filename` sample-log
     # values as bytes (`t.decode("utf-8")`) -- matching what comes back from a real
     # h5py-backed string dataset. A synthetic workspace needs to match that, not a

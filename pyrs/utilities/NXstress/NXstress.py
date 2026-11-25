@@ -1018,6 +1018,8 @@ class NXstress:
         ws.set_instrument_geometry(geometry)
         if shift is not None:
             ws.set_detector_shift(shift)
+            # its errors too, so a workspace read back and written again keeps them (#1099)
+            ws.set_recorded_calibration(shift, _Instrument.shiftErrorFromNexus(entry[GROUP_NAME.INSTRUMENT]))
         ws.set_masks_from_dict(default_mask, mask_dict)
 
         # Read raw counts if present

@@ -3081,11 +3081,12 @@ becomes this check), `PyRsCore`, and the calibration GUI's "From file…" overla
 - **The chain is `DetectorModel`'s order, innermost first** (`detector_model.CALIBRATION_TRANSFORMATIONS`,
   built by `transformation_chain`): shift_x, shift_y, rotation_z, rotation_y, rotation_x (R = Rx·Ry·Rz, so Rz
   acts first), arm_length, shift_z, two_theta_0 (about Y), arm_rotation (about Y; stored as 0, because the arm
-  angle belongs to each sub-run). Each value is float64 in m or deg, right-handed, in the PyRS frame (+Z beam,
+  angle belongs to each sub-run — **superseded by #1099:** the calibration file's chain now ends at
+  two_theta_0, see *NXstress detector chain is the calibration file's*). Each value is float64 in m or deg, right-handed, in the PyRS frame (+Z beam,
   +Y up), with `<name>_errors` beside it (the JSON's -1 / -2 codes). The reader checks every transformation's
   type, vector, units and `depends_on` against this chain, and refuses (`ValueError`) a file that would be
-  applied differently. It also checks that the detector's `depends_on` starts the chain at `shift_x`, that
-  `arm_rotation` is 0, and that the pixel offsets are PyRS's layout (`DetectorModel.local_positions`:
+  applied differently. It also checks that the detector's `depends_on` starts the chain at `shift_x` (the
+  `arm_rotation` = 0 check was dropped with the field, #1099), and that the pixel offsets are PyRS's layout (`DetectorModel.local_positions`:
   X decreasing with `index_0`, Y increasing with `index_1`). The old NXstress chain, with 2θ₀ about X, would
   be refused. One-element string arrays and shape-(1,) values, as other tools write them, are read. Also
   refused (CodeRabbit review): a transformation with a non-zero NeXus `offset` (`DetectorModel` applies none),
@@ -3649,6 +3650,77 @@ the Docs: `docs/user/source`), so nothing caught it.
   warnings left are docstring-format and duplicate-description notes from the API pages.
 - **User docs:** `docs/user/source/conf.py` still uses plain `Mock` objects. It builds, because it documents
   nothing they replace.
+
+## NXstress detector chain is the calibration file's (2026-11-20, #1099)
+
+- **Before:** NXstress wrote its own detector chain, and it did not place pixels where reduction does.
+  - **Order:** entering at the detector's `depends_on` (the innermost transformation, the NeXus rule) gave
+    two_theta_zero → Rz → Ry → Rx → distance → z → y → x. That does not match `DetectorModel.lab_positions`:
+    the rotation order (Rz → Ry → Rx) agrees, but 2θ₀ was applied first instead of after the arm length, and
+    the x/y shifts were applied last instead of before the rotations.
+  - **2θ₀ axis:** about X.
+  - **Arm angle:** missing.
+  - **Impact:** nothing in PyRS read the chain (`instrumentFromNexus` reads the values by name), so reduction was
+    unaffected; only external NeXus tools were misled.
+- **Now:** `calibration_nexus.detector_transformations`, shared with the calibration file, writes it:
+  - shift_x, shift_y, rotation_z, rotation_y, rotation_x, arm_length, shift_z, two_theta_0 (about Y), arm_rotation;
+  - each calibration parameter with its `<name>_errors`;
+  - the detector's `depends_on` is `transformations/shift_x`.
+- **The calibration file has no arm angle (user decision, #1132 review):** it holds the calibration parameters
+  only, and PyRS builds the instrument from them and each sub-run's arm angle. Its chain ends at `two_theta_0`
+  (`depends_on = "."`); only NXstress writes `arm_rotation`. The reader checks the chain up to `two_theta_0`
+  and skips an `arm_rotation` entry if a file has one (no check, no refusal). No calibration NeXus files had
+  been written before this, so the old layout (`arm_rotation` = 0) needs no support. Replaces the old shared
+  note, which told calibration files they held −(DAS arm 2theta).
+- **Arm angle:** `arm_rotation` holds one value per scan point, −(the `2theta` log), and grows on append. Data
+  without a `2theta` log are refused (user decision, #1132 review G9): without the arm angle the detector cannot
+  be placed, so the write fails, naming the workspace. (It used to write NaN.)
+- **Calibration defaults and L2 (user decisions, #1132 review G9):** a default calibration parameter is 0 with
+  error −1 (the nominal calibration), so a calibration JSON missing a parameter reads as the default
+  (`check_calibration_dictionary`, unchanged). L2 is part of the calibration and is to be compared by its hash
+  (#1141); until then it is compared for exact equality.
+- **Arm length (user decision):** a single value, the runs' `L2` log when present (the one reduction uses), else
+  the instrument's. An entry whose L2 differs between scan points is refused.
+- **Errors (user decision):** those of the applied calibration. −1 where none are known.
+  **Superseded (user decision, #1132 review G3; implemented by #1141):** −1 is the default (not refined, as
+  in the nominal calibration) and −2 an unknown error, so an error that is not known is written as −2. Until
+  #1141 lands, this PR still writes −1.
+- **NXstress used to write the nominal detector for real data.** A workspace loaded from a project file never
+  got the calibration reduction applied: only FitCalibration and NXstress read-back set its shift. So every
+  NXstress file written from reduced data said `calibrated = False`.
+  - **Fix:** loading now keeps the file's recorded calibration (shift and errors, `get_recorded_calibration()`),
+    and NXstress writes that.
+  - **Kept apart from `get_detector_shift()` on purpose:** `ReductionApp` applies the workspace's shift
+    whenever no calibration file is given. Setting the shift would have made reducing a project file again,
+    without a calibration file, silently switch from the nominal geometry to the recorded one.
+- **No backward compatibility (user decision, #1132 review):** NXstress and the NeXus calibration file are new
+  formats and may break old layouts. `instrumentFromNexus` reads only the current names (`shift_*`,
+  `arm_length`, `two_theta_0`); an entry written before #1099 (`translation_*`, `distance`, `two_theta_zero`, no
+  `arm_rotation`) is not supported, and an append to one is refused for its missing `arm_rotation`
+  ("write a new entry"). This replaces the earlier decision to read old entries.
+- **A missing field is a corrupt file (user decision, #1132 review, G9):** NXstress and the calibration file
+  always write every field, so a missing one means a failed write or a corrupt file. `instrumentFromNexus`
+  refuses it (`RuntimeError` naming the field), for the pixel layout, the `calibrated` flag, `arm_length`, each
+  calibration value and the wavelength. Before, a missing field read as 0.0: a calibration parameter silently
+  became 0, and a missing arm length failed with a message that did not name it.
+- **Tested:** applied independently of `DetectorModel`, the written chain reproduces `lab_positions` at every scan
+  point to 1e-12 m.
+- **The chain is a self-consistent choice (user decision, #1132 review R5):** PyRS defines the detector's
+  placement (`DetectorModel.lab_positions`, `CALIBRATION_TRANSFORMATIONS`), and the calibration refines its
+  parameters in that same model; NXstress and the calibration file write exactly that chain. It is not grounded in
+  an external reference (unlike the sample chain, which follows He, *Two-Dimensional X-ray Diffraction*, ch. 8.3),
+  and needs none: the check that matters is that the written chain places pixels where reduction does.
+- **Errors survive a round trip.** Reading an NXstress entry back sets both the workspace's shift and its recorded
+  calibration with the entry's errors (`_Instrument.shiftErrorFromNexus`), so writing it again keeps them. Before
+  the code-review fix they came back as −1.
+- **Which errors are written:** the workspace's own shift, with the recorded errors only when the recorded shift is
+  that same shift; with no shift, the recorded calibration. Errors are never lent to a different shift.
+- **Mixed files record none.** Appending a project file reduced with another calibration (or none) clears the
+  recorded calibration, with a warning, so NXstress does not label every scan point with the first file's.
+- **An unreadable record is optional:** it is warned about, the recorded calibration stays None, and the data load.
+- **Fresh reductions carry no geometry (DD-34):** a project file that reduction writes to a new path has no
+  instrument geometry, so NXstress cannot be written from it until the geometry is added. See
+  [deferred_defects.md](deferred_defects.md).
 
 ## Calibration study: what the measurement conditions and the settings change (2026-11, #1097)
 

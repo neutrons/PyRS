@@ -1117,6 +1117,10 @@ class TestIncompleteEntryIsRefusedUpFront:
             ),
             ("entry/SAMPLE_DESCRIPTION/transformations", r"no `transformations` group"),
             ("entry/instrument/monochromator/wavelength", r"no 'monochromator/wavelength'"),
+            (
+                "entry/instrument/DETECTOR/transformations/arm_rotation",
+                r"no 'DETECTOR/transformations/arm_rotation'",
+            ),
         ],
     )
     def test_missing_dataset_raises_and_leaves_the_file_unchanged(
@@ -1130,6 +1134,22 @@ class TestIncompleteEntryIsRefusedUpFront:
         # Act / Assert
         with NXstress(written, "a") as nx:
             with pytest.raises(RuntimeError, match=message):
+                nx.write([ws], [peaks])
+        assert digest(written) == before
+
+    def test_append_without_arm_angle_leaves_file_unchanged(
+        self, written, minimal_HidraWorkspace, minimal_PeakCollection
+    ):
+        """Data without a 2theta log cannot be placed, so the append is refused before anything grows (#1132 G9)"""
+        # Arrange
+        ws, peaks = workspace(
+            minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(4, 5, 6), with_arm_angle=False
+        )
+        before = digest(written)
+
+        # Act / Assert
+        with NXstress(written, "a") as nx:
+            with pytest.raises(RuntimeError, match="2theta"):
                 nx.write([ws], [peaks])
         assert digest(written) == before
 
@@ -1412,3 +1432,56 @@ class TestTailAppendHelper:
         with nxopen(path, "rw") as root:
             with pytest.raises(RuntimeError, match=r"trailing shape"):
                 tail_append(root["entry"]["field"], np.zeros((1, 25)))
+
+
+class TestDetectorChainOnAppend:
+    """The detector chain's per-scan-point arm angle grows with an append, in order (#1099)"""
+
+    ARMS_A, ARMS_B = (76.0, 90.0, 103.0), (80.0, 86.0, 99.0)
+
+    @staticmethod
+    def _with_arms(ws, sub_runs, arms, l2=None):
+        ws.set_sample_log("2theta", np.array(sub_runs), np.array(arms))
+        if l2 is not None:
+            ws.set_sample_log("L2", np.array(sub_runs), np.full(len(sub_runs), l2))
+        return ws
+
+    def _first(self, minimal_HidraWorkspace, minimal_PeakCollection, path, l2=None):
+        ws, peaks = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="11", sub_runs=(1, 2, 3))
+        with NXstress(path, "w") as nx:
+            nx.write([self._with_arms(ws, (1, 2, 3), self.ARMS_A, l2)], [peaks])
+
+    def _second(self, minimal_HidraWorkspace, minimal_PeakCollection, l2=None):
+        ws, peaks = workspace(minimal_HidraWorkspace, minimal_PeakCollection, direction="22", sub_runs=(4, 5, 6))
+        return self._with_arms(ws, (4, 5, 6), self.ARMS_B, l2), peaks
+
+    def test_appended_arm_angles_follow_the_entry(
+        self, discriminated, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
+    ):
+        # Arrange
+        path = tmp_path / "entry.nxs"
+        self._first(minimal_HidraWorkspace, minimal_PeakCollection, path)
+        ws, peaks = self._second(minimal_HidraWorkspace, minimal_PeakCollection)
+
+        # Act
+        with NXstress(path, "a") as nx:
+            nx.write([ws], [peaks])
+
+        # Assert - every scan point's arm angle, -(its 2theta log), in entry order
+        with h5py.File(path, "r") as f:
+            arms = f["entry/instrument/DETECTOR/transformations/arm_rotation"][()]
+        np.testing.assert_array_equal(arms, [-a for a in self.ARMS_A + self.ARMS_B])
+
+    def test_append_with_another_l2_is_refused(
+        self, discriminated, minimal_HidraWorkspace, minimal_PeakCollection, tmp_path
+    ):
+        """One entry holds one detector placement: data measured at another distance is a new entry"""
+        # Arrange
+        path = tmp_path / "entry.nxs"
+        self._first(minimal_HidraWorkspace, minimal_PeakCollection, path, l2=1.95)
+        ws, peaks = self._second(minimal_HidraWorkspace, minimal_PeakCollection, l2=1.90)
+
+        # Act / Assert
+        with pytest.raises(RuntimeError, match="instrument geometry"):
+            with NXstress(path, "a") as nx:
+                nx.write([ws], [peaks])

@@ -137,7 +137,9 @@ def _matrix(transformation_type, vector, value, units):
 
 
 def _placed_by_chain(path, arm):
-    """Pixel lab positions from the file alone: its pixel offsets moved through its transformations."""
+    """Pixel lab positions from the file and the sub-run's arm angle: the pixel offsets moved through the
+    file's transformations, then swung about the sample's Y axis by the arm angle, as PyRS builds the
+    instrument."""
     with h5py.File(path, "r") as nexus:
         detector = nexus["entry/instrument/detector"]
         x, y = detector["x_pixel_offset"][()], detector["y_pixel_offset"][()]
@@ -146,15 +148,15 @@ def _placed_by_chain(path, arm):
         total = np.eye(4)
         while name != ".":
             dataset = transformations[name]
-            value = arm if name == "arm_rotation" else float(dataset[()])
             step = _matrix(
                 _text(dataset.attrs["transformation_type"]),
                 dataset.attrs["vector"],
-                value,
+                float(dataset[()]),
                 _text(dataset.attrs["units"]),
             )
             total = step @ total  # innermost first: each later step acts on the result so far
             name = _text(dataset.attrs["depends_on"])
+    total = _matrix("rotation", (0.0, 1.0, 0.0), arm, "deg") @ total
     index_0, index_1 = np.meshgrid(np.arange(x.size), np.arange(y.size), indexing="ij")
     local = np.stack([x[index_0], y[index_1], np.zeros(index_0.shape), np.ones(index_0.shape)], axis=-1)
     return (local @ total.T)[..., :3], index_0, index_1
@@ -175,6 +177,43 @@ def test_chain_places_the_detector_as_reduction_does(tmp_path, geometry, arm):
     np.testing.assert_allclose(positions, model.lab_positions(index_0, index_1, arm, None, SHIFT), rtol=0, atol=1e-12)
     two_theta = np.rad2deg(np.arccos(positions[..., 2] / np.linalg.norm(positions, axis=-1)))
     np.testing.assert_allclose(two_theta, model.two_theta(index_0, index_1, arm, None, SHIFT), rtol=1e-12, atol=1e-9)
+
+
+def test_chain_ends_at_two_theta_0(tmp_path):
+    """The file holds the calibration parameters only: no arm angle, which belongs to each sub-run (#1099)"""
+    # Arrange
+    path = _write(tmp_path / "cal.nxs")
+
+    # Act
+    with h5py.File(path, "r") as nexus:
+        transformations = nexus["entry/instrument/detector/transformations"]
+        names = set(transformations)
+        last = _text(transformations["two_theta_0"].attrs["depends_on"])
+
+    # Assert
+    assert "arm_rotation" not in names
+    assert last == "."
+
+
+@pytest.mark.parametrize("arm", [0.0, 45.0], ids=["zero", "non-zero"])
+def test_arm_rotation_entry_is_skipped(tmp_path, arm):
+    """An arm_rotation entry from another tool is skipped: the calibration reads as without it (#1099)"""
+    # Arrange
+    path = _write(tmp_path / "cal.nxs")
+    expected = read_calibration_nexus(path)
+    with h5py.File(path, "a") as nexus:
+        transformations = nexus["entry/instrument/detector/transformations"]
+        transformations["two_theta_0"].attrs["depends_on"] = "arm_rotation"
+        field = transformations.create_dataset("arm_rotation", data=np.float64(arm))
+        field.attrs.update(transformation_type="rotation", vector=[0.0, 1.0, 0.0], units="deg", depends_on=".")
+
+    # Act
+    shift, error, wavelength, wavelength_error, status = read_calibration_nexus(path)
+
+    # Assert
+    np.testing.assert_array_equal(from_shift(shift), from_shift(expected[0]))
+    np.testing.assert_array_equal(from_shift(error), from_shift(expected[1]))
+    assert (wavelength, wavelength_error, status) == expected[2:]
 
 
 def test_chain_with_other_conventions_is_refused(tmp_path):
@@ -309,7 +348,6 @@ def _in_millimetres(detector):
 @pytest.mark.parametrize(
     "change, match",
     [
-        (lambda d: d["transformations/arm_rotation"].write_direct(np.array(45.0)), "arm_rotation"),
         (
             lambda d: (d.__delitem__("depends_on"), d.create_dataset("depends_on", data="transformations/rotation_z")),
             "depends_on",
@@ -322,7 +360,6 @@ def _in_millimetres(detector):
         (lambda d: (d.__delitem__("depends_on"), d.create_group("depends_on")), "expected a data field"),
     ],
     ids=[
-        "arm-rotation",
         "detector-depends-on",
         "reversed-pixels",
         "no-offsets",
@@ -339,6 +376,22 @@ def test_file_applied_differently_is_refused(tmp_path, change, match):
 
     # Act / Assert
     with pytest.raises(ValueError, match=match):
+        read_calibration_nexus(path)
+
+
+@pytest.mark.parametrize(
+    "name, wrong", [("two_theta_0", "shift_x"), ("rotation_z", "shift_z")], ids=["last-link", "middle-link"]
+)
+def test_chain_with_wrong_link_is_refused(tmp_path, name, wrong):
+    """A transformation pointing to the wrong next one would be applied in another order: refused (#1099)"""
+    # Arrange
+    path = _edit(
+        _write(tmp_path / "cal.nxs"),
+        lambda d: d[f"transformations/{name}"].attrs.__setitem__("depends_on", wrong),
+    )
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="depends_on in"):
         read_calibration_nexus(path)
 
 

@@ -201,3 +201,30 @@ without renumbering.
 
   **Found during:** #1098 step 4, running the project-file and NeXus reduction tests together.
   **Why it is deferred.** A test defect outside #1098, and CI is not affected.
+
+- **DD-34**, 2026-11-20: a project file that reduction writes to a new path has no instrument geometry, so NXstress
+  cannot be written from it.
+  - **Cause:** `ReductionApp.save_diffraction_data` (`pyrs/core/powder_pattern.py`) opens a new output file in
+    `OVERWRITE` mode and writes the sample logs, wavelength, reduction record and patterns, but never calls
+    `write_instrument_geometry`. Only `NeXusConvertingApp.save` (`pyrs/core/nexus_conversion.py`) writes it.
+  - **Where it bites:** Manual Reduction's `reduce_hidra_workflow` (`pyrs/interface/manual_reduction/pyrs_api.py`)
+    converts in memory and saves through that call, so its output files carry no `geometry setup`.
+  - **Failure:** loading such a file gives a workspace without an instrument setup, and NXstress's instrument group
+    cannot be written from it.
+  - **Workaround in the tests:** `tests/integration/test_nxstress_calibration.py` adds the geometry to the reduced
+    file itself (`write_instrument_geometry`) before loading it.
+  - **Fix:** have `save_diffraction_data` write the workspace's instrument geometry when it creates a new file.
+
+  **Found during:** #1099, writing the real-data NXstress test (T1).
+  **Why it is deferred.** It predates #1099 and changes what reduction writes, which needs its own approval.
+
+- **DD-36**, 2026-11-24: a refused NXstress write can leave a partial file. `NXstress(path, "w")` creates and opens
+  the file when its `with` block starts (`NXstress.__enter__`), so a write refused after that -- a workspace without
+  a `2theta` log, mixed calibrations, a missing field -- closes an incomplete file (about 800 bytes) at `path`
+  instead of leaving none. GUI saves are not affected: they write a temporary sibling and replace the destination
+  only on success (`gui_helper.write_nxstress_or_report`, see DD-10); scripts and code that use `NXstress`
+  directly are.
+
+  **Found during:** the test review of #1132 (#1099), which adds refusals during a write.
+  **Why it is deferred.** It predates #1099. The fix -- `NXstress` writing a temporary file and renaming it on
+  success -- changes how every NXstress write handles its file, outside the scope of #1132.

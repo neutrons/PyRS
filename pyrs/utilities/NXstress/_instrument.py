@@ -12,17 +12,19 @@ from nexusformat.nexus import (
     NXdetector,
     NXdetector_module,
     NXfield,
+    NXgroup,
     NXinstrument,
     NXmonochromator,
     NXnote,
+    NXobject,
     NXsource,
-    NXtransformations,
 )
 import numpy as np
 import json
 
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift
 from pyrs.core.workspaces import HidraWorkspace
+from pyrs.dataobjects.constants import HidraConstants
 from pyrs.utilities.config import Config
 from pyrs.utilities.pydantic_transition import validate_call_
 
@@ -39,6 +41,8 @@ from ._definitions import (
     tail_append,
 )
 from ._transformations import resolve_depends_on
+from pyrs.core.detector_model import CALIBRATION_TRANSFORMATIONS
+from pyrs.utilities.calibration_nexus import detector_transformations, shift_from_parameters
 
 
 _logger = logging.getLogger(__name__)
@@ -59,6 +63,12 @@ class _Instrument:
     ########################################
     # ALL methods must be `classmethod`.  ##
     ########################################
+
+    # the per-scan-point fields an append grows, relative to the instrument group
+    _APPENDED = (
+        f"{GROUP_NAME.MONOCHROMATOR}/wavelength",
+        f"{GROUP_NAME.DETECTOR}/transformations/arm_rotation",
+    )
 
     @classmethod
     def _init(cls, name: str, short_name: str) -> NXinstrument:
@@ -98,15 +108,16 @@ class _Instrument:
 
     @classmethod
     def _entry_wide_geometry(cls, wss: list[HidraWorkspace]) -> tuple:
-        """Geometry, detector shift and calibration state, which all inputs must share.
+        """The detector geometry, with the arm length reduction used (`_effective_geometry`), and the applied
+        detector shift (`_applied_shift`), which all inputs must share.
 
         Unlike wavelength, these are single entry-wide values: `NXinstrument`
         holds one detector with one transformation chain. A mixed-instrument or
         mixed-calibration merge is not supported by this pass, and is rejected
         rather than silently resolved to the first input's geometry.
         """
-        geometries = [ws.get_instrument_setup() for ws in wss]
-        shifts = [ws.get_detector_shift() for ws in wss]
+        geometries: list = [cls._effective_geometry(ws) for ws in wss]
+        shifts: list = [cls._applied_shift(ws)[0] for ws in wss]
 
         # Compared field by field, not by `str()`: neither class defines
         # `__eq__`, and `DENEXDetectorGeometry` has no `__str__` either, so the
@@ -126,6 +137,60 @@ class _Instrument:
                     "  mixed-instrument and mixed-calibration merges are not supported."
                 )
         return geometries[0], shifts[0]
+
+    @staticmethod
+    def _applied_shift(ws: HidraWorkspace) -> tuple:
+        """The calibration applied to `ws`'s data, as `(shift, errors)`: the shift the workspace carries (e.g.
+        read back from NXstress), with the recorded errors when the recorded calibration is that same shift and
+        no errors otherwise; else the one its project file recorded, with its errors (#1099); else
+        `(None, None)`, the nominal detector."""
+        recorded = ws.get_recorded_calibration()
+        shift = ws.get_detector_shift()
+        if shift is None:
+            return recorded if recorded is not None else (None, None)
+        # the errors belong to the shift only if the recorded calibration is that shift (e.g. NXstress read-back)
+        same = recorded is not None and _Instrument._shift_key(recorded[0]) == _Instrument._shift_key(shift)
+        return shift, (recorded[1] if same else None)
+
+    @staticmethod
+    def _effective_geometry(ws: HidraWorkspace) -> DENEXDetectorGeometry | None:
+        """`ws`'s detector geometry with the arm length reduction used: its sub-runs' `L2` log when the run has
+        one, else the instrument's (#1099). HB2B uses one distance, so an L2 that differs between sub-runs is
+        refused: one NXentry holds one detector chain."""
+        geometry = ws.get_instrument_setup()
+        if geometry is None:
+            return None
+        per_sub_run = [ws.get_l2(sub_run) for sub_run in ws.get_sub_runs()]
+        l2 = {float(value) for value in per_sub_run if value is not None}
+        if not l2:
+            return geometry
+        if len(l2) > 1:
+            raise RuntimeError(
+                f"NXstress._instrument: the sample-to-detector distance (L2) differs between sub-runs: "
+                f"{sorted(l2)}.\n  One NXentry describes one detector placement."
+            )
+        rows, columns = geometry.detector_size
+        pixel_x, pixel_y = geometry.pixel_dimension
+        return DENEXDetectorGeometry(rows, columns, pixel_x, pixel_y, l2.pop(), calibrated=False)
+
+    @staticmethod
+    def _concatenated_arm_rotation(wss: list[HidraWorkspace]) -> np.ndarray:
+        """`arm_rotation` per scan point, in workspace order: -(the `2theta` log), the convention
+        `DetectorModel` uses.
+
+        Raises:
+            RuntimeError: If a workspace has no `2theta` log: without the arm angle the detector cannot be
+                placed, so the data are refused (#1132 review, G9), never written with an invented angle.
+        """
+        values: list[float] = []
+        for ws in wss:
+            if not ws.has_sample_log(HidraConstants.TWO_THETA):
+                raise RuntimeError(
+                    f"NXstress._instrument: workspace {ws.name!r} has no '{HidraConstants.TWO_THETA}' log; "
+                    "the arm angle is required to place the detector"
+                )
+            values.extend(-float(ws.get_detector_2theta(sub_run)) for sub_run in ws.get_sub_runs())
+        return np.asarray(values, dtype=np.float64)
 
     @staticmethod
     def _geometry_key(geometry: DENEXDetectorGeometry | None) -> tuple | None:
@@ -205,12 +270,16 @@ class _Instrument:
 
         if data is not None:
             # Append (spec 04c): geometry, detector shift and the masks are entry-wide
-            # and already written; `wavelength` is the one per-scan-point field here, so
-            # it is the only thing that grows. That the incoming geometry agrees with the
+            # and already written; `wavelength` and the detector's `arm_rotation` are the
+            # per-scan-point fields here, so they are what grows. That the incoming geometry agrees with the
             # entry's is checked by `validateAppend`, before any mutation anywhere.
             tail_append(
                 data[GROUP_NAME.MONOCHROMATOR]["wavelength"],
                 np.asarray(wavelength, dtype=np.float64),
+            )
+            tail_append(
+                data[GROUP_NAME.DETECTOR]["transformations"]["arm_rotation"],
+                cls._concatenated_arm_rotation(wss),
             )
             return data
 
@@ -251,87 +320,16 @@ class _Instrument:
         beam = NXbeam()
         # TODO: fill in the beam-intensity profile.
 
-        # Transformations chain (values as native floats; axis vectors as float64 arrays)
-        trans = NXtransformations()
-
-        if is_calibrated and shift is not None:
-            tx = float(shift.center_shift_x)  # meters
-            ty = float(shift.center_shift_y)  # meters
-            tz = float(shift.center_shift_z)  # meters
-
-            # Sample-to-detector distance:
-            # TODO: RE `L2`: At present there seems no way to determine if the `DENEXDetectorGeometry`
-            #   already has had the _arm_ shift applied to it -- this issue needs to be fixed!
-            distance = float(geom.arm_length)  # meters
-
-            rotx = float(shift.rotation_x)  # degrees
-            roty = float(shift.rotation_y)  # degrees
-            rotz = float(shift.rotation_z)  # degrees
-            tth0 = float(shift.two_theta_0)  # degrees
-        else:
-            tx = ty = tz = 0.0
-            # Always write the actual arm_length, not 0.0
-            distance = float(geom.arm_length)  # meters
-            rotx = roty = rotz = tth0 = 0.0
-
-        ex = np.array([1.0, 0.0, 0.0], dtype=np.float64)
-        ey = np.array([0.0, 1.0, 0.0], dtype=np.float64)
-        ez = np.array([0.0, 0.0, 1.0], dtype=np.float64)
-
-        depends = "."
-        for name, val, vec, units, trtype in [
-            ("translation_x", tx, ex, "m", "translation"),
-            ("translation_y", ty, ey, "m", "translation"),
-            ("translation_z", tz, ez, "m", "translation"),
-            ("distance", distance, ez, "m", "translation"),
-            ("rotation_x", rotx, ex, "deg", "rotation"),
-            ("rotation_y", roty, ey, "deg", "rotation"),
-            ("rotation_z", rotz, ez, "deg", "rotation"),
-            # Rotation ORDER is settled -- see the `depends_on` note below. The axis
-            # on the next line is NOT: `two_theta_zero` is written about `ex`, while
-            # the reduction applies two-theta about Y
-            # (`reduce_hb2b_pyrs.py::rotate_detector_2theta` -> `_cal_rotation_matrix_y`)
-            # after folding `two_theta_0` into the arm angle as a scalar offset
-            # (`reduce_hb2b_pyrs.py:139`) rather than as a transformation of its own.
-            # `instrument_geometry.py:166` calls it "rotation of detector arm about X",
-            # contradicting that code; this writer followed the comment. Unresolved and
-            # carried forward -- README Section 2.1, and spec 08/09's detector-calibration
-            # fidelity work, which owns `DENEXDetectorShift`.
-            ("two_theta_zero", tth0, ex, "deg", "rotation"),
-        ]:
-            f = NXfield(val, units=units)
-            f.attrs["transformation_type"] = trtype
-            f.attrs["vector"] = vec
-            # each transformation depends on the previous one in the chain, named as
-            # its sibling: NeXus resolves a relative `depends_on` from the group
-            # enclosing it, which for this attribute is `transformations` itself.
-            f.attrs["depends_on"] = depends
-            trans[name] = f
-            depends = name
-
-        det["transformations"] = trans
-
-        # The detector's `depends_on` is the chain's ENTRY POINT, and NeXus resolves a
-        # chain by following each field's own `depends_on` from there until ".".
-        # `depends` currently holds the LAST link written, whose chain runs back
-        # through every other one -- so naming it here makes all eight transformations
-        # part of the geometry.
-        #
-        # This previously named `translation_x`, the FIRST link, whose own `depends_on`
-        # is "." -- so traversal terminated immediately and the composed transform was
-        # a bare x-translation with identity rotation. The other seven, including all
-        # three rotations and the two-theta zero, were written to the file but never
-        # reached. `instrumentFromNexus` reads each field by name and ignores the
-        # chain, which is why nothing in PyRS ever noticed.
-        #
-        # The written ORDER was already correct, and this is now settled rather than
-        # assumed: traversed from the last link, the rotation sub-chain composes to
-        # Rx @ Ry @ Rz, matching `detector_model.py::rotation_matrix`.
-        # Verified by `plans/NXstress-prod/probes/a5_transformations_chain.py` and
-        # pinned by `test_instrument.py`. The order question that stood open here is
-        # closed; the separate question of `two_theta_zero`'s AXIS is not -- see the
-        # note at its entry in the chain above.
-        det["depends_on"] = f"transformations/{depends}"
+        # Transformations chain: the calibration file's (#1099), so NXstress describes the detector exactly as
+        # reduction places it -- shift X/Y, the rotations Rx @ Ry @ Rz, L2, shift Z, 2theta_0 and the arm angle,
+        # each about the axis `DetectorModel.lab_positions` uses. The arm angle is one value per scan point and
+        # grows with an append; each calibration parameter carries `<name>_errors` (-1 where none is known).
+        shift_error = cls._applied_shift(wss[0])[1]
+        arm_rotation = NXfield(cls._concatenated_arm_rotation(wss), dtype="float64", **growable(1))
+        det["transformations"] = detector_transformations(
+            shift, shifts_error=shift_error, arm_length=geom.arm_length, arm_rotation=arm_rotation
+        )
+        det["depends_on"] = "transformations/" + CALIBRATION_TRANSFORMATIONS[0][0]
         resolve_depends_on(det)  # a writer bug if the chain does not resolve
 
         # Add a calibrated flag as extra metadata
@@ -339,17 +337,7 @@ class _Instrument:
 
         # Optional calibration provenance
         if is_calibrated and shift is not None:
-            try:
-                caldict = shift.convert_to_dict()
-            except Exception:
-                caldict = {
-                    "center_shift_x": tx,
-                    "center_shift_y": ty,
-                    "center_shift_z": tz,
-                    "rotation_x": rotx,
-                    "rotation_y": roty,
-                    "rotation_z": rotz,
-                }
+            caldict = shift.convert_to_dict()
             note = NXnote()
             note["type"] = NXfield("text/plain")
             # Note: calibration_file may not be available on all shift objects
@@ -411,7 +399,8 @@ class _Instrument:
 
     @classmethod
     def appendableDatasets(cls, instrument) -> dict:
-        """Every dataset in `instrument` that an append grows -- just the wavelength.
+        """Every dataset in `instrument` that an append grows: the wavelength and the detector's `arm_rotation`
+        (`_APPENDED`), those of them the entry has.
 
         Geometry, detector shift and the masks are entry-wide: `validateAppend`
         requires them to *match*, so they never grow. Enumerated explicitly rather
@@ -425,9 +414,11 @@ class _Instrument:
         Returns:
             Path -> `NXfield`, for `NXstress._validateAppendableShapes`.
         """
-        path = f"{GROUP_NAME.INSTRUMENT}/{GROUP_NAME.MONOCHROMATOR}/wavelength"
-        mono = instrument[GROUP_NAME.MONOCHROMATOR] if GROUP_NAME.MONOCHROMATOR in instrument else None
-        return {path: mono["wavelength"]} if mono is not None and "wavelength" in mono else {}
+        return {
+            f"{GROUP_NAME.INSTRUMENT}/{relative}": instrument[relative]
+            for relative in cls._APPENDED
+            if relative in instrument
+        }
 
     @classmethod
     def validateAppend(cls, wss: list[HidraWorkspace], instrument) -> None:
@@ -448,20 +439,21 @@ class _Instrument:
             RuntimeError: If the entry has no wavelength to extend, or geometry,
                 detector shift, masks or calibration state differ.
         """
-        # `wavelength` is the one field the append grows. `appendableDatasets` omits it
-        # when it is absent, so without this the append would fail on it part-way.
-        if not cls.appendableDatasets(instrument):
+        # The append grows every `_APPENDED` field; one missing would make the append fail on it part-way.
+        missing = [relative for relative in cls._APPENDED if relative not in instrument]
+        if missing:
             raise RuntimeError(
-                f"NXstress._instrument: cannot append -- the target entry has no "
-                f"'{GROUP_NAME.MONOCHROMATOR}/wavelength' to extend.\n"
-                "  Write a new entry."
+                "NXstress._instrument: cannot append -- the target entry has no "
+                + ", ".join(repr(relative) for relative in missing)
+                + " to extend.\n  Write a new entry."
             )
 
         incoming_geometry, incoming_shift = cls._entry_wide_geometry(wss)
         existing_geometry, existing_shift, _ = cls.instrumentFromNexus(instrument)
 
         # The mask arrays are entry-wide and were written at a fixed size, so the
-        # append branch below grows only `wavelength` and leaves them alone. That is
+        # append branch grows only the per-scan-point fields (`wavelength`, `arm_rotation`)
+        # and leaves them alone. That is
         # correct only while the incoming masks are the ones already on disk: a
         # workspace carrying a different set would have its masks silently dropped,
         # and `masksFromNexus` would hand it the first write's masks on read.
@@ -510,6 +502,23 @@ class _Instrument:
                 )
 
     @classmethod
+    def shiftErrorFromNexus(cls, instrument) -> DENEXDetectorShift:
+        """The calibration's errors written beside the chain: one `<name>_errors` per calibration parameter of
+        `CALIBRATION_TRANSFORMATIONS`, the table the writer uses (-1 where none is known).
+
+        Raises:
+            RuntimeError: If one is missing, naming it: NXstress always writes all of them, so the write failed
+                or the file is corrupt (#1132 review, G8).
+        """
+        chain = f"{GROUP_NAME.DETECTOR}/transformations"
+        errors = {
+            parameter: float(np.asarray(cls._required(instrument, f"{chain}/{name}_errors").nxdata).ravel()[0])
+            for name, _, _, _, parameter in CALIBRATION_TRANSFORMATIONS
+            if parameter is not None
+        }
+        return shift_from_parameters(errors)
+
+    @classmethod
     @validate_call_
     def instrumentFromNexus(cls, instrument, rows=None):
         """Read instrument geometry, detector shift, and wavelength from NXinstrument group.
@@ -527,27 +536,33 @@ class _Instrument:
         -------
         tuple
             (DENEXDetectorGeometry, DENEXDetectorShift | None, wavelength: np.ndarray)
-        """
 
-        # Read detector geometry from detector/detector_bank
-        detector = instrument[GROUP_NAME.DETECTOR]
-        detector_bank = detector["detector_bank"]
+        Raises
+        ------
+        RuntimeError
+            If a field NXstress writes is missing: every one is always written, so a missing one means a
+            failed write or a corrupt file, and no value is substituted for it (#1132 review, G9).
+        """
+        bank = f"{GROUP_NAME.DETECTOR}/detector_bank"
+        chain = f"{GROUP_NAME.DETECTOR}/transformations"
 
         # data_size: (nrows, ncols)
-        data_size = detector_bank["data_size"].nxdata
+        data_size = cls._required(instrument, f"{bank}/data_size").nxdata
         nrows, ncols = int(data_size[0]), int(data_size[1])
 
         # Pixel sizes in meters
-        px_m = float(detector_bank["fast_pixel_direction"].nxdata)
-        py_m = float(detector_bank["slow_pixel_direction"].nxdata)
+        px_m = float(cls._required(instrument, f"{bank}/fast_pixel_direction").nxdata)
+        py_m = float(cls._required(instrument, f"{bank}/slow_pixel_direction").nxdata)
 
-        # Read transformations
-        trans = detector["transformations"]
-        calibrated = bool(trans.attrs.get("calibrated", False))
+        trans = cls._required(instrument, chain)
+        if "calibrated" not in trans.attrs:
+            raise RuntimeError(f"NXstress entry: {chain} has no 'calibrated' attribute; the file is incomplete")
+        calibrated = bool(trans.attrs["calibrated"])
 
-        # Read distance (arm_length)
-        distance = float(trans["distance"].nxdata) if "distance" in trans else 0.0
-        arm_length = distance
+        def value(name: str) -> float:
+            return float(np.asarray(cls._required(instrument, f"{chain}/{name}").nxdata).ravel()[0])
+
+        arm_length = value("arm_length")
 
         # Create geometry object
         geometry = DENEXDetectorGeometry(nrows, ncols, px_m, py_m, arm_length, calibrated)
@@ -555,30 +570,44 @@ class _Instrument:
         # If calibrated, read shift parameters
         shift = None
         if calibrated:
-            tx = float(trans["translation_x"].nxdata) if "translation_x" in trans else 0.0
-            ty = float(trans["translation_y"].nxdata) if "translation_y" in trans else 0.0
-            tz = float(trans["translation_z"].nxdata) if "translation_z" in trans else 0.0
-            rotx = float(trans["rotation_x"].nxdata) if "rotation_x" in trans else 0.0
-            roty = float(trans["rotation_y"].nxdata) if "rotation_y" in trans else 0.0
-            rotz = float(trans["rotation_z"].nxdata) if "rotation_z" in trans else 0.0
-            tth0 = float(trans["two_theta_zero"].nxdata) if "two_theta_zero" in trans else 0.0
-
-            shift = DENEXDetectorShift(tx, ty, tz, rotx, roty, rotz, tth0)
+            shift = DENEXDetectorShift(
+                value("shift_x"),
+                value("shift_y"),
+                value("shift_z"),
+                value("rotation_x"),
+                value("rotation_y"),
+                value("rotation_z"),
+                value("two_theta_0"),
+            )
 
         # Read wavelength from monochromator:
         #   we don't have access to the scan-point indices at this level,
         #     so we just return an `np.ndarray` in scan-point order.
-        wavelength = None
-        if GROUP_NAME.MONOCHROMATOR in instrument:
-            mono = instrument[GROUP_NAME.MONOCHROMATOR]
-            if "wavelength" in mono:
-                wavelength = mono["wavelength"].nxdata
-                # A multi-workspace entry concatenates every input's wavelength
-                # into one per-scan-point array; `rows` selects this workspace's.
-                if rows is not None:
-                    wavelength = wavelength[rows]
+        wavelength = cls._required(instrument, f"{GROUP_NAME.MONOCHROMATOR}/wavelength").nxdata
+        # A multi-workspace entry concatenates every input's wavelength
+        # into one per-scan-point array; `rows` selects this workspace's.
+        if rows is not None:
+            wavelength = wavelength[rows]
 
         return geometry, shift, wavelength
+
+    @classmethod
+    def _required(cls, instrument: NXgroup, path: str) -> NXobject:
+        """The item at `path` under `instrument`, which NXstress always writes.
+
+        Args:
+            instrument: The entry's `NXinstrument` group.
+            path: The item's path relative to it, e.g. `DETECTOR/transformations/shift_x`.
+
+        Returns:
+            The field or group.
+
+        Raises:
+            RuntimeError: If it is missing, naming it: the write failed or the file is corrupt.
+        """
+        if path not in instrument:
+            raise RuntimeError(f"NXstress entry: {GROUP_NAME.INSTRUMENT}/{path} is missing; the file is incomplete")
+        return instrument[path]
 
 
 class _Masks:
