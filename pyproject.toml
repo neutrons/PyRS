@@ -10,7 +10,6 @@ readme = "README.rst"
 [project.scripts]
 pyrsplot = "scripts.pyrsplot:main"
 pyrs-calibration = "scripts.pyrs_calibration:main"
-pyrs-calibration-correlation = "scripts.pyrs_calibration_correlation:main"
 create-mask = "scripts.create_mask:main"
 
 ####################
