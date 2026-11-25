@@ -110,12 +110,14 @@ def test_peak_range_json_d0_saved_and_loaded_as_float(model, tmp_path):
 
     # Act
     model.save_peak_range_json(str(filename), [[78.0, 85.0], [90.0, 95.0]], ["Peak0", "Peak1"], [1, np.float64(1.2)])
-    _, _, loaded_d0 = model.load_peak_range_json(str(filename))
+    loaded_ranges, _, loaded_d0 = model.load_peak_range_json(str(filename))
 
     # Assert
     assert [entry["d0"] for entry in json.loads(filename.read_text()).values()] == [1.0, 1.2]
     assert loaded_d0 == [1.0, 1.2]
     assert all(type(value) is float for value in loaded_d0)
+    assert type(loaded_ranges) is list and all(type(window) is list for window in loaded_ranges)
+    assert all(type(edge) is float for window in loaded_ranges for edge in window)
 
 
 @pytest.mark.parametrize(
