@@ -946,14 +946,18 @@ class HidraWorkspace:
         except ValueError as corrupt:
             self._log.warning(str(corrupt))
             return None
-        record = hidra_file.read_reduction_provenance()
+        try:
+            record = hidra_file.read_reduction_provenance()
+        except ValueError as unreadable:  # e.g. a record whose JSON is damaged
+            self._log.warning(f"{hidra_file.name}: the calibration record cannot be read: {unreadable}")
+            return None
         if "source" not in record:
             self._log.information(f"{hidra_file.name}: no calibration record (reduced before #1053, or never reduced)")
             return None
         try:
             return AppliedCalibration.from_reduction_record(record, workspace=self, where=hidra_file.name)
-        except (RuntimeError, ValueError) as unusable:
-            self._log.warning(f"{hidra_file.name}: the applied calibration cannot be rebuilt: {unusable}")
+        except (RuntimeError, ValueError, TypeError, KeyError) as unusable:  # e.g. a null value in an older record
+            self._log.warning(f"{hidra_file.name}: the applied calibration cannot be rebuilt: {unusable!r}")
             return None
 
     def set_applied_calibration(self, calibration: AppliedCalibration) -> None:

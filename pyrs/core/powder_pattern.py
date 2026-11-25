@@ -217,8 +217,11 @@ class ReductionApp:
         # END-IF
         self._instrument.set_mask_record(self._hydra_ws.get_detector_mask_source())
         # what the record will say was applied, checked before the reduction runs (#1141)
-        applied_l2 = reduction_l2(self._hydra_ws, self._sub_runs)
-        mono = run_monosetting(self._hydra_ws, self._sub_runs)
+        # built (and checked) before the reduction changes the workspace: a calibration that cannot be stated must
+        # not leave new reduced data labelled with an earlier calibration
+        applied = self._instrument.applied_calibration(
+            l2=reduction_l2(self._hydra_ws, self._sub_runs), mono=run_monosetting(self._hydra_ws, self._sub_runs)
+        )
 
         # Vanadium
         if van_file is not None:
@@ -261,7 +264,7 @@ class ReductionApp:
             "mask_id": mask_id,
             "extra_mask": _describe_extra_mask(mask, extra_mask),
         }
-        self._hydra_ws.set_applied_calibration(self._instrument.applied_calibration(l2=applied_l2, mono=mono))
+        self._hydra_ws.set_applied_calibration(applied)
 
     def plot_reduced_data(self, sub_run_number=None):
         if sub_run_number is None:

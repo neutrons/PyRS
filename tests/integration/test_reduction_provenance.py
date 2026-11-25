@@ -392,3 +392,46 @@ def test_older_none_record_is_not_rebuilt(tmp_path):
 
     # Assert
     assert not loaded.has_applied_calibration()
+
+
+def test_unstatable_calibration_stops_before_reducing(tmp_path, monkeypatch):
+    """A calibration whose record cannot be built stops the reduction before it changes the workspace: the data
+    are never labelled with an earlier calibration (#1141 review)"""
+    # Arrange - an error that is neither >= 0 nor a -1/-2 code
+    shift, error, wavelength, wavelength_error, status = read_calibration_json_file(REFERENCE)
+    error.center_shift_x = -0.5
+    calibration = tmp_path / "HB2B_CAL_bad.json"
+    write_calibration_to_json(shift, error, wavelength, wavelength_error, status, str(calibration))
+    workspace = NeXusConvertingApp(RUN, MASK).convert()
+    reducer = ReductionApp()
+    reducer.load_hidra_workspace(workspace)
+    reduced = []
+    monkeypatch.setattr(
+        reducer._reduction_manager, "reduce_diffraction_data", lambda *args, **kwargs: reduced.append(True)
+    )
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="calibration error must be"):
+        reducer.reduce_data(
+            sub_runs=[1, 2], instrument_file=None, calibration_file=str(calibration), mask=None, num_bins=256
+        )
+    assert not reduced and not workspace.has_applied_calibration()
+
+
+def test_unreadable_older_record_still_loads(tmp_path):
+    """An older record with a null value cannot be rebuilt, but the file still loads, without a record"""
+    # Arrange - a #1053-era record whose calibration holds a null error (as `jsonable` writes NaN)
+    path, _ = _saved(tmp_path, "reduced.h5", REFERENCE)
+    _as_written_before_1141(path)
+    with h5py.File(path, "a") as h5:
+        group = h5["instrument/calibration"]
+        stored = json.loads(group["calibration_json"][()])
+        stored["error_Shift_x"] = None
+        del group["calibration_json"]
+        group.create_dataset("calibration_json", data=json.dumps(stored))
+
+    # Act
+    loaded, _ = _loaded(path)
+
+    # Assert
+    assert not loaded.has_applied_calibration()
