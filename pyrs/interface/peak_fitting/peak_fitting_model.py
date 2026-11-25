@@ -237,12 +237,17 @@ class PeakFittingModel(QObject):
     def save_peak_range_json(self, filename, list_peak_ranges, list_peak_labels, list_peak_d0):
         """Serialize the peak-range table to a JSON file.
 
-        A d0 list that is not one value per peak is saved as the placeholder `DEFAULT_D0`, the rule
-        `read_peak_range_json` applies on loading.
+        A ``.json`` extension is appended when ``filename`` has none, because the
+        non-native Qt save dialog does not add it. A d0 list that is not one value per
+        peak is saved as the placeholder `DEFAULT_D0`, the rule `read_peak_range_json`
+        applies on loading.
 
         Raises:
             PeakRangeFileError: If a row could not be read back (see `write_peak_range_json`).
         """
+        if not os.path.splitext(filename)[1]:
+            filename += ".json"
+
         if len(list_peak_ranges) != len(list_peak_labels):
             raise PeakRangeFileError(
                 f"the table has {len(list_peak_ranges)} ranges and {len(list_peak_labels)} labels"
