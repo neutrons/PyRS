@@ -3,6 +3,7 @@
 import json
 
 import h5py
+import numpy as np
 import pytest
 
 from pyrs.calibration.provenance import file_record
@@ -254,15 +255,19 @@ def test_rereduction_into_the_input_file_replaces_the_record(tmp_path):
     assert record["mask"] == dict(file_record(MASK), source="file") and record["settings"]["num_bins"] == 128
 
 
-def _reduced_workspace(calibration_file=None):
-    """Sub-runs 1-2 of the run, reduced (and not saved): the workspace carries what the reduction applied."""
+def _reducer(calibration_file=None):
+    """Sub-runs 1-2 of the run reduced (not saved): the reducer, and the workspace carrying what it applied."""
     workspace = NeXusConvertingApp(RUN, MASK).convert()
     reducer = ReductionApp()
     reducer.load_hidra_workspace(workspace)
     reducer.reduce_data(
         sub_runs=[1, 2], instrument_file=None, calibration_file=calibration_file, mask=None, num_bins=256
     )
-    return workspace
+    return reducer, workspace
+
+
+def _reduced_workspace(calibration_file=None):
+    return _reducer(calibration_file)[1]
 
 
 def _run_l2(workspace):
@@ -302,12 +307,7 @@ def test_reduction_without_file_records_nominal():
 
 def _saved(tmp_path, name, calibration_file=None):
     """Sub-runs 1-2 reduced and saved; returns the project file's path and the reduced workspace."""
-    workspace = NeXusConvertingApp(RUN, MASK).convert()
-    reducer = ReductionApp()
-    reducer.load_hidra_workspace(workspace)
-    reducer.reduce_data(
-        sub_runs=[1, 2], instrument_file=None, calibration_file=calibration_file, mask=None, num_bins=256
-    )
+    reducer, workspace = _reducer(calibration_file)
     path = tmp_path / name
     reducer.save_diffraction_data(str(path))
     return path, workspace
@@ -318,7 +318,7 @@ def _loaded(path):
     project = HidraProjectFile(str(path), HidraProjectFileMode.READONLY)
     workspace.load_hidra_project(project, load_raw_counts=False, load_reduced_diffraction=True)
     project.close()
-    return workspace, project
+    return workspace
 
 
 @pytest.mark.parametrize("calibration_file", [REFERENCE, None], ids=["file", "nominal"])
@@ -328,32 +328,45 @@ def test_saved_calibration_reloads(tmp_path, calibration_file):
     path, reduced = _saved(tmp_path, "reduced.h5", calibration_file)
 
     # Act
-    loaded, _ = _loaded(path)
+    loaded = _loaded(path)
 
     # Assert
     assert loaded.get_applied_calibration() == reduced.get_applied_calibration()
 
 
-def test_append_with_another_calibration_clears_record(tmp_path):
-    """Combined data carry a calibration only if every file carries the same one (#1141)"""
+@pytest.mark.parametrize(
+    "first, appended, kept",
+    [(REFERENCE, REFERENCE, True), (REFERENCE, None, False), (None, REFERENCE, False)],
+    ids=["same", "other", "first-has-none"],
+)
+def test_append_keeps_only_a_shared_calibration(tmp_path, first, appended, kept):
+    """Combined data carry a calibration only if every file carries the same one (#1141); a file without a
+    record (here reduced without a calibration file before #1141) breaks it whichever comes first"""
     # Arrange
-    with_file, _ = _saved(tmp_path, "file.h5", REFERENCE)
-    nominal, _ = _saved(tmp_path, "nominal.h5")
-    combined, _ = _loaded(with_file)
+    paths = []
+    for name, calibration_file in (("first.h5", first), ("appended.h5", appended)):
+        path, _ = _saved(tmp_path, name, calibration_file)
+        if calibration_file is None:
+            _as_written_before_1141(path)
+        paths.append(path)
+    combined = _loaded(paths[0])
+    expected = combined.get_applied_calibration() if combined.has_applied_calibration() else None
 
     # Act
-    project = HidraProjectFile(str(nominal), HidraProjectFileMode.READONLY)
+    project = HidraProjectFile(str(paths[1]), HidraProjectFileMode.READONLY)
     combined.append_hidra_project(project)
     project.close()
 
     # Assert
-    assert not combined.has_applied_calibration()
+    assert combined.has_applied_calibration() is kept
+    if kept:
+        assert combined.get_applied_calibration() == expected
 
 
 def test_older_project_file_loads_without_record():
-    """A project file reduced before #1141 still loads; it just carries no applied calibration (option B)"""
+    """A project file reduced before #1053 still loads; it just carries no applied calibration"""
     # Act
-    loaded, _ = _loaded("tests/data/HB2B_1327.h5")
+    loaded = _loaded("tests/data/HB2B_1327.h5")
 
     # Assert
     assert not loaded.has_applied_calibration()
@@ -375,7 +388,7 @@ def test_older_file_record_is_rebuilt(tmp_path):
     _as_written_before_1141(path)
 
     # Act
-    loaded, _ = _loaded(path)
+    loaded = _loaded(path)
 
     # Assert
     assert loaded.get_applied_calibration().same_calibration_as(reduced.get_applied_calibration())
@@ -388,7 +401,7 @@ def test_older_none_record_is_not_rebuilt(tmp_path):
     _as_written_before_1141(path)
 
     # Act
-    loaded, _ = _loaded(path)
+    loaded = _loaded(path)
 
     # Assert
     assert not loaded.has_applied_calibration()
@@ -431,7 +444,62 @@ def test_unreadable_older_record_still_loads(tmp_path):
         group.create_dataset("calibration_json", data=json.dumps(stored))
 
     # Act
-    loaded, _ = _loaded(path)
+    loaded = _loaded(path)
 
     # Assert
     assert not loaded.has_applied_calibration()
+
+
+def test_tampered_stored_record_is_not_rebuilt(tmp_path):
+    """A stored record that fails its hash check is corrupt: no record, never one rebuilt from the descriptive
+    record beside it (#1141)"""
+    # Arrange
+    path, _ = _saved(tmp_path, "reduced.h5", REFERENCE)
+    with h5py.File(path, "a") as h5:
+        group = h5["instrument/calibration"]
+        stored = json.loads(group["applied_calibration_json"][()])
+        stored["l2"] = 0.9
+        del group["applied_calibration_json"]
+        group.create_dataset("applied_calibration_json", data=json.dumps(stored))
+
+    # Act
+    loaded = _loaded(path)
+
+    # Assert
+    assert not loaded.has_applied_calibration()
+
+
+def test_unrecordable_calibration_fails_the_save(tmp_path, monkeypatch):
+    """A reduction whose calibration record cannot be built is not saved, and no file is written (#1141)"""
+    # Arrange
+    reducer, _ = _reducer(REFERENCE)
+
+    def broken():
+        raise AttributeError("no shift")
+
+    monkeypatch.setattr(reducer._instrument, "calibration_record", broken)
+    path = tmp_path / "reduced.h5"
+
+    # Act / Assert
+    with pytest.raises(RuntimeError, match="could not be recorded, so nothing is saved"):
+        reducer.save_diffraction_data(str(path))
+    assert not path.exists()
+
+
+def test_differing_l2_stops_before_reducing(monkeypatch):
+    """Sub-runs at different distances are refused by reduce_data itself, before the workspace changes (#1141)"""
+    # Arrange
+    workspace = NeXusConvertingApp(RUN, MASK).convert()
+    sub_runs = np.asarray(workspace.get_sub_runs())
+    workspace.set_sample_log("L2", sub_runs, np.where(sub_runs == 1, 0.95, 0.96))
+    reducer = ReductionApp()
+    reducer.load_hidra_workspace(workspace)
+    reduced = []
+    monkeypatch.setattr(
+        reducer._reduction_manager, "reduce_diffraction_data", lambda *args, **kwargs: reduced.append(True)
+    )
+
+    # Act / Assert
+    with pytest.raises(RuntimeError, match=r"L2\) differs"):
+        reducer.reduce_data(sub_runs=[1, 2], instrument_file=None, calibration_file=None, mask=None, num_bins=256)
+    assert not reduced and not workspace.has_applied_calibration()

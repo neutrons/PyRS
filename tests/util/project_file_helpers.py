@@ -102,7 +102,8 @@ def write_minimal_h5_project(tmp_path: Path) -> Callable[..., Path]:
         if with_calibration:
             sub_runs = ws.get_sub_runs()
             applied = nominal_calibration(run_monosetting(ws, sub_runs), l2=reduction_l2(ws, sub_runs))
-            project.write_reduction_provenance(applied=applied)
+            # both records, as a reduction writes them: the descriptive one says no calibration file was applied
+            project.write_reduction_provenance(applied_calibration={"source": "none"}, applied=applied)
 
         project.save()
         project.close()

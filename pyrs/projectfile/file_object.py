@@ -12,7 +12,7 @@ from pyrs import __version__
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float, to_int
 from pyrs.utilities.file_util import to_filepath
-from pyrs.core.calibration import AppliedCalibration
+from pyrs.core.calibration import AppliedCalibration, CalibrationSource
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, HidraSetup
 from pyrs.peaks import PeakCollection  # type: ignore
 from pyrs.dataobjects import HidraConstants, SampleLogs  # type: ignore
@@ -134,7 +134,7 @@ def _prepare_record(applied):
     # imported here: pyrs.calibration imports the project file module
     from pyrs.calibration.provenance import jsonable
 
-    prepared = {"source": str(applied.get("source", "unknown"))}
+    prepared = {"source": CalibrationSource.from_stored(applied.get("source"), where="calibration record").value}
     for key in (
         "calibration_file",
         "calibration_file_sha256",
@@ -1329,7 +1329,14 @@ class HidraProjectFile:
             raise ValueError(f"{where}: applied calibration record is not valid JSON: {unreadable}") from None
         if not isinstance(stored, dict):
             raise ValueError(f"{where}: applied calibration record must be a JSON object, got {stored!r}")
-        return AppliedCalibration.from_dict(stored, where=where)
+        calibration = AppliedCalibration.from_dict(stored, where=where)
+        stored_hash = _plain(group.attrs.get("calibration_hash"))
+        if stored_hash != calibration.content_hash:
+            raise ValueError(
+                f"{where}: the calibration_hash attribute ({stored_hash}) is not the record's "
+                f"({calibration.content_hash}); the record is corrupt"
+            )
+        return calibration
 
     def read_reduction_instrument(self, geometry=None):
         """The instrument (HidraSetup) a reduction recorded, with the calibration it applied, so the data

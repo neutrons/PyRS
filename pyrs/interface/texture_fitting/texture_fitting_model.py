@@ -270,7 +270,8 @@ class TextureFittingModel(QObject):
         # and fixed as a prerequisite for the NXstress hookup above, since this is
         # the exact method that hookup needed to extend.
         # data without a known calibration are not saved, checked before any file is copied or written (#1141)
-        assert self.ws is not None, "save_fit_result called before a workspace was set"
+        if self.ws is None:
+            raise RuntimeError("save_fit_result called before a workspace was set")
         self.ws.get_applied_calibration()
 
         # An empty name means "update the loaded file in place", as documented.

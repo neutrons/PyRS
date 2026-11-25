@@ -30,13 +30,16 @@ import hashlib
 import math
 import struct
 from dataclasses import dataclass
-from typing import Any, Dict, Mapping, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Mapping, Optional, Tuple
 
 from pyrs.core.calibration_source import CalibrationSource
 from pyrs.core.detector_model import from_shift, to_shift
 from pyrs.core.instrument_geometry import DENEXDetectorShift
 from pyrs.core.monosetting import MonoSetting
 from pyrs.utilities.calibration_file_io import calibration_from_dict
+
+if TYPE_CHECKING:  # pyrs.core.workspaces imports this module
+    from pyrs.core.workspaces import HidraWorkspace
 
 __all__ = [
     "CalibrationSource",
@@ -231,7 +234,9 @@ class AppliedCalibration:
         return calibration
 
     @classmethod
-    def from_reduction_record(cls, record: Mapping[str, Any], *, workspace, where: str) -> "AppliedCalibration":
+    def from_reduction_record(
+        cls, record: Mapping[str, Any], *, workspace: "HidraWorkspace", where: str
+    ) -> "AppliedCalibration":
         """Rebuild the record from a project file's calibration record of #1053, written before #1141 stored it.
 
         Only what the file states is used (user decisions, 2026-11-25). A record of no calibration file is not
@@ -262,7 +267,7 @@ class AppliedCalibration:
         if not isinstance(calibration, dict):
             raise ValueError(f"{where}: calibration record with source {source.value!r} holds no calibration")
         sub_runs = workspace.get_sub_runs()
-        l2 = stated_l2(workspace, sub_runs, record, where=where)
+        l2 = stated_l2(workspace, sub_runs, record=record, where=where)
         mono = run_monosetting(workspace, sub_runs)
         if source is CalibrationSource.FILE:
             try:
@@ -334,7 +339,7 @@ def nominal_calibration(mono: MonoSetting, *, l2: float) -> AppliedCalibration:
     )
 
 
-def reduction_l2(workspace, sub_runs) -> float:
+def reduction_l2(workspace: "HidraWorkspace", sub_runs: Iterable[int]) -> float:
     """The one sample-to-detector distance a reduction of `sub_runs` uses (#1141): their `L2` log, else the
     instrument's arm length, as the reduction engine takes it.
 
@@ -367,7 +372,7 @@ def reduction_l2(workspace, sub_runs) -> float:
     return distances[0]
 
 
-def run_monosetting(workspace, sub_runs) -> MonoSetting:
+def run_monosetting(workspace: "HidraWorkspace", sub_runs: Iterable[int]) -> MonoSetting:
     """The monochromator of `sub_runs`, from their `mrot` log (#1141): never from a wavelength, which may be the
     calibrated one and whose nominal value no neutron has.
 
@@ -395,7 +400,7 @@ def run_monosetting(workspace, sub_runs) -> MonoSetting:
     return settings.pop()
 
 
-def stated_l2(workspace, sub_runs, record: Mapping[str, Any], *, where: str) -> float:
+def stated_l2(workspace: "HidraWorkspace", sub_runs: Iterable[int], *, record: Mapping[str, Any], where: str) -> float:
     """The distance a reduction used, from what a project file states: the sub-runs' `L2` log, else the file's
     instrument geometry, else the geometry in its calibration record (the run's, else the calibration's). Never a
     default (user decision, 2026-11-25).

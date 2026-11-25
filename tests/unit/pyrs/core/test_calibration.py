@@ -1,7 +1,9 @@
 """The applied-calibration record (#1141): its identity is a content hash, and it refuses what cannot be stated"""
 
 import dataclasses
+import hashlib
 import math
+import struct
 
 import numpy as np
 import pytest
@@ -50,6 +52,24 @@ def test_hash_ignores_source_and_status():
     # Assert
     assert in_session.content_hash == from_file.content_hash
     assert in_session.same_calibration_as(from_file)
+
+
+def test_hash_format_is_fixed():
+    """The hash is a file contract (project files, NXstress): its order, byte order and packing never change"""
+    # Arrange
+    calibration = _refined()
+    numbers = calibration.values + calibration.errors
+    numbers += (calibration.wavelength, calibration.wavelength_error, calibration.l2)
+
+    # Act
+    expected = hashlib.sha256(struct.pack("<17d", *numbers)).hexdigest()
+
+    # Assert
+    assert calibration.content_hash == expected
+    assert (
+        nominal_calibration(MonoSetting.Si331, l2=0.985).content_hash
+        == "e9d0bbb2bfdb9b21ced0231cf01ba209ad59b010d453f9e1b7c8d5f58ad1ef6f"
+    )
 
 
 @pytest.mark.parametrize("index", range(17))
@@ -382,7 +402,7 @@ def test_stated_l2_from_record_geometry(record):
     workspace = _loaded_workspace(with_instrument=False)
 
     # Act / Assert
-    assert stated_l2(workspace, [1, 2], record, where="run.h5") == 0.95
+    assert stated_l2(workspace, [1, 2], record=record, where="run.h5") == 0.95
 
 
 def test_stated_l2_prefers_the_log():
@@ -391,7 +411,10 @@ def test_stated_l2_prefers_the_log():
     workspace.set_sample_log("L2", np.array([1, 2]), np.array([0.97, 0.97]))
 
     # Act / Assert
-    assert stated_l2(workspace, [1, 2], _record("file", {"geometry": {"arm_length": 0.95}}), where="run.h5") == 0.97
+    assert (
+        stated_l2(workspace, [1, 2], record=_record("file", {"geometry": {"arm_length": 0.95}}), where="run.h5")
+        == 0.97
+    )
 
 
 def test_unstated_l2_raises():
@@ -401,7 +424,7 @@ def test_unstated_l2_raises():
 
     # Act / Assert
     with pytest.raises(ValueError, match="run.h5: the distance its reduction used is not stated"):
-        stated_l2(workspace, [1, 2], _record("file", {"Shift_x": 0.0}), where="run.h5")
+        stated_l2(workspace, [1, 2], record=_record("file", {"Shift_x": 0.0}), where="run.h5")
 
 
 def test_reduction_l2_without_log_or_geometry_raises():

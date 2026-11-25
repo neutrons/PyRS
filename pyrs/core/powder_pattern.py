@@ -315,23 +315,24 @@ class ReductionApp:
 
         # Generate project file instance
         out_file = HidraProjectFile(file_name, mode)
+        try:
+            # If it is a new file, the sample logs and other information shall be exported too
+            if mode == HidraProjectFileMode.OVERWRITE:
+                self._hydra_ws.save_experimental_data(
+                    out_file, sub_runs=self._sub_runs, ignore_raw_counts=ignore_raw_counts
+                )
 
-        # If it is a new file, the sample logs and other information shall be exported too
-        if mode == HidraProjectFileMode.OVERWRITE:
-            self._hydra_ws.save_experimental_data(
-                out_file, sub_runs=self._sub_runs, ignore_raw_counts=ignore_raw_counts
+            # Calibrated wave length shall be written
+            self._hydra_ws.save_wavelength(out_file)
+
+            # Record which calibration and vanadium run (if any) produced this reduction
+            out_file.write_reduction_provenance(
+                vanadium_run=self._van_file,
+                instrument=self._instrument,
+                reduction_settings=self._reduction_settings,
+                applied=applied,
             )
 
-        # Calibrated wave length shall be written
-        self._hydra_ws.save_wavelength(out_file)
-
-        # Record which calibration and vanadium run (if any) produced this reduction
-        out_file.write_reduction_provenance(
-            vanadium_run=self._van_file,
-            instrument=self._instrument,
-            reduction_settings=self._reduction_settings,
-            applied=applied,
-        )
-
-        # Write & close
-        self._hydra_ws.save_reduced_diffraction_data(out_file, sub_runs=self._sub_runs)
+            self._hydra_ws.save_reduced_diffraction_data(out_file, sub_runs=self._sub_runs)
+        finally:
+            out_file.close()  # also when a write fails, so the file is not left open for a retry
