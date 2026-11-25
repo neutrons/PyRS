@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from pyrs.core.powder_pattern import ReductionApp, _describe_extra_mask
+from tests.util.workspace_helpers import make_minimal_HidraWorkspace
 
 
 @pytest.mark.parametrize(
@@ -52,3 +53,16 @@ def test_describe_extra_mask_names_differ_by_content():
 def test_describe_extra_mask_ignores_the_array_dtype():
     # Act / Assert - 1/0 as int, float or bool keep the same pixels
     assert len({_describe_extra_mask(np.array([1, 0, 1], dtype=t))["sha256"] for t in (int, float, bool)}) == 1
+
+
+def test_save_without_applied_calibration_raises(tmp_path):
+    """Data without a known calibration are not saved, and no file is created (#1141)"""
+    # Arrange
+    reducer = ReductionApp()
+    reducer.load_hidra_workspace(make_minimal_HidraWorkspace(sub_runs=[1, 2], name="not_reduced"))
+    path = tmp_path / "reduced.h5"
+
+    # Act / Assert
+    with pytest.raises(RuntimeError, match="'not_reduced' has no applied calibration.*reduce the data again"):
+        reducer.save_diffraction_data(str(path))
+    assert not path.exists()

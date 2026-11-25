@@ -40,6 +40,13 @@ def test_merged_projectfile_viewer(combine_projects_window, monkeypatch):
         "pop_message",
         lambda parent, message, detail="", kind="info": messages.append((message, kind)),
     )
+    # and saving them is refused (#1141): the failure would open a modal error dialog, so record it instead
+    save_failures = []
+    monkeypatch.setattr(
+        combine_runs_viewer,
+        "report_save_failure",
+        lambda parent, target, error: save_failures.append((target, str(error))),
+    )
 
     try:
         window.show()
@@ -73,6 +80,10 @@ def test_merged_projectfile_viewer(combine_projects_window, monkeypatch):
 
         QtCore.QTimer.singleShot(300, functools.partial(handle_dialog, export_file))
         window.fileLoading.file_load_dilg.saveFileDialog()
+
+        # historic files carry no calibration record: they can be combined to look at, not saved (#1141)
+        assert len(save_failures) == 1 and "has no applied calibration" in save_failures[0][1]
+        assert not os.path.exists(export_file)
     finally:
         window.hide()
         if os.path.exists(export_file):

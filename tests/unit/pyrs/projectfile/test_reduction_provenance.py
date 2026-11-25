@@ -1,12 +1,17 @@
 """A reduced project file records the calibration the reduction applied, read from its HidraSetup (#1053)"""
 
+import json
+
 import h5py
 import pytest
 
+from pyrs.core.calibration import UNKNOWN_ERROR, CalibrationSource, nominal_calibration
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift, HidraSetup
+from pyrs.core.monosetting import MonoSetting
 from pyrs.dataobjects.constants import HidraConstants
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
+from tests.util.workspace_helpers import make_minimal_HidraWorkspace
 
 GEOMETRY = DENEXDetectorGeometry(1024, 1024, 0.3 / 1024, 0.3 / 1024, 0.985, False)
 SHIFT = DENEXDetectorShift(0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.25)
@@ -122,47 +127,46 @@ def test_rereduction_replaces_the_earlier_record(tmp_path, calibrated):
     assert read(path) == {"source": "none", "reduction": {"mask": {"source": "not recorded"}}}
 
 
-def test_unbuildable_record_does_not_stop_the_save(tmp_path, monkeypatch, calibrated):
+def test_unbuildable_record_fails_the_save(tmp_path, monkeypatch, calibrated):
+    """A record that cannot be built fails the save (#1141): "unknown" is never written"""
+
     # Arrange
     def broken():
         raise AttributeError("no shift")
 
     monkeypatch.setattr(calibrated, "calibration_record", broken)
-    path = tmp_path / "reduced.h5"
+    applied = nominal_calibration(MonoSetting.Si422, l2=0.985)
 
-    # Act
-    with pytest.warns(UserWarning, match="could not be recorded"):
-        write(path, instrument=calibrated)
-
-    # Assert - saved; the record says it is unknown, and why
-    assert read(path) == {
-        "source": "unknown",
-        "error": "applied calibration could not be recorded: AttributeError: no shift",
-        "reduction": {"mask": {"source": "not recorded"}},
-    }
+    # Act / Assert - the check a save runs before opening its file
+    with pytest.raises(RuntimeError, match="could not be recorded, so nothing is saved: AttributeError: no shift"):
+        HidraProjectFile.check_reduction_provenance(instrument=calibrated, applied=applied)
 
 
-def test_failed_write_removes_what_was_written(tmp_path, monkeypatch, calibrated):
-    # Arrange - the file fails while the record is being written
+@pytest.mark.parametrize("failing_dataset", ["provenance_json", "applied_calibration_json"])
+def test_failed_write_raises_and_removes_what_was_written(tmp_path, monkeypatch, calibrated, failing_dataset):
+    """The file failing mid-record raises, and leaves nothing half-written: neither record survives alone (#1141)"""
+    # Arrange - the file fails while one of the records is being written
     real = h5py.Group.create_dataset
 
     def failing(self, name, *args, **kwargs):
-        if name == "provenance_json":
+        if name == failing_dataset:
             raise OSError("disk full")
         return real(self, name, *args, **kwargs)
 
-    monkeypatch.setattr(h5py.Group, "create_dataset", failing)
     path = tmp_path / "reduced.h5"
+    project = HidraProjectFile(str(path), HidraProjectFileMode.OVERWRITE)
+    applied = calibrated.applied_calibration(l2=0.985, mono=MonoSetting.Si422)
+    monkeypatch.setattr(h5py.Group, "create_dataset", failing)
 
     # Act
-    with pytest.warns(UserWarning, match="could not be written"):
-        write(path, instrument=calibrated)
+    with pytest.raises(RuntimeError, match="could not be written: OSError: disk full"):
+        project.write_reduction_provenance(instrument=calibrated, applied=applied)
     monkeypatch.setattr(h5py.Group, "create_dataset", real)
+    project.save(verbose=False)
     record = read(path)
 
-    # Assert - nothing half-written beside "unknown"
-    assert record["source"] == "unknown" and "disk full" in record["error"]
-    assert not {"calibration", "provenance"} & set(record)
+    # Assert - neither "unknown" nor a partial record
+    assert "source" not in record and not {"calibration", "provenance", "calibration_hash"} & set(record)
 
 
 def test_missing_calibration_group_is_created(tmp_path, calibrated):
@@ -412,3 +416,127 @@ def test_missing_error_is_recorded_as_not_refined(tmp_path, file_format):
     assert {name: calibration[f"error_{name}"] for name in expected_errors} == pytest.approx(expected_errors)
     assert {name: calibration[name] for name in SHIFT.convert_to_dict()} == pytest.approx(SHIFT.convert_to_dict())
     assert calibration["error_Lambda"] == pytest.approx(1e-5) and calibration["Lambda"] == pytest.approx(1.5306)
+
+
+def test_applied_calibration_from_a_file(calibrated):
+    """The file's values, errors, wavelength and status, with the L2 reduction used (#1141)"""
+    # Act
+    applied = calibrated.applied_calibration(l2=0.985, mono=MonoSetting.Si422)
+
+    # Assert
+    assert applied.source is CalibrationSource.FILE and applied.status == 1
+    assert applied.shift.convert_to_dict() == SHIFT.convert_to_dict()
+    assert applied.shift_error.convert_to_dict() == ERROR.convert_to_dict()
+    assert (applied.wavelength, applied.wavelength_error, applied.l2) == (1.5306, 1e-5, 0.985)
+
+
+def test_applied_calibration_without_a_file_is_nominal():
+    """No calibration file: the nominal calibration of the run's monochromator (#1141)"""
+    # Act
+    applied = HidraSetup(GEOMETRY).applied_calibration(l2=0.985, mono=MonoSetting.Si422)
+
+    # Assert
+    assert applied.source is CalibrationSource.NONE
+    assert applied.same_calibration_as(nominal_calibration(MonoSetting.Si422, l2=0.985))
+
+
+def test_applied_calibration_of_a_workspace_shift():
+    """A workspace's own shift has unknown errors (-2) and no refinement status (#1141)"""
+    # Arrange
+    workspace = make_minimal_HidraWorkspace(sub_runs=[1, 2, 3])
+    instrument = HidraSetup(GEOMETRY)
+    instrument.use_workspace_calibration(workspace)
+
+    # Act
+    applied = instrument.applied_calibration(l2=0.985, mono=MonoSetting.Si422)
+
+    # Assert
+    assert applied.source is CalibrationSource.WORKSPACE and applied.status is None
+    assert applied.shift.convert_to_dict() == workspace.get_detector_shift().convert_to_dict()
+    assert applied.errors == (UNKNOWN_ERROR,) * 7
+    assert (applied.wavelength, applied.wavelength_error) == (1.486, UNKNOWN_ERROR)
+
+
+def test_recorded_source_is_the_plain_string(calibrated):
+    """Project files keep the strings they always held: existing records read back unchanged (#1141)"""
+    # Act
+    source = calibrated.calibration_record()["source"]
+
+    # Assert
+    assert source == "file" and type(source) is str
+
+
+@pytest.mark.parametrize("record", [{"source": "unknown"}, {"calibration": None}], ids=["unknown", "missing"])
+def test_record_that_cannot_be_stated_raises(record):
+    """A record whose source is "unknown" or missing is rejected, never read as no calibration (#1141)"""
+    # Arrange
+    instrument = HidraSetup(GEOMETRY)
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="run.h5: calibration source"):
+        instrument.set_calibration_record(record, where="run.h5")
+
+
+def test_applied_record_round_trips(tmp_path, calibrated):
+    """The record and its hash are stored, and read back checked against the hash (#1141)"""
+    # Arrange
+    path = tmp_path / "reduced.h5"
+    applied = calibrated.applied_calibration(l2=0.985, mono=MonoSetting.Si422)
+
+    # Act
+    write(path, instrument=calibrated, applied=applied)
+    project = HidraProjectFile(str(path), HidraProjectFileMode.READONLY)
+    restored = project.read_applied_calibration()
+    project.close()
+
+    # Assert
+    assert restored == applied
+    with h5py.File(path, "r") as h5:
+        stored_hash = h5[f"{HidraConstants.INSTRUMENT}/{HidraConstants.CALIBRATION}"].attrs["calibration_hash"]
+    assert stored_hash == applied.content_hash
+
+
+def test_file_without_applied_record_raises(tmp_path, calibrated):
+    """A file reduced before #1141 has the descriptive record but not the applied one"""
+    # Arrange
+    path = tmp_path / "reduced.h5"
+    write(path, instrument=calibrated)
+    project = HidraProjectFile(str(path), HidraProjectFileMode.READONLY)
+
+    # Act / Assert
+    with pytest.raises(RuntimeError, match="no applied calibration record"):
+        project.read_applied_calibration()
+    project.close()
+
+
+def test_tampered_applied_record_raises(tmp_path, calibrated):
+    # Arrange
+    path = tmp_path / "reduced.h5"
+    write(path, instrument=calibrated, applied=calibrated.applied_calibration(l2=0.985, mono=MonoSetting.Si422))
+    with h5py.File(path, "a") as h5:
+        group = h5[f"{HidraConstants.INSTRUMENT}/{HidraConstants.CALIBRATION}"]
+        stored = json.loads(group["applied_calibration_json"][()])
+        stored["l2"] = 0.9
+        del group["applied_calibration_json"]
+        group.create_dataset("applied_calibration_json", data=json.dumps(stored))
+    project = HidraProjectFile(str(path), HidraProjectFileMode.READONLY)
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="does not match its stored hash"):
+        project.read_applied_calibration()
+    project.close()
+
+
+def test_hash_attribute_mismatch_raises(tmp_path, calibrated):
+    """The record and its calibration_hash attribute must agree: either edited alone is a corrupt record"""
+    # Arrange
+    path = tmp_path / "reduced.h5"
+    write(path, instrument=calibrated, applied=calibrated.applied_calibration(l2=0.985, mono=MonoSetting.Si422))
+    with h5py.File(path, "a") as h5:
+        h5[f"{HidraConstants.INSTRUMENT}/{HidraConstants.CALIBRATION}"].attrs["calibration_hash"] = "0" * 64
+    project = HidraProjectFile(str(path), HidraProjectFileMode.READONLY)
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="calibration_hash attribute .* is not the record's"):
+        project.read_applied_calibration()
+    project.close()

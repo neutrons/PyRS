@@ -9,8 +9,15 @@ import hashlib
 import json
 import math
 import os
+from typing import TYPE_CHECKING
+
+from pyrs.core.calibration_source import CalibrationSource
+from pyrs.core.monosetting import MonoSetting
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float, to_int
+
+if TYPE_CHECKING:  # pyrs.core.calibration imports this module
+    from pyrs.core.calibration import AppliedCalibration
 
 
 class HidraSetup:
@@ -44,7 +51,7 @@ class HidraSetup:
         self._geometry_shift_error = None
         self._wave_length_error = None
         self._calibration_status = None
-        self._calibration_source = "none"
+        self._calibration_source = CalibrationSource.NONE
         self._calibration_file = None
         self._calibration_file_sha256 = None
         self._calibration_created = None
@@ -131,8 +138,8 @@ class HidraSetup:
         return self._calibration_status
 
     @property
-    def calibration_source(self):
-        """Where the applied calibration came from: ``"file"``, ``"workspace"`` or ``"none"``."""
+    def calibration_source(self) -> CalibrationSource:
+        """Where the applied calibration came from (#1141)."""
         return self._calibration_source
 
     @property
@@ -185,7 +192,7 @@ class HidraSetup:
         self._geometry_shift, self._geometry_shift_error = shift, shift_error
         self._calibrated_wave_length, self._wave_length_error = float(wave_length), float(wave_length_error)
         self._calibration_status = int(status)
-        self._calibration_source = "file"
+        self._calibration_source = CalibrationSource.FILE
         self._calibration_file = str(calibration_file)
         self._calibration_file_sha256 = _file_sha256(calibration_file)
         self._lambda_source = "calibration file"
@@ -223,7 +230,7 @@ class HidraSetup:
         self._geometry_shift = workspace.get_detector_shift()
         self._geometry_shift_error = None
         self._calibration_status = None
-        self._calibration_source = "workspace"
+        self._calibration_source = CalibrationSource.WORKSPACE
         self._calibrated_wave_length, self._lambda_source = _calibrated_wavelength(workspace, sub_runs)
         self._wave_length_error = None
         self._take_geometry(self._geometry_setup, "run")
@@ -251,10 +258,53 @@ class HidraSetup:
             calibration["geometry"] = calibration_file_io.geometry_to_dict(self._calibration_geometry)
         return calibration
 
+    def applied_calibration(self, *, l2: float, mono: MonoSetting) -> "AppliedCalibration":
+        """The calibration this instrument applies, as a record with an identity (#1141).
+
+        Args:
+            l2: The sample-to-detector distance reduction used (m).
+            mono: The run's monochromator setting: the nominal calibration's wavelength, and the wavelength of a
+                workspace shift that carries no calibrated one.
+
+        Returns:
+            For source NONE, the nominal calibration. For FILE, the file's values, errors, wavelength and status.
+            For WORKSPACE, the shift with every error -2 (unknown) and status None, and the workspace's
+            calibrated wavelength with error -2, else the nominal wavelength with error -1.
+        """
+        # deferred: pyrs.core.calibration imports this module
+        from pyrs.core.calibration import DEFAULT_ERROR, UNKNOWN_ERROR, AppliedCalibration, nominal_calibration
+
+        if self._calibration_source is CalibrationSource.NONE:
+            return nominal_calibration(mono, l2=l2)
+        if self._calibration_source is CalibrationSource.FILE:
+            return AppliedCalibration.from_shift(
+                self._geometry_shift,
+                self._geometry_shift_error,
+                wavelength=self._calibrated_wave_length,
+                wavelength_error=self._wave_length_error,
+                l2=l2,
+                source=CalibrationSource.FILE,
+                status=self._calibration_status,
+            )
+        unknown = DENEXDetectorShift(*([UNKNOWN_ERROR] * 7))
+        if self._calibrated_wave_length is not None:
+            wavelength, wavelength_error = self._calibrated_wave_length, UNKNOWN_ERROR
+        else:
+            wavelength, wavelength_error = float(mono), DEFAULT_ERROR
+        return AppliedCalibration.from_shift(
+            self._geometry_shift,
+            unknown,
+            wavelength=wavelength,
+            wavelength_error=wavelength_error,
+            l2=l2,
+            source=CalibrationSource.WORKSPACE,
+            status=None,
+        )
+
     def calibration_record(self):
         """Everything about the applied calibration, for the project file (HidraProjectFile)."""
         record = {
-            "source": self._calibration_source,
+            "source": self._calibration_source.value,
             "calibration": self.calibration_dict(),
             "calibration_file": self._calibration_file,
             "calibration_file_sha256": self._calibration_file_sha256,
@@ -272,12 +322,22 @@ class HidraSetup:
             record["run_geometry"] = calibration_file_io.geometry_to_dict(self._geometry_setup)
         return {key: value for key, value in record.items() if value is not None}
 
-    def set_calibration_record(self, record):
-        """Restore the applied calibration from a :meth:`calibration_record` (e.g. read from a project file)."""
+    def set_calibration_record(self, record, *, where: str) -> None:
+        """Restore the applied calibration from a :meth:`calibration_record` (e.g. read from a project file).
+
+        Args:
+            record: The record.
+            where: The file it was read from, for the error message.
+
+        Raises:
+            ValueError: If its source is missing or is not a :class:`CalibrationSource` (e.g. ``"unknown"``): a
+                calibration that cannot be stated is rejected, never read as none (#1141).
+        """
         from pyrs.utilities import calibration_file_io
 
+        source = CalibrationSource.from_stored(record.get("source"), where=where)
         calibration = record.get("calibration")
-        self._calibration_source = record.get("source", "none")
+        self._calibration_source = source
         self._calibration_file = record.get("calibration_file")
         self._calibration_file_sha256 = record.get("calibration_file_sha256")
         self._calibration_created = record.get("created")

@@ -1,6 +1,7 @@
 from pyrs.core import reduction_manager
 from pyrs.core import mask_util
 from pyrs.core.instrument_geometry import HidraSetup
+from pyrs.core.calibration import reduction_l2, run_monosetting
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities import calibration_file_io
 from matplotlib import pyplot as plt
@@ -215,6 +216,12 @@ class ReductionApp:
             self._instrument.use_workspace_calibration(self._hydra_ws, self._sub_runs)
         # END-IF
         self._instrument.set_mask_record(self._hydra_ws.get_detector_mask_source())
+        # what the record will say was applied, checked before the reduction runs (#1141)
+        # built (and checked) before the reduction changes the workspace: a calibration that cannot be stated must
+        # not leave new reduced data labelled with an earlier calibration
+        applied = self._instrument.applied_calibration(
+            l2=reduction_l2(self._hydra_ws, self._sub_runs), mono=run_monosetting(self._hydra_ws, self._sub_runs)
+        )
 
         # Vanadium
         if van_file is not None:
@@ -257,6 +264,7 @@ class ReductionApp:
             "mask_id": mask_id,
             "extra_mask": _describe_extra_mask(mask, extra_mask),
         }
+        self._hydra_ws.set_applied_calibration(applied)
 
     def plot_reduced_data(self, sub_run_number=None):
         if sub_run_number is None:
@@ -300,22 +308,31 @@ class ReductionApp:
                 "or user specified output file name."
             )
 
+        # both calibration records must be writable before the file is opened: a save that cannot record its
+        # calibration fails and writes nothing (#1141)
+        applied = self._hydra_ws.get_applied_calibration()
+        HidraProjectFile.check_reduction_provenance(instrument=self._instrument, applied=applied)
+
         # Generate project file instance
         out_file = HidraProjectFile(file_name, mode)
+        try:
+            # If it is a new file, the sample logs and other information shall be exported too
+            if mode == HidraProjectFileMode.OVERWRITE:
+                self._hydra_ws.save_experimental_data(
+                    out_file, sub_runs=self._sub_runs, ignore_raw_counts=ignore_raw_counts
+                )
 
-        # If it is a new file, the sample logs and other information shall be exported too
-        if mode == HidraProjectFileMode.OVERWRITE:
-            self._hydra_ws.save_experimental_data(
-                out_file, sub_runs=self._sub_runs, ignore_raw_counts=ignore_raw_counts
+            # Calibrated wave length shall be written
+            self._hydra_ws.save_wavelength(out_file)
+
+            # Record which calibration and vanadium run (if any) produced this reduction
+            out_file.write_reduction_provenance(
+                vanadium_run=self._van_file,
+                instrument=self._instrument,
+                reduction_settings=self._reduction_settings,
+                applied=applied,
             )
 
-        # Calibrated wave length shall be written
-        self._hydra_ws.save_wavelength(out_file)
-
-        # Record which calibration and vanadium run (if any) produced this reduction
-        out_file.write_reduction_provenance(
-            vanadium_run=self._van_file, instrument=self._instrument, reduction_settings=self._reduction_settings
-        )
-
-        # Write & close
-        self._hydra_ws.save_reduced_diffraction_data(out_file, sub_runs=self._sub_runs)
+            self._hydra_ws.save_reduced_diffraction_data(out_file, sub_runs=self._sub_runs)
+        finally:
+            out_file.close()  # also when a write fails, so the file is not left open for a retry

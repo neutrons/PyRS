@@ -68,12 +68,13 @@ class CombineRunsModel(QObject):
                 nx.write([self._hidra_ws], [[]])
             return
 
+        # the combined data must carry one known calibration, checked before the file is created (#1141)
+        applied = self._hidra_ws.get_applied_calibration()
         export_project = HidraProjectFile(fileout, "w")
         self._hidra_ws.save_experimental_data(
             export_project, sub_runs=self._hidra_ws._sample_logs.subruns, ignore_raw_counts=True
         )
         self._hidra_ws.save_reduced_diffraction_data(export_project)
-        # which calibration(s) the combined data were reduced with, and from which files (#1063)
-        if self._record is not None:
-            export_project.write_reduction_provenance(applied_calibration=self._record)
+        # which calibration the combined data carry (#1141), and from which files (#1063)
+        export_project.write_reduction_provenance(applied_calibration=self._record, applied=applied)
         export_project.save()
