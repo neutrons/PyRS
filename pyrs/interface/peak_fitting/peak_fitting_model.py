@@ -14,7 +14,6 @@ The two models therefore share method *names* but not implementations; do not tr
 unify them without also rewriting the peak-fitting data path.
 """
 
-import json
 import os
 import traceback
 from shutil import copyfile
@@ -24,6 +23,13 @@ from qtpy.QtCore import QObject, Signal  # type:ignore
 from pyrs.core import MonoSetting  # type: ignore
 from pyrs.core.summary_generator import SummaryGenerator
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
+from pyrs.peaks.peak_ranges import (
+    DEFAULT_D0,
+    PeakRange,
+    PeakRangeFileError,
+    read_peak_range_json,
+    write_peak_range_json,
+)
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 
 
@@ -232,36 +238,43 @@ class PeakFittingModel(QObject):
         generator.write_csv(sample_logs, peaks)
 
     def save_peak_range_json(self, filename, list_peak_ranges, list_peak_labels, list_peak_d0):
-        """Serialize the peak-range table to a JSON file."""
-        output = {}
-        for _index, peak_range in enumerate(list_peak_ranges):
-            output[_index] = {
-                "peak_range": peak_range,
-                "peak_label": list_peak_labels[_index],
-                "d0": list_peak_d0,
-            }
+        """Serialize the peak-range table to a JSON file.
 
-        with open(filename, "w") as outfile:
-            json.dump(output, outfile)
+        A ``.json`` extension is appended when ``filename`` has none, because the
+        non-native Qt save dialog does not add it. A d0 list that is not one value per
+        peak is saved as the placeholder `DEFAULT_D0`, the rule `read_peak_range_json`
+        applies on loading.
+
+        Raises:
+            PeakRangeFileError: If a row could not be read back (see `write_peak_range_json`).
+        """
+        if not os.path.splitext(filename)[1]:
+            filename += ".json"
+
+        if len(list_peak_ranges) != len(list_peak_labels):
+            raise PeakRangeFileError(
+                f"the table has {len(list_peak_ranges)} ranges and {len(list_peak_labels)} labels"
+            )
+        d0_values = (
+            list_peak_d0 if len(list_peak_d0) == len(list_peak_ranges) else [DEFAULT_D0] * len(list_peak_ranges)
+        )
+        peaks = []
+        for window, label, d0 in zip(list_peak_ranges, list_peak_labels, d0_values):
+            try:
+                x_min, x_max = window
+            except (TypeError, ValueError):
+                raise PeakRangeFileError(f"peak_range must be [x_min, x_max], got {window!r}") from None
+            peaks.append(PeakRange(label=label, x_min=x_min, x_max=x_max, d0=d0))
+        write_peak_range_json(filename, peaks)
 
     def load_peak_range_json(self, filename):
-        """Deserialize a peak-range JSON file.
+        """Deserialize a peak-range JSON file; see `read_peak_range_json` for how d0 is resolved.
 
         Returns:
             A tuple ``(peak_range, peak_label, peak_d0)`` of parallel lists.
         """
-        with open(filename) as json_file:
-            data = json.load(json_file)
-
-        peak_range = []
-        peak_label = []
-        peak_d0 = []
-        for _index in data.keys():
-            peak_range.append(data[_index]["peak_range"])
-            peak_label.append(data[_index]["peak_label"])
-            peak_d0.append(data[_index]["d0"])
-
-        return peak_range, peak_label, peak_d0
+        peaks = read_peak_range_json(filename)
+        return [[p.x_min, p.x_max] for p in peaks], [p.label for p in peaks], [p.d0 for p in peaks]
 
     def save_nexus(self, data_key, file_name):
         """Save data to a Mantid-compatible NeXus file."""

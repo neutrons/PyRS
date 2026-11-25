@@ -3,6 +3,7 @@ from pyrs.core import pyrscore
 from qtpy import QtCore, QtWidgets
 import numpy as np
 import functools
+import json
 import pytest
 import os
 
@@ -225,3 +226,59 @@ def test_peak_selection(tmpdir, fit_peaks_window):
     qtbot.wait(wait)
 
     window.hide()
+
+
+def test_load_bad_peak_range_file_keeps_ranges(tmp_path, monkeypatch, fit_peaks_window):
+    """A peak-range file with a bad d0 is reported and leaves the ranges on screen alone."""
+    # Arrange
+    window, _ = fit_peaks_window
+    fit_setup = window._ui_graphicsView_fitSetup
+    fit_setup.list_peak_ranges = [[78.0, 85.0]]
+    fit_setup.list_fit_peak_labels = ["Peak0"]
+    window.list_peak_d0 = [1.1]
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps({"0": {"peak_range": [78.0, 85.0], "peak_label": "Peak0", "d0": None}}))
+    monkeypatch.setattr(
+        "pyrs.interface.peak_fitting.peak_fitting_viewer.browse_file", lambda *args, **kwargs: str(bad)
+    )
+    shown = []
+    monkeypatch.setattr(
+        "pyrs.interface.peak_fitting.peak_fitting_viewer.pop_message", lambda *args, **kwargs: shown.append(kwargs)
+    )
+
+    # Act
+    window.clicked_load_peak_range()
+
+    # Assert
+    assert len(shown) == 1
+    assert shown[0]["message_type"] == "error"
+    assert "d0 must be a finite number" in shown[0]["detailed_message"]
+    assert fit_setup.list_peak_ranges == [[78.0, 85.0]]
+    assert fit_setup.list_fit_peak_labels == ["Peak0"]
+    assert window.list_peak_d0 == [1.1]
+
+
+def test_save_bad_peak_range_reports_and_writes_nothing(tmp_path, monkeypatch, fit_peaks_window):
+    """A table row the reader would refuse (here d0 = 0) is reported, not saved."""
+    # Arrange
+    window, _ = fit_peaks_window
+    fit_setup = window._ui_graphicsView_fitSetup
+    fit_setup.list_peak_ranges = [[78.0, 85.0]]
+    fit_setup.list_fit_peak_labels = ["Peak0"]
+    window.list_peak_d0 = [0.0]
+    target = tmp_path / "out.json"
+    monkeypatch.setattr(
+        "pyrs.interface.peak_fitting.peak_fitting_viewer.browse_file", lambda *args, **kwargs: str(target)
+    )
+    shown = []
+    monkeypatch.setattr(
+        "pyrs.interface.peak_fitting.peak_fitting_viewer.pop_message", lambda *args, **kwargs: shown.append(kwargs)
+    )
+
+    # Act
+    window.clicked_save_peak_range()
+
+    # Assert
+    assert len(shown) == 1 and shown[0]["message_type"] == "error"
+    assert "d0 must be positive" in shown[0]["detailed_message"]
+    assert not target.exists()
