@@ -207,3 +207,7 @@ without renumbering.
   assertion when a peak is selected (#1147, [ground_truths.md](ground_truths.md)).
 - **DD-35**, 2026-11-25: strain/stress viewer: the `selectedPeak` setter calls `create_strain` outside any
   handler, so any `StrainField` error escapes a Qt slot and the viewer process aborts instead of reporting it.
+- **DD-36**, 2026-11-25: `TextureFittingViewer.load` ("Load Stress state") calls `Controller.load`, which calls
+  `TextureFittingModel.from_json(filename)` with one argument; it needs `(filename, fit_range_table)`, so the
+  menu action raises `TypeError` out of a Qt slot (`texture_fitting_viewer.py:1186`, `texture_fitting_crtl.py:225`).
+  Found while moving `from_json` onto the checked peak-range reader (#1147).

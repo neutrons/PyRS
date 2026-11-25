@@ -14,7 +14,6 @@ The two models therefore share method *names* but not implementations; do not tr
 unify them without also rewriting the peak-fitting data path.
 """
 
-import json
 import os
 import traceback
 from pathlib import Path
@@ -28,7 +27,7 @@ from pyrs.core.summary_generator import SummaryGenerator
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
 from pyrs.peaks.peak_fit_engine import FitResult
-from pyrs.peaks.peak_ranges import read_peak_range_json
+from pyrs.peaks.peak_ranges import PeakRange, PeakRangeFileError, read_peak_range_json, write_peak_range_json
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities.NXstress.NXstress import NXstress
 from pyrs.interface.nxstress_load import read_single_workspace
@@ -306,20 +305,26 @@ class PeakFittingModel(QObject):
 
         A ``.json`` extension is appended when ``filename`` has none, because the
         non-native Qt save dialog does not add it.
+
+        Raises:
+            PeakRangeFileError: If a row could not be read back (see `write_peak_range_json`).
         """
         if not os.path.splitext(filename)[1]:
             filename += ".json"
 
-        output = {}
-        for _index, peak_range in enumerate(list_peak_ranges):
-            output[_index] = {
-                "peak_range": peak_range,
-                "peak_label": list_peak_labels[_index],
-                "d0": float(list_peak_d0[_index]),
-            }
-
-        with open(filename, "w") as outfile:
-            json.dump(output, outfile)
+        if not len(list_peak_ranges) == len(list_peak_labels) == len(list_peak_d0):
+            raise PeakRangeFileError(
+                f"the table has {len(list_peak_ranges)} ranges, {len(list_peak_labels)} labels "
+                f"and {len(list_peak_d0)} d0 values"
+            )
+        peaks = []
+        for window, label, d0 in zip(list_peak_ranges, list_peak_labels, list_peak_d0):
+            try:
+                x_min, x_max = window
+            except (TypeError, ValueError):
+                raise PeakRangeFileError(f"peak_range must be [x_min, x_max], got {window!r}") from None
+            peaks.append(PeakRange(label=label, x_min=x_min, x_max=x_max, d0=d0))
+        write_peak_range_json(filename, peaks)
 
     def load_peak_range_json(self, filename):
         """Deserialize a peak-range JSON file; see `read_peak_range_json` for how d0 is resolved.

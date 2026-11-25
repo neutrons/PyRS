@@ -36,16 +36,21 @@ d0 list to 1.0, the d0 the UI gives a newly drawn range. Fitted parameters do no
 
 **Change made (approved, option B).** The d0 rule moved into one PyRS function,
 [`read_peak_range_json`](../pyrs/peaks/peak_ranges.py), which the peak fitting tool now calls (its behaviour is
-unchanged, covered by the existing tests) and which autoreduction should call too, setting
-`peakcollections[0].set_d_reference(values=peak.d0)` after each fit. The shared autoreduce script is outside this
+unchanged, covered by the existing tests) and which autoreduction should call too, followed by
+`apply_d0(peakcollections[0], peak)` after each fit (`set_d_reference` alone defaults to NaN, so forgetting it
+recreates this bug). The shared autoreduce script is outside this
 repository and has not been edited. Checked on run 2416: fit with this function, viewer strain NaN fraction 0.
 The function also checks its input: a `null`, empty-string, NaN, non-numeric or non-positive d0; a window that is not
-two finite numbers with x_min < x_max; a label that is not a non-empty printable string; a repeated key; and a file
+two finite numbers with x_min < x_max; a label that is not a non-empty printable string or is used by two peaks; a repeated key; and a file
 with no peaks all raise a `ValueError` naming the file and peak. Only an empty or wrong-length d0 *list* defaults to
 1.0. `PeakCollection.set_d_reference` is unchanged (`None` still becomes NaN, `''` raises).
 It is also safe on any path: a FIFO, directory or device, a file over 1 MB, a non-UTF-8 file, JSON nested 100,000
 deep, a 5000-digit number, a non-path argument or a NUL in the path all raise `PeakRangeFileError` instead of hanging
 or leaking another exception (found by the #1147 security review).
+A defaulted d0 (empty or wrong-length list) logs a warning naming the file and peak, since 1.0 is a placeholder.
+`write_peak_range_json` checks with the same rules before opening the file, so a file PyRS writes is one it reads;
+the peak fitting tool's and the texture fitting tool's save and load now use these, and report a bad file or table
+instead of failing.
 Every bad-file case raises one type, `PeakRangeFileError`, which the peak fitting window catches (it reports the
 file and keeps the ranges on screen) and which autoreduction should catch to skip the peaks file and still finish.
 A patch for the HB2B GitLab script that does this (and leaves its plotting code alone) is kept outside the repo:

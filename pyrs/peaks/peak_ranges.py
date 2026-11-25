@@ -15,17 +15,23 @@ Typical workflow::
 
     for peak in read_peak_range_json("IN718_311.json"):
         result = engine.fit_peaks(peak_tag=peak.label, x_min=peak.x_min, x_max=peak.x_max)
-        result.peakcollections[0].set_d_reference(values=peak.d0)
+        apply_d0(result.peakcollections[0], peak)
 
 See [docs/ground_truths.md](../../docs/ground_truths.md), "Autoreduced, peak-fit files" (#1147).
 """
 
 import json
+import logging
 import math
+import numbers
 import os
 import stat
 from pathlib import Path
-from typing import NamedTuple, Union
+from typing import NamedTuple, Sequence, Union
+
+from pyrs.peaks.peak_collection import PeakCollection
+
+_logger = logging.getLogger(__name__)
 
 # The d0 the peak fitting tool gives a newly drawn peak range. It is a placeholder, not a
 # measured reference: a strain computed against it is meaningless until a real d0 is entered.
@@ -35,6 +41,7 @@ DEFAULT_D0 = 1.0
 MAX_FILE_BYTES = 1_000_000
 
 _MAX_SHOWN = 80  # characters of a file's own text echoed in an error message
+_MAX_SHOWN_PATH = 400  # a path is kept longer, so its file name is not cut off
 
 
 class PeakRangeFileError(ValueError):
@@ -54,15 +61,20 @@ class PeakRange(NamedTuple):
     d0: float  # reference d-spacing, Angstrom
 
 
-def _shown(value: object) -> str:
+def _shown(value: object, *, limit: int = _MAX_SHOWN) -> str:
     """`repr` of text taken from a file, cut short, so a message stays one safe line."""
     text = repr(value)
-    return text if len(text) <= _MAX_SHOWN else text[: _MAX_SHOWN - 3] + "..."
+    return text if len(text) <= limit else text[: limit - 3] + "..."
+
+
+def _shown_path(filename: Union[str, os.PathLike]) -> str:
+    """A path for a message: long enough to keep its file name, still one safe line."""
+    return _shown(os.fspath(filename), limit=_MAX_SHOWN_PATH)
 
 
 def _number(value: object, *, what: str, where: str) -> float:
     """`value` as a finite float, or a `PeakRangeFileError` naming `what` and `where`."""
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
+    if isinstance(value, bool) or not isinstance(value, numbers.Real):
         raise PeakRangeFileError(f"{where}: {what} must be a finite number, got {_shown(value)}")
     try:
         number = float(value)  # an int beyond the float range raises OverflowError
@@ -81,7 +93,7 @@ def _read_json(filename: Union[str, Path]) -> object:
     """
     if not isinstance(filename, (str, os.PathLike)):
         raise PeakRangeFileError(f"the peak-range file must be given as a path, got {_shown(filename)}")
-    name = _shown(os.fspath(filename))
+    name = _shown_path(filename)
 
     try:
         descriptor = os.open(filename, os.O_RDONLY | os.O_NONBLOCK)
@@ -121,13 +133,48 @@ def _read_json(filename: Union[str, Path]) -> object:
         raise PeakRangeFileError(f"{name}: cannot be parsed as JSON ({type(err).__name__})") from err
 
 
+def _peak(label: object, window: object, d0: object, *, where: str) -> PeakRange:
+    """One checked `PeakRange` from a peak's raw label, window and d0.
+
+    Shared by the reader and the writer, so a file the writer produces is one the reader
+    accepts.
+    """
+    if not isinstance(label, str) or not label.strip() or not label.isprintable():
+        raise PeakRangeFileError(f"{where}: peak_label must be a non-empty printable string, got {_shown(label)}")
+    try:
+        label.encode("utf-8")
+    except UnicodeEncodeError:
+        raise PeakRangeFileError(f"{where}: peak_label is not valid text, got {_shown(label)}") from None
+
+    if not isinstance(window, (list, tuple)) or len(window) != 2:
+        raise PeakRangeFileError(f"{where}: peak_range must be [x_min, x_max], got {_shown(window)}")
+    x_min, x_max = (_number(v, what="peak_range", where=where) for v in window)
+    if not x_min < x_max:
+        raise PeakRangeFileError(f"{where}: peak_range must have x_min < x_max, got {_shown(window)}")
+
+    number = _number(d0, what="d0", where=where)
+    if number <= 0.0:
+        raise PeakRangeFileError(f"{where}: d0 must be positive, got {_shown(number)}")
+    return PeakRange(label=label, x_min=x_min, x_max=x_max, d0=number)
+
+
+def _check_unique_labels(peaks: Sequence[PeakRange], *, name: str) -> None:
+    """Raise if two peaks share a label: the label is the peak tag, so their fits would collide."""
+    seen: set = set()
+    for peak in peaks:
+        if peak.label in seen:
+            raise PeakRangeFileError(f"{name}: peak_label {_shown(peak.label)} is used by more than one peak")
+        seen.add(peak.label)
+
+
 def read_peak_range_json(filename: Union[str, Path]) -> list[PeakRange]:
     """Read a peak-range JSON file.
 
     Files written before #925 stored the whole d0 list on every peak. A list holding
     one value per peak is resolved to that peak's own value; any other list (in practice
     the empty list) falls back to `DEFAULT_D0`, the d0 the UI assigns to a newly drawn
-    peak range. Nothing else is defaulted: a d0 that is `null`, an empty string, NaN,
+    peak range, and a warning naming the file and peak is logged, because that d0 is a
+    placeholder. Nothing else is defaulted: a d0 that is `null`, an empty string, NaN,
     not a number, or not positive is an error, because a guessed d0 gives a meaningless
     strain.
 
@@ -140,13 +187,14 @@ def read_peak_range_json(filename: Union[str, Path]) -> list[PeakRange]:
     Raises:
         PeakRangeFileError: For any file or path that cannot be used: not a path, missing,
             unreadable, not a regular file, too large, not UTF-8 or JSON, a repeated key,
-            no peaks, or a peak that lacks `peak_range`, `peak_label` or `d0` or holds a
-            malformed one (window not two finite numbers with x_min < x_max, d0 not a
-            finite positive number, label not a non-empty printable string). The message
-            names the file and the peak. No other exception leaves this function.
+            no peaks, a label used twice, or a peak that lacks `peak_range`, `peak_label`
+            or `d0` or holds a malformed one (window not two finite numbers with
+            x_min < x_max, d0 not a finite positive number, label not a non-empty
+            printable string). The message names the file and the peak. No other exception
+            leaves this function.
     """
     data = _read_json(filename)
-    name = _shown(os.fspath(filename))
+    name = _shown_path(filename)
     if not isinstance(data, dict):
         raise PeakRangeFileError(f"{name}: expected an object of peaks, got {type(data).__name__}")
     if not data:
@@ -162,27 +210,56 @@ def read_peak_range_json(filename: Union[str, Path]) -> list[PeakRange]:
         if missing:
             raise PeakRangeFileError(f"{where}: missing {', '.join(missing)}")
 
-        label = entry["peak_label"]
-        if not isinstance(label, str) or not label.strip() or not label.isprintable():
-            raise PeakRangeFileError(f"{where}: peak_label must be a non-empty printable string, got {_shown(label)}")
-        try:
-            label.encode("utf-8")
-        except UnicodeEncodeError:
-            raise PeakRangeFileError(f"{where}: peak_label is not valid text, got {_shown(label)}") from None
-
-        window = entry["peak_range"]
-        if not isinstance(window, list) or len(window) != 2:
-            raise PeakRangeFileError(f"{where}: peak_range must be [x_min, x_max], got {_shown(window)}")
-        x_min, x_max = (_number(v, what="peak_range", where=where) for v in window)
-        if not x_min < x_max:
-            raise PeakRangeFileError(f"{where}: peak_range must have x_min < x_max, got {_shown(window)}")
-
         d0 = entry["d0"]
         if isinstance(d0, list):
-            d0 = d0[position] if len(d0) == len(data) else DEFAULT_D0
-        d0 = _number(d0, what="d0", where=where)
-        if d0 <= 0.0:
-            raise PeakRangeFileError(f"{where}: d0 must be positive, got {_shown(d0)}")
-
-        peaks.append(PeakRange(label=label, x_min=x_min, x_max=x_max, d0=d0))
+            if len(d0) == len(data):
+                d0 = d0[position]
+            else:
+                d0 = DEFAULT_D0
+                _logger.warning(
+                    "%s: no d0 given, using the placeholder %s; strain is meaningless until one is set",
+                    where,
+                    DEFAULT_D0,
+                )
+        peaks.append(_peak(entry["peak_label"], entry["peak_range"], d0, where=where))
+    _check_unique_labels(peaks, name=name)
     return peaks
+
+
+def write_peak_range_json(filename: Union[str, Path], peaks: Sequence[PeakRange]) -> None:
+    """Write `peaks` as a peak-range JSON file that `read_peak_range_json` accepts.
+
+    The peaks are checked before the file is opened, so a bad peak leaves no partial file.
+
+    Args:
+        filename: Path to write. No extension is added.
+        peaks: The peaks, in file order.
+
+    Raises:
+        PeakRangeFileError: If there are no peaks, a peak is malformed (see
+            `read_peak_range_json`), two peaks share a label, or the file cannot be written.
+    """
+    name = _shown_path(filename)
+    if not peaks:
+        raise PeakRangeFileError(f"{name}: there are no peaks to save")
+    checked = [
+        _peak(p.label, [p.x_min, p.x_max], p.d0, where=f"{name}, peak {_shown(str(i))}") for i, p in enumerate(peaks)
+    ]
+    _check_unique_labels(checked, name=name)
+    output = {
+        str(i): {"peak_range": [p.x_min, p.x_max], "peak_label": p.label, "d0": p.d0} for i, p in enumerate(checked)
+    }
+    try:
+        with open(filename, "w", encoding="utf-8") as outfile:
+            json.dump(output, outfile)
+    except OSError as err:
+        raise PeakRangeFileError(f"{name}: cannot write the file ({err})") from err
+
+
+def apply_d0(peak_collection: PeakCollection, peak: PeakRange) -> None:
+    """Store `peak`'s d0 as the reference d-spacing of its fitted `peak_collection`.
+
+    `PeakCollection.set_d_reference` defaults to NaN, so a caller that reads a peak range
+    and forgets this step ends up with a project file whose strain is NaN everywhere.
+    """
+    peak_collection.set_d_reference(values=peak.d0)

@@ -8,7 +8,9 @@ catch that one type and carry on.
 
 import json
 import os
+from unittest.mock import MagicMock
 
+import numpy as np
 import pytest
 
 from pyrs.peaks.peak_ranges import (
@@ -16,7 +18,9 @@ from pyrs.peaks.peak_ranges import (
     MAX_FILE_BYTES,
     PeakRange,
     PeakRangeFileError,
+    apply_d0,
     read_peak_range_json,
+    write_peak_range_json,
 )
 
 
@@ -268,3 +272,104 @@ def test_read_long_key_is_cut_in_message(tmp_path):
 
     # Assert
     assert len(str(raised.value)) < 400
+
+
+def test_read_duplicate_label_raises(tmp_path):
+    # Arrange
+    filename = _write(tmp_path / "p.json", [_entry("A"), _entry("A", (90.0, 95.0))])
+
+    # Act / Assert
+    with pytest.raises(PeakRangeFileError, match="'A' is used by more than one peak"):
+        read_peak_range_json(filename)
+
+
+def test_read_defaulted_d0_logs_warning(tmp_path, caplog):
+    # Arrange
+    filename = _write(tmp_path / "p.json", [_entry("A", d0=[]), _entry("B", (90.0, 95.0), d0=1.3)])
+
+    # Act
+    with caplog.at_level("WARNING", logger="pyrs.peaks.peak_ranges"):
+        read_peak_range_json(filename)
+
+    # Assert
+    assert len(caplog.records) == 1
+    assert "peak '0'" in caplog.text and "placeholder" in caplog.text
+
+
+def test_read_given_d0_logs_nothing(tmp_path, caplog):
+    # Arrange
+    filename = _write(tmp_path / "p.json", [_entry("A", d0=1.3)])
+
+    # Act
+    with caplog.at_level("WARNING", logger="pyrs.peaks.peak_ranges"):
+        read_peak_range_json(filename)
+
+    # Assert
+    assert caplog.records == []
+
+
+def test_read_accepts_numpy_numbers_via_writer(tmp_path):
+    # Arrange
+    peaks = [PeakRange(label="A", x_min=np.float32(78.0), x_max=np.float64(85.0), d0=np.int64(2))]
+    filename = tmp_path / "p.json"
+
+    # Act
+    write_peak_range_json(filename, peaks)
+
+    # Assert
+    assert read_peak_range_json(filename) == [PeakRange(label="A", x_min=78.0, x_max=85.0, d0=2.0)]
+
+
+def test_write_round_trips(tmp_path):
+    # Arrange
+    peaks = [PeakRange("A", 78.0, 85.0, 1.1), PeakRange("B", 90.0, 95.0, 1.2)]
+    filename = tmp_path / "p.json"
+
+    # Act
+    write_peak_range_json(filename, peaks)
+
+    # Assert
+    assert read_peak_range_json(filename) == peaks
+
+
+@pytest.mark.parametrize(
+    "peaks, message",
+    [
+        ([], "no peaks to save"),
+        ([PeakRange("A", 78.0, 85.0, 0.0)], "d0 must be positive"),
+        ([PeakRange("A", 78.0, 85.0, float("nan"))], "d0 must be a finite number"),
+        ([PeakRange("A", 85.0, 78.0, 1.0)], "x_min < x_max"),
+        ([PeakRange("", 78.0, 85.0, 1.0)], "peak_label"),
+        ([PeakRange("A", 78.0, 85.0, 1.0), PeakRange("A", 90.0, 95.0, 1.0)], "more than one peak"),
+    ],
+    ids=["none", "zero-d0", "nan-d0", "reversed-window", "empty-label", "duplicate-label"],
+)
+def test_write_bad_peaks_raises_and_writes_nothing(tmp_path, peaks, message):
+    # Arrange
+    filename = tmp_path / "p.json"
+
+    # Act / Assert
+    with pytest.raises(PeakRangeFileError, match=message):
+        write_peak_range_json(filename, peaks)
+    assert not filename.exists()
+
+
+def test_write_unwritable_path_raises(tmp_path):
+    # Arrange
+    filename = tmp_path / "no_such_dir" / "p.json"
+
+    # Act / Assert
+    with pytest.raises(PeakRangeFileError, match="cannot write the file"):
+        write_peak_range_json(filename, [PeakRange("A", 78.0, 85.0, 1.0)])
+
+
+def test_apply_d0_sets_every_reference():
+    # Arrange
+    collection = MagicMock()
+    peak = PeakRange("A", 78.0, 85.0, 1.17)
+
+    # Act
+    apply_d0(collection, peak)
+
+    # Assert
+    collection.set_d_reference.assert_called_once_with(values=1.17)
