@@ -563,7 +563,12 @@ class PeakFittingViewer(QMainWindow):
         list_peak_labels = self._ui_graphicsView_fitSetup.list_fit_peak_labels
         list_peak_d0 = self.list_peak_d0
 
-        self._model.save_peak_range_json(json_file_name, list_peak_ranges, list_peak_labels, list_peak_d0)
+        try:
+            self._model.save_peak_range_json(json_file_name, list_peak_ranges, list_peak_labels, list_peak_d0)
+        except PeakRangeFileError as err:
+            pop_message(
+                self, f"Cannot save '{Path(json_file_name).name}'", detailed_message=str(err), message_type="error"
+            )
 
     def clicked_load_peak_range(self):
         json_file_name = self._browse_json_file(save_file=False)

@@ -1,4 +1,3 @@
-import json
 import traceback
 from shutil import copyfile
 import numpy as np
@@ -11,6 +10,13 @@ from pyrs.core.summary_generator import SummaryGenerator
 
 # from pyrs.interface.gui_helper import pop_message
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
+from pyrs.peaks.peak_ranges import (
+    DEFAULT_D0,
+    PeakRange,
+    PeakRangeFileError,
+    read_peak_range_json,
+    write_peak_range_json,
+)
 from pyrs.core.polefigurecalculator import PoleFigureCalculator
 from qtpy.QtWidgets import QTableWidgetItem  # type:ignore
 from qtpy.QtCore import Signal, QObject  # type:ignore
@@ -58,56 +64,40 @@ class TextureFittingModel(QObject):
             filename = "{}.json".format(fileParts[0])
 
         try:
-            json_output = dict()
-
+            peaks = []
             for peak_row in range(fit_range_table.rowCount()):
-                if fit_range_table.item(peak_row, 0) is not None and fit_range_table.item(peak_row, 1) is not None:
-                    if fit_range_table.item(peak_row, 2) is None:
-                        peak_tag = "peak_{}".format(peak_row + 1)
-                    else:
-                        peak_tag = fit_range_table.item(peak_row, 2).text()
-
-                    if fit_range_table.item(peak_row, 3) is None:
-                        d0 = 1.0
-                    else:
-                        d0 = float(fit_range_table.item(peak_row, 3).text())
-
-                json_output[str(peak_row)] = {
-                    "peak_range": [
-                        float(fit_range_table.item(peak_row, 0).text()),
-                        float(fit_range_table.item(peak_row, 1).text()),
-                    ],
-                    "peak_label": peak_tag,
-                    "d0": d0,
-                }
-
-            with open(filename, "w") as f:
-                json.dump(json_output, f)
+                if fit_range_table.item(peak_row, 0) is None or fit_range_table.item(peak_row, 1) is None:
+                    continue  # a row without both edges of its window is not a peak yet
+                label_item = fit_range_table.item(peak_row, 2)
+                d0_item = fit_range_table.item(peak_row, 3)
+                peaks.append(
+                    PeakRange(
+                        label="peak_{}".format(peak_row + 1) if label_item is None else label_item.text(),
+                        x_min=float(fit_range_table.item(peak_row, 0).text()),
+                        x_max=float(fit_range_table.item(peak_row, 1).text()),
+                        d0=DEFAULT_D0 if d0_item is None else float(d0_item.text()),
+                    )
+                )
+            write_peak_range_json(filename, peaks)
 
         except Exception as e:
             self.failureMsg.emit(f"Failed save json file to {filename}", str(e), traceback.format_exc())
 
     def from_json(self, filename, fit_range_table):
-        with open(filename) as f:
-            data = json.load(f)
+        try:
+            peaks = read_peak_range_json(filename)
+        except PeakRangeFileError as err:
+            # a bad file leaves the table as it was
+            self.failureMsg.emit(f"Cannot load '{os.path.basename(filename)}'", str(err), "")
+            return
 
-        for peak_entry in data.keys():
-            try:
-                float(data[peak_entry]["d0"])
-            except TypeError:
-                data[peak_entry]["d0"] = 1.0
-
+        for peak in peaks:
             fit_range_table.insertRow(fit_range_table.rowCount())
-            fit_range_table.setItem(
-                fit_range_table.rowCount() - 1, 0, QTableWidgetItem(str(data[peak_entry]["peak_range"][0]))
-            )
-            fit_range_table.setItem(
-                fit_range_table.rowCount() - 1, 1, QTableWidgetItem(str(data[peak_entry]["peak_range"][1]))
-            )
-            fit_range_table.setItem(
-                fit_range_table.rowCount() - 1, 2, QTableWidgetItem(str(data[peak_entry]["peak_label"]))
-            )
-            fit_range_table.setItem(fit_range_table.rowCount() - 1, 3, QTableWidgetItem(str(data[peak_entry]["d0"])))
+            row = fit_range_table.rowCount() - 1
+            fit_range_table.setItem(row, 0, QTableWidgetItem(str(peak.x_min)))
+            fit_range_table.setItem(row, 1, QTableWidgetItem(str(peak.x_max)))
+            fit_range_table.setItem(row, 2, QTableWidgetItem(peak.label))
+            fit_range_table.setItem(row, 3, QTableWidgetItem(str(peak.d0)))
 
         return
 
