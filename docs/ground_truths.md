@@ -3,6 +3,63 @@
 Key findings recorded here for future reference. Link to this file from related
 documentation and code comments when relevant.
 
+## Autoreduced, peak-fit files crash the strain/stress viewer (#1147, 2026-11)
+
+**Root cause: a NaN sample position in the file, not the peak fit.** The viewer reads the file without error and fails
+when it builds the strain field (`selectedPeak` setter → `Model.create_strain` → `StrainField` →
+`PointList.__init__`, which asserts `np.isfinite` on `vx/vy/vz`). The `AssertionError` escapes a Qt slot, and the
+viewer process aborts (core dump, offscreen test).
+
+- **Where the NaN comes from.** The raw NeXus `DASlogs/vx|vy|vz` each start with a `NaN` placeholder at t = 0, and the
+  first real reading arrives after sub-run 1 has started. Run 6528 (IPTS-39954): scan_index 1 starts at 11.9936 s, the
+  first reading at 11.9964 s, a 2.8 ms gap. `calculate_sub_run_time_average`
+  ([nexus_conversion.py](../pyrs/core/nexus_conversion.py)) time-averages the log over the sub-run window, and one NaN
+  sample makes the whole average NaN. Current code (1.9.0.dev435) reproduces it: `vx`, `vy`, `vz` of sub-run 0 are NaN,
+  `sx` is not. `__correct_starting_scan_index_time` does not help, since it moves only sweeping motors.
+- **It is common.** 2397 of 5147 autoreduced files (47%) have a NaN in `vx/vy/vz`, mostly in sub-run 0 alone (1622)
+  or the first three (754), in every run-number range from 1001 to 6528. The loader alone never notices, which is why
+  150 recent files with peaks all loaded: `Model.load_hidra_project_file` does not build the point list.
+- **What was ruled out.** The peak fit itself: a fresh autoreduce of run 2122 (IPTS-24907, `IN718_311.json`) with a
+  stubbed `plot_publisher` writes a normal `peaks/IN718_311` group, with a NaN `d reference` (from `"d0": []`) that the
+  viewer accepts, and loads and computes a stress. Peak-tag layout, parameter names, project-file version and the
+  `direction` log are likewise fine.
+- **Reproduction.** Fit any peak inside the data of `HB2B_6528.h5` (2θ 73.4–90.4°, so not IN718 311 at 87.4–92.5°) and
+  set `model.e11 = [file]; model.selectedPeak = tag`.
+
+**Second cause: a NaN d-reference (run 2416, IPTS-27567; no NaN positions in this run).** The autoreduce script reads
+the peak-range JSON itself and never applies its d0, so a fit made with `"d0": []` stores `d reference = NaN`. The
+file loads, but the viewer's strain is NaN at every point and the plot is silently empty (no error). The manually fit
+file of the same run holds `d reference = 1.0`: the peak fitting tool's `load_peak_range_json` already maps an empty
+d0 list to 1.0, the d0 the UI gives a newly drawn range. Fitted parameters do not depend on d0, so only the stored
+`d reference` differs (NaN → 1.0, error 0). **1.0 Å is a placeholder, not a measured d0**: strain computed against it
+(about 87,000 on run 2416) is meaningless until a real d0 is entered in the viewer.
+
+**Change made (approved, option B).** The d0 rule moved into one PyRS function,
+[`read_peak_range_json`](../pyrs/peaks/peak_ranges.py), which the peak fitting tool now calls (its behaviour is
+unchanged, covered by the existing tests) and which autoreduction should call too, setting
+`peakcollections[0].set_d_reference(values=peak.d0)` after each fit. The shared autoreduce script is outside this
+repository and has not been edited. Checked on run 2416: fit with this function, viewer strain NaN fraction 0.
+The function also checks its input: a `null`, empty-string, NaN, non-numeric or non-positive d0, and a window
+that is not two finite numbers with x_min < x_max, raise a `ValueError` naming the file and peak. Only an empty or
+wrong-length d0 *list* defaults to 1.0. `PeakCollection.set_d_reference` is unchanged (`None` still becomes NaN,
+`''` raises).
+Every bad-file case raises one type, `PeakRangeFileError`, which the peak fitting window catches (it reports the
+file and keeps the ranges on screen) and which autoreduction should catch to skip the peaks file and still finish.
+A patch for the HB2B GitLab script that does this (and leaves its plotting code alone) is kept outside the repo:
+`~/Testing/hb2b_autoreduction_peak_ranges.patch`. The deployed PyRS must contain `pyrs/peaks/peak_ranges.py` before
+the patched script runs.
+
+**Proposed fixes for the NaN positions (none applied; each needs approval).**
+1. *Converter* (production): skip non-finite samples in the sub-run time average. Only values that are NaN today
+   change (to the first valid reading, e.g. vx[0] = 0); every finite value is bit-identical.
+2. *Viewer* (production): catch the failure in the selection step and report which sub-runs have no position
+   instead of aborting.
+
+**Autoreduce script (outside this repository, HB2B GitLab).** `reduce_HB2B_plots.py::plot1d_V2` uses `pd` and `px`
+without importing pandas or plotly.express, so `generate_plotly` raises `NameError` after the first fitted peak
+(the peaks are already written, but no summary page is published and later peaks are not fitted).
+It also fits nothing when `peaks_file` is blank, or when the peak range is not wholly inside the data.
+
 ## Upgrade to Mantid 7.0 (2026-11)
 
 Mantid 7.0.0 (released on `mantid/label/main`; 7.0 nightlies on

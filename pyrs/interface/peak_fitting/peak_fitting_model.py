@@ -28,6 +28,7 @@ from pyrs.core.summary_generator import SummaryGenerator
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.peaks import FitEngineFactory as PeakFitEngineFactory  # type: ignore
 from pyrs.peaks.peak_fit_engine import FitResult
+from pyrs.peaks.peak_ranges import read_peak_range_json
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities.NXstress.NXstress import NXstress
 from pyrs.interface.nxstress_load import read_single_workspace
@@ -321,31 +322,13 @@ class PeakFittingModel(QObject):
             json.dump(output, outfile)
 
     def load_peak_range_json(self, filename):
-        """Deserialize a peak-range JSON file.
-
-        Files written before #925 stored the whole d0 list on every peak. A list
-        holding one value per peak is resolved to that peak's own value; any other
-        list (in practice the empty list) falls back to 1.0, the d0 the UI assigns
-        to a newly drawn peak range.
+        """Deserialize a peak-range JSON file; see `read_peak_range_json` for how d0 is resolved.
 
         Returns:
             A tuple ``(peak_range, peak_label, peak_d0)`` of parallel lists.
         """
-        with open(filename) as json_file:
-            data = json.load(json_file)
-
-        peak_range = []
-        peak_label = []
-        peak_d0 = []
-        for _position, _index in enumerate(data.keys()):
-            peak_range.append(data[_index]["peak_range"])
-            peak_label.append(data[_index]["peak_label"])
-            d0 = data[_index]["d0"]
-            if isinstance(d0, list):
-                d0 = d0[_position] if len(d0) == len(data) else 1.0
-            peak_d0.append(float(d0))
-
-        return peak_range, peak_label, peak_d0
+        peaks = read_peak_range_json(filename)
+        return [[p.x_min, p.x_max] for p in peaks], [p.label for p in peaks], [p.d0 for p in peaks]
 
     def save_nexus(self, data_key, file_name):
         """Save data to a Mantid-compatible NeXus file."""

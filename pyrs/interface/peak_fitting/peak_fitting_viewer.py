@@ -13,6 +13,7 @@ view-side collaborators, instantiated with this window as their ``parent``.
 """
 
 import os
+from pathlib import Path
 from typing import List, Optional
 
 import numpy as np
@@ -44,6 +45,7 @@ from pyrs.interface.peak_fitting.peak_tags import peak_tags_from_labels
 from pyrs.interface.ui import qt_util
 from pyrs.interface.ui.diffdataviews import GeneralDiffDataView, PeakFitSetupView
 from pyrs.interface.ui.rstables import FitResultTable
+from pyrs.peaks.peak_ranges import PeakRangeFileError
 from pyrs.utilities import get_input_project_file  # type: ignore
 from pyrs.utilities import load_ui  # type: ignore
 from pyrs.utilities.config import Config
@@ -662,7 +664,14 @@ class PeakFittingViewer(QMainWindow):
         if json_file_name is None:
             return  # user clicked cancel
 
-        peak_range, peak_label, peak_d0 = self._model.load_peak_range_json(json_file_name)
+        try:
+            peak_range, peak_label, peak_d0 = self._model.load_peak_range_json(json_file_name)
+        except PeakRangeFileError as err:
+            # a bad file leaves the ranges already on screen untouched
+            pop_message(
+                self, f"Cannot load '{Path(json_file_name).name}'", detailed_message=str(err), message_type="error"
+            )
+            return
 
         self._ui_graphicsView_fitSetup.list_peak_ranges = peak_range
         self._ui_graphicsView_fitSetup.list_fit_peak_labels = peak_label

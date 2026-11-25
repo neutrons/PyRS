@@ -201,3 +201,9 @@ without renumbering.
 
   **Found during:** #1098 step 4, running the project-file and NeXus reduction tests together.
   **Why it is deferred.** A test defect outside #1098, and CI is not affected.
+- **DD-34**, 2026-11-25: `calculate_sub_run_time_average` (`pyrs/core/nexus_conversion.py`) returns NaN for
+  `vx/vy/vz` (about 47% of autoreduced files, usually sub-run 0) because the raw logs start with a NaN placeholder
+  that overlaps the sub-run window by milliseconds. The strain/stress viewer then aborts on `PointList`'s finite-value
+  assertion when a peak is selected (#1147, [ground_truths.md](ground_truths.md)).
+- **DD-35**, 2026-11-25: strain/stress viewer: the `selectedPeak` setter calls `create_strain` outside any
+  handler, so any `StrainField` error escapes a Qt slot and the viewer process aborts instead of reporting it.

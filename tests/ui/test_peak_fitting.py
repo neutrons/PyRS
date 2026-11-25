@@ -290,6 +290,32 @@ def test_save_load_peak_range_keeps_table_d0(tmp_path, monkeypatch, fit_peaks_wi
     assert window.ui.peak_range_table.item(1, 3).text() == "1.200000"
 
 
+def test_load_bad_peak_range_file_keeps_ranges(tmp_path, monkeypatch, fit_peaks_window):
+    """A peak-range file with a bad d0 is reported and leaves the ranges on screen alone."""
+    # Arrange
+    window, _ = fit_peaks_window
+    fit_setup = window._ui_graphicsView_fitSetup
+    fit_setup.list_peak_ranges = [[78.0, 85.0]]
+    fit_setup.list_fit_peak_labels = ["Peak0"]
+    fit_setup.list_fit_peak_d0 = [1.1]
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps({"0": {"peak_range": [78.0, 85.0], "peak_label": "Peak0", "d0": None}}))
+    monkeypatch.setattr(
+        "pyrs.interface.peak_fitting.peak_fitting_viewer.browse_file", lambda *args, **kwargs: str(bad)
+    )
+    shown = []
+    monkeypatch.setattr(
+        "pyrs.interface.peak_fitting.peak_fitting_viewer.pop_message", lambda *args, **kwargs: shown.append(kwargs)
+    )
+
+    # Act
+    window.clicked_load_peak_range()
+
+    # Assert
+    assert "d0 must be a finite number" in shown[0]["detailed_message"]
+    assert fit_setup.list_fit_peak_d0 == [1.1]
+
+
 def test_remove_peak_range_row_drops_its_d0(monkeypatch, fit_peaks_window):
     """Removing a peak-range row removes that row's d0, so later peaks keep their own (#925)."""
     # Arrange
