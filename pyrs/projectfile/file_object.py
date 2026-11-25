@@ -12,19 +12,22 @@ from pyrs import __version__
 from pyrs.utilities import checkdatatypes
 from pyrs.utilities.convertdatatypes import to_float, to_int
 from pyrs.utilities.file_util import to_filepath
+from pyrs.core.calibration import AppliedCalibration
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, HidraSetup
 from pyrs.peaks import PeakCollection  # type: ignore
 from pyrs.dataobjects import HidraConstants, SampleLogs  # type: ignore
 from pyrs.projectfile import HidraProjectFileMode  # type: ignore
-from typing import Union
+from typing import Optional, Union
 import warnings
 
 __all__ = ["HidraProjectFile"]
 
 
+# the applied calibration as its record (#1141): AppliedCalibration.to_dict as JSON, and its hash as an attribute
+_APPLIED_CALIBRATION_DATASET = "applied_calibration_json"
 # the record of the calibration a reduction applied, in the CALIBRATION group (#1053); a reduction
 # writing a record replaces every entry of the previous one, so a re-reduced file never mixes two
-_APPLIED_DATASETS = ("calibration_json", "provenance_json", "sources_json")
+_APPLIED_DATASETS = ("calibration_json", "provenance_json", "sources_json", _APPLIED_CALIBRATION_DATASET)
 # file attribute -> key of the record dict (the dict ReductionApp passes, and read_reduction_provenance returns)
 _RECORD_ATTRIBUTES = {
     "calibration_file": "calibration_file",
@@ -40,6 +43,7 @@ _RECORD_ATTRIBUTES = {
     "calibration_geometry_note": "geometry_note",
     "calibration_run_geometry": "run_geometry",
     "calibration_record_warning": "warning",
+    "calibration_hash": "calibration_hash",
 }
 # the mask and binning a reduction used (#1068), as JSON text in the REDUCTION group beside CALIBRATION
 _REDUCTION_DATASET = "reduction_json"
@@ -1143,6 +1147,7 @@ class HidraProjectFile:
         applied_calibration=None,
         instrument=None,
         reduction_settings=None,
+        applied: Optional[AppliedCalibration] = None,
     ):
         """Record which calibration and vanadium run (if any) produced this file's reduced data
 
@@ -1171,6 +1176,10 @@ class HidraProjectFile:
             with ``instrument``: the binning and extra mask the reduction used (``ReductionApp``). Written,
             with the instrument's ``mask_record``, as ``reduction_json`` in the REDUCTION group beside
             CALIBRATION (#1068); replaced by a re-reduction, and never raised on, as the calibration record.
+        applied : AppliedCalibration or None
+            the calibration the reduced data carry (#1141): written as ``applied_calibration_json`` with its
+            ``calibration_hash`` attribute, which :meth:`read_applied_calibration` reads back. A failure to write
+            it raises: unlike the descriptive record above, it is what says which calibration the data have.
         """
         self._validate_write_operation()
 
@@ -1207,6 +1216,15 @@ class HidraProjectFile:
             _write_applied_calibration(calibration_group, applied_calibration)
             if applied_calibration.get("reduction") is not None:
                 _write_reduction_record(instrument_group, applied_calibration["reduction"])
+
+        if applied is not None:
+            text = json.dumps(applied.to_dict(), allow_nan=False)  # before anything is written
+            if _APPLIED_CALIBRATION_DATASET in calibration_group:
+                del calibration_group[_APPLIED_CALIBRATION_DATASET]
+            calibration_group.create_dataset(
+                _APPLIED_CALIBRATION_DATASET, data=text, dtype=h5py.string_dtype(encoding="utf-8")
+            )
+            calibration_group.attrs["calibration_hash"] = applied.content_hash
 
     def write_mask_source(self, mask_source):
         """Record where the default mask came from in a converted (not yet reduced) file, as the REDUCTION
@@ -1263,6 +1281,30 @@ class HidraProjectFile:
                 reduction["error"] = _plain(reduction_group.attrs[_REDUCTION_ERROR])
             record["reduction"] = reduction
         return record
+
+    def read_applied_calibration(self) -> AppliedCalibration:
+        """The calibration this file's reduced data carry, as its reduction recorded it (#1141).
+
+        Returns:
+            The record, checked against the hash stored with it.
+
+        Raises:
+            RuntimeError: If the file has no such record: reduced before #1141, or never reduced.
+            ValueError: If the record is corrupt: unreadable, incomplete, an unknown source, or not matching its
+                stored hash.
+        """
+        where = self._project_h5.filename
+        instrument_group = self._project_h5.get(HidraConstants.INSTRUMENT)
+        group = None if instrument_group is None else instrument_group.get(HidraConstants.CALIBRATION)
+        if group is None or _APPLIED_CALIBRATION_DATASET not in group:
+            raise RuntimeError(f"{where}: no applied calibration record (reduced before #1141, or never reduced)")
+        try:
+            stored = json.loads(_plain(group[_APPLIED_CALIBRATION_DATASET][()]))
+        except ValueError as unreadable:
+            raise ValueError(f"{where}: applied calibration record is not valid JSON: {unreadable}") from None
+        if not isinstance(stored, dict):
+            raise ValueError(f"{where}: applied calibration record must be a JSON object, got {stored!r}")
+        return AppliedCalibration.from_dict(stored, where=where)
 
     def read_reduction_instrument(self, geometry=None):
         """The instrument (HidraSetup) a reduction recorded, with the calibration it applied, so the data

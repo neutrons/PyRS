@@ -23,11 +23,11 @@ class CalibrationSource(str, Enum):
     WORKSPACE = "workspace"  # the workspace's own shift (FitCalibration in the session, NXstress read-back)
 
     @classmethod
-    def from_stored(cls, value: str, *, where: str) -> "CalibrationSource":
+    def from_stored(cls, value: object, *, where: str) -> "CalibrationSource":
         """The member a file stores.
 
         Args:
-            value: The stored string.
+            value: The stored value: a member's string, or anything else a file may hold (None when missing).
             where: The file (or other origin) it was read from, for the error message.
 
         Returns:

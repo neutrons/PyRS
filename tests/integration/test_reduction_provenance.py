@@ -2,6 +2,7 @@
 
 import json
 
+import h5py
 import pytest
 
 from pyrs.calibration.provenance import file_record
@@ -119,11 +120,16 @@ def test_workspace_calibrated_wavelength_is_recorded(tmp_path):
 
 
 def test_no_calibration_is_recorded_as_none(tmp_path):
+    # Arrange - the nominal calibration of the run's monochromator, at the run's distance (#1141)
+    workspace = NeXusConvertingApp(RUN, MASK).convert()
+    mono = MonoSetting.getFromRotation(float(workspace.get_sample_log_value("mrot", 1)))
+    nominal = nominal_calibration(mono, l2=workspace.get_instrument_setup().arm_length)
+
     # Act
     record = _reduce(tmp_path)
 
     # Assert
-    assert record == {"source": "none"}
+    assert record == {"source": "none", "calibration_hash": nominal.content_hash}
 
 
 def test_recorded_calibration_rebuilds_the_instrument(tmp_path):
@@ -292,3 +298,97 @@ def test_reduction_without_file_records_nominal():
     applied = workspace.get_applied_calibration()
     assert applied.source is CalibrationSource.NONE
     assert applied.same_calibration_as(nominal_calibration(mono, l2=_run_l2(workspace)))
+
+
+def _saved(tmp_path, name, calibration_file=None):
+    """Sub-runs 1-2 reduced and saved; returns the project file's path and the reduced workspace."""
+    workspace = NeXusConvertingApp(RUN, MASK).convert()
+    reducer = ReductionApp()
+    reducer.load_hidra_workspace(workspace)
+    reducer.reduce_data(
+        sub_runs=[1, 2], instrument_file=None, calibration_file=calibration_file, mask=None, num_bins=256
+    )
+    path = tmp_path / name
+    reducer.save_diffraction_data(str(path))
+    return path, workspace
+
+
+def _loaded(path):
+    workspace = HidraWorkspace("loaded")
+    project = HidraProjectFile(str(path), HidraProjectFileMode.READONLY)
+    workspace.load_hidra_project(project, load_raw_counts=False, load_reduced_diffraction=True)
+    project.close()
+    return workspace, project
+
+
+@pytest.mark.parametrize("calibration_file", [REFERENCE, None], ids=["file", "nominal"])
+def test_saved_calibration_reloads(tmp_path, calibration_file):
+    """A saved reduction loads back carrying the calibration it was reduced with (#1141)"""
+    # Arrange
+    path, reduced = _saved(tmp_path, "reduced.h5", calibration_file)
+
+    # Act
+    loaded, _ = _loaded(path)
+
+    # Assert
+    assert loaded.get_applied_calibration() == reduced.get_applied_calibration()
+
+
+def test_append_with_another_calibration_clears_record(tmp_path):
+    """Combined data carry a calibration only if every file carries the same one (#1141)"""
+    # Arrange
+    with_file, _ = _saved(tmp_path, "file.h5", REFERENCE)
+    nominal, _ = _saved(tmp_path, "nominal.h5")
+    combined, _ = _loaded(with_file)
+
+    # Act
+    project = HidraProjectFile(str(nominal), HidraProjectFileMode.READONLY)
+    combined.append_hidra_project(project)
+    project.close()
+
+    # Assert
+    assert not combined.has_applied_calibration()
+
+
+def test_older_project_file_loads_without_record():
+    """A project file reduced before #1141 still loads; it just carries no applied calibration (option B)"""
+    # Act
+    loaded, _ = _loaded("tests/data/HB2B_1327.h5")
+
+    # Assert
+    assert not loaded.has_applied_calibration()
+
+
+def _as_written_before_1141(path):
+    """Remove the stored record and its hash, as a file reduced between #1053 and #1141 has them."""
+    with h5py.File(path, "a") as h5:
+        group = h5["instrument/calibration"]
+        del group["applied_calibration_json"]
+        del group.attrs["calibration_hash"]
+
+
+def test_older_file_record_is_rebuilt(tmp_path):
+    """A file reduced with a calibration file between #1053 and #1141 gets the same record back (option A): its
+    distance from the geometry its record states, as HB2B_3510 has no L2 log and the file no geometry"""
+    # Arrange
+    path, reduced = _saved(tmp_path, "reduced.h5", REFERENCE)
+    _as_written_before_1141(path)
+
+    # Act
+    loaded, _ = _loaded(path)
+
+    # Assert
+    assert loaded.get_applied_calibration().same_calibration_as(reduced.get_applied_calibration())
+
+
+def test_older_none_record_is_not_rebuilt(tmp_path):
+    """Reduced without a calibration file before #1141: no record, so it is refused where one is needed"""
+    # Arrange
+    path, _ = _saved(tmp_path, "reduced.h5")
+    _as_written_before_1141(path)
+
+    # Act
+    loaded, _ = _loaded(path)
+
+    # Assert
+    assert not loaded.has_applied_calibration()

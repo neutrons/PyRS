@@ -75,5 +75,7 @@ class CombineRunsModel(QObject):
         self._hidra_ws.save_reduced_diffraction_data(export_project)
         # which calibration(s) the combined data were reduced with, and from which files (#1063)
         if self._record is not None:
-            export_project.write_reduction_provenance(applied_calibration=self._record)
+            # the combined workspace's record: the inputs share one calibration (checked above, #1063)
+            applied = self._hidra_ws.get_applied_calibration() if self._hidra_ws.has_applied_calibration() else None
+            export_project.write_reduction_provenance(applied_calibration=self._record, applied=applied)
         export_project.save()

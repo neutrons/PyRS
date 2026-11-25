@@ -28,18 +28,29 @@ import hashlib
 import math
 import struct
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 from pyrs.core.calibration_source import CalibrationSource
 from pyrs.core.detector_model import from_shift, to_shift
 from pyrs.core.instrument_geometry import DENEXDetectorShift
 from pyrs.core.monosetting import MonoSetting
+from pyrs.utilities.calibration_file_io import calibration_from_dict
 
-__all__ = ["CalibrationSource", "AppliedCalibration", "nominal_calibration", "DEFAULT_ERROR", "UNKNOWN_ERROR"]
+__all__ = [
+    "CalibrationSource",
+    "AppliedCalibration",
+    "nominal_calibration",
+    "reduction_l2",
+    "run_monosetting",
+    "stated_l2",
+    "DEFAULT_ERROR",
+    "UNKNOWN_ERROR",
+]
 
 DEFAULT_ERROR = -1.0  # not refined (or held): the nominal calibration's errors
 UNKNOWN_ERROR = -2.0  # refined, but the error could not be determined or was lost
-_N_PARAMETERS = 7  # Shift_x, Shift_y, Shift_z, Rot_x, Rot_y, Rot_z, TTH_0
+_PARAMETER_KEYS = ("Shift_x", "Shift_y", "Shift_z", "Rot_x", "Rot_y", "Rot_z", "TTH_0")  # the calibration JSON's
+_N_PARAMETERS = len(_PARAMETER_KEYS)
 
 
 def _check_error(name: str, error: float) -> None:
@@ -162,6 +173,128 @@ class AppliedCalibration:
         numbers = self.values + self.errors + (self.wavelength, self.wavelength_error, self.l2)
         return hashlib.sha256(struct.pack(f"<{len(numbers)}d", *numbers)).hexdigest()
 
+    def to_dict(self) -> Dict[str, Any]:
+        """The record as plain JSON-ready values, with its content hash, for a file to store.
+
+        Returns:
+            ``values``, ``errors``, ``wavelength``, ``wavelength_error``, ``l2``, ``source`` (its stored string),
+            ``status`` and ``content_hash``.
+        """
+        return {
+            "values": list(self.values),
+            "errors": list(self.errors),
+            "wavelength": self.wavelength,
+            "wavelength_error": self.wavelength_error,
+            "l2": self.l2,
+            "source": self.source.value,
+            "status": self.status,
+            "content_hash": self.content_hash,
+        }
+
+    @classmethod
+    def from_dict(cls, stored: Mapping[str, Any], *, where: str) -> "AppliedCalibration":
+        """The record a file stored with :meth:`to_dict`, checked against its stored hash.
+
+        Args:
+            stored: The stored values.
+            where: The file it was read from, for the error message.
+
+        Returns:
+            The record.
+
+        Raises:
+            ValueError: If a field is missing or invalid, the source is not a member, or the hash the file stored
+                is not the record's: the record is corrupt.
+        """
+        try:
+            calibration = cls(
+                values=tuple(float(v) for v in stored["values"]),
+                errors=tuple(float(e) for e in stored["errors"]),
+                wavelength=float(stored["wavelength"]),
+                wavelength_error=float(stored["wavelength_error"]),
+                l2=float(stored["l2"]),
+                source=CalibrationSource.from_stored(stored["source"], where=where),
+                status=None if stored["status"] is None else int(stored["status"]),
+            )
+            stored_hash = stored["content_hash"]
+        except (KeyError, TypeError) as missing:
+            raise ValueError(f"{where}: applied calibration record is incomplete: {missing!r}") from None
+        except ValueError as invalid:
+            raise ValueError(f"{where}: applied calibration record is invalid: {invalid}") from None
+        if stored_hash != calibration.content_hash:
+            raise ValueError(
+                f"{where}: applied calibration record does not match its stored hash ({stored_hash} stored, "
+                f"{calibration.content_hash} computed); the record is corrupt"
+            )
+        return calibration
+
+    @classmethod
+    def from_reduction_record(cls, record: Mapping[str, Any], *, workspace, where: str) -> "AppliedCalibration":
+        """Rebuild the record from a project file's calibration record of #1053, written before #1141 stored it.
+
+        Only what the file states is used (user decisions, 2026-11-25). A record of no calibration file is not
+        rebuilt: its distance is often stated nowhere, so the data must be reduced again.
+
+        Args:
+            record: ``HidraProjectFile.read_reduction_provenance()``.
+            workspace: The workspace the file was loaded into: its sub-runs' `L2` and `mrot` logs, and geometry.
+            where: The file, for the error message.
+
+        Returns:
+            Source ``file``: the stored values, errors, wavelength and status. ``workspace``: the stored values with
+            errors -2 (unknown), and the stored wavelength with error -2, else the nominal one with error -1. Both
+            at the distance the file states (:func:`stated_l2`) and the monochromator of its `mrot` log.
+
+        Raises:
+            ValueError: If the source is missing, not a member (e.g. ``"unknown"``) or ``"none"``, the record holds
+                no usable calibration, or the file states no distance: the calibration cannot be stated.
+            RuntimeError: As :func:`run_monosetting`.
+        """
+        source = CalibrationSource.from_stored(record.get("source"), where=where)
+        if source is CalibrationSource.NONE:
+            raise ValueError(
+                f"{where}: reduced without a calibration file before #1141; its calibration is not rebuilt (reduce it "
+                "again)"
+            )
+        calibration = record.get("calibration")
+        if not isinstance(calibration, dict):
+            raise ValueError(f"{where}: calibration record with source {source.value!r} holds no calibration")
+        sub_runs = workspace.get_sub_runs()
+        l2 = stated_l2(workspace, sub_runs, record, where=where)
+        mono = run_monosetting(workspace, sub_runs)
+        if source is CalibrationSource.FILE:
+            try:
+                shift, shift_error, wavelength, wavelength_error, status = calibration_from_dict(calibration, where)
+            except RuntimeError as unusable:  # e.g. no Status
+                raise ValueError(f"{where}: recorded calibration cannot be read: {unusable}") from None
+            return cls.from_shift(
+                shift,
+                shift_error,
+                wavelength=wavelength,
+                wavelength_error=wavelength_error,
+                l2=l2,
+                source=source,
+                status=int(status),
+            )
+        try:
+            values = tuple(float(calibration[key]) for key in _PARAMETER_KEYS)
+        except (KeyError, TypeError, ValueError) as unusable:
+            raise ValueError(f"{where}: recorded workspace shift cannot be read: {unusable!r}") from None
+        stored_wavelength = calibration.get("Lambda")
+        if stored_wavelength is not None and math.isfinite(float(stored_wavelength)):
+            wavelength, wavelength_error = float(stored_wavelength), UNKNOWN_ERROR
+        else:
+            wavelength, wavelength_error = float(mono), DEFAULT_ERROR
+        return cls(
+            values=values,
+            errors=(UNKNOWN_ERROR,) * _N_PARAMETERS,
+            wavelength=wavelength,
+            wavelength_error=wavelength_error,
+            l2=float(l2),
+            source=source,
+            status=None,
+        )
+
     def same_calibration_as(self, other: "AppliedCalibration") -> bool:
         """Whether `other` is the same calibration: their content hashes are equal.
 
@@ -197,3 +330,97 @@ def nominal_calibration(mono: MonoSetting, *, l2: float) -> AppliedCalibration:
         source=CalibrationSource.NONE,
         status=None,
     )
+
+
+def reduction_l2(workspace, sub_runs) -> float:
+    """The one sample-to-detector distance a reduction of `sub_runs` uses (#1141): their `L2` log, else the
+    instrument's arm length, as the reduction engine takes it.
+
+    Args:
+        workspace: The HidraWorkspace.
+        sub_runs: The sub-runs reduced.
+
+    Returns:
+        The distance (m).
+
+    Raises:
+        RuntimeError: If the sub-runs' L2 differ (a reduction applies one calibration, at one distance), or a
+            sub-run has no L2 log and the workspace no instrument geometry.
+    """
+    values = {workspace.get_l2(sub_run) for sub_run in sub_runs}
+    if None in values:
+        values.discard(None)
+        geometry = workspace.get_instrument_setup()
+        if geometry is None:
+            raise RuntimeError(
+                f"workspace {workspace.name!r} has no L2 log and no instrument geometry: its distance is not known"
+            )
+        values.add(geometry.arm_length)
+    distances = sorted(float(value) for value in values)
+    if len(distances) != 1:
+        raise RuntimeError(
+            f"workspace {workspace.name!r}: the sample-to-detector distance (L2) differs between the sub-runs being "
+            f"reduced: {distances}; one reduction applies one calibration at one distance"
+        )
+    return distances[0]
+
+
+def run_monosetting(workspace, sub_runs) -> MonoSetting:
+    """The monochromator of `sub_runs`, from their `mrot` log (#1141): never from a wavelength, which may be the
+    calibrated one and whose nominal value no neutron has.
+
+    Args:
+        workspace: The HidraWorkspace.
+        sub_runs: The sub-runs reduced.
+
+    Returns:
+        The monochromator setting.
+
+    Raises:
+        RuntimeError: If there is no `mrot` log, or the sub-runs' rotations give different monochromators.
+        ValueError: If a rotation matches no monochromator (as ``MonoSetting.getFromRotation``).
+    """
+    if not workspace.has_sample_log("mrot"):
+        raise RuntimeError(f"workspace {workspace.name!r} has no 'mrot' log: its monochromator cannot be determined")
+    settings = {
+        MonoSetting.getFromRotation(float(workspace.get_sample_log_value("mrot", sub_run))) for sub_run in sub_runs
+    }
+    if len(settings) != 1:
+        raise RuntimeError(
+            f"workspace {workspace.name!r}: the sub-runs being reduced use different monochromators "
+            f"{sorted(str(setting) for setting in settings)}; one run holds one monochromator"
+        )
+    return settings.pop()
+
+
+def stated_l2(workspace, sub_runs, record: Mapping[str, Any], *, where: str) -> float:
+    """The distance a reduction used, from what a project file states: the sub-runs' `L2` log, else the file's
+    instrument geometry, else the geometry in its calibration record (the run's, else the calibration's). Never a
+    default (user decision, 2026-11-25).
+
+    Args:
+        workspace: The workspace the file was loaded into.
+        sub_runs: Its sub-runs.
+        record: The file's calibration record (``read_reduction_provenance()``).
+        where: The file, for the error message.
+
+    Returns:
+        The distance (m).
+
+    Raises:
+        ValueError: If the file states no distance.
+        RuntimeError: As :func:`reduction_l2`, when the distances it states differ.
+    """
+    logged = {workspace.get_l2(sub_run) for sub_run in sub_runs}
+    if None not in logged or workspace.get_instrument_setup() is not None:
+        return reduction_l2(workspace, sub_runs)
+    geometry = record.get("run_geometry") or (record.get("calibration") or {}).get("geometry")
+    if not isinstance(geometry, dict) or "arm_length" not in geometry:
+        raise ValueError(
+            f"{where}: the distance its reduction used is not stated (no L2 log, no instrument geometry, no geometry "
+            "in its calibration record)"
+        )
+    distances = sorted({float(value) for value in logged if value is not None} | {float(geometry["arm_length"])})
+    if len(distances) != 1:
+        raise RuntimeError(f"{where}: the distances it states differ: {distances}")
+    return distances[0]

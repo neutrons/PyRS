@@ -606,6 +606,9 @@ class HidraWorkspace:
         # load the wave length
         self._load_wave_length(hidra_file)
 
+        # last: a record rebuilt from an older file needs the sample logs and geometry loaded above
+        self._applied_calibration = self._read_applied_calibration(hidra_file)
+
     def append_hidra_project(self, hidra_file):
         """
         Load HIDRA project file
@@ -627,6 +630,17 @@ class HidraWorkspace:
 
         # load sample logs
         self._append_sample_logs(hidra_file)
+
+        # the combined data carry one calibration only if every file carries the same (#1141); #1140 refuses
+        appended = self._read_applied_calibration(hidra_file)
+        if self._applied_calibration is not None and (
+            appended is None or not appended.same_calibration_as(self._applied_calibration)
+        ):
+            self._log.warning(
+                f"{hidra_file.name} does not carry the calibration of the data before it; the combined data "
+                "record no applied calibration"
+            )
+            self._applied_calibration = None
 
         # # load masks
         # self._load_masks(hidra_file)
@@ -915,6 +929,32 @@ class HidraWorkspace:
         :detector_shift: DENEXDetectorShift instance
         """
         self._instrument_geometry_shift = detector_shift
+
+    def _read_applied_calibration(self, hidra_file) -> Optional[AppliedCalibration]:
+        """The calibration a project file's reduced data carry (#1141).
+
+        A file written since #1141 stores it. A file reduced with a calibration file between #1053 and #1141 has it
+        rebuilt from what the file states (:meth:`AppliedCalibration.from_reduction_record`). None when the file
+        records no calibration (reduced before #1053), its record says "unknown" or "none", or it is corrupt or
+        cannot be rebuilt; each is reported. The file still loads: data without a known calibration are refused only
+        where one is needed.
+        """
+        try:
+            return hidra_file.read_applied_calibration()
+        except RuntimeError:
+            pass  # written before #1141: rebuilt below
+        except ValueError as corrupt:
+            self._log.warning(str(corrupt))
+            return None
+        record = hidra_file.read_reduction_provenance()
+        if "source" not in record:
+            self._log.information(f"{hidra_file.name}: no calibration record (reduced before #1053, or never reduced)")
+            return None
+        try:
+            return AppliedCalibration.from_reduction_record(record, workspace=self, where=hidra_file.name)
+        except (RuntimeError, ValueError) as unusable:
+            self._log.warning(f"{hidra_file.name}: the applied calibration cannot be rebuilt: {unusable}")
+            return None
 
     def set_applied_calibration(self, calibration: AppliedCalibration) -> None:
         """Record the calibration applied to this workspace's reduced data (#1141).

@@ -1,5 +1,7 @@
 """A reduced project file records the calibration the reduction applied, read from its HidraSetup (#1053)"""
 
+import json
+
 import h5py
 import pytest
 
@@ -474,3 +476,53 @@ def test_record_that_cannot_be_stated_raises(record):
     # Act / Assert
     with pytest.raises(ValueError, match="run.h5: calibration source"):
         instrument.set_calibration_record(record, where="run.h5")
+
+
+def test_applied_record_round_trips(tmp_path, calibrated):
+    """The record and its hash are stored, and read back checked against the hash (#1141)"""
+    # Arrange
+    path = tmp_path / "reduced.h5"
+    applied = calibrated.applied_calibration(l2=0.985, mono=MonoSetting.Si422)
+
+    # Act
+    write(path, instrument=calibrated, applied=applied)
+    project = HidraProjectFile(str(path), HidraProjectFileMode.READONLY)
+    restored = project.read_applied_calibration()
+    project.close()
+
+    # Assert
+    assert restored == applied
+    with h5py.File(path, "r") as h5:
+        stored_hash = h5[f"{HidraConstants.INSTRUMENT}/{HidraConstants.CALIBRATION}"].attrs["calibration_hash"]
+    assert stored_hash == applied.content_hash
+
+
+def test_file_without_applied_record_raises(tmp_path, calibrated):
+    """A file reduced before #1141 has the descriptive record but not the applied one"""
+    # Arrange
+    path = tmp_path / "reduced.h5"
+    write(path, instrument=calibrated)
+    project = HidraProjectFile(str(path), HidraProjectFileMode.READONLY)
+
+    # Act / Assert
+    with pytest.raises(RuntimeError, match="no applied calibration record"):
+        project.read_applied_calibration()
+    project.close()
+
+
+def test_tampered_applied_record_raises(tmp_path, calibrated):
+    # Arrange
+    path = tmp_path / "reduced.h5"
+    write(path, instrument=calibrated, applied=calibrated.applied_calibration(l2=0.985, mono=MonoSetting.Si422))
+    with h5py.File(path, "a") as h5:
+        group = h5[f"{HidraConstants.INSTRUMENT}/{HidraConstants.CALIBRATION}"]
+        stored = json.loads(group["applied_calibration_json"][()])
+        stored["l2"] = 0.9
+        del group["applied_calibration_json"]
+        group.create_dataset("applied_calibration_json", data=json.dumps(stored))
+    project = HidraProjectFile(str(path), HidraProjectFileMode.READONLY)
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="does not match its stored hash"):
+        project.read_applied_calibration()
+    project.close()
