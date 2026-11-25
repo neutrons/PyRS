@@ -3781,3 +3781,38 @@ callers never compare shift components, rotations, 2θ₀, wavelength or errors 
 - **Scope split:** #1132 rebases onto this work. It replaces its `(shift, errors)` tuple with the record and writes
   and reads the source and hash in NXstress. #1140 (one wavelength per NXstress entry; merges refused by hash) and
   #1146 (strain/stress merges by hash) build on it.
+
+## `HB2B_1017.h5` predated the time-average fix: wrong arm angles, regenerated (2026-11-25, #1148)
+
+`tests/data/HB2B_1017.h5` was added on 2019-11-12, before **PR #196** (2019-12-05) fixed **#193**: sample logs were
+averaged across scan-index boundaries. For sub-runs 1 and 2 it records the wrong arm angles:
+
+| Sub-run | Raw NeXus `2theta` during the sub-run (set point) | `HB2B_1017.h5` `2theta` (set point) | Conversion today |
+|---|---|---|---|
+| 1 | 69.995° (70) | 83.33° (75) | 70.0° |
+| 2 | 80.000° (80) | 88.75° (88.75) | 80.0° |
+| 3 | 97.502° (97.5) | 97.50° (97.5) | 97.5° |
+
+The old values mix neighbouring positions: 75 lies between the start (100°) and 70°, and 88.75 = (80 + 97.5)/2. The raw
+log holds no such values in those windows. **Today's conversion is right**, and tests built on `HB2B_1017.h5` check
+numbers from buggy conversion. The other stress/strain project files were added in 2020, after #196.
+
+It also records an older detector geometry: a **0.3 mm** pixel, where PyRS now uses 0.3/1024 m = **0.293 mm**
+(`nexus_conversion.PIXEL_SIZE`). That is why sub-run 3, whose counts and arm angle are unchanged, still reduced
+differently.
+
+**Regenerated in place (2026-11-25, in #1141's PR; user approved; part of #1148):** `tests/scripts/make_HB2B_1017.py`
+converts `HB2B_1017.nxs.h5` with today's code and reduces it without a mask or a calibration file. The file records
+the nominal calibration (#1141), the correct arm angles and today's pixel size, and keeps the raw counts. Reduction's
+save writes no geometry (DD-34), so the script records the geometry the reduction used. It also regenerates
+`HB2B_1017_NoMask_Gold.h5`, the patterns the powder-pattern tests compare against. `HB2B_1017_Pixels_Gold.h5` is
+unchanged: its test builds the detector at a fixed 85°.
+
+Checks before replacing:
+- the arm angles match the raw log;
+- sub-run 3's raw counts are identical pixel for pixel, and sub-runs 1 and 2 differ by under 0.2% (boundary events);
+- each pattern's range is centred on its raw arm angle.
+
+The run holds one diffraction peak, in sub-run 1 only (67.94° now, 81.20° before: exactly the arm-angle correction).
+No two sub-runs share a peak, so the overlap cannot be cross-checked. The never-collected `in_develop_test_fit_2peaks`,
+whose peak windows assumed the old angles, was removed. The other stress/strain test files remain #1148's.

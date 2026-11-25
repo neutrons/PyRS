@@ -97,68 +97,6 @@ class PeakFittingTest:
 
 
 @pytest.mark.parametrize(
-    "source_project_file, output_project_file, peak_type, peak_info_list",
-    [
-        (
-            "data/HB2B_1017.h5",
-            "HB2B_1017_2Peaks.h5",
-            "PseudoVoigt",
-            [PeakInfo(81.0, 78.0, 83.0, "LeftPeak"), PeakInfo(85.0, 83.0, 87.0, "RightPeak")],
-        ),
-        (
-            "/HFIR/HB2B/IPTS-22731/shared/ProjectFiles/HB2B_1065.h5",
-            "HB2B_1065_Peak.h5",
-            "PseudoVoigt",
-            [PeakInfo(90.5, 89.9, 91.6, "311")],
-        ),
-    ],
-    ids=["HB2B1017PeakFit", "HB2B1065PeakExport"],
-)
-def in_develop_test_fit_2peaks(source_project_file, output_project_file, peak_type, peak_info_list):
-    """Performance test on data with multiple peaks on multiple sub runs
-
-    Also on the 'real' situation that some peaks do not even exist on some sub runs
-
-    Parameters
-    ----------
-    source_project_file
-    output_project_file
-    peak_type
-    peak_info_list
-
-    Returns
-    -------
-
-    """
-    # Test only 1
-    if source_project_file != "data/HB2B_1017.h5":
-        return
-
-    # Create tester
-    tester = PeakFittingTest(source_project_file)
-
-    # Fit peak
-    tester.fit_peak(peak_type, peak_info_list[0])
-    tester.fit_peak(peak_type, peak_info_list[1])
-
-    # save to project file
-    tester.save_fit_result(source_project_file, output_project_file, peak_info_list[0].tag)
-    # Test only 1
-    if source_project_file != "data/HB2B_1017.h5":
-        return
-
-    # Create tester
-    tester = PeakFittingTest(source_project_file)
-
-    # Fit peak
-    for peak_info in peak_info_list:
-        tester.fit_peak(peak_type, peak_info)
-
-        # save to project file
-        tester.save_fit_result(source_project_file, output_project_file, peak_info.tag)
-
-
-@pytest.mark.parametrize(
     "source_project_file, output_project_file, peak_type, peak_info",
     [
         (
