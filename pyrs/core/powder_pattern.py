@@ -1,11 +1,52 @@
 from pyrs.core import reduction_manager
 from pyrs.core import mask_util
 from pyrs.core.instrument_geometry import HidraSetup
+from pyrs.core.monosetting import MonoSetting
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities import calibration_file_io
 from matplotlib import pyplot as plt
 import hashlib
 import numpy as np
+
+
+def _reduction_l2(workspace, sub_runs) -> float:
+    """The one sample-to-detector distance a reduction of `sub_runs` uses (#1141): their `L2` log, else the
+    instrument's arm length, as the reduction engine takes it.
+
+    Raises:
+        RuntimeError: If the sub-runs' L2 differ: a reduction applies one calibration, at one distance.
+    """
+    values = {workspace.get_l2(sub_run) for sub_run in sub_runs}
+    if None in values:
+        values.discard(None)
+        values.add(workspace.get_instrument_setup().arm_length)
+    distances = sorted(float(value) for value in values)
+    if len(distances) != 1:
+        raise RuntimeError(
+            f"workspace {workspace.name!r}: the sample-to-detector distance (L2) differs between the sub-runs being "
+            f"reduced: {distances}; one reduction applies one calibration at one distance"
+        )
+    return distances[0]
+
+
+def _run_monosetting(workspace, sub_runs) -> MonoSetting:
+    """The monochromator of the sub-runs being reduced, from their `mrot` log (#1141).
+
+    Raises:
+        RuntimeError: If there is no `mrot` log, or the sub-runs' rotations give different monochromators.
+        ValueError: If a rotation matches no monochromator (as ``MonoSetting.getFromRotation``).
+    """
+    if not workspace.has_sample_log("mrot"):
+        raise RuntimeError(f"workspace {workspace.name!r} has no 'mrot' log: its monochromator cannot be determined")
+    settings = {
+        MonoSetting.getFromRotation(float(workspace.get_sample_log_value("mrot", sub_run))) for sub_run in sub_runs
+    }
+    if len(settings) != 1:
+        raise RuntimeError(
+            f"workspace {workspace.name!r}: the sub-runs being reduced use different monochromators "
+            f"{sorted(str(setting) for setting in settings)}; one run holds one monochromator"
+        )
+    return settings.pop()
 
 
 def _describe_extra_mask(mask, named_vector=None):
@@ -215,6 +256,9 @@ class ReductionApp:
             self._instrument.use_workspace_calibration(self._hydra_ws, self._sub_runs)
         # END-IF
         self._instrument.set_mask_record(self._hydra_ws.get_detector_mask_source())
+        # what the record will say was applied, checked before the reduction runs (#1141)
+        applied_l2 = _reduction_l2(self._hydra_ws, self._sub_runs)
+        mono = _run_monosetting(self._hydra_ws, self._sub_runs)
 
         # Vanadium
         if van_file is not None:
@@ -257,6 +301,7 @@ class ReductionApp:
             "mask_id": mask_id,
             "extra_mask": _describe_extra_mask(mask, extra_mask),
         }
+        self._hydra_ws.set_applied_calibration(self._instrument.applied_calibration(l2=applied_l2, mono=mono))
 
     def plot_reduced_data(self, sub_run_number=None):
         if sub_run_number is None:

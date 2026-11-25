@@ -2,6 +2,7 @@
 import logging
 import numpy as np
 from mantid.kernel import Logger
+from pyrs.core.calibration import AppliedCalibration
 from pyrs.dataobjects import HidraConstants, SampleLogs  # type: ignore
 from pyrs.projectfile import HidraProjectFile  # type: ignore
 from pyrs.utilities import checkdatatypes
@@ -46,7 +47,9 @@ class HidraWorkspace:
 
         # instrument
         self._instrument_setup = None
-        self._instrument_geometry_shift = None  # geometry shift
+        self._instrument_geometry_shift = None  # geometry shift: the request for the next reduction
+        # the calibration applied to this workspace's reduced data (#1141): set by reduction or a project-file load
+        self._applied_calibration: Optional[AppliedCalibration] = None
 
         # sample logs
         self._sample_logs = SampleLogs()  # sample logs: [log name, sub run] = value
@@ -912,6 +915,39 @@ class HidraWorkspace:
         :detector_shift: DENEXDetectorShift instance
         """
         self._instrument_geometry_shift = detector_shift
+
+    def set_applied_calibration(self, calibration: AppliedCalibration) -> None:
+        """Record the calibration applied to this workspace's reduced data (#1141).
+
+        Args:
+            calibration: What the reduction applied.
+
+        Raises:
+            TypeError: If `calibration` is not an AppliedCalibration.
+        """
+        if not isinstance(calibration, AppliedCalibration):
+            raise TypeError(f"calibration must be an AppliedCalibration, got {type(calibration).__name__}")
+        self._applied_calibration = calibration
+
+    def has_applied_calibration(self) -> bool:
+        """Whether the calibration applied to this workspace's reduced data is known (#1141)."""
+        return self._applied_calibration is not None
+
+    def get_applied_calibration(self) -> AppliedCalibration:
+        """The calibration applied to this workspace's reduced data (#1141).
+
+        Unlike :meth:`get_detector_shift`, the request for the next reduction, this is what was applied.
+
+        Raises:
+            RuntimeError: If it is not known: the data were neither reduced in this session nor loaded with a
+                calibration record.
+        """
+        if self._applied_calibration is None:
+            raise RuntimeError(
+                f"workspace {self._name!r} has no applied calibration: it was neither reduced in this session nor "
+                "loaded with a calibration record"
+            )
+        return self._applied_calibration
 
     def set_instrument_geometry(self, instrument):
         self._instrument_setup = instrument

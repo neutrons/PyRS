@@ -5,7 +5,9 @@ import json
 import pytest
 
 from pyrs.calibration.provenance import file_record
+from pyrs.core.calibration import CalibrationSource, nominal_calibration
 from pyrs.core.instrument_geometry import DENEXDetectorShift
+from pyrs.core.monosetting import MonoSetting
 from pyrs.core.nexus_conversion import NeXusConvertingApp
 from pyrs.core.powder_pattern import ReductionApp
 from pyrs.core.workspaces import HidraWorkspace
@@ -244,3 +246,49 @@ def test_rereduction_into_the_input_file_replaces_the_record(tmp_path):
     # Assert - the mask is kept, the binning is the newest
     record = _reduction_record(converted)
     assert record["mask"] == dict(file_record(MASK), source="file") and record["settings"]["num_bins"] == 128
+
+
+def _reduced_workspace(calibration_file=None):
+    """Sub-runs 1-2 of the run, reduced (and not saved): the workspace carries what the reduction applied."""
+    workspace = NeXusConvertingApp(RUN, MASK).convert()
+    reducer = ReductionApp()
+    reducer.load_hidra_workspace(workspace)
+    reducer.reduce_data(
+        sub_runs=[1, 2], instrument_file=None, calibration_file=calibration_file, mask=None, num_bins=256
+    )
+    return workspace
+
+
+def _run_l2(workspace):
+    """The distance the reduction used: HB2B_3510 has no L2 log, so the instrument's arm length."""
+    assert workspace.get_l2(1) is None
+    return workspace.get_instrument_setup().arm_length
+
+
+def test_reduction_records_file_calibration():
+    """Reduction sets the applied calibration on the workspace: the file's, at the distance it used (#1141)"""
+    # Arrange
+    shift, error, wavelength, wavelength_error, status = read_calibration_json_file(REFERENCE)
+
+    # Act
+    workspace = _reduced_workspace(REFERENCE)
+
+    # Assert
+    applied = workspace.get_applied_calibration()
+    assert applied.source is CalibrationSource.FILE and applied.status == int(status)
+    assert applied.shift.convert_to_dict() == shift.convert_to_dict()
+    assert applied.shift_error.convert_to_dict() == error.convert_to_dict()
+    assert (applied.wavelength, applied.wavelength_error) == (float(wavelength), float(wavelength_error))
+    assert applied.l2 == _run_l2(workspace)
+
+
+def test_reduction_without_file_records_nominal():
+    """No calibration file: the nominal calibration of the run's monochromator, from its mrot log (#1141)"""
+    # Act
+    workspace = _reduced_workspace()
+
+    # Assert
+    mono = MonoSetting.getFromRotation(float(workspace.get_sample_log_value("mrot", 1)))
+    applied = workspace.get_applied_calibration()
+    assert applied.source is CalibrationSource.NONE
+    assert applied.same_calibration_as(nominal_calibration(mono, l2=_run_l2(workspace)))

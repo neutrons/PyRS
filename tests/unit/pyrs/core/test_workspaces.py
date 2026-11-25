@@ -1,6 +1,9 @@
 import numpy as np
 import pytest
 
+from pyrs.core.calibration import nominal_calibration
+from pyrs.core.instrument_geometry import DENEXDetectorShift
+from pyrs.core.monosetting import MonoSetting
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects.sample_logs import SampleLogs
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
@@ -236,3 +239,32 @@ class TestDirection:
 
         with pytest.raises(ValueError, match=r"no single direction.*\['11', '22'\]"):
             ws.direction
+
+
+def test_applied_calibration_unset_raises():
+    """Neither reduced nor loaded with a record: the applied calibration is not known (#1141)"""
+    # Arrange
+    workspace = HidraWorkspace("fresh")
+
+    # Act / Assert
+    assert not workspace.has_applied_calibration()
+    with pytest.raises(RuntimeError, match="'fresh' has no applied calibration"):
+        workspace.get_applied_calibration()
+
+
+def test_applied_calibration_round_trips():
+    # Arrange
+    workspace = HidraWorkspace("reduced")
+    nominal = nominal_calibration(MonoSetting.Si422, l2=0.985)
+
+    # Act
+    workspace.set_applied_calibration(nominal)
+
+    # Assert
+    assert workspace.has_applied_calibration() and workspace.get_applied_calibration() is nominal
+
+
+def test_applied_calibration_must_be_record():
+    # Act / Assert
+    with pytest.raises(TypeError, match="AppliedCalibration"):
+        HidraWorkspace("reduced").set_applied_calibration(DENEXDetectorShift(0, 0, 0, 0, 0, 0, 0))
