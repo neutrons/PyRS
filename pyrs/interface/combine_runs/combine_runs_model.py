@@ -75,7 +75,6 @@ class CombineRunsModel(QObject):
             export_project, sub_runs=self._hidra_ws._sample_logs.subruns, ignore_raw_counts=True
         )
         self._hidra_ws.save_reduced_diffraction_data(export_project)
-        # which calibration(s) the combined data were reduced with, and from which files (#1063)
-        if self._record is not None:
-            export_project.write_reduction_provenance(applied_calibration=self._record, applied=applied)
+        # which calibration the combined data carry (#1141), and from which files (#1063)
+        export_project.write_reduction_provenance(applied_calibration=self._record, applied=applied)
         export_project.save()

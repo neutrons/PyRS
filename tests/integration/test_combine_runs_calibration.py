@@ -70,6 +70,27 @@ def test_same_calibration_is_combined_with_its_record(tmp_path):
     assert [source["file"] for source in record["sources"]] == paths
 
 
+def test_combined_file_carries_applied_calibration(tmp_path):
+    """The exported file carries the combined data's calibration and its hash, and loads with it (#1141)"""
+    # Arrange
+    paths = _copies(tmp_path, [dict(RECORD), dict(RECORD)])
+    model = CombineRunsModel()
+    model.combine_project_files(paths)
+    out = tmp_path / "combined.h5"
+
+    # Act
+    model.export_project_files(str(out))
+    project = HidraProjectFile(str(out), HidraProjectFileMode.READONLY)
+    stored = project.read_applied_calibration()
+    stored_hash = project.read_reduction_provenance()["calibration_hash"]
+    project.close()
+
+    # Assert
+    combined = model._hidra_ws.get_applied_calibration()
+    assert stored == combined and stored.source.value == "file"
+    assert stored_hash == combined.content_hash
+
+
 def test_different_calibrations_are_refused_before_loading(tmp_path):
     # Arrange
     paths = _copies(tmp_path, [dict(RECORD), dict(RECORD, calibration=dict(CALIBRATION, Lambda=1.5291))])

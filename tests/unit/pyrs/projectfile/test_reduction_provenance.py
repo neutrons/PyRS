@@ -142,29 +142,31 @@ def test_unbuildable_record_fails_the_save(tmp_path, monkeypatch, calibrated):
         HidraProjectFile.check_reduction_provenance(instrument=calibrated, applied=applied)
 
 
-def test_failed_write_raises_and_removes_what_was_written(tmp_path, monkeypatch, calibrated):
-    """The file failing mid-record raises, and leaves nothing half-written (#1141)"""
-    # Arrange - the file fails while the record is being written
+@pytest.mark.parametrize("failing_dataset", ["provenance_json", "applied_calibration_json"])
+def test_failed_write_raises_and_removes_what_was_written(tmp_path, monkeypatch, calibrated, failing_dataset):
+    """The file failing mid-record raises, and leaves nothing half-written: neither record survives alone (#1141)"""
+    # Arrange - the file fails while one of the records is being written
     real = h5py.Group.create_dataset
 
     def failing(self, name, *args, **kwargs):
-        if name == "provenance_json":
+        if name == failing_dataset:
             raise OSError("disk full")
         return real(self, name, *args, **kwargs)
 
     path = tmp_path / "reduced.h5"
     project = HidraProjectFile(str(path), HidraProjectFileMode.OVERWRITE)
+    applied = calibrated.applied_calibration(l2=0.985, mono=MonoSetting.Si422)
     monkeypatch.setattr(h5py.Group, "create_dataset", failing)
 
     # Act
     with pytest.raises(RuntimeError, match="could not be written: OSError: disk full"):
-        project.write_reduction_provenance(instrument=calibrated)
+        project.write_reduction_provenance(instrument=calibrated, applied=applied)
     monkeypatch.setattr(h5py.Group, "create_dataset", real)
     project.save(verbose=False)
     record = read(path)
 
     # Assert - neither "unknown" nor a partial record
-    assert "source" not in record and not {"calibration", "provenance"} & set(record)
+    assert "source" not in record and not {"calibration", "provenance", "calibration_hash"} & set(record)
 
 
 def test_missing_calibration_group_is_created(tmp_path, calibrated):

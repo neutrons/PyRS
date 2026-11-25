@@ -1221,12 +1221,18 @@ class HidraProjectFile:
 
         if applied is not None:
             text = json.dumps(applied.to_dict(), allow_nan=False)  # before anything is written
-            if _APPLIED_CALIBRATION_DATASET in calibration_group:
-                del calibration_group[_APPLIED_CALIBRATION_DATASET]
-            calibration_group.create_dataset(
-                _APPLIED_CALIBRATION_DATASET, data=text, dtype=h5py.string_dtype(encoding="utf-8")
-            )
-            calibration_group.attrs["calibration_hash"] = applied.content_hash
+            try:
+                if _APPLIED_CALIBRATION_DATASET in calibration_group:
+                    del calibration_group[_APPLIED_CALIBRATION_DATASET]
+                calibration_group.create_dataset(
+                    _APPLIED_CALIBRATION_DATASET, data=text, dtype=h5py.string_dtype(encoding="utf-8")
+                )
+                calibration_group.attrs["calibration_hash"] = applied.content_hash
+            except Exception as write_err:
+                _clear_record(calibration_group)  # nothing half-written: no record without its applied calibration
+                raise RuntimeError(
+                    f"the applied calibration could not be written: {type(write_err).__name__}: {write_err}"
+                ) from write_err
 
     def write_mask_source(self, mask_source):
         """Record where the default mask came from in a converted (not yet reduced) file, as the REDUCTION
