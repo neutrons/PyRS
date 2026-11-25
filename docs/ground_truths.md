@@ -2467,6 +2467,8 @@ the record (`calibration_record()`) and writing it are guarded — on failure no
 record is `source = "unknown"` with every reason, and the failure is warned about and logged with its
 traceback; a provenance that cannot be read is noted in the record, not raised. Integration tests assert
 no `error` and no `unknown` source, so a regression fails a test.
+**Superseded by #1141 (user decision, 2026-11-24):** a calibration record that cannot be built or written now
+**fails the save**, writing nothing; `"unknown"` is never written. See *The applied calibration has an identity*.
 
 Not covered (reported, not changed): "Combine runs" (`combine_runs_model`) writes a merged project
 file without its source files' calibration records (fixed by #1063, below);
@@ -2490,6 +2492,8 @@ all. It now **checks the sources' records (#1053 part B) before anything is load
 - **Historic files (reduced before #1053, no record) are allowed but flagged**, whether all files are
   historic or only some: a warning dialog ("Calibration not checked") names them, and the merged
   record's `warning` says so. With no recorded source the merged file records `source = "not recorded"`.
+  **Superseded by #1141:** historic files can still be combined to look at, but the combined data carry no
+  applied calibration, so **exporting them is refused**.
 
 The merged file's `instrument/calibration` carries the shared record (the sources' calibration file
 and SHA-256 written verbatim, not recomputed), the PyRS version, `warning`, and `sources_json`: every
@@ -3705,3 +3709,75 @@ Pixel-2θ differences are the largest change over the detector grid; "precision"
 
 **Defaults:** the study found nothing to change: 2θ₀ held at 0, 5 strips, up to 10 rounds, the shared mask, the nominal
 start.
+
+## The applied calibration has an identity (2026-11-25, #1141)
+
+**Two calibrations are the same if and only if their content hashes are equal**, and the calibration decides it:
+callers never compare shift components, rotations, 2θ₀, wavelength or errors themselves (user decisions,
+2026-11-24 and 2026-11-25). Part of the PyRS 3.0 release.
+
+- **The record** (`pyrs/core/calibration.py`): `AppliedCalibration` is immutable. It holds:
+  - the 7 calibration values (Shift_x/y/z, Rot_x/y/z, TTH_0) and their 7 errors;
+  - the wavelength and its error;
+  - the **L2** the reduction used;
+  - its `source`;
+  - the refinement `status` (None when nothing was refined).
+
+  It checks its values when built:
+  - every number is finite;
+  - each error is ≥ 0, −1 or −2;
+  - the wavelength and L2 are > 0;
+  - a `none` record must be the nominal one.
+- **Errors:** −1 is the **default** (not refined, or held: the nominal calibration's errors). −2 is an
+  **unknown** error (refined, but undetermined or lost). Supersedes the #1099 "−1 where none are known".
+- **The hash:** sha256 of the 17 numbers as little-endian float64, in a fixed order: the values, the errors, the
+  wavelength, its error, then L2. Equality is bit for bit.
+  - **The errors and L2 are part of the identity.**
+  - The source, the status and the file name are not: they say where a calibration came from, not what it is.
+    So the same calibration from JSON, NeXus or the session has one hash.
+- **The source** is `CalibrationSource` (`pyrs/core/calibration_source.py`, a leaf module): `none` / `file` /
+  `workspace`, with **no `unknown`**. A stored string that is not a member is rejected, naming the file. The
+  stored strings are the ones project files already hold.
+- **The nominal calibration** (`nominal_calibration(mono, l2=)`): values 0, errors −1, the monochromator's nominal
+  wavelength with error −1, source `none`. It is what reduction applies without a calibration file, and has its
+  own hash.
+- **The monochromator comes from the `mrot` log** (`run_monosetting`), never from a wavelength. A project file's
+  stored wavelength may be the calibrated one, and the nominal wavelength is not a physical value: no neutron has
+  it.
+- **Reduction records what it applied, every time** (`ReductionApp.reduce_data` →
+  `HidraWorkspace.set_applied_calibration`). The L2 is the one value the reduced sub-runs use: their `L2` log,
+  else the instrument's arm length (`reduction_l2`). New refusals:
+  - L2 differing between the sub-runs reduced;
+  - no `mrot` log;
+  - an `mrot` angle that matches no monochromator;
+  - sub-runs on different monochromators.
+
+  No reduced value changes.
+- **On the workspace:** the record is the one place for "what was applied". `get_detector_shift()` stays the
+  request for the next reduction. `get_applied_calibration()` raises when nothing is known; it never returns
+  None.
+- **Project files** (`instrument/calibration`): a dataset, `applied_calibration_json` (`AppliedCalibration.to_dict`),
+  and an attribute, `calibration_hash`. `read_applied_calibration()` rebuilds the record and **refuses one whose
+  recomputed hash is not the stored one**: that record is corrupt.
+- **Loading** (`load_hidra_project`) restores the record, once the logs and geometry are loaded.
+  - **Files reduced between #1053 and #1141** (user decision: "option A"): `file` and `workspace` records are
+    **rebuilt** from what the file states (`AppliedCalibration.from_reduction_record`).
+    - Values, errors, λ and status come from `calibration_json`; a workspace shift gets errors −2.
+    - The monochromator comes from `mrot`.
+    - **L2 comes only from what the file states** (`stated_l2`): the `L2` log, then the file's geometry, then
+      the record's `run_geometry`, then the calibration's geometry. **Never a default**: freshly reduced files
+      store no geometry, and many runs have no `L2` log.
+  - **Older `none` records are not rebuilt**: they often state no distance at all, so the data must be reduced
+    again.
+  - **No record** (pre-#1053), **`"unknown"`**, or **corrupt**: no record. In every case the file **still loads**
+    for viewing, with a console message.
+- **Appending** (`append_hidra_project`) keeps the record only if the appended file carries the same calibration.
+- **Saves fail without a known calibration**, before any file is opened or copied: reduction's save (both records
+  checked first, `check_reduction_provenance`), CombineRuns' `.h5` export, the peak-fitting save and the
+  texture-fitting save. A failed write clears every attribute and dataset of its record. NXstress saves are
+  #1132's: there, any file without the hash is fully rejected.
+- **Still to come (blocked by #1148):** the Strain/Stress viewer and `StrainField(filename=...)` refuse project
+  files without a record. The stress/strain test data were reduced before #1053, so they are re-reduced first.
+- **Scope split:** #1132 rebases onto this work. It replaces its `(shift, errors)` tuple with the record and writes
+  and reads the source and hash in NXstress. #1140 (one wavelength per NXstress entry; merges refused by hash) and
+  #1146 (strain/stress merges by hash) build on it.

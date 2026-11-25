@@ -9,6 +9,8 @@ never compare individual values (#1141, user decision, 2026-11-24).
 Error codes are the calibration files': -1 is the default (not refined, or held), -2 an unknown error (refined,
 but the error could not be determined or was lost).
 
+Decisions and their reasons: docs/ground_truths.md, "The applied calibration has an identity".
+
 Typical workflow:
     1. A reduction builds the record of what it applied: from a calibration file, from the workspace's own
        shift, or :func:`nominal_calibration` when no calibration file is given.
