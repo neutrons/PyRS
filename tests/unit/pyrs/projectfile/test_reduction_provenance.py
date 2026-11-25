@@ -127,27 +127,23 @@ def test_rereduction_replaces_the_earlier_record(tmp_path, calibrated):
     assert read(path) == {"source": "none", "reduction": {"mask": {"source": "not recorded"}}}
 
 
-def test_unbuildable_record_does_not_stop_the_save(tmp_path, monkeypatch, calibrated):
+def test_unbuildable_record_fails_the_save(tmp_path, monkeypatch, calibrated):
+    """A record that cannot be built fails the save (#1141): "unknown" is never written"""
+
     # Arrange
     def broken():
         raise AttributeError("no shift")
 
     monkeypatch.setattr(calibrated, "calibration_record", broken)
-    path = tmp_path / "reduced.h5"
+    applied = nominal_calibration(MonoSetting.Si422, l2=0.985)
 
-    # Act
-    with pytest.warns(UserWarning, match="could not be recorded"):
-        write(path, instrument=calibrated)
-
-    # Assert - saved; the record says it is unknown, and why
-    assert read(path) == {
-        "source": "unknown",
-        "error": "applied calibration could not be recorded: AttributeError: no shift",
-        "reduction": {"mask": {"source": "not recorded"}},
-    }
+    # Act / Assert - the check a save runs before opening its file
+    with pytest.raises(RuntimeError, match="could not be recorded, so nothing is saved: AttributeError: no shift"):
+        HidraProjectFile.check_reduction_provenance(instrument=calibrated, applied=applied)
 
 
-def test_failed_write_removes_what_was_written(tmp_path, monkeypatch, calibrated):
+def test_failed_write_raises_and_removes_what_was_written(tmp_path, monkeypatch, calibrated):
+    """The file failing mid-record raises, and leaves nothing half-written (#1141)"""
     # Arrange - the file fails while the record is being written
     real = h5py.Group.create_dataset
 
@@ -156,18 +152,19 @@ def test_failed_write_removes_what_was_written(tmp_path, monkeypatch, calibrated
             raise OSError("disk full")
         return real(self, name, *args, **kwargs)
 
-    monkeypatch.setattr(h5py.Group, "create_dataset", failing)
     path = tmp_path / "reduced.h5"
+    project = HidraProjectFile(str(path), HidraProjectFileMode.OVERWRITE)
+    monkeypatch.setattr(h5py.Group, "create_dataset", failing)
 
     # Act
-    with pytest.warns(UserWarning, match="could not be written"):
-        write(path, instrument=calibrated)
+    with pytest.raises(RuntimeError, match="could not be written: OSError: disk full"):
+        project.write_reduction_provenance(instrument=calibrated)
     monkeypatch.setattr(h5py.Group, "create_dataset", real)
+    project.save(verbose=False)
     record = read(path)
 
-    # Assert - nothing half-written beside "unknown"
-    assert record["source"] == "unknown" and "disk full" in record["error"]
-    assert not {"calibration", "provenance"} & set(record)
+    # Assert - neither "unknown" nor a partial record
+    assert "source" not in record and not {"calibration", "provenance"} & set(record)
 
 
 def test_missing_calibration_group_is_created(tmp_path, calibrated):

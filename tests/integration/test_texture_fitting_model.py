@@ -50,7 +50,7 @@ class TestTextureFittingModelH5SaveRegression:
         tmp_path: Path,
     ) -> None:
         ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
-        project_path = write_minimal_h5_project(ws, filename="source.h5")
+        project_path = write_minimal_h5_project(ws, filename="source.h5", with_calibration=True)
 
         texture_model.load_hidra_project_file(str(project_path))
         assert texture_model._curr_file_name == str(project_path)
@@ -75,7 +75,7 @@ class TestTextureFittingModelH5SaveRegression:
         # HidraProjectFile, not NXstress -- exercised implicitly here since no
         # NXstress import/call would succeed against this pre-existing file layout.
         ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
-        project_path = write_minimal_h5_project(ws, filename="source.h5")
+        project_path = write_minimal_h5_project(ws, filename="source.h5", with_calibration=True)
 
         texture_model.load_hidra_project_file(str(project_path))
         peak = minimal_PeakCollection(N_subrun=len(ws.get_sub_runs()))
@@ -95,7 +95,7 @@ class TestTextureFittingModelH5SaveRegression:
         """An empty name updates the loaded file, as documented; it used to try to copy the file to ""."""
         # Arrange
         ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
-        project_path = write_minimal_h5_project(ws, filename="source.h5")
+        project_path = write_minimal_h5_project(ws, filename="source.h5", with_calibration=True)
         texture_model.load_hidra_project_file(str(project_path))
         peak = minimal_PeakCollection(N_subrun=len(ws.get_sub_runs()))
         fit_result = FitResult(peakcollections=[peak], fitted=None, difference=None)
@@ -109,6 +109,28 @@ class TestTextureFittingModelH5SaveRegression:
             assert project.read_peak_tags() == [peak.peak_tag]
         finally:
             project.close()
+
+    def test_save_without_calibration_record_raises(
+        self,
+        texture_model: TextureFittingModel,
+        write_minimal_h5_project: Callable[..., Path],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_PeakCollection: Callable[..., PeakCollection],
+        tmp_path: Path,
+    ) -> None:
+        """A file carrying no calibration record is not saved into, nor copied (#1141)"""
+        # Arrange
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
+        project_path = write_minimal_h5_project(ws, filename="source.h5")
+        texture_model.load_hidra_project_file(str(project_path))
+        peak = minimal_PeakCollection(N_subrun=len(ws.get_sub_runs()))
+        fit_result = FitResult(peakcollections=[peak], fitted=None, difference=None)
+        out_path = tmp_path / "saved.h5"
+
+        # Act / Assert
+        with pytest.raises(RuntimeError, match="has no applied calibration"):
+            texture_model.save_fit_result(str(out_path), fit_result=fit_result)
+        assert not out_path.exists()
 
 
 class TestTextureFittingModelNXstressRoundtrip:
@@ -162,7 +184,7 @@ class TestRunNumber:
         ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3])
         if run_number is not None:
             ws.set_sample_log("run_number", np.array([1, 2, 3]), np.array([run_number] * 3))
-        return write_minimal_h5_project(ws, filename=filename)
+        return write_minimal_h5_project(ws, filename=filename, with_calibration=True)
 
     def test_a_float_log_is_read(self, texture_model):
         """Newer project files store `run_number` as float32 (`1017.0`)."""
@@ -189,7 +211,7 @@ class TestRunNumber:
     ):
         ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3])
         ws.set_sample_log("run_number", np.array([1, 2, 3]), np.full(3, 1327.0, dtype=np.float32))
-        path = write_minimal_h5_project(ws, filename="renamed_export.h5")
+        path = write_minimal_h5_project(ws, filename="renamed_export.h5", with_calibration=True)
 
         texture_model.load_hidra_project_file(str(path))
 

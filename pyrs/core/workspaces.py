@@ -983,9 +983,11 @@ class HidraWorkspace:
                 calibration record.
         """
         if self._applied_calibration is None:
+            origin = f" (from {self._project_file_name})" if self._project_file_name else ""
             raise RuntimeError(
-                f"workspace {self._name!r} has no applied calibration: it was neither reduced in this session nor "
-                "loaded with a calibration record"
+                f"workspace {self._name!r}{origin} has no applied calibration: it was neither reduced in this session "
+                "nor loaded with a calibration record (reduced before #1053, or without a calibration file before "
+                '#1141, or an "unknown" or corrupt record); reduce the data again'
             )
         return self._applied_calibration
 

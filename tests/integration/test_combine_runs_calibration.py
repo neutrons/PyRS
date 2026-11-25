@@ -21,6 +21,8 @@ CALIBRATION = {
     "TTH_0": 0.25,
     "Lambda": 1.5306,
     "Status": 1.0,
+    # a reduction record states the geometry the calibration applied to: its distance rebuilds the record (#1141)
+    "geometry": {"detector_size": [1024, 1024], "pixel_dimension": [0.3 / 1024, 0.3 / 1024], "arm_length": 0.985},
 }
 REDUCTION = {"mask": {"source": "none"}, "settings": {"num_bins": 720, "eta_step": None}}
 RECORD = {"source": "file", "calibration": CALIBRATION, "provenance": {"schema": 1}, "reduction": REDUCTION}
@@ -93,16 +95,19 @@ def test_vanadium_difference_needs_approval(tmp_path):
 
 
 def test_historic_files_are_combined_and_flagged(tmp_path):
+    """Files reduced before #1053 can be combined to look at, and are flagged; saving them is refused (#1141)"""
     # Arrange
     model = CombineRunsModel()
+    out = tmp_path / "combined.h5"
 
     # Act
     model.combine_project_files(FILES)
-    record = _exported(model, tmp_path)
 
     # Assert
     assert len(model.warnings) == 1 and "2 of 2 files have no calibration record" in model.warnings[0]
-    assert record["source"] == "not recorded" and len(record["sources"]) == 2
+    with pytest.raises(RuntimeError, match="has no applied calibration.*reduce the data again"):
+        model.export_project_files(str(out))
+    assert not out.exists()
 
 
 def test_mask_difference_needs_approval(tmp_path):

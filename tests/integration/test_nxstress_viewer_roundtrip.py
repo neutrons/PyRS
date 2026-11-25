@@ -64,7 +64,7 @@ class TestPeakFittingViewerRoundtrip:
         tmp_path: Path,
     ) -> None:
         ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
-        project_path = write_minimal_h5_project(ws, filename="source.h5", with_instrument=True)
+        project_path = write_minimal_h5_project(ws, filename="source.h5", with_instrument=True, with_calibration=True)
 
         model = PeakFittingModel(PyRsCore())
         model.load_hidra_project([str(project_path)])
@@ -121,7 +121,7 @@ class TestTextureFittingViewerRoundtrip:
         tmp_path: Path,
     ) -> None:
         ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True)
-        project_path = write_minimal_h5_project(ws, filename="source.h5", with_instrument=True)
+        project_path = write_minimal_h5_project(ws, filename="source.h5", with_instrument=True, with_calibration=True)
 
         model = TextureFittingModel(None)
         model.load_hidra_project_file(str(project_path))
@@ -150,8 +150,12 @@ class TestCombineRunsViewerRoundtrip:
         # open-questions/03-combine-runs-nxstress.md Q1.
         ws1 = minimal_HidraWorkspace(sub_runs=[1, 2, 3], name="run1", with_masks=True)
         ws2 = minimal_HidraWorkspace(sub_runs=[1, 2, 3], name="run2", with_masks=True)
-        project_path_1 = write_minimal_h5_project(ws1, filename="run1.h5", with_instrument=True, with_masks=True)
-        project_path_2 = write_minimal_h5_project(ws2, filename="run2.h5", with_instrument=True, with_masks=True)
+        project_path_1 = write_minimal_h5_project(
+            ws1, filename="run1.h5", with_instrument=True, with_masks=True, with_calibration=True
+        )
+        project_path_2 = write_minimal_h5_project(
+            ws2, filename="run2.h5", with_instrument=True, with_masks=True, with_calibration=True
+        )
 
         model = CombineRunsModel()
         model.combine_project_files([str(project_path_1), str(project_path_2)])
@@ -229,7 +233,7 @@ class TestCombineRunsViewerRoundtrip:
         tmp_path: Path,
     ) -> None:
         ws1 = minimal_HidraWorkspace(sub_runs=[1, 2, 3], name="run1")
-        project_path_1 = write_minimal_h5_project(ws1, filename="run1.h5", with_instrument=True)
+        project_path_1 = write_minimal_h5_project(ws1, filename="run1.h5", with_instrument=True, with_calibration=True)
 
         model = CombineRunsModel()
         model.combine_project_files([str(project_path_1)])
@@ -305,7 +309,9 @@ class TestConfiguredExtension:
     ) -> None:
         # Arrange
         ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], name="run1", with_masks=True)
-        project = write_minimal_h5_project(ws, filename="run1.h5", with_instrument=True, with_masks=True)
+        project = write_minimal_h5_project(
+            ws, filename="run1.h5", with_instrument=True, with_masks=True, with_calibration=True
+        )
         model = CombineRunsModel()
         model.combine_project_files([str(project)])
         path = tmp_path / "combined.nx5"

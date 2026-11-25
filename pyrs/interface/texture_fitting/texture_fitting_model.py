@@ -269,6 +269,10 @@ class TextureFittingModel(QObject):
         # `PeakFittingModel`'s already-working equivalent. Pre-existing bug, found
         # and fixed as a prerequisite for the NXstress hookup above, since this is
         # the exact method that hookup needed to extend.
+        # data without a known calibration are not saved, checked before any file is copied or written (#1141)
+        assert self.ws is not None, "save_fit_result called before a workspace was set"
+        self.ws.get_applied_calibration()
+
         # An empty name means "update the loaded file in place", as documented.
         if out_file_name and self._curr_file_name != out_file_name:
             assert self._curr_file_name is not None, "save_fit_result called before a project was loaded"

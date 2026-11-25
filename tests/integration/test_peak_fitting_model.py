@@ -154,7 +154,7 @@ class TestPeakFittingModelSuffixRouting:
         tmp_path: Path,
     ) -> None:
         ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
-        project_path = write_minimal_h5_project(ws, filename="source.h5")
+        project_path = write_minimal_h5_project(ws, filename="source.h5", with_calibration=True)
 
         peak_model.load_hidra_project([str(project_path)])
         assert peak_model._curr_file_name == str(project_path)
@@ -180,7 +180,7 @@ class TestPeakFittingModelSuffixRouting:
         indexed character-by-character, loading "/" as the project file)."""
         # Arrange
         ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
-        project_path = str(write_minimal_h5_project(ws, filename="source.h5"))
+        project_path = str(write_minimal_h5_project(ws, filename="source.h5", with_calibration=True))
 
         # Act
         loaded = peak_model.load_hidra_project(project_path)
@@ -199,7 +199,7 @@ class TestPeakFittingModelSuffixRouting:
         """An empty name updates the loaded file, as documented; it used to try to copy the file to ""."""
         # Arrange
         ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
-        project_path = write_minimal_h5_project(ws, filename="source.h5")
+        project_path = write_minimal_h5_project(ws, filename="source.h5", with_calibration=True)
         peak_model.load_hidra_project([str(project_path)])
         peak = minimal_PeakCollection(N_subrun=len(ws.get_sub_runs()))
         peak_model.fit_result = FitResult(peakcollections=[peak], fitted=None, difference=None)
@@ -213,3 +213,25 @@ class TestPeakFittingModelSuffixRouting:
             assert project.read_peak_tags() == [peak.peak_tag]
         finally:
             project.close()
+
+    def test_save_without_calibration_record_raises(
+        self,
+        peak_model: PeakFittingModel,
+        write_minimal_h5_project: Callable[..., Path],
+        minimal_HidraWorkspace: Callable[..., HidraWorkspace],
+        minimal_PeakCollection: Callable[..., PeakCollection],
+        tmp_path: Path,
+    ) -> None:
+        """A file carrying no calibration record is not saved into, nor copied (#1141)"""
+        # Arrange
+        ws = minimal_HidraWorkspace(sub_runs=[1, 2, 3], with_instrument=True, with_masks=True)
+        project_path = write_minimal_h5_project(ws, filename="source.h5")
+        peak_model.load_hidra_project([str(project_path)])
+        peak = minimal_PeakCollection(N_subrun=len(ws.get_sub_runs()))
+        peak_model.fit_result = FitResult(peakcollections=[peak], fitted=None, difference=None)
+        out_path = tmp_path / "saved.h5"
+
+        # Act / Assert
+        with pytest.raises(RuntimeError, match="has no applied calibration"):
+            peak_model.save_fit_result(str(out_path))
+        assert not out_path.exists()

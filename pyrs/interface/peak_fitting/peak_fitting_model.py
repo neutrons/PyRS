@@ -263,6 +263,9 @@ class PeakFittingModel(QObject):
                 "  Use File > Save as NXstress... instead."
             )
 
+        # data without a known calibration are not saved, checked before any file is copied or written (#1141)
+        self.hidra_workspace.get_applied_calibration()
+
         # An empty name means "update the loaded file in place", as documented.
         if out_file_name and self._curr_file_name != out_file_name:
             copyfile(self._curr_file_name, out_file_name)

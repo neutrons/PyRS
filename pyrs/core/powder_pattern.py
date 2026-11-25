@@ -305,6 +305,11 @@ class ReductionApp:
                 "or user specified output file name."
             )
 
+        # both calibration records must be writable before the file is opened: a save that cannot record its
+        # calibration fails and writes nothing (#1141)
+        applied = self._hydra_ws.get_applied_calibration()
+        HidraProjectFile.check_reduction_provenance(instrument=self._instrument, applied=applied)
+
         # Generate project file instance
         out_file = HidraProjectFile(file_name, mode)
 
@@ -322,7 +327,7 @@ class ReductionApp:
             vanadium_run=self._van_file,
             instrument=self._instrument,
             reduction_settings=self._reduction_settings,
-            applied=self._hydra_ws.get_applied_calibration(),
+            applied=applied,
         )
 
         # Write & close

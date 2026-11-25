@@ -90,13 +90,15 @@ def _clear_record(group):
 
 
 def _instrument_record(instrument):
-    """The calibration record of a HidraSetup; never raises (the save must go ahead, #1053)."""
+    """The calibration record of a HidraSetup. A record that cannot be built fails the save (#1141): "unknown" is
+    never written."""
     try:
         return instrument.calibration_record()
-    except Exception as record_err:  # noqa: BLE001 - recorded in the file, never stops the save
-        message = f"applied calibration could not be recorded: {type(record_err).__name__}: {record_err}"
-        _report_record_failure(message)
-        return {"source": "unknown", "error": message}
+    except Exception as record_err:
+        raise RuntimeError(
+            f"the applied calibration could not be recorded, so nothing is saved: {type(record_err).__name__}: "
+            f"{record_err}"
+        ) from record_err
 
 
 def _reduction_record(instrument, reduction_settings):
@@ -165,19 +167,25 @@ def _prepare_record(applied):
     return prepared
 
 
+def _checked_record(applied):
+    """The prepared record, or RuntimeError: a record that cannot be prepared fails the save (#1141)."""
+    try:
+        return _prepare_record(applied)
+    except Exception as prepare_err:
+        raise RuntimeError(
+            f"the applied calibration could not be recorded, so nothing is saved: {type(prepare_err).__name__}: "
+            f"{prepare_err}"
+        ) from prepare_err
+
+
 def _write_applied_calibration(group, applied):
     """Write what the reduction applied into the CALIBRATION group (the caller cleared the old record).
 
-    Never raises: the record must not stop the reduced data from being saved (#1053). A record that
-    cannot be prepared or written leaves ``calibration_source = "unknown"`` and the reason(s) in
-    ``calibration_record_error``, with nothing half-written beside them.
+    A record that cannot be prepared or written raises (#1141): "unknown" is never written. Callers check the
+    record first (:meth:`HidraProjectFile.check_reduction_provenance`), so a failure here is the file itself
+    failing.
     """
-    try:
-        prepared = _prepare_record(applied)
-    except Exception as prepare_err:  # noqa: BLE001 - recorded in the file, never stops the save
-        message = f"applied calibration could not be recorded: {type(prepare_err).__name__}: {prepare_err}"
-        _report_record_failure(message)
-        prepared = {"source": "unknown", "error": "; ".join(filter(None, [applied.get("error"), message]))}
+    prepared = _checked_record(applied)
     try:
         for attribute, key in _RECORD_ATTRIBUTES.items():
             if key in prepared:
@@ -190,17 +198,11 @@ def _write_applied_calibration(group, applied):
         for name in ("provenance_json", "sources_json"):
             if name in prepared:
                 group.create_dataset(name, data=prepared[name], dtype=h5py.string_dtype(encoding="utf-8"))
-    except Exception as write_err:  # noqa: BLE001 - recorded in the file, never stops the save
-        message = f"applied calibration could not be written: {type(write_err).__name__}: {write_err}"
-        _report_record_failure(message)
-        try:  # nothing half-written: the record is then only "unknown" and why
-            for name in _APPLIED_DATASETS:
-                if name in group:
-                    del group[name]
-            group.attrs["calibration_source"] = "unknown"
-            group.attrs["calibration_record_error"] = "; ".join(filter(None, [prepared.get("error"), message]))
-        except Exception:  # noqa: BLE001 - the file itself is failing; the reduced data are still saved
-            Logger("HidraProjectFile").error(f"could not record the failure either:\n{traceback.format_exc()}")
+    except Exception as write_err:
+        _clear_record(group)  # nothing half-written: no attribute or dataset of this record is left
+        raise RuntimeError(
+            f"the applied calibration could not be written: {type(write_err).__name__}: {write_err}"
+        ) from write_err
 
 
 class CalibrationMismatchError(ValueError):
@@ -1169,9 +1171,9 @@ class HidraProjectFile:
         applied_calibration : dict or None
             a calibration record without an instrument (keys as ``HidraSetup.calibration_record()``).
             Written as datasets ``calibration_json`` (the calibration JSON's dictionary) and
-            ``provenance_json`` (JSON text, no size limit) and attributes; a re-reduction replaces them. A failure to write it is recorded and warned
-            about, never raised: the reduced data are saved regardless. Its ``reduction`` entry, if any, is
-            written to the REDUCTION group (as a combined file's, #1068).
+            ``provenance_json`` (JSON text, no size limit) and attributes; a re-reduction replaces them. A record
+            that cannot be prepared or written raises (#1141): ``"unknown"`` is never written. Its ``reduction``
+            entry, if any, is written to the REDUCTION group (as a combined file's, #1068).
         reduction_settings : dict or None
             with ``instrument``: the binning and extra mask the reduction used (``ReductionApp``). Written,
             with the instrument's ``mask_record``, as ``reduction_json`` in the REDUCTION group beside
@@ -1188,7 +1190,7 @@ class HidraProjectFile:
         if instrument is not None:
             applied_calibration = dict(_instrument_record(instrument))
             applied_calibration["reduction"] = _reduction_record(instrument, reduction_settings)
-        if calibration_file is None and vanadium_run is None and applied_calibration is None:
+        if calibration_file is None and vanadium_run is None and applied_calibration is None and applied is None:
             return
 
         # created if missing: an older or externally written file may lack it, and recording the
@@ -1281,6 +1283,23 @@ class HidraProjectFile:
                 reduction["error"] = _plain(reduction_group.attrs[_REDUCTION_ERROR])
             record["reduction"] = reduction
         return record
+
+    @staticmethod
+    def check_reduction_provenance(*, instrument: HidraSetup, applied: AppliedCalibration) -> None:
+        """Check, before a save opens its file, that both calibration records can be written (#1141).
+
+        Args:
+            instrument: The instrument the reduction used (its descriptive calibration record).
+            applied: The calibration the reduced data carry.
+
+        Raises:
+            RuntimeError: If either record cannot be built or written as JSON: the save must fail, writing nothing.
+        """
+        _checked_record(_instrument_record(instrument))
+        try:
+            json.dumps(applied.to_dict(), allow_nan=False)
+        except (TypeError, ValueError) as unwritable:
+            raise RuntimeError(f"the applied calibration cannot be written: {unwritable}") from unwritable
 
     def read_applied_calibration(self) -> AppliedCalibration:
         """The calibration this file's reduced data carry, as its reduction recorded it (#1141).

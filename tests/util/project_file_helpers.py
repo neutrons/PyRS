@@ -18,6 +18,7 @@ from typing import Callable
 
 import pytest
 
+from pyrs.core.calibration import nominal_calibration, reduction_l2, run_monosetting
 from pyrs.core.instrument_geometry import HidraSetup
 from pyrs.core.workspaces import HidraWorkspace
 from pyrs.dataobjects import HidraConstants  # type: ignore
@@ -48,6 +49,7 @@ def write_minimal_h5_project(tmp_path: Path) -> Callable[..., Path]:
         *,
         with_instrument: bool = False,
         with_masks: bool = False,
+        with_calibration: bool = False,
     ) -> Path:
         """Write `ws` to `tmp_path / filename`.
 
@@ -63,6 +65,9 @@ def write_minimal_h5_project(tmp_path: Path) -> Callable[..., Path]:
                 default-mask fallback, used when no default mask is present, has
                 an unrelated pre-existing shape bug (found during spec 02);
                 writing a real default mask avoids hitting it.
+            with_calibration: Also record the nominal calibration, at the workspace's distance and monochromator,
+                as a file reduced since #1141 carries it. Saving fit results into a file, or exporting it, needs
+                one (#1141); the data are synthetic, so the record claims nothing about real data.
 
         Returns:
             Path to the file written.
@@ -94,6 +99,10 @@ def write_minimal_h5_project(tmp_path: Path) -> Callable[..., Path]:
             project.write_wavelength(ws.get_wavelength(True, False))
         if with_masks:
             project.write_mask_detector_array(HidraConstants.DEFAULT_MASK, ws.get_detector_mask(is_default=True))
+        if with_calibration:
+            sub_runs = ws.get_sub_runs()
+            applied = nominal_calibration(run_monosetting(ws, sub_runs), l2=reduction_l2(ws, sub_runs))
+            project.write_reduction_provenance(applied=applied)
 
         project.save()
         project.close()
