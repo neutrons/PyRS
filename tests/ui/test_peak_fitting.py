@@ -250,5 +250,9 @@ def test_load_bad_peak_range_file_keeps_ranges(tmp_path, monkeypatch, fit_peaks_
     window.clicked_load_peak_range()
 
     # Assert
+    assert len(shown) == 1
+    assert shown[0]["message_type"] == "error"
     assert "d0 must be a finite number" in shown[0]["detailed_message"]
+    assert fit_setup.list_peak_ranges == [[78.0, 85.0]]
+    assert fit_setup.list_fit_peak_labels == ["Peak0"]
     assert window.list_peak_d0 == [1.1]
