@@ -3,10 +3,13 @@
 import h5py
 import pytest
 
+from pyrs.core.calibration import UNKNOWN_ERROR, CalibrationSource, nominal_calibration
 from pyrs.core.instrument_geometry import DENEXDetectorGeometry, DENEXDetectorShift, HidraSetup
+from pyrs.core.monosetting import MonoSetting
 from pyrs.dataobjects.constants import HidraConstants
 from pyrs.projectfile import HidraProjectFile, HidraProjectFileMode  # type: ignore
 from pyrs.utilities.calibration_file_io import write_calibration_to_json
+from tests.util.workspace_helpers import make_minimal_HidraWorkspace
 
 GEOMETRY = DENEXDetectorGeometry(1024, 1024, 0.3 / 1024, 0.3 / 1024, 0.985, False)
 SHIFT = DENEXDetectorShift(0.001, -0.002, 0.003, 0.1, -0.2, 0.3, 0.25)
@@ -412,3 +415,62 @@ def test_missing_error_is_recorded_as_not_refined(tmp_path, file_format):
     assert {name: calibration[f"error_{name}"] for name in expected_errors} == pytest.approx(expected_errors)
     assert {name: calibration[name] for name in SHIFT.convert_to_dict()} == pytest.approx(SHIFT.convert_to_dict())
     assert calibration["error_Lambda"] == pytest.approx(1e-5) and calibration["Lambda"] == pytest.approx(1.5306)
+
+
+def test_applied_calibration_from_a_file(calibrated):
+    """The file's values, errors, wavelength and status, with the L2 reduction used (#1141)"""
+    # Act
+    applied = calibrated.applied_calibration(l2=0.985, mono=MonoSetting.Si422)
+
+    # Assert
+    assert applied.source is CalibrationSource.FILE and applied.status == 1
+    assert applied.shift.convert_to_dict() == SHIFT.convert_to_dict()
+    assert applied.shift_error.convert_to_dict() == ERROR.convert_to_dict()
+    assert (applied.wavelength, applied.wavelength_error, applied.l2) == (1.5306, 1e-5, 0.985)
+
+
+def test_applied_calibration_without_a_file_is_nominal():
+    """No calibration file: the nominal calibration of the run's monochromator (#1141)"""
+    # Act
+    applied = HidraSetup(GEOMETRY).applied_calibration(l2=0.985, mono=MonoSetting.Si422)
+
+    # Assert
+    assert applied.source is CalibrationSource.NONE
+    assert applied.same_calibration_as(nominal_calibration(MonoSetting.Si422, l2=0.985))
+
+
+def test_applied_calibration_of_a_workspace_shift():
+    """A workspace's own shift has unknown errors (-2) and no refinement status (#1141)"""
+    # Arrange
+    workspace = make_minimal_HidraWorkspace(sub_runs=[1, 2, 3])
+    instrument = HidraSetup(GEOMETRY)
+    instrument.use_workspace_calibration(workspace)
+
+    # Act
+    applied = instrument.applied_calibration(l2=0.985, mono=MonoSetting.Si422)
+
+    # Assert
+    assert applied.source is CalibrationSource.WORKSPACE and applied.status is None
+    assert applied.shift.convert_to_dict() == workspace.get_detector_shift().convert_to_dict()
+    assert applied.errors == (UNKNOWN_ERROR,) * 7
+    assert (applied.wavelength, applied.wavelength_error) == (1.486, UNKNOWN_ERROR)
+
+
+def test_recorded_source_is_the_plain_string(calibrated):
+    """Project files keep the strings they always held: existing records read back unchanged (#1141)"""
+    # Act
+    source = calibrated.calibration_record()["source"]
+
+    # Assert
+    assert source == "file" and type(source) is str
+
+
+@pytest.mark.parametrize("record", [{"source": "unknown"}, {"calibration": None}], ids=["unknown", "missing"])
+def test_record_that_cannot_be_stated_raises(record):
+    """A record whose source is "unknown" or missing is rejected, never read as no calibration (#1141)"""
+    # Arrange
+    instrument = HidraSetup(GEOMETRY)
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="run.h5: calibration source"):
+        instrument.set_calibration_record(record, where="run.h5")

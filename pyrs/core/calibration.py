@@ -28,9 +28,9 @@ import hashlib
 import math
 import struct
 from dataclasses import dataclass
-from enum import Enum
 from typing import Optional, Tuple
 
+from pyrs.core.calibration_source import CalibrationSource
 from pyrs.core.detector_model import from_shift, to_shift
 from pyrs.core.instrument_geometry import DENEXDetectorShift
 from pyrs.core.monosetting import MonoSetting
@@ -40,36 +40,6 @@ __all__ = ["CalibrationSource", "AppliedCalibration", "nominal_calibration", "DE
 DEFAULT_ERROR = -1.0  # not refined (or held): the nominal calibration's errors
 UNKNOWN_ERROR = -2.0  # refined, but the error could not be determined or was lost
 _N_PARAMETERS = 7  # Shift_x, Shift_y, Shift_z, Rot_x, Rot_y, Rot_z, TTH_0
-
-
-class CalibrationSource(str, Enum):
-    """Where an applied calibration came from: the one definition every writer and reader imports."""
-
-    NONE = "none"  # nominal calibration: no calibration file applied
-    FILE = "file"  # a calibration file
-    WORKSPACE = "workspace"  # the workspace's own shift (FitCalibration in the session, NXstress read-back)
-
-    @classmethod
-    def from_stored(cls, value: str, *, where: str) -> "CalibrationSource":
-        """The member a file stores.
-
-        Args:
-            value: The stored string.
-            where: The file (or other origin) it was read from, for the error message.
-
-        Returns:
-            The member.
-
-        Raises:
-            ValueError: If `value` is not a member's value: it is never passed through as a new state.
-        """
-        try:
-            return cls(value)
-        except ValueError:
-            members = sorted(member.value for member in cls)
-            raise ValueError(
-                f"{where}: calibration source {value!r} is not one of {members}; the calibration cannot be stated"
-            ) from None
 
 
 def _check_error(name: str, error: float) -> None:

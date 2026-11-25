@@ -1300,7 +1300,7 @@ class HidraProjectFile:
                 ) from None
         instrument = HidraSetup(geometry)
         if "source" in record:
-            instrument.set_calibration_record(record)
+            instrument.set_calibration_record(record, where=self._project_h5.filename)
         mask = (record.get("reduction") or {}).get("mask")
         if mask is not None:
             instrument.set_mask_record(mask)
