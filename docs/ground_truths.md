@@ -961,3 +961,24 @@ including the unknown-`sy` change below.
 
 Tests: `tests/unit/pyrs/calibration/test_fitcalibration_powders.py` and the updated integration
 test `test_reference_lattice_is_the_2020_set`.
+
+## Run numbers must come from the file name, not the full path (2026-11-09; ported to 2.0, #1151)
+
+The peak-fitting model built the project name (and so the CSV export name) and the combined multi-run
+file name with `run.split(".")[0].split("_")[-1]` on the **full path**. A dot in any directory
+(`~/.local`, `v1.2`, a `.claude/worktrees` checkout) truncated the path at that dot. For example, a
+run in `/home/hcf/ResearchSoftware/PyRS/.claude/...` got the project name
+`HB2B_/home/hcf/ResearchSoftware/PyRS/`, and CSV export crashed with `FileNotFoundError`. The
+combined file's directory came from `split("HB2B")[0]`, which turns the production path
+`/HFIR/HB2B/IPTS-…/HB2B_1423.h5` into `/HFIR/`. Both now take `os.path.basename` for the run number
+and `os.path.dirname` for the directory. The name format is unchanged.
+
+`NeXusConvertingApp.__load_mask` had the same mistake: `basename(path.split(".")[0])` splits before
+taking the basename. A dotted directory gave the mask workspace the wrong name, or an empty one when
+the dot came right after a `/`. It is now `basename(path).split(".")[0]`.
+
+**Testing implication:** CI's checkout path has no dot, so CI never saw this. Locally,
+`tests/ui/test_peak_fitting.py::test_peak_fitting` fails in any checkout under a dotted directory.
+
+Tests: `tests/unit/pyrs/interface/peak_fitting/test_project_file_names.py` and
+`tests/unit/pyrs/core/test_nexus_conversion.py::test_mask_workspace_named_from_file_name`.
