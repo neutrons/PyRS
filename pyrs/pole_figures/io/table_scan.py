@@ -38,6 +38,9 @@ def write_xlsx(path: str | Path, rows: list[Row], *, retries: int = 20, wait_s: 
     """
     Write rows to the first sheet of a new workbook, retrying while a sync client or Excel briefly holds the file.
 
+    Text is written unchanged. Text that starts with "=" (which openpyxl would store as a formula) is stored as text
+    with Excel's quote prefix, so Excel shows it as typed and does not run it.
+
     Args:
         path: Output .xlsx file.
         rows: Table rows, header first (:func:`table_rows`).
@@ -54,6 +57,11 @@ def write_xlsx(path: str | Path, rows: list[Row], *, retries: int = 20, wait_s: 
         raise RuntimeError(f"openpyxl made a workbook without a sheet for {path}")
     for r in rows:
         ws.append(r)
+    for row in ws.iter_rows():
+        for cell in row:
+            if isinstance(cell.value, str) and cell.value.startswith("="):
+                cell.data_type = "s"
+                cell.quotePrefix = True
     for k in range(retries):
         try:
             wb.save(path)
@@ -114,19 +122,6 @@ def write_table_scans(folder: str | Path, scans: list[PlaneScan], *, prefix: str
     return out
 
 
-def safe_text(value: str) -> str:
-    """
-    Text that a spreadsheet will not read as a formula.
-
-    Args:
-        value: Cell text.
-
-    Returns:
-        The text with a leading apostrophe when it starts with =, +, -, @, a tab or a carriage return.
-    """
-    return f"'{value}" if value.startswith(("=", "+", "-", "@", "\t", "\r")) else value
-
-
 def run_title(prefix: str, scan: PlaneScan) -> str:
     """
     Run title for the table scan.
@@ -160,7 +155,7 @@ def table_rows(scan: PlaneScan, *, title: str, phase_label: str) -> list[Row]:
     pl = scan.plane
     blank: Row = [None] * len(COLUMNS)
     head = list(blank)
-    head[:4] = [safe_text(title), safe_text(phase_label), round(pl.omega, 4), round(pl.two_theta, 4)]
+    head[:4] = [title, phase_label, round(pl.omega, 4), round(pl.two_theta, 4)]
     rows: list[Row] = [list(COLUMNS), head]
     for p in scan.points:
         r = list(blank)

@@ -15,12 +15,10 @@ Example:
     >>> draw_cells(ax, outlines, values=r.rate, ignored=r.ignored, norm=Normalize(0, 100), cmap=SEQUENTIAL)
 """
 
-import contextlib
 import threading
 from collections import OrderedDict
 from collections.abc import Hashable, Sequence
 
-import matplotlib
 import numpy as np
 import numpy.typing as npt
 from matplotlib.axes import Axes
@@ -236,14 +234,10 @@ def draw_cells(
             continue
         fc = [IGNORED] * len(verts) if key == "ign" else cmap(norm(np.asarray(vals)))
         style = dict(styles[key])
-        hatch_color = style.pop("hatchcolor", None)
-        if hatch_color is not None and _HATCHCOLOR_KW:
-            style["hatchcolor"] = hatch_color
-        # matplotlib < 3.11 has no hatchcolor keyword: a collection takes rcParams["hatch.color"] when it is made.
-        # rc_context changes global state, so it is used only there (figures are built on a worker thread).
-        old_mpl = hatch_color is not None and not _HATCHCOLOR_KW
-        ctx = matplotlib.rc_context({"hatch.color": hatch_color}) if old_mpl else contextlib.nullcontext()
-        with ctx:
-            coll = PolyCollection(verts, facecolors=fc, zorder=3, **style)  # type: ignore[arg-type]
+        if not _HATCHCOLOR_KW:
+            # matplotlib < 3.11 has no hatchcolor keyword. The hatch takes the edge color (the same as the wanted
+            # hatch color) when the collection is made. rcParams are not touched: figures are built on a worker thread.
+            style.pop("hatchcolor", None)
+        coll = PolyCollection(verts, facecolors=fc, zorder=3, **style)  # type: ignore[arg-type]
         coll.set_clip_path(Circle((0, 0), 1, transform=ax.transData))
         ax.add_collection(coll, autolim=False)

@@ -1,17 +1,28 @@
 """Pole-figure plot helpers: vectorized cells, default cell width, negative rates, repeated poles."""
 
+from typing import Any
+
+import matplotlib
 import numpy as np
 import numpy.typing as npt
 import pytest
 from matplotlib.axes import Axes
-from matplotlib.colors import Normalize
+from matplotlib.collections import PolyCollection
+from matplotlib.colors import Normalize, to_rgba
 from matplotlib.figure import Figure
 
 from pyrs.pole_figures.core.geometry import Mount, MountConventions
 from pyrs.pole_figures.core.grid import Grid
 from pyrs.pole_figures.core.polefig import PolePeak
 from pyrs.pole_figures.core.projection import ViewFrom
-from pyrs.pole_figures.plots.polefig_cells import DEFAULT_PHI_STEP_DEG, cell_outline, cells, pf_frame
+from pyrs.pole_figures.plots import polefig_cells
+from pyrs.pole_figures.plots.polefig_cells import (
+    DEFAULT_PHI_STEP_DEG,
+    cell_outline,
+    cells,
+    draw_cells,
+    pf_frame,
+)
 from pyrs.pole_figures.plots.polefig_interp import _pixel_grid, draw_interp
 from pyrs.pole_figures.plots.polefigures import pole_figures_figure
 from pyrs.pole_figures.plots.style import SEQUENTIAL
@@ -89,6 +100,55 @@ def test_cells_repeated_phi_get_default_width() -> None:
         _mount(), chi_lo=0, chi_hi=5.0, phi_lo=-DEFAULT_PHI_STEP_DEG / 2, phi_hi=DEFAULT_PHI_STEP_DEG / 2
     )
     assert np.allclose(out[0], ref) and np.ptp(out[0], axis=0).max() > 0.01
+
+
+def _draw_ignored(ax: Axes, *, ignored_colored: bool) -> None:
+    """Draw a 15 deg grid with every third cell ignored."""
+    chi, phi = Grid(15, 15).points()
+    ignored = np.arange(len(chi)) % 3 == 0
+    draw_cells(ax, cells(_mount(), chi, phi), values=np.linspace(0, 100, len(chi)), ignored=ignored,
+               norm=Normalize(0, 100), cmap=SEQUENTIAL, ignored_colored=ignored_colored)  # fmt: skip
+
+
+def _hatch_rgba(coll: PolyCollection) -> tuple[float, ...]:
+    """Hatch color of a collection (matplotlib >= 3.11 has get_hatchcolor, older keeps _hatch_color)."""
+    getter = getattr(coll, "get_hatchcolor", None)
+    rgba = getter()[0] if getter is not None else coll._hatch_color  # type: ignore[attr-defined,unused-ignore]
+    return tuple(float(x) for x in rgba)
+
+
+@pytest.mark.parametrize("ignored_colored", [False, True])
+def test_draw_cells_ignored_leaves_rcparams_unchanged(ignored_colored: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Arrange: record rcParams whenever draw_cells makes a collection
+    before = dict(matplotlib.rcParams)
+    seen: list[dict[str, Any]] = []
+
+    def spy(*args: Any, **kwargs: Any) -> PolyCollection:
+        seen.append(dict(matplotlib.rcParams))
+        return PolyCollection(*args, **kwargs)
+
+    monkeypatch.setattr(polefig_cells, "PolyCollection", spy)
+
+    # Act
+    _draw_ignored(_ax(), ignored_colored=ignored_colored)
+
+    # Assert
+    assert seen and all(s == before for s in seen)
+    assert dict(matplotlib.rcParams) == before
+
+
+@pytest.mark.parametrize(("ignored_colored", "color"), [(False, "0.55"), (True, "white")])
+def test_draw_cells_ignored_hatch_has_intended_color(ignored_colored: bool, color: str) -> None:
+    # Arrange
+    ax = _ax()
+
+    # Act
+    _draw_ignored(ax, ignored_colored=ignored_colored)
+
+    # Assert
+    hatched = [c for c in ax.collections if isinstance(c, PolyCollection) and c.get_hatch()]
+    assert len(hatched) == 1
+    assert _hatch_rgba(hatched[0]) == pytest.approx(to_rgba(color))
 
 
 def test_pole_figures_figure_negative_rates_use_data_range() -> None:
