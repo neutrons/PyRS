@@ -368,8 +368,10 @@ def correction_profile_figure(
 
 def write_predicted_csv(path: str | Path, pred: Prediction, *, cutoff: float) -> None:
     """
-    Write the reference script's predicted_correction.csv: one row per plane and grid point.
+    Write the predicted corrections as a CSV: one row per plane and grid point.
 
+    The columns follow the reference script's predicted_correction.csv, except that its
+    ``plate_volume_in_gauge_mm3`` is named ``sample_volume_in_gauge_mm3`` here (the sample need not be a plate).
     chi is the logged chi (the cradle chi minus the mount's ``chi_offset_deg``). Paths are in mm, volumes in mm^3.
     ``ignored`` is 1 where the correction is above the cutoff.
 
