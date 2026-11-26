@@ -12,7 +12,7 @@ import numpy.typing as npt
 import pytest
 
 from pyrs.pole_figures.core.stl_mesh import SampleMesh
-from tests.util.pole_figures_helpers import SLAB_SIZE_MM, STL_DIR, read_csv_rows, slab_mesh
+from tests.util.pole_figures_helpers import SLAB_SIZE_MM, STL_DIR, read_csv_rows, slab_mesh, trace_brute
 
 pytestmark = pytest.mark.integration
 
@@ -172,7 +172,7 @@ def indexed_and_brute(request: pytest.FixtureRequest) -> list[tuple[FloatArray, 
     out = []
     for d in rng.normal(size=(4, 3)):
         d /= np.linalg.norm(d)
-        w0, l0 = m.trace_brute(p, d)
+        w0, l0 = trace_brute(m, p, d)
         w1, l1 = m.trace(p, d)
         out.append((w0, w1, l0, l1))
     return out

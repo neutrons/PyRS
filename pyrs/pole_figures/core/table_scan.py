@@ -9,21 +9,18 @@ same corrected statistics. A fixed time per point and a cap per point are option
 Order: chi ring by ring, with phi going up on one ring and down on the next ("serpentine"), so the cradle never swings
 phi back from 355 to 0 between rings. Left-out points are simply not visited.
 
-Layout (the HB-2B table-scan file convention): row 1 holds the
-column names, row 2 sets the run title, phase label, omega and 2theta, then one row per point with chi, phi and the
-count time. A blank cell leaves that motor or PV unchanged. chi is the logged (goniometer) chi.
+The points hold the logged (goniometer) chi. ``io.table_scan`` writes them in the HB-2B table-scan file layout.
 
 Typical workflow:
 
 1. Predict the correction on the planned grid (``prediction.predict``).
 2. Plan each plane with :func:`plan_scan`.
-3. Name the run with :func:`run_title` and build the rows with :func:`table_rows`, then save them as a spreadsheet.
+3. Write the scans as spreadsheets with ``io.table_scan.write_table_scans``.
 
 Example:
     >>> scan = plan_scan(prediction.planes[0], cutoff=3.0, base_s=30.0)  # doctest: +SKIP
-    >>> rows = table_rows(scan, run_title("IN718 plate", scan), "IN718")  # doctest: +SKIP
-    >>> format_duration(scan.total_s)  # doctest: +SKIP
-    '5 h 12 min'
+    >>> scan.total_s  # doctest: +SKIP
+    18720
 """
 
 import math
@@ -32,10 +29,6 @@ from dataclasses import dataclass
 import numpy as np
 
 from .prediction import Plane, PlanePrediction
-
-TITLE, PHASE = "HB2B:SMS:RunInfo:RunTitle", "HB2B:CS:hklPhase"
-COLUMNS: tuple[str, ...] = (TITLE, PHASE, "omega", "2theta", "chi", "phi", "Wait For", "Value")
-Row = list[object]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -201,79 +194,3 @@ def phi_travel(scan: PlaneScan) -> float:
     """
     phi = np.array([p.phi for p in scan.points])
     return float(np.abs(np.diff(phi)).sum()) if len(phi) > 1 else 0.0
-
-
-def safe_text(value: str) -> str:
-    """
-    Text that a spreadsheet will not read as a formula.
-
-    Args:
-        value: Cell text.
-
-    Returns:
-        The text with a leading apostrophe when it starts with =, +, -, @, a tab or a carriage return.
-    """
-    return f"'{value}" if value.startswith(("=", "+", "-", "@", "\t", "\r")) else value
-
-
-def run_title(prefix: str, scan: PlaneScan) -> str:
-    """
-    Run title for the table scan.
-
-    Args:
-        prefix: The user's text in front (sample name). Empty gives no prefix.
-        scan: The table scan.
-
-    Returns:
-        E.g. 'IN718 plate | {222} pole figure | 2theta 112 omega 56 | 600 of 649 points (correction <= 3)'.
-    """
-    head = f"{prefix.strip()} | " if prefix.strip() else ""
-    pl = scan.plane
-    return (f"{head}{{{pl.hkl}}} pole figure | 2theta {pl.two_theta:g} omega {pl.omega:g} | "
-            f"{len(scan.points)} of {scan.n_grid} points (correction <= {scan.cutoff:g})")  # fmt: skip
-
-
-def table_rows(scan: PlaneScan, title: str, phase_label: str) -> list[Row]:
-    """
-    All rows of the table scan (see the layout in the module docstring).
-
-    Args:
-        scan: The table scan.
-        title: Run title (row 2).
-        phase_label: Phase label (row 2).
-
-    Returns:
-        The column names, the run row (title, phase, omega, 2theta), then one row per point (chi, phi, "seconds",
-        count time). Empty cells are None. Angles are rounded to 4 decimals.
-    """
-    pl = scan.plane
-    blank: Row = [None] * len(COLUMNS)
-    head = list(blank)
-    head[:4] = [safe_text(title), safe_text(phase_label), round(pl.omega, 4), round(pl.two_theta, 4)]
-    rows: list[Row] = [list(COLUMNS), head]
-    for p in scan.points:
-        r = list(blank)
-        r[4:] = [round(p.chi, 4), round(p.phi, 4), "seconds", p.count_s]
-        rows.append(r)
-    return rows
-
-
-def format_duration(seconds: float) -> str:
-    """
-    A duration as short text.
-
-    Args:
-        seconds: The duration (s).
-
-    Returns:
-        Seconds below one minute, else whole minutes and hours, e.g. '45 s', '12 min' or '1 h 05 min'.
-
-    Example:
-        >>> format_duration(3900)
-        '1 h 05 min'
-    """
-    s = int(round(seconds))
-    if s < 60:
-        return f"{s} s"
-    h, m = divmod(round(s / 60), 60)
-    return f"{h} h {m:02d} min" if h else f"{m} min"

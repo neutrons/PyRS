@@ -12,10 +12,12 @@ from typing import Any
 import numpy as np
 import pytest
 
+from pyrs.pole_figures.core.correction import Beams, gauge_corrections
 from pyrs.pole_figures.core.geometry import Mount, MountConventions
-from pyrs.pole_figures.core.polefig import corrections
-from pyrs.pole_figures.core.prediction import Beams, Grid, Plane, predict_plane, solid_angle_weights
+from pyrs.pole_figures.core.grid import Grid, solid_angle_weights
+from pyrs.pole_figures.core.prediction import Plane, predict_plane
 from pyrs.pole_figures.core.stl_mesh import SampleMesh
+from pyrs.pole_figures.core.types import no_count_progress
 from tests.util.pole_figures_helpers import REFERENCE, STL_DIR, read_csv_rows
 
 pytestmark = pytest.mark.integration
@@ -131,11 +133,11 @@ def run_corrections(request: pytest.FixtureRequest, cfg: dict[str, Any], ref_con
     want_corr = col(rows, "correction")
     keep = np.array([i % 12 == 0 or 2 < want_corr[i] < 5 for i in range(len(rows))])
     beams = Beams(incident_width=4.0, incident_height=4.0, diffracted_width=3.0)
-    F, _F_ref, Vin, L, cy, sy, corr = corrections(run_mount(ref_conventions, fitted, run), chi=col(rows, "chi")[keep],
-                                                  phi=col(rows, "phi")[keep], beams=beams, mesh=slab_stl,
-                                                  center=cfg["sample"]["gauge_center_mm"], mu=0.140,
-                                                  n_points=40000)  # fmt: skip
-    got = {"F_mm3": F, "mean_path_mm": L, "sampled_vy_offset_mm": cy, "sampled_vy_rms_mm": sy, "correction": corr}
+    g = gauge_corrections(run_mount(ref_conventions, fitted, run), beams=beams, chi=col(rows, "chi")[keep],
+                          phi=col(rows, "phi")[keep], mesh=slab_stl, center=cfg["sample"]["gauge_center_mm"], mu=0.140,
+                          n_points=40000, progress=no_count_progress, workers="auto")  # fmt: skip
+    got = {"F_mm3": g.F, "mean_path_mm": g.mean_path, "sampled_vy_offset_mm": g.vy_offset,
+           "sampled_vy_rms_mm": g.vy_rms, "correction": g.correction}  # fmt: skip
     want = {name: col(rows, name)[keep] for name in (*got, "ignored")}
     return {"keep": keep, **{f"got_{k}": v for k, v in got.items()}, **{f"want_{k}": v for k, v in want.items()}}
 
@@ -238,7 +240,7 @@ def test_predicted_matches_pf(plane_prediction: dict[str, Any], attr: str, colum
     sub = plane_prediction["sub"]
 
     # Act
-    got = getattr(plane_prediction["res"], attr)
+    got = getattr(plane_prediction["res"].gauge, attr)
 
     # Assert
     np.testing.assert_allclose(got, [float(r[column]) for r in sub], atol=atol)

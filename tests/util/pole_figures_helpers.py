@@ -14,11 +14,12 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
+from pyrs.pole_figures.core.correction import Beams, GaugeCorrections
 from pyrs.pole_figures.core.geometry import Mount, MountConventions
+from pyrs.pole_figures.core.grid import Grid
 from pyrs.pole_figures.core.polefig import PolePeak
-from pyrs.pole_figures.core.prediction import Beams, Grid
 from pyrs.pole_figures.core.runs import RunData
-from pyrs.pole_figures.core.stl_mesh import SampleMesh
+from pyrs.pole_figures.core.stl_mesh import SampleMesh, moller_trumbore
 
 FloatArray = npt.NDArray[np.float64]
 
@@ -129,11 +130,12 @@ def synthetic_pole_figure(run: str = "1001", hkl: str = "200", chi_step: float =
     n = len(chi)
     m = Mount(MountConventions(incident_from="+vy"), omega=28.5, tth=57.0)
     return PolePeak(
-        run=run, hkl=hkl, title=f"run {run}", two_theta=57.0, fwhm=0.5, omega=28.5, wavelength_A=1.72,
+        run=run, hkl=hkl, title=f"run {run}", two_theta=57.0, fwhm=0.5, wavelength_A=1.72,
         beams=Beams(), mount=m, chi=chi, phi=phi, count_s=np.full(n, 10.0),
-        rate=rate * (1 + 0.1 * rng.standard_normal(n)), sigma=np.full(n, 0.5), F=40 / corr, F_ref=40.0,
-        volume_in_sample=np.full(n, 40.0), mean_path=4 * corr, vy_offset=np.zeros(n), vy_rms=np.ones(n),
-        correction=corr, cutoff=3.0, mu=0.14, method="window", chi_offset_deg=m.conv.chi_offset_deg,
+        rate=rate * (1 + 0.1 * rng.standard_normal(n)), sigma=np.full(n, 0.5),
+        gauge=GaugeCorrections(F=40 / corr, F_ref=40.0, volume_in_sample=np.full(n, 40.0), mean_path=4 * corr,
+                               vy_offset=np.zeros(n), vy_rms=np.ones(n), correction=corr),
+        cutoff=3.0, mu=0.14, method="window",
         h=np.array([m.pole(c, f) for c, f in zip(chi, phi, strict=True)]),
     )  # fmt: skip
 
@@ -186,7 +188,8 @@ def synthetic_run_data(n: int = 6) -> RunData:
         run="2", path=Path("HB2B_2.h5"), title="", wavelength_A=1.54, chi=np.linspace(0.0, 50.0, n), phi=np.zeros(n),
         omega=np.full(n, 45.0), two_theta_arm=np.full(n, 90.0), count_s=np.full(n, 30.0),
         subruns=np.arange(1, n + 1, dtype=float), slit_x=np.full(n, 4.0), slit_y=np.full(n, 4.0), x=x,
-        y=np.tile(peak, (n, 1)), position=np.full((n, 3), np.nan),
+        y=np.tile(peak, (n, 1)), live_skipped=0, short_skipped=0, invalid_skipped=0, position=np.full((n, 3), np.nan),
+        notes=[], position_note="",
     )  # fmt: skip
 
 
@@ -195,3 +198,53 @@ def replace_dataset(path: Path, name: str, values: npt.ArrayLike) -> None:
     with h5py.File(path, "a") as h:
         del h[name]
         h[name] = values
+
+
+def trace_brute(mesh: SampleMesh, points: npt.ArrayLike, d: npt.ArrayLike, *,
+                chunk: int = 2_000_000) -> tuple[FloatArray, FloatArray]:  # fmt: skip
+    """
+    The reference script's tracer: every point against every triangle in the ray bundle's footprint.
+
+    ``SampleMesh.trace`` must give the same windings and paths with its spatial index.
+
+    Args:
+        mesh: The sample mesh.
+        points: Ray start points, shape (n, 3) (mm).
+        d: Ray direction, shape (3,). Any length: the path is in units of ``|d|``.
+        chunk: Work-array size limit in points x triangles per step (default: 2,000,000).
+
+    Returns:
+        The sum of crossing signs per point (1 inside a closed mesh, 0 outside) and the material path ahead of each
+        point.
+    """
+    p = np.atleast_2d(np.asarray(points, float))
+    d = np.asarray(d, float)
+    h = np.cross(d, mesh.e2)
+    a = np.einsum("ij,ij->i", mesh.e1, h)
+    use = np.abs(a) > 1e-12  # skip triangles parallel to the ray
+    # skip triangles outside the footprint of the ray bundle (projected on the plane normal to d)
+    b1 = np.cross(d, [1.0, 0, 0] if abs(d[0]) < 0.9 else [0, 1.0, 0])
+    b1 /= np.linalg.norm(b1)
+    B = np.c_[b1, np.cross(d / np.linalg.norm(d), b1)]
+    pp = p @ B
+    tv = np.stack([mesh.v0, mesh.v0 + mesh.e1, mesh.v0 + mesh.e2]) @ B  # (3, m, 2)
+    tol = 1e-9 * (1 + np.abs(pp).max())
+    use &= np.all((tv.max(axis=0) >= pp.min(axis=0) - tol) & (tv.min(axis=0) <= pp.max(axis=0) + tol), axis=1)
+    v0, e1, e2, h, f = mesh.v0[use], mesh.e1[use], mesh.e2[use], h[use], 1.0 / a[use]
+    s_t = np.sign(mesh.n[use] @ d)
+    n = len(p)
+    wind, length = np.zeros(n), np.zeros(n)
+    step = max(1, chunk // max(1, n))
+    for k in range(0, len(v0), step):
+        sl = slice(k, k + step)
+        m = len(v0[sl])
+
+        def pairs(x: FloatArray, m: int = m) -> FloatArray:
+            return np.broadcast_to(x, (n, *x.shape)).reshape(n * m, *x.shape[1:])
+
+        s = (p[:, None, :] - v0[None, sl]).reshape(n * m, 3)
+        t, hit = moller_trumbore(s, e1=pairs(e1[sl]), e2=pairs(e2[sl]), h=pairs(h[sl]), f=pairs(f[sl]), d=d)
+        t, hit = t.reshape(n, m), hit.reshape(n, m)
+        wind += (hit * s_t[sl]).sum(axis=1)
+        length += (hit * s_t[sl] * t).sum(axis=1)
+    return wind, length

@@ -20,13 +20,19 @@ Example:
 
 import typing
 from collections.abc import Sequence
+from dataclasses import fields
 from typing import Literal
 
 import numpy as np
 
+from .correction import concatenate
+from .geometry import MountConventions
 from .polefig import PolePeak
 
 Scale = Literal["none", "median"]
+#: parts whose omega differs by more than this are refused (the log median is used, so a restarted scan agrees to
+#: well within it)
+OMEGA_TOL_DEG = 0.01
 
 
 def _kept_corrected(r: PolePeak) -> np.ndarray:
@@ -38,10 +44,11 @@ def combine(parts: Sequence[PolePeak], *, scale: Scale = "none", reference: str)
     Merge pole figures of the same hkl into one.
 
     Every point keeps its own pole vector, rate, sigma and correction. The first part gives the mount used to draw
-    cells, omega, the wavelength and the beams. 2theta and FWHM are the means of the parts.
+    cells (so omega and the chi offset), the wavelength and the beams. 2theta and FWHM are the means of the parts.
 
     Args:
-        parts: Two or more pole figures of one hkl, analyzed with the same cutoff, mu, method and wavelength.
+        parts: Two or more pole figures of one hkl, analyzed with the same cutoff, mu, method, wavelength and mount
+            conventions (chi offset included), and omega within ``OMEGA_TOL_DEG``.
         scale: "none" keeps the rates (default). "median" scales each part's rate and sigma by
             median(reference) / median(part) of the kept corrected rates.
         reference: Run name of the part the others are scaled to. It must be one of the parts.
@@ -51,8 +58,8 @@ def combine(parts: Sequence[PolePeak], *, scale: Scale = "none", reference: str)
 
     Raises:
         ValueError: If scale is unknown, there are fewer than two parts, the parts have different hkl, cutoff, mu,
-            method or wavelength, reference is not one of the parts, or (scale "median") a part has no kept point
-            with a positive corrected rate.
+            method, wavelength, mount conventions or omega, reference is not one of the parts, or (scale "median") a
+            part has no kept point with a positive corrected rate.
     """
     if scale not in typing.get_args(Scale):
         raise ValueError(f"scale must be one of {', '.join(typing.get_args(Scale))}, got {scale!r}")
@@ -69,6 +76,7 @@ def combine(parts: Sequence[PolePeak], *, scale: Scale = "none", reference: str)
         values = {getattr(r, name) for r in parts}
         if len(values) > 1:
             raise ValueError(f"cannot combine runs analyzed with different {name}: {', '.join(map(str, values))}")
+    check_same_mount(parts)
     if scale == "median":
         medians = {r.run: float(np.nanmedian(_kept_corrected(r))) if np.isfinite(_kept_corrected(r)).any()
                    else float("nan") for r in parts}  # fmt: skip
@@ -90,16 +98,38 @@ def combine(parts: Sequence[PolePeak], *, scale: Scale = "none", reference: str)
     return PolePeak(
         run="+".join(runs), hkl=first.hkl, title=" | ".join(dict.fromkeys(r.title for r in parts)),
         two_theta=float(np.mean([r.two_theta for r in parts])), fwhm=float(np.mean([r.fwhm for r in parts])),
-        omega=first.omega, wavelength_A=first.wavelength_A, beams=first.beams, mount=first.mount,
+        wavelength_A=first.wavelength_A, beams=first.beams, mount=first.mount,
         chi=cat("chi"), phi=cat("phi"), count_s=cat("count_s"),
         rate=np.concatenate([r.rate * f for r, f in zip(parts, fac, strict=True)]),
         sigma=np.concatenate([r.sigma * f for r, f in zip(parts, fac, strict=True)]),
-        F=cat("F"), F_ref=first.F_ref, volume_in_sample=cat("volume_in_sample"), mean_path=cat("mean_path"),
-        vy_offset=cat("vy_offset"), vy_rms=cat("vy_rms"), correction=cat("correction"), cutoff=first.cutoff,
-        mu=first.mu, method=first.method, live=any(r.live for r in parts), chi_offset_deg=first.chi_offset_deg,
-        h=np.vstack([r.poles() for r in parts]), source_runs=runs,
+        gauge=concatenate([r.gauge for r in parts]), cutoff=first.cutoff, mu=first.mu, method=first.method,
+        live=any(r.live for r in parts), h=np.vstack([r.poles() for r in parts]), source_runs=runs,
         notes=f"combined from runs {', '.join(runs)}, {how}",
     )  # fmt: skip
+
+
+def check_same_mount(parts: Sequence[PolePeak], *, omega_tol_deg: float = OMEGA_TOL_DEG) -> None:
+    """
+    Check that pole figures were measured on the same mount, so one mount describes the combined pole figure.
+
+    Args:
+        parts: The pole figures.
+        omega_tol_deg: Largest allowed spread of omega (deg, default: ``OMEGA_TOL_DEG``).
+
+    Raises:
+        ValueError: If the parts differ in a mount convention (the chi offset included) or in omega by more than
+            omega_tol_deg. The message names the field and the runs' values.
+    """
+    for f in fields(MountConventions):
+        values = {r.run: getattr(r.mount.conv, f.name) for r in parts}
+        if len(set(values.values())) > 1:
+            shown = ", ".join(f"run {run}: {v!r}" for run, v in values.items())
+            raise ValueError(f"cannot combine runs measured with different mount conventions: {f.name} ({shown})")
+    omegas = {r.run: r.omega for r in parts}
+    if max(omegas.values()) - min(omegas.values()) > omega_tol_deg:
+        shown = ", ".join(f"run {run}: {w:g}" for run, w in omegas.items())
+        raise ValueError(f"cannot combine runs measured at different omega (more than {omega_tol_deg:g} deg apart): "
+                         f"{shown}")  # fmt: skip
 
 
 def combine_by_hkl(results: Sequence[PolePeak], *, scale: Scale = "none") -> list[PolePeak]:

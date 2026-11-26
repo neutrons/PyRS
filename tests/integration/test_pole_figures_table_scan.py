@@ -1,21 +1,15 @@
-"""Table scans planned from a prediction (predict, then plan_scan): skipped points, count times, order and rows."""
+"""Table scans planned from a prediction (predict, then plan_scan): skipped points, count times and order."""
 
 from dataclasses import replace
 
 import numpy as np
 import pytest
 
+from pyrs.pole_figures.core.correction import Beams
 from pyrs.pole_figures.core.geometry import Mount, MountConventions
-from pyrs.pole_figures.core.prediction import Beams, Grid, Plane, PlanePrediction, Prediction, predict
-from pyrs.pole_figures.core.table_scan import (
-    COLUMNS,
-    PlaneScan,
-    count_time,
-    phi_travel,
-    plan_scan,
-    run_title,
-    table_rows,
-)
+from pyrs.pole_figures.core.grid import Grid
+from pyrs.pole_figures.core.prediction import Plane, PlanePrediction, Prediction, predict
+from pyrs.pole_figures.core.table_scan import PlaneScan, count_time, phi_travel, plan_scan
 from tests.util.pole_figures_helpers import SLAB_CENTER_MM, slab_mesh
 
 pytestmark = pytest.mark.integration
@@ -162,68 +156,3 @@ def test_plan_scan_chi_offset_writes_logged_chi(q200: PlanePrediction) -> None:
     # Assert
     assert min(p.chi for p in sc.points) == pytest.approx(-90.0)
     assert sc.chi_offset_deg == 90.0
-
-
-# ---------------------------------------------------------------- rows
-@pytest.fixture(scope="module")
-def scan_222(pred: Prediction) -> tuple[PlaneScan, str, list]:
-    sc = plan_scan(pred.planes[1], cutoff=3.0, base_s=12.0)
-    title = run_title("IN718 plate", sc)
-    return sc, title, table_rows(sc, title, "IN718 222")
-
-
-def test_run_title_names_plane_and_angles(scan_222: tuple[PlaneScan, str, list]) -> None:
-    # Arrange
-    _, title, _ = scan_222
-
-    # Act
-    head = title[: len("IN718 plate | {222} pole figure | 2theta 112 omega 56")]
-
-    # Assert
-    assert head == "IN718 plate | {222} pole figure | 2theta 112 omega 56"
-
-
-def test_table_rows_header(scan_222: tuple[PlaneScan, str, list]) -> None:
-    # Arrange
-    _, _, rows = scan_222
-
-    # Act
-    header = tuple(rows[0])
-
-    # Assert
-    assert header == COLUMNS
-
-
-def test_table_rows_run_row(scan_222: tuple[PlaneScan, str, list]) -> None:
-    # Arrange
-    _, title, rows = scan_222
-
-    # Act
-    run_row = rows[1]
-
-    # Assert
-    assert run_row[:4] == [title, "IN718 222", 56.0, 112.0]
-    assert run_row[4:] == [None] * 4
-
-
-def test_table_rows_first_point(scan_222: tuple[PlaneScan, str, list]) -> None:
-    # Arrange
-    sc, _, rows = scan_222
-
-    # Act
-    first = rows[2]
-
-    # Assert
-    assert first[:4] == [None] * 4 and first[6] == "seconds"
-    assert (first[4], first[5], first[7]) == (sc.points[0].chi, sc.points[0].phi, sc.points[0].count_s)
-
-
-def test_table_rows_one_row_per_point(scan_222: tuple[PlaneScan, str, list]) -> None:
-    # Arrange
-    sc, _, rows = scan_222
-
-    # Act
-    n = len(rows)
-
-    # Assert
-    assert n == 2 + len(sc.points)

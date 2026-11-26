@@ -93,7 +93,7 @@ def test_intensity_factors_missing_result_raises(monkeypatch: pytest.MonkeyPatch
     mesh = SampleMesh(box_triangles([-5, -5, -5], [5, 5, 5]))
     m = Mount(MountConventions(), omega=45.0, tth=90.0)
     pts, vol = gauge_points(m, incident_width=1, incident_height=1, diffracted_width=1, n_points=10)
-    results = iter([None, IntensityFactor(1.0, 1.0, 1.0, 0.0, 0.0)])
+    results = iter([None, IntensityFactor(F=1.0, volume_in_sample=1.0, mean_path=1.0, vy_offset=0.0, vy_rms=0.0)])
     monkeypatch.setattr(parallel, "intensity_factor", lambda *a, **k: next(results))
 
     # Act / Assert

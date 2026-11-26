@@ -10,7 +10,8 @@ any chi, phi set, count times and number of sub-runs work.
 Typical workflow:
 
 1. Read the run with ``runs.read_run``.
-2. Call :func:`analyze_run` with the phase's reflections, the sample mesh and the mount.
+2. Call :func:`analyze_run` with the phase's reflections, the sample mesh and the mount. It measures the peaks
+   with ``peaks.measure_peaks``.
 3. Use each :class:`PolePeak`: ``corrected`` and ``ignored`` for plots and CSVs, :meth:`PolePeak.with_cutoff` to try
    another cutoff without a new Monte Carlo.
 
@@ -24,35 +25,20 @@ Example:
     ['1234 {311}']
 """
 
-import typing
-from collections.abc import Callable, Iterable
-from dataclasses import dataclass, field, replace
-from typing import Literal
+from collections.abc import Iterable
+from dataclasses import dataclass, replace
 
 import numpy as np
 import numpy.typing as npt
 
-from .gauge import gauge_points, intensity_factor
+from .correction import DEFAULT_CUTOFF, Beams, GaugeCorrections, gauge_corrections
+from .gauge import DEFAULT_MC_POINTS
 from .geometry import Mount, MountConventions
-from .parallel import intensity_factors, no_count_progress
-from .peaks import (
-    CENTRAL_HALF_WIDTH_DEG,
-    WINDOW_FWHM,
-    PeakCandidate,
-    find_peak,
-    fit_peak,
-    integrate,
-    peak_list,
-    peak_quality,
-)
-from .prediction import DEFAULT_CUTOFF, DEFAULT_MC_POINTS, Beams, check_reference, no_progress
+from .parallel import Workers
+from .peaks import CENTRAL_HALF_WIDTH_DEG, Method, measure_peaks
 from .runs import RunData
 from .stl_mesh import SampleMesh
-
-FloatArray = npt.NDArray[np.float64]
-BoolArray = npt.NDArray[np.bool_]
-Progress = Callable[[float, str], None]
-Method = Literal["window", "fit"]
+from .types import BoolArray, FloatArray, Progress, no_progress, part_progress
 
 
 @dataclass(kw_only=True)
@@ -62,7 +48,8 @@ class PolePeak:
 
     chi is the cradle chi (logged chi + offset), rounded to 0.01 deg. phi is in 0 to 360. ``h`` holds the pole
     vector (sample frame) of every point: ``analyze_run`` fills it from the mount, and a combined pole figure keeps
-    each part's own poles (several mounts). Per-point arrays all have one entry per sub-run.
+    each part's own poles. Per-point arrays all have one entry per sub-run. Omega and the chi offset are those of
+    ``mount`` (``combine.combine`` refuses parts that differ in either), so they are not stored twice.
 
     Attributes:
         run: Run number ("<run>+<run>" when combined).
@@ -70,33 +57,25 @@ class PolePeak:
         title: Run title.
         two_theta: Fitted center of the summed peak (deg).
         fwhm: FWHM of the summed peak (deg).
-        omega: Omega (deg, median of the log).
         wavelength_A: Wavelength (Å).
         beams: Incident beam and receiving slit sizes (mm).
-        mount: Beams and rotation used for the Monte Carlo (and to draw cells).
+        mount: Beams and rotation used for the Monte Carlo (and to draw cells). Its omega is the median of the log.
         chi: Cradle chi per point (deg).
         phi: Phi per point, 0 to 360 (deg).
         count_s: Count time per point (s).
         rate: Raw net rate per point (counts/s).
         sigma: Sigma of the rate (counts/s).
-        F: Attenuation-weighted sample volume in the gauge per point (mm3).
-        F_ref: F at chi 0, phi 0 (mm3).
-        volume_in_sample: Sample volume in the gauge per point (mm3).
-        mean_path: Mean path in + out per point (mm).
-        vy_offset: Intensity-weighted vy centroid of the gauge per point (mm).
-        vy_rms: Intensity-weighted vy spread of the gauge per point (mm).
-        correction: F_ref / F per point, inf where F is 0.
+        gauge: Gauge Monte Carlo per point: F, F_ref, sample volume, mean path, vy centroid and spread, correction.
         cutoff: Points with a correction above this are ignored.
         mu: Linear attenuation coefficient (1/mm).
         method: "window" or "fit".
-        chi_offset_deg: Cradle chi = logged chi + offset (deg).
         h: Pole vectors in the sample frame, shape (n, 3).
         live: The file was reduced while the run was still counting.
         source_runs: Runs merged into this pole figure (combined only).
         notes: Warnings about the peak or the fit.
 
     Raises:
-        ValueError: If ``h`` does not have one (vx, vy, vz) row per point.
+        ValueError: If ``h`` does not have one (vx, vy, vz) row per point, or ``gauge`` not one entry per point.
     """
 
     run: str
@@ -104,7 +83,6 @@ class PolePeak:
     title: str
     two_theta: float
     fwhm: float
-    omega: float
     wavelength_A: float
     beams: Beams
     mount: Mount
@@ -113,31 +91,42 @@ class PolePeak:
     count_s: FloatArray
     rate: FloatArray
     sigma: FloatArray
-    F: FloatArray
-    F_ref: float
-    volume_in_sample: FloatArray
-    mean_path: FloatArray
-    vy_offset: FloatArray
-    vy_rms: FloatArray
-    correction: FloatArray
+    gauge: GaugeCorrections
     cutoff: float
     mu: float
     method: Method
-    chi_offset_deg: float
     h: FloatArray  # pole vectors (n, 3), sample frame
     live: bool = False
     source_runs: tuple[str, ...] = ()  # runs merged into this pole figure (combined only)
     notes: str = ""
 
     def __post_init__(self) -> None:
-        """Refuse pole vectors that do not match the points (one (vx, vy, vz) row per chi, phi): ValueError."""
+        """Refuse pole vectors or gauge results that do not match the points (one per chi, phi): ValueError."""
         if np.shape(self.h) != (len(self.chi), 3):
             raise ValueError(
                 f"h must hold one pole vector per point, shape ({len(self.chi)}, 3), got {np.shape(self.h)}"
             )
+        if len(self.gauge.correction) != len(self.chi):
+            raise ValueError(f"gauge must hold one result per point ({len(self.chi)}), got "
+                             f"{len(self.gauge.correction)}")  # fmt: skip
 
     @property
-    def n(self) -> int:
+    def omega(self) -> float:
+        """Omega of the mount (deg): the median of the run's omega log."""
+        return self.mount.omega
+
+    @property
+    def chi_offset_deg(self) -> float:
+        """Cradle chi = logged chi + this offset (deg), from the mount conventions."""
+        return self.mount.conv.chi_offset_deg
+
+    @property
+    def correction(self) -> FloatArray:
+        """Path-length correction F_ref / F per point, inf where F is 0 (``gauge.correction``)."""
+        return self.gauge.correction
+
+    @property
+    def n_points(self) -> int:
         """Number of points."""
         return len(self.chi)
 
@@ -194,128 +183,6 @@ def cradle_angles(run: RunData, conv: MountConventions) -> tuple[FloatArray, Flo
     return chi.astype(float), phi.astype(float)
 
 
-def find_peaks(run: RunData, candidates: Iterable[tuple[str, float]], *,
-               central_hw: float = CENTRAL_HALF_WIDTH_DEG) -> list[PeakCandidate]:  # fmt: skip
-    """
-    Reflections on this run's detector (central and edge).
-
-    Args:
-        run: The run.
-        candidates: (hkl label, expected 2theta) pairs at the run's wavelength.
-        central_hw: A reflection within this of the arm is central (deg, default: 5).
-
-    Returns:
-        The reflections on the detector (see ``peaks.peak_list``).
-    """
-    return peak_list(run.x, arm=run.arm, candidates=candidates, central_hw=central_hw)
-
-
-@dataclass(frozen=True, kw_only=True)
-class PeakIntensity:
-    """
-    A central peak of one run.
-
-    Attributes:
-        hkl: hkl label.
-        two_theta: Center of the summed peak (deg).
-        fwhm: FWHM of the summed peak (deg).
-        rate: Raw net rate per sub-run (counts/s). NaN where the fit failed.
-        sigma: Sigma of the rate (counts/s).
-        notes: Warnings about the peak (see ``peaks.peak_quality``) or the fit.
-    """
-
-    hkl: str
-    two_theta: float
-    fwhm: float
-    rate: FloatArray
-    sigma: FloatArray
-    notes: list[str] = field(default_factory=list)
-
-
-def measure_peaks(run: RunData, candidates: Iterable[tuple[str, float]], *, central_hw: float = CENTRAL_HALF_WIDTH_DEG,
-                  method: Method = "window") -> list[PeakIntensity]:  # fmt: skip
-    """
-    Net rate and sigma per sub-run for each central peak.
-
-    Args:
-        run: The run.
-        candidates: (hkl label, expected 2theta) pairs at the run's wavelength.
-        central_hw: Peaks within this of the arm are used (deg, default: 5).
-        method: "window" integration (default) or pseudo-Voigt "fit".
-
-    Returns:
-        One entry per central peak.
-
-    Raises:
-        ValueError: If method is unknown, or a central peak has no counts above the background.
-    """
-    if method not in typing.get_args(Method):
-        raise ValueError(f"method must be one of {', '.join(typing.get_args(Method))}, got {method!r}")
-    x, y, t = run.x, run.y, run.count_s
-    ysum = y.sum(axis=0)
-    out = []
-    central = [pk for pk in find_peaks(run, candidates, central_hw=central_hw) if pk.central]
-    for pk in central:
-        c, fw = find_peak(x, ysum, pk.two_theta)
-        half = WINDOW_FWHM * fw
-        if method == "fit":
-            net = np.array([fit_peak(x, y[i], center=c, fwhm=fw, half_width=half) for i in range(len(t))])
-        else:
-            net = np.array([integrate(x, y[i], center=c, half_width=half) for i in range(len(t))])
-        notes = peak_quality(x, ysum, center=c, fwhm=fw, hkl=pk.hkl, others=[q for q in central if q is not pk])
-        failed = int((~np.isfinite(net[:, 0])).sum())
-        if failed:
-            notes.append(f"the fit failed in {failed} of {len(t)} sub-runs (those points are ignored)")
-        out.append(
-            PeakIntensity(hkl=pk.hkl, two_theta=c, fwhm=fw, rate=net[:, 0] / t, sigma=net[:, 1] / t, notes=notes)
-        )
-    return out
-
-
-def corrections(
-    m: Mount,
-    *,
-    chi: FloatArray,
-    phi: FloatArray,
-    beams: Beams,
-    mesh: SampleMesh,
-    center: npt.ArrayLike,
-    mu: float,
-    n_points: int = DEFAULT_MC_POINTS,
-    progress: Callable[[int], None] = no_count_progress,
-) -> tuple[FloatArray, float, FloatArray, FloatArray, FloatArray, FloatArray, FloatArray]:
-    """
-    Gauge Monte Carlo at each cradle chi, phi.
-
-    Args:
-        m: Beams and rotation conventions.
-        chi: Cradle chi per point (deg).
-        phi: Phi per point (deg).
-        beams: Beam and slit sizes (mm).
-        mesh: Sample in its own frame (mm).
-        center: Gauge center in the sample frame (mm).
-        mu: Linear attenuation coefficient (1/mm).
-        n_points: Monte Carlo gauge points (default: 40,000).
-        progress: ``progress(n_done)`` as orientations finish.
-
-    Returns:
-        F, F(0, 0), sample volume, mean path, vy offset, vy rms and correction F(0, 0) / F (inf where F is 0).
-
-    Raises:
-        ValueError: If the gauge holds no sample at chi 0, phi 0.
-    """
-    pts, vol = gauge_points(m, incident_width=beams.incident_width, incident_height=beams.incident_height,
-                            diffracted_width=beams.diffracted_width, n_points=n_points)  # fmt: skip
-    rows = intensity_factors(m, chi=chi, phi=phi, points=pts, volume=vol, mesh=mesh, center=center, mu=mu,
-                             progress=progress)  # fmt: skip
-    F, Vin, L, cy, sy = np.array(rows, float).reshape(-1, 5).T
-    F_ref = intensity_factor(m, chi=0.0, phi=0.0, points=pts, volume=vol, mesh=mesh, center=center, mu=mu).F
-    check_reference(F_ref, center)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        corr = np.where(F > 0, F_ref / np.where(F > 0, F, 1), np.inf)
-    return F, float(F_ref), Vin, L, cy, sy, corr
-
-
 def analyze_run(
     run: RunData,
     candidates: Iterable[tuple[str, float]],
@@ -331,6 +198,7 @@ def analyze_run(
     method: Method = "window",
     progress: Progress = no_progress,
     allow_open_mesh: bool = False,
+    workers: Workers = "auto",
 ) -> list[PolePeak]:
     """
     Raw rates, corrections and ignored points for every central peak of one run.
@@ -351,6 +219,7 @@ def analyze_run(
         progress: ``progress(fraction, message)`` within this run. The default ignores progress.
         allow_open_mesh: Trace a mesh that is not closed or not consistently wound (default: False, which raises
             ValueError).
+        workers: Number of processes, or "auto" (default) to choose from the job size (``parallel.n_workers``).
 
     Returns:
         One pole figure per central peak, empty when the run has none.
@@ -368,23 +237,17 @@ def analyze_run(
     beams = Beams(incident_width=run.incident_width, incident_height=run.incident_height,
                   diffracted_width=float(receiving_slit_mm))  # fmt: skip
     chi, phi = cradle_angles(run, conv)
-    omega = run.omega_median
     out = []
     for k, pk in enumerate(peaks):
-        m = Mount(conv, omega=omega, tth=pk.two_theta)
-
-        def tick(i: int, k: int = k, hkl: str = pk.hkl) -> None:
-            if i % 10 == 0 or i == len(chi):
-                progress((k + i / len(chi)) / len(peaks), f"run {run.run} {{{hkl}}}: {i} of {len(chi)} points")
-
-        F, F_ref, Vin, L, cy, sy, corr = corrections(m, chi=chi, phi=phi, beams=beams, mesh=mesh, center=center, mu=mu,
-                                                     n_points=n_points, progress=tick)  # fmt: skip
+        m = Mount(conv, omega=run.omega_median, tth=pk.two_theta)
+        tick = part_progress(progress, part=k, parts=len(peaks), n=len(chi), label=f"run {run.run} {{{pk.hkl}}}",
+                             unit="points")  # fmt: skip
+        g = gauge_corrections(m, beams=beams, chi=chi, phi=phi, mesh=mesh, center=center, mu=mu, n_points=n_points,
+                              progress=tick, workers=workers)  # fmt: skip
         out.append(PolePeak(
-            run=run.run, hkl=pk.hkl, title=run.title, two_theta=pk.two_theta, fwhm=pk.fwhm, omega=omega,
+            run=run.run, hkl=pk.hkl, title=run.title, two_theta=pk.two_theta, fwhm=pk.fwhm,
             wavelength_A=run.wavelength_A, beams=beams, mount=m, chi=chi, phi=phi, count_s=run.count_s,
-            rate=pk.rate, sigma=pk.sigma, F=F, F_ref=F_ref, volume_in_sample=Vin, mean_path=L,
-            vy_offset=cy, vy_rms=sy, correction=corr, cutoff=float(cutoff), mu=float(mu), method=method,
-            live=run.live, chi_offset_deg=conv.chi_offset_deg, notes="; ".join(pk.notes),
-            h=np.array([m.pole(c, f) for c, f in zip(chi, phi, strict=True)]),
+            rate=pk.rate, sigma=pk.sigma, gauge=g, cutoff=float(cutoff), mu=float(mu), method=method, live=run.live,
+            notes="; ".join(pk.notes), h=np.array([m.pole(c, f) for c, f in zip(chi, phi, strict=True)]),
         ))  # fmt: skip
     return out

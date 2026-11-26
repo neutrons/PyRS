@@ -35,6 +35,7 @@ import numpy.typing as npt
 from .gauge import IntensityFactor, intensity_factor
 from .geometry import Mount
 from .stl_mesh import SampleMesh
+from .types import CountProgress, FloatArray, no_count_progress
 
 MAX_WORKERS = 6  # gentle on a desktop or a shared analysis node; HIDRA_PF_WORKERS overrides (1 = serial)
 #: orientations x Monte Carlo points x triangles below this run serially (about 8 s of tracing on a desktop)
@@ -56,15 +57,6 @@ def usable_cpus() -> int:
 
 
 Workers = int | Literal["auto"]
-
-
-def no_count_progress(done: int) -> None:
-    """
-    Progress callback that ignores the count (the default where no progress is wanted).
-
-    Args:
-        done: Number of items finished so far.
-    """
 
 
 def n_workers(work: float, *, requested: Workers = "auto", min_work: float = MIN_PARALLEL_WORK) -> int:
@@ -192,12 +184,12 @@ def intensity_factors(
     *,
     chi: npt.ArrayLike,
     phi: npt.ArrayLike,
-    points: npt.NDArray[np.float64],
+    points: FloatArray,
     volume: float,
     mesh: SampleMesh,
     center: npt.ArrayLike,
     mu: float,
-    progress: Callable[[int], None] = no_count_progress,
+    progress: CountProgress = no_count_progress,
     workers: Workers = "auto",
 ) -> list[IntensityFactor]:
     """

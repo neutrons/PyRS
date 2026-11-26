@@ -28,7 +28,7 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 
-FloatArray = npt.NDArray[np.float64]
+from .types import FloatArray
 
 GRID_FACTOR = 1.5  # grid cells per side = GRID_FACTOR * sqrt(triangles in the footprint); fastest over the fixtures
 
@@ -62,6 +62,30 @@ def read_stl(path: str | Path) -> FloatArray:
         return np.array(v, float).reshape(-1, 3, 3)
     except ValueError as exc:
         raise ValueError(f"{Path(path).name} is not a valid binary or ASCII STL ({exc})") from exc
+
+
+def moller_trumbore(s: FloatArray, *, e1: FloatArray, e2: FloatArray, h: FloatArray, f: FloatArray,
+                    d: FloatArray) -> tuple[FloatArray, npt.NDArray[np.bool_]]:  # fmt: skip
+    """
+    Moller-Trumbore ray-triangle test for point-triangle pairs (one row per pair), all along one direction d.
+
+    Args:
+        s: Ray start minus the triangle's first vertex, shape (k, 3).
+        e1: The triangle's first edge, shape (k, 3).
+        e2: The triangle's second edge, shape (k, 3).
+        h: ``d x e2`` per pair, shape (k, 3).
+        f: ``1 / (e1 . h)`` per pair, shape (k,). Triangles parallel to d (e1 . h near 0) must be left out before.
+        d: Ray direction, shape (3,).
+
+    Returns:
+        The ray parameter t of the crossing (in units of ``|d|``) and whether the ray crosses the triangle ahead of
+        the start (t > 0), per pair.
+    """
+    u = f * np.einsum("ij,ij->i", s, h)
+    q = np.cross(s, e1)
+    v = f * (q @ d)
+    t = f * np.einsum("ij,ij->i", q, e2)
+    return t, (u >= 0) & (v >= 0) & (u + v <= 1) & (t > 0)
 
 
 class SampleMesh:
@@ -157,8 +181,9 @@ class SampleMesh:
 
         Points and triangles are projected on the plane normal to d and binned on a grid. A ray from a point can only
         cross triangles whose projection covers the point, so each point is tested only against the triangles that
-        overlap its grid cell. The test for each point-triangle pair is the same as in :meth:`trace_brute` (the
-        reference script's tracer), so the hits are the same; it is many times faster on meshes with many triangles.
+        overlap its grid cell. Each point-triangle pair is tested with :func:`moller_trumbore`, as in the reference
+        script's brute-force tracer (every point against every triangle), so the hits are the same; it is many times
+        faster on meshes with many triangles.
 
         Args:
             points: Ray start points, shape (n, 3) (mm).
@@ -245,59 +270,10 @@ class SampleMesh:
         s_t = np.sign(self.n[ti] @ d)
         for k0 in range(0, len(ti), max(1, chunk)):
             sl = slice(k0, k0 + chunk)
-            s = p[pair_pt[sl]] - v0[sl]
-            u = f[sl] * np.einsum("ij,ij->i", s, hh[sl])
-            q = np.cross(s, e1[sl])
-            v = f[sl] * (q @ d)
-            t = f[sl] * np.einsum("ij,ij->i", q, e2[sl])
-            hit = (u >= 0) & (v >= 0) & (u + v <= 1) & (t > 0)
+            t, hit = moller_trumbore(p[pair_pt[sl]] - v0[sl], e1=e1[sl], e2=e2[sl], h=hh[sl], f=f[sl], d=d)
             idx = pair_pt[sl][hit]
             wind += np.bincount(idx, weights=s_t[sl][hit], minlength=n_pts)
             length += np.bincount(idx, weights=s_t[sl][hit] * t[hit], minlength=n_pts)
-        return wind, length
-
-    def trace_brute(
-        self, points: npt.ArrayLike, d: npt.ArrayLike, *, chunk: int = 2_000_000
-    ) -> tuple[FloatArray, FloatArray]:
-        """
-        The reference script's tracer: every point against every triangle in the ray bundle's footprint.
-
-        Args:
-            points: Ray start points, shape (n, 3) (mm).
-            d: Ray direction, shape (3,). Any length: the path is in units of ``|d|``, so pass a unit vector for mm.
-            chunk: Work-array size limit in points x triangles per step (default: 2,000,000).
-
-        Returns:
-            The sum of crossing signs per point (1 inside a closed mesh, 0 outside) and the material path ahead of
-            each point (meaningful for inside points).
-        """
-        p = np.atleast_2d(np.asarray(points, float))
-        d = np.asarray(d, float)
-        h = np.cross(d, self.e2)
-        a = np.einsum("ij,ij->i", self.e1, h)
-        use = np.abs(a) > 1e-12  # skip triangles parallel to the ray
-        # skip triangles outside the footprint of the ray bundle (projected on the plane normal to d)
-        b1 = np.cross(d, [1.0, 0, 0] if abs(d[0]) < 0.9 else [0, 1.0, 0])
-        b1 /= np.linalg.norm(b1)
-        B = np.c_[b1, np.cross(d / np.linalg.norm(d), b1)]
-        pp = p @ B
-        tv = np.stack([self.v0, self.v0 + self.e1, self.v0 + self.e2]) @ B  # (3, m, 2)
-        tol = 1e-9 * (1 + np.abs(pp).max())
-        use &= np.all((tv.max(axis=0) >= pp.min(axis=0) - tol) & (tv.min(axis=0) <= pp.max(axis=0) + tol), axis=1)
-        v0, e1, e2, h, f = self.v0[use], self.e1[use], self.e2[use], h[use], 1.0 / a[use]
-        s_t = np.sign(self.n[use] @ d)
-        wind, length = np.zeros(len(p)), np.zeros(len(p))
-        step = max(1, chunk // max(1, len(p)))
-        for k in range(0, len(v0), step):
-            sl = slice(k, k + step)
-            s = p[:, None, :] - v0[None, sl]  # (n, m, 3)
-            u = f[sl] * np.einsum("nmk,mk->nm", s, h[sl])
-            q = np.cross(s, e1[None, sl])
-            v = f[sl] * (q @ d)
-            t = f[sl] * np.einsum("nmk,mk->nm", q, e2[sl])
-            hit = (u >= 0) & (v >= 0) & (u + v <= 1) & (t > 0)
-            wind += (hit * s_t[sl]).sum(axis=1)
-            length += (hit * s_t[sl] * t).sum(axis=1)
         return wind, length
 
     def ray_segments(self, p: npt.ArrayLike, d: npt.ArrayLike) -> list[tuple[float, float]]:
@@ -317,11 +293,7 @@ class SampleMesh:
         use = np.abs(a) > 1e-12
         f = 1.0 / a[use]
         s = np.asarray(p, float) - self.v0[use]
-        u = f * np.einsum("ij,ij->i", s, h[use])
-        q = np.cross(s, self.e1[use])
-        v = f * (q @ d)
-        t = f * np.einsum("ij,ij->i", q, self.e2[use])
-        hit = (u >= 0) & (v >= 0) & (u + v <= 1) & (t > 0)
+        t, hit = moller_trumbore(s, e1=self.e1[use], e2=self.e2[use], h=h[use], f=f, d=d)
         t, sg = t[hit], np.sign(self.n[use][hit] @ d)
         order = np.argsort(t)
         t, sg = t[order], sg[order]

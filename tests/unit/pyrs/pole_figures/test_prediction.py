@@ -1,18 +1,12 @@
-"""Predicted corrections on the in-memory slab: grids, weights, free phi, progress and the input checks."""
+"""Predicted corrections on the in-memory slab: free phi, progress and the input checks."""
 
 import numpy as np
 import pytest
 
+from pyrs.pole_figures.core.correction import Beams
 from pyrs.pole_figures.core.geometry import Mount, MountConventions
-from pyrs.pole_figures.core.prediction import (
-    Beams,
-    Grid,
-    Plane,
-    Prediction,
-    phi_is_free,
-    predict,
-    solid_angle_weights,
-)
+from pyrs.pole_figures.core.grid import Grid
+from pyrs.pole_figures.core.prediction import Plane, Prediction, phi_is_free, predict
 from pyrs.pole_figures.core.stl_mesh import SampleMesh
 from tests.util.pole_figures_helpers import SLAB_CENTER_MM, SLAB_SIZE_MM, box_triangles, slab_mesh
 
@@ -28,146 +22,6 @@ def predict_200(mesh: SampleMesh, **kwargs: object) -> Prediction:
     """A quick {200} prediction on a 30 x 30 deg grid with 500 Monte Carlo points."""
     return predict(mesh, center=SLAB_CENTER_MM, conv=CONV, planes=[Plane.symmetric("200", 57.0)], beams=Beams(),
                    mu=0.14, grid=Grid(30, 30), n_points=500, **kwargs)  # type: ignore[arg-type]  # fmt: skip
-
-
-# ---------------------------------------------------------------- grids and weights
-def test_grid_points_pf_grid() -> None:
-    # Arrange
-    grid = Grid(10, 5)
-
-    # Act
-    chi, phi = grid.points()
-
-    # Assert
-    assert len(chi) == 649
-    assert (chi[-1], phi[-1]) == (90, 0)
-
-
-def test_solid_angle_weights_cover_hemisphere() -> None:
-    # Arrange
-    chi, _ = Grid(10, 5).points()
-
-    # Act
-    w = solid_angle_weights(chi, chi_step=10, phi_step=5)
-
-    # Assert
-    # the weights integrate to the hemisphere, 2 pi, in units of the cell size
-    assert (w.sum() * np.radians(10) * np.radians(5)) == pytest.approx(2 * np.pi, rel=0.01)
-
-
-def test_grid_describe_default() -> None:
-    # Arrange
-    grid = Grid(10, 5)
-
-    # Act
-    text = grid.describe()
-
-    # Assert
-    assert text == "10 x 5 deg"
-
-
-def test_equal_spacing_points() -> None:
-    # Arrange
-    eq = Grid(10, 5, equal_spacing=True)
-
-    # Act
-    chi, phi = eq.points()
-
-    # Assert
-    assert len(chi) == 454
-    assert (chi[-1], phi[-1]) == (90, 0)
-
-
-def test_equal_spacing_ring_steps() -> None:
-    # Arrange
-    eq = Grid(10, 5, equal_spacing=True)
-
-    # Act
-    steps = [eq.ring_phi_step(c) for c in eq.rings()]
-
-    # Assert
-    assert steps == [5, 5, 5, 6, 6, 8, 10, 15, 30]
-
-
-def test_equal_spacing_steps_divide_360() -> None:
-    # Arrange
-    eq = Grid(10, 5, equal_spacing=True)
-
-    # Act
-    steps = [eq.ring_phi_step(c) for c in eq.rings()]
-
-    # Assert
-    assert all(360 % s == 0 and s >= 5 for s in steps)
-
-
-def test_equal_spacing_keeps_arc_spacing() -> None:
-    """The spacing on the sphere stays near the chi 0 spacing on every ring."""
-    # Arrange
-    eq = Grid(10, 5, equal_spacing=True)
-
-    # Act
-    ratios = [eq.ring_phi_step(c) * np.cos(np.radians(c)) / 5 for c in eq.rings()]
-
-    # Assert
-    assert all(0.8 < r < 1.25 for r in ratios)
-
-
-def test_equal_spacing_weights_equal_pf_total() -> None:
-    # Arrange
-    pf, eq = Grid(10, 5), Grid(10, 5, equal_spacing=True)
-    cell = np.radians(10) * np.radians(5)
-
-    # Act
-    total_eq = eq.weights(eq.points()[0]).sum() * cell
-
-    # Assert
-    assert total_eq == pytest.approx(pf.weights(pf.points()[0]).sum() * cell, rel=1e-9)
-
-
-def test_equal_spacing_weights_cover_hemisphere() -> None:
-    # Arrange
-    eq = Grid(10, 5, equal_spacing=True)
-    cell = np.radians(10) * np.radians(5)
-
-    # Act
-    total = eq.weights(eq.points()[0]).sum() * cell
-
-    # Assert
-    assert total == pytest.approx(2 * np.pi, rel=0.01)
-
-
-def test_grid_weights_equal_solid_angle_weights() -> None:
-    # Arrange
-    pf = Grid(10, 5)
-    chi = pf.points()[0]
-
-    # Act
-    w = pf.weights(chi)
-
-    # Assert
-    np.testing.assert_allclose(w, solid_angle_weights(chi, chi_step=10, phi_step=5))
-
-
-def test_equal_spacing_describe() -> None:
-    # Arrange
-    eq = Grid(10, 5, equal_spacing=True)
-
-    # Act
-    text = eq.describe()
-
-    # Assert
-    assert "equal spacing" in text and "30 deg at chi 80" in text
-
-
-def test_ring_phi_step_not_dividing_360_kept_at_chi0() -> None:
-    # Arrange
-    grid = Grid(10, 7, equal_spacing=True)
-
-    # Act
-    step = grid.ring_phi_step(0)
-
-    # Assert
-    assert step == 7
 
 
 # ---------------------------------------------------------------- free phi
@@ -227,7 +81,7 @@ def test_best_phi_takes_the_shortest_sweep_path(free_phi_predictions: tuple[Pred
 
     # Assert
     assert len(trial) == 12
-    assert q1.mean_path[-1] == pytest.approx(np.nanmin(paths), rel=0.011)
+    assert q1.gauge.mean_path[-1] == pytest.approx(np.nanmin(paths), rel=0.011)
 
 
 def test_best_phi_tie_takes_the_lower_phi(free_phi_predictions: tuple[Prediction, Prediction]) -> None:
@@ -249,7 +103,7 @@ def test_best_phi_shortens_path_and_correction(free_phi_predictions: tuple[Predi
     q0, q1 = pf.planes[0], best.planes[0]
 
     # Assert
-    assert q1.mean_path[-1] < q0.mean_path[-1]
+    assert q1.gauge.mean_path[-1] < q0.gauge.mean_path[-1]
     assert q1.correction[-1] < q0.correction[-1]
 
 
@@ -346,16 +200,6 @@ def test_predict_gauge_outside_sample_raises(slab: SampleMesh) -> None:
     with pytest.raises(ValueError, match="holds no sample at chi 0, phi 0"):
         predict(slab, center=center, conv=CONV, planes=[Plane.symmetric("200", 57.0)], beams=Beams(), mu=0.14,
                 grid=Grid(30, 30), n_points=500)  # fmt: skip
-
-
-@pytest.mark.parametrize("bad", [0.0, -1.0, float("nan")])
-def test_beams_non_positive_size_raises(bad: float) -> None:
-    # Arrange
-    width = bad
-
-    # Act / Assert
-    with pytest.raises(ValueError, match="positive size"):
-        Beams(incident_width=width)
 
 
 # ---------------------------------------------------------------- open and inconsistent meshes

@@ -10,7 +10,7 @@ frame is described in :mod:`.geometry`. Angles are in degrees, wavelengths in Å
 
 Typical workflow:
 
-1. Load the sample (:mod:`.stl_mesh`) and the phase (:mod:`.materials`), and set the mount (:mod:`.geometry`).
+1. Load the sample (:mod:`.stl_mesh`) and the phase (:mod:`.phase`), and set the mount (:mod:`.geometry`).
 2. Predict the corrections with no data (:mod:`.prediction`) and plan table scans (:mod:`.table_scan`).
 3. Read the runs (:mod:`.runs`) and build the corrected pole figures (:mod:`.polefig`, :mod:`.combine`).
 

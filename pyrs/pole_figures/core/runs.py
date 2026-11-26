@@ -27,14 +27,13 @@ Example:
 """
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import h5py
 import numpy as np
-import numpy.typing as npt
 
-FloatArray = npt.NDArray[np.float64]
+from .types import FloatArray
 
 # Paths and log names in a reduced (pyRS) project file: the strings of pyrs.dataobjects.constants.HidraConstants.
 LOGS_PATH = "raw data/logs"
@@ -94,12 +93,12 @@ class RunData:
     slit_y: FloatArray
     x: FloatArray
     y: FloatArray
-    live_skipped: int = 0
-    short_skipped: int = 0
-    invalid_skipped: int = 0
+    live_skipped: int
+    short_skipped: int
+    invalid_skipped: int
     position: FloatArray
-    notes: list[str] = field(default_factory=list)
-    position_note: str = ""
+    notes: list[str]
+    position_note: str
 
     def _logged_rows(self) -> FloatArray:
         """Sub-runs with all of vx, vy, vz finite."""
@@ -125,7 +124,7 @@ class RunData:
         return float(np.ptp(rows, axis=0).max()) if len(rows) else 0.0
 
     @property
-    def n(self) -> int:
+    def n_subruns(self) -> int:
         """Number of sub-runs kept."""
         return len(self.count_s)
 
@@ -135,7 +134,7 @@ class RunData:
         return float(np.median(self.omega))
 
     @property
-    def arm(self) -> float:
+    def arm_two_theta(self) -> float:
         """Detector arm 2theta: the median of the log (deg)."""
         return float(np.median(self.two_theta_arm))
 
@@ -165,8 +164,8 @@ class RunData:
             skipped.append(f"{self.invalid_skipped} with a non-finite duration or motor log")
         extra = f" ({', '.join(skipped)} skipped)" if skipped else ""
         notes = "".join(f". {n}" for n in self.notes)
-        return (f"run {self.run}: {self.n} sub-runs{extra}, lambda {self.wavelength_A:.4f} A, omega "
-                f"{self.omega_median:.2f}, arm 2theta {self.arm:.2f}, slits {self.incident_width:g} x "
+        return (f"run {self.run}: {self.n_subruns} sub-runs{extra}, lambda {self.wavelength_A:.4f} A, omega "
+                f"{self.omega_median:.2f}, arm 2theta {self.arm_two_theta:.2f}, slits {self.incident_width:g} x "
                 f"{self.incident_height:g} mm{notes}")  # fmt: skip
 
 

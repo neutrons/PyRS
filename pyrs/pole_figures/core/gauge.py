@@ -28,17 +28,22 @@ Example:
 """
 
 from collections.abc import Mapping
-from typing import Any, NamedTuple
+from dataclasses import dataclass
+from typing import Any, Final
 
 import numpy as np
 import numpy.typing as npt
 
 from .geometry import Mount, MountConventions
 from .stl_mesh import SampleMesh
-
-FloatArray = npt.NDArray[np.float64]
+from .types import FloatArray
 
 MC_SEED = 3
+DEFAULT_MC_POINTS = 40_000  # Monte Carlo gauge points per orientation for a measured run, as the reference script
+#: the prediction uses half of them, as the reference script does
+PREDICTION_MC_POINTS = DEFAULT_MC_POINTS // 2
+#: a beam size given as this prefix and a log name is the median of that run log (``beam_value``)
+LOG_PREFIX: Final = "log:"
 
 
 def gauge_points(
@@ -106,7 +111,8 @@ def set_slit_offset(m: Mount, *, conv: MountConventions, omega: float, arm_tth: 
     return m
 
 
-class IntensityFactor(NamedTuple):
+@dataclass(frozen=True, kw_only=True)
+class IntensityFactor:
     """
     Result of ``intensity_factor`` for one orientation.
 
@@ -166,19 +172,20 @@ def intensity_factor(
     wind, L_in = mesh.trace(p, -ki)
     inside = wind > 0.5
     if not inside.any():
-        return IntensityFactor(0.0, 0.0, np.nan, np.nan, np.nan)
+        return IntensityFactor(F=0.0, volume_in_sample=0.0, mean_path=np.nan, vy_offset=np.nan, vy_rms=np.nan)
     L = L_in[inside] + mesh.trace(p[inside], kf)[1]
     w = np.exp(-mu * L)
     n = len(p)
     vy = p[inside, 1] - c[1]
     cy = float((w * vy).sum() / w.sum())
     sy = float(np.sqrt((w * (vy - cy) ** 2).sum() / w.sum()))
-    return IntensityFactor(float(vol * w.sum() / n), float(vol * inside.sum() / n), float(L.mean()), cy, sy)
+    return IntensityFactor(F=float(vol * w.sum() / n), volume_in_sample=float(vol * inside.sum() / n),
+                           mean_path=float(L.mean()), vy_offset=cy, vy_rms=sy)  # fmt: skip
 
 
 def beam_value(spec: float | str, logs: Mapping[str, Any]) -> float:
     """
-    A beam size from a config value: a number, or ``"log:<name>"`` for the median of a run log.
+    A beam size from a config value: a number, or ``LOG_PREFIX + "<name>"`` for the median of a run log.
 
     Args:
         spec: A size (mm) or ``"log:<name>"``, e.g. ``"log:ISR:X:Gap"``.
@@ -186,7 +193,16 @@ def beam_value(spec: float | str, logs: Mapping[str, Any]) -> float:
 
     Returns:
         The size (mm).
+
+    Raises:
+        ValueError: If spec is text that is neither a number nor ``"log:<name>"``, or names a log not in ``logs``.
     """
-    if isinstance(spec, str) and spec.startswith("log:"):
-        return float(np.median(logs[spec[4:]]))
-    return float(spec)
+    if isinstance(spec, str) and spec.startswith(LOG_PREFIX):
+        name = spec.removeprefix(LOG_PREFIX)
+        if name not in logs:
+            raise ValueError(f"beam size {spec!r} names a log the run does not have ({name!r})")
+        return float(np.median(logs[name]))
+    try:
+        return float(spec)
+    except ValueError as exc:
+        raise ValueError(f"beam size must be a number (mm) or {LOG_PREFIX}<log name>, got {spec!r}") from exc

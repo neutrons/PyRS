@@ -3,7 +3,17 @@
 import numpy as np
 import pytest
 
-from pyrs.pole_figures.core.peaks import PeakCandidate, fit_peak, integrate, peak_quality
+import pyrs.pole_figures.core.peaks as peaks
+from pyrs.pole_figures.core.peaks import (
+    PeakCandidate,
+    PeakIntensity,
+    fit_peak,
+    integrate,
+    measure_peaks,
+    peak_quality,
+)
+from pyrs.pole_figures.core.runs import RunData
+from tests.util.pole_figures_helpers import synthetic_run_data
 
 X = np.linspace(80, 100, 401)  # 0.05 deg bins
 SIGMA = 0.5
@@ -121,3 +131,53 @@ def test_peak_quality_flags_narrow_peak() -> None:
 
     # Assert
     assert any("under 2 bins" in n for n in notes)
+
+
+# ---------------------------------------------------------------- peaks of a run
+@pytest.fixture
+def synthetic_run() -> RunData:
+    return synthetic_run_data()
+
+
+@pytest.fixture
+def flaky_fit_peak(synthetic_run: RunData, monkeypatch: pytest.MonkeyPatch) -> PeakIntensity:
+    """measure_peaks with a fit that does not converge in the second sub-run."""
+    calls = iter(range(100))
+
+    def flaky_fit(*args: object, **kwargs: object) -> tuple[float, float]:
+        return (np.nan, np.nan) if next(calls) == 1 else (100.0, 10.0)
+
+    monkeypatch.setattr(peaks, "fit_peak", flaky_fit)
+    return measure_peaks(synthetic_run, [("110", 90.0)], method="fit")[0]
+
+
+def test_measure_peaks_failed_fit_gives_nan_rate(flaky_fit_peak: PeakIntensity) -> None:
+    # Arrange
+    pk = flaky_fit_peak
+
+    # Act
+    rate = pk.rate
+
+    # Assert
+    assert np.isnan(rate[1])
+    assert np.isfinite(rate[[0, 2, 3, 4, 5]]).all()
+
+
+def test_measure_peaks_failed_fit_is_noted(flaky_fit_peak: PeakIntensity) -> None:
+    # Arrange
+    pk = flaky_fit_peak
+
+    # Act
+    notes = pk.notes
+
+    # Assert
+    assert notes == ["the fit failed in 1 of 6 sub-runs (those points are ignored)"]
+
+
+def test_measure_peaks_unknown_method_raises(synthetic_run: RunData) -> None:
+    # Arrange
+    run = synthetic_run
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="method must be one of window, fit, got 'area'"):
+        measure_peaks(run, [("110", 90.0)], method="area")  # type: ignore[arg-type]

@@ -272,3 +272,13 @@ def test_beam_value_log_median() -> None:
 
     # Assert
     assert size == 4.0
+
+
+@pytest.mark.parametrize(("spec", "message"), [("wide", "must be a number"), ("log:ISR:X:Gap", "names a log")])
+def test_beam_value_bad_spec_raises(spec: str, message: str) -> None:
+    # Arrange
+    logs = {"gap": [4.0]}
+
+    # Act / Assert
+    with pytest.raises(ValueError, match=message):
+        beam_value(spec, logs)

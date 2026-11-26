@@ -1,7 +1,7 @@
 """
 Peak intensity per sub-run: window integration or a pseudo-Voigt fit, ported from the reference script.
 
-``peak_list``, ``find_peak``, ``integrate``, ``fit_peak`` and ``background_level`` keep its numerics.
+``peak_list``, ``find_peak``, ``integrate`` and ``fit_peak`` keep its numerics.
 
 Intensity = net counts in a fixed 2theta window (+- 1.5 FWHM of the summed peak) above a straight background from
 both sides, or (option) the area of a pseudo-Voigt plus linear background fit. Rates are per second of count time.
@@ -12,7 +12,7 @@ Typical workflow:
 1. List the reflections on the detector with :func:`peak_list`.
 2. Find each central peak's center and FWHM on the spectrum summed over sub-runs with :func:`find_peak`.
 3. Measure each sub-run with :func:`integrate` (or :func:`fit_peak`) and flag doubtful peaks with
-   :func:`peak_quality`.
+   :func:`peak_quality`. :func:`measure_peaks` does all three for every central peak of a run.
 
 Example:
     >>> peaks = peak_list(x, arm=90.0, candidates=[("111", 70.1), ("200", 82.3)])  # doctest: +SKIP
@@ -20,19 +20,22 @@ Example:
     >>> net, sigma = integrate(x, y[0], center=center, half_width=WINDOW_FWHM * fwhm)  # doctest: +SKIP
 """
 
+import typing
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Literal
 
 import numpy as np
-import numpy.typing as npt
 from scipy.optimize import curve_fit
 
-FloatArray = npt.NDArray[np.float64]
+from .runs import RunData
+from .types import FloatArray
 
 CENTRAL_HALF_WIDTH_DEG = 5.0  # only peaks this close to the arm 2theta are used (edge pixels see another volume)
 WINDOW_FWHM = 1.5  # integration half-window in FWHM of the summed peak
 WEAK_PEAK_SIGMA = 5.0  # a summed peak below this net/sigma is flagged as weak (it is still used)
 MIN_FWHM_BINS = 2  # a summed-peak FWHM narrower than this many bins is flagged
+Method = Literal["window", "fit"]
 
 
 @dataclass(frozen=True)
@@ -209,22 +212,79 @@ def peak_quality(x: FloatArray, ysum: FloatArray, *, center: float, fwhm: float,
     return notes
 
 
-def background_level(x: FloatArray, y: FloatArray, *, peaks: Iterable[PeakCandidate], arm: float,
-                     central_hw: float = CENTRAL_HALF_WIDTH_DEG) -> FloatArray:  # fmt: skip
+def find_peaks(run: RunData, candidates: Iterable[tuple[str, float]], *,
+               central_hw: float = CENTRAL_HALF_WIDTH_DEG) -> list[PeakCandidate]:  # fmt: skip
     """
-    Mean counts per bin away from every peak, central part of the detector, per sub-run.
+    Reflections on this run's detector (central and edge).
 
     Args:
-        x: 2theta of the bins (deg).
-        y: Counts per bin, shape (n_subruns, n_bins).
-        peaks: Reflections on the detector. Bins within 2 deg of any are left out.
-        arm: Detector arm 2theta (deg).
-        central_hw: Bins within central_hw + 3 deg of the arm are used (deg, default: 5).
+        run: The run.
+        candidates: (hkl label, expected 2theta) pairs at the run's wavelength.
+        central_hw: A reflection within this of the arm is central (deg, default: 5).
 
     Returns:
-        The mean background counts per bin of each sub-run.
+        The reflections on the detector (see ``peaks.peak_list``).
     """
-    m = np.abs(x - arm) <= central_hw + 3
-    for p in peaks:
-        m &= np.abs(x - p.two_theta) > 2.0
-    return np.asarray(np.nanmean(y[:, m], axis=1), float)
+    return peak_list(run.x, arm=run.arm_two_theta, candidates=candidates, central_hw=central_hw)
+
+
+@dataclass(frozen=True, kw_only=True)
+class PeakIntensity:
+    """
+    A central peak of one run.
+
+    Attributes:
+        hkl: hkl label.
+        two_theta: Center of the summed peak (deg).
+        fwhm: FWHM of the summed peak (deg).
+        rate: Raw net rate per sub-run (counts/s). NaN where the fit failed.
+        sigma: Sigma of the rate (counts/s).
+        notes: Warnings about the peak (see ``peaks.peak_quality``) or the fit.
+    """
+
+    hkl: str
+    two_theta: float
+    fwhm: float
+    rate: FloatArray
+    sigma: FloatArray
+    notes: list[str] = field(default_factory=list)
+
+
+def measure_peaks(run: RunData, candidates: Iterable[tuple[str, float]], *, central_hw: float = CENTRAL_HALF_WIDTH_DEG,
+                  method: Method = "window") -> list[PeakIntensity]:  # fmt: skip
+    """
+    Net rate and sigma per sub-run for each central peak.
+
+    Args:
+        run: The run.
+        candidates: (hkl label, expected 2theta) pairs at the run's wavelength.
+        central_hw: Peaks within this of the arm are used (deg, default: 5).
+        method: "window" integration (default) or pseudo-Voigt "fit".
+
+    Returns:
+        One entry per central peak.
+
+    Raises:
+        ValueError: If method is unknown, or a central peak has no counts above the background.
+    """
+    if method not in typing.get_args(Method):
+        raise ValueError(f"method must be one of {', '.join(typing.get_args(Method))}, got {method!r}")
+    x, y, t = run.x, run.y, run.count_s
+    ysum = y.sum(axis=0)
+    out = []
+    central = [pk for pk in find_peaks(run, candidates, central_hw=central_hw) if pk.central]
+    for pk in central:
+        c, fw = find_peak(x, ysum, pk.two_theta)
+        half = WINDOW_FWHM * fw
+        if method == "fit":
+            net = np.array([fit_peak(x, y[i], center=c, fwhm=fw, half_width=half) for i in range(len(t))])
+        else:
+            net = np.array([integrate(x, y[i], center=c, half_width=half) for i in range(len(t))])
+        notes = peak_quality(x, ysum, center=c, fwhm=fw, hkl=pk.hkl, others=[q for q in central if q is not pk])
+        failed = int((~np.isfinite(net[:, 0])).sum())
+        if failed:
+            notes.append(f"the fit failed in {failed} of {len(t)} sub-runs (those points are ignored)")
+        out.append(
+            PeakIntensity(hkl=pk.hkl, two_theta=c, fwhm=fw, rate=net[:, 0] / t, sigma=net[:, 1] / t, notes=notes)
+        )
+    return out

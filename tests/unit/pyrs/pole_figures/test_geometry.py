@@ -1,47 +1,15 @@
-"""Mount geometry: beams, rotation conventions, poles, mount matrices and the equal-area projection."""
+"""Mount geometry: beams, rotation conventions, poles and mount matrices."""
 
 import numpy as np
 import pytest
 
-from pyrs.pole_figures.core.geometry import (
-    Mount,
-    MountConventions,
-    format_matrix,
-    from_view,
-    parse_matrix,
-    project,
-    rot,
-    to_view,
-)
+from pyrs.pole_figures.core.geometry import AxesAtZero, Mount, MountConventions
 
 CONV = MountConventions(incident_from="+vy")
 #: the cylinder mount: turned about its long axis vz by phi
 CYLINDER = MountConventions(up_axis="+vz", q_axis="+vx")
 #: a tilted mount typed to 4 decimals
 TILTED = (0, 0.2588, 0.9659, 0, 0.9659, -0.2588, -1, 0, 0)
-
-
-# ---------------------------------------------------------------- rotations
-def test_rot_is_right_handed() -> None:
-    # Arrange
-    R = rot([0, 0, 1], 90)
-
-    # Act
-    x_turned = R @ [1, 0, 0]
-
-    # Assert
-    np.testing.assert_allclose(x_turned, [0, 1, 0], atol=1e-15)
-
-
-def test_rot_is_orthogonal() -> None:
-    # Arrange
-    R = rot([1, 2, 3], 37)
-
-    # Act
-    product = R @ R.T
-
-    # Assert
-    np.testing.assert_allclose(product, np.eye(3), atol=1e-15)
 
 
 # ---------------------------------------------------------------- beams and poles
@@ -346,7 +314,7 @@ def test_axes_at_zero_names_cylinder_axes() -> None:
     axes = conv.axes_at_zero()
 
     # Assert
-    assert axes == {"up": "+vz", "across": "-vy", "Q": "+vx"}
+    assert axes == AxesAtZero(up="+vz", across="-vy", q="+vx")
 
 
 def test_cylinder_mount_is_proper_rotation() -> None:
@@ -386,25 +354,13 @@ def test_cylinder_chi90_pole_is_phi_axis(phi: float) -> None:
 
 def test_matrix_mount_equals_axis_mount() -> None:
     # Arrange
-    mat = parse_matrix("0 0 1; 0 -1 0; 1 0 0")  # rows: up, across, Q in vx, vy, vz
+    mat = (0.0, 0.0, 1.0, 0.0, -1.0, 0.0, 1.0, 0.0, 0.0)  # rows: up, across, Q in vx, vy, vz
 
     # Act
     conv = MountConventions(sample_to_instrument=mat)
 
     # Assert
-    assert mat is not None
     assert np.array_equal(conv.M0, CYLINDER.M0)
-
-
-def test_format_matrix_writes_rows() -> None:
-    # Arrange
-    M0 = CYLINDER.M0
-
-    # Act
-    text = format_matrix(M0)
-
-    # Assert
-    assert text == "0 0 1; 0 -1 0; 1 0 0"
 
 
 def test_typed_tilted_matrix_is_made_orthonormal() -> None:
@@ -423,86 +379,7 @@ def test_axes_at_zero_marks_tilted_axis() -> None:
     conv = MountConventions(sample_to_instrument=TILTED)
 
     # Act
-    up = conv.axes_at_zero()["up"]
+    up = conv.axes_at_zero().up
 
     # Assert
     assert up == "~+vz"
-
-
-def test_parse_matrix_two_rows_raises() -> None:
-    # Arrange
-    text = "1 0 0; 0 1 0"
-
-    # Act / Assert
-    with pytest.raises(ValueError, match="3 rows"):
-        parse_matrix(text)
-
-
-def test_parse_matrix_blank_is_none() -> None:
-    # Arrange
-    text = "  "
-
-    # Act
-    mat = parse_matrix(text)
-
-    # Assert
-    assert mat is None
-
-
-# ---------------------------------------------------------------- projection
-def test_project_radii() -> None:
-    # Arrange
-    h = [[0, 0, 1], [1, 0, 0], [0, 1, 0], [0, 0, -1]]
-
-    # Act
-    xy = project(h)
-
-    # Assert
-    np.testing.assert_allclose(np.hypot(*xy.T), [0, 1, 1, 0], atol=1e-12)
-
-
-@pytest.mark.parametrize(
-    ("h", "view", "want"),
-    [([1, 0, 0], "+vz", [1, 0]), ([1, 0, 0], "-vz", [-1, 0]), ([0, 1, 0], "+vx", [1, 0])],
-    ids=["plus_vz_vx_right", "minus_vz_vx_left", "plus_vx_vy_right"],
-)
-def test_project_view_orientation(h: list[float], view: str, want: list[float]) -> None:
-    # Arrange
-    vector = h
-
-    # Act
-    xy = project(vector, view=view)  # type: ignore[arg-type]
-
-    # Assert
-    np.testing.assert_allclose(xy[0], want, atol=1e-12)
-
-
-def test_project_is_equal_area() -> None:
-    # Arrange
-    a = np.radians(45)  # 45 deg from the center
-
-    # Act
-    r = np.hypot(*project([np.sin(a), 0, np.cos(a)])[0])
-
-    # Assert
-    assert r == pytest.approx(np.sqrt(2) * np.sin(a / 2))
-
-
-def test_from_view_inverts_to_view() -> None:
-    # Arrange
-    h = np.array([[0.2, 0.3, 0.9], [1.0, 0.0, 0.0]])
-
-    # Act
-    back = from_view(to_view(h, view="+vx"), view="+vx")
-
-    # Assert
-    np.testing.assert_allclose(back, h)
-
-
-def test_project_unknown_view_raises() -> None:
-    # Arrange
-    view = "vz"
-
-    # Act / Assert
-    with pytest.raises(ValueError, match=r"view must be one of \+vz, -vz, \+vx, got 'vz'"):
-        project([0.0, 0.0, 1.0], view=view)  # type: ignore[arg-type]

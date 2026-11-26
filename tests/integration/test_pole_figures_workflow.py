@@ -5,16 +5,19 @@ analyze_run joins runs, peaks, the gauge and the mesh. The parallel tests start 
 their own timeouts.
 """
 
+from dataclasses import astuple
 from pathlib import Path
 
 import numpy as np
 import pytest
 
 from pyrs.pole_figures.core import parallel
+from pyrs.pole_figures.core.correction import Beams
 from pyrs.pole_figures.core.gauge import IntensityFactor, gauge_points, intensity_factor
 from pyrs.pole_figures.core.geometry import Mount, MountConventions
+from pyrs.pole_figures.core.grid import Grid
 from pyrs.pole_figures.core.polefig import PolePeak, analyze_run
-from pyrs.pole_figures.core.prediction import Beams, Grid, Plane, Prediction, predict
+from pyrs.pole_figures.core.prediction import Plane, Prediction, predict
 from pyrs.pole_figures.core.runs import RunData, read_run
 from pyrs.pole_figures.core.stl_mesh import SampleMesh
 from tests.util.pole_figures_helpers import SLAB_CENTER_MM, STL_DIR, slab_mesh, write_reduced_run
@@ -135,11 +138,11 @@ def test_parallel_intensity_factors_equal_serial(
     par, serial, _, _ = parallel_and_serial
 
     # Act
-    got = np.array(par, float)
+    got = np.array([astuple(r) for r in par], float)
 
     # Assert
     assert len(par) == len(serial)
-    np.testing.assert_array_equal(got, np.array(serial, float))
+    np.testing.assert_array_equal(got, np.array([astuple(r) for r in serial], float))
 
 
 @pytest.mark.timeout(120)
@@ -174,5 +177,5 @@ def test_predict_two_workers_equal_serial(monkeypatch: pytest.MonkeyPatch) -> No
 
     # Assert
     for a, b in zip(serial.planes, par.planes, strict=True):
-        np.testing.assert_array_equal(np.c_[b.F, b.mean_path, b.correction, b.phi],
-                                      np.c_[a.F, a.mean_path, a.correction, a.phi])  # fmt: skip
+        np.testing.assert_array_equal(np.c_[b.gauge.F, b.gauge.mean_path, b.correction, b.phi],
+                                      np.c_[a.gauge.F, a.gauge.mean_path, a.correction, a.phi])  # fmt: skip

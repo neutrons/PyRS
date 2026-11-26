@@ -1,9 +1,9 @@
-"""Table-scan building blocks: count times, measurement order, durations and spreadsheet-safe text."""
+"""Table-scan building blocks: count times and measurement order."""
 
 import numpy as np
 import pytest
 
-from pyrs.pole_figures.core.table_scan import count_time, format_duration, measurement_order, safe_text
+from pyrs.pole_figures.core.table_scan import count_time, measurement_order
 
 
 @pytest.mark.parametrize(
@@ -55,26 +55,3 @@ def test_measurement_order_plain_keeps_phi_rising() -> None:
 
     # Assert
     assert list(phi[order]) == [0, 5, 10, 0, 5, 10, 0, 10, 0]
-
-
-@pytest.mark.parametrize(("seconds", "want"), [(45, "45 s"), (600, "10 min"), (3 * 3600 + 7 * 60, "3 h 07 min")])
-def test_format_duration(seconds: float, want: str) -> None:
-    # Arrange
-    duration = seconds
-
-    # Act
-    text = format_duration(duration)
-
-    # Assert
-    assert text == want
-
-
-def test_safe_text_quotes_formula() -> None:
-    # Arrange
-    text = "=SUM(A1)"
-
-    # Act
-    safe = safe_text(text)
-
-    # Assert
-    assert safe == "'=SUM(A1)"

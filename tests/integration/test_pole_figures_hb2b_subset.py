@@ -14,9 +14,9 @@ import numpy as np
 import pytest
 
 from pyrs.pole_figures.core.geometry import MountConventions
-from pyrs.pole_figures.core.materials import presets
-from pyrs.pole_figures.core.peaks import WINDOW_FWHM, integrate
-from pyrs.pole_figures.core.polefig import cradle_angles, measure_peaks
+from pyrs.pole_figures.core.peaks import WINDOW_FWHM, integrate, measure_peaks
+from pyrs.pole_figures.core.phase import presets
+from pyrs.pole_figures.core.polefig import cradle_angles
 from pyrs.pole_figures.core.runs import RunData, read_run
 from tests.util.pole_figures_helpers import HB2B_SUBSET, REFERENCE, read_csv_rows
 
@@ -49,7 +49,7 @@ def test_read_run_subset_keeps_every_subrun(run: RunData) -> None:
     expected = list(range(1, 650, 54))
 
     # Act
-    got = (run.run, run.n, run.short_skipped, run.live, [int(k) for k in run.subruns])
+    got = (run.run, run.n_subruns, run.short_skipped, run.live, [int(k) for k in run.subruns])
 
     # Assert
     assert got == ("6494", 13, 0, False, expected)
@@ -120,7 +120,9 @@ def test_integrate_subset_matches_pf(run: RunData, pf_rows: list[dict[str, str]]
     half = WINDOW_FWHM * peak["fwhm"]
 
     # Act
-    net = np.array([integrate(run.x, run.y[i], center=peak["two_theta"], half_width=half) for i in range(run.n)])
+    net = np.array(
+        [integrate(run.x, run.y[i], center=peak["two_theta"], half_width=half) for i in range(run.n_subruns)]
+    )
 
     # Assert
     np.testing.assert_allclose(net[:, index] / run.count_s, col(pf_rows, column), atol=5.01e-5)

@@ -1,15 +1,15 @@
 """
-HB-2B Eulerian-cradle geometry: mount conventions, beams, rotation, poles and the equal-area projection.
+HB-2B Eulerian-cradle geometry: mount conventions, beams, rotation and poles.
 
-Ported from the reference script (``rot``, ``Mount``, ``project``). Its globals ``CHI_OFF`` and ``VIEW`` are explicit
-arguments here.
+Ported from the reference script (``rot``, ``Mount``). Its global ``CHI_OFF`` is the explicit ``chi_offset_deg``
+here. The pole-figure projection is in :mod:`.projection`.
 
 Frames: the sample frame is the STL frame, with the virtual axes vx, vy, vz (mm). The cradle (instrument) frame at
 chi 0, phi 0 has e_x vertical (the phi axis), e_z along Q at omega = theta, and e_y = e_z x e_x. All angles are in
 degrees.
 
 - incident ``ki = (0, sb cos w, -sin w)``, diffracted ``kf = (0, sb cos(2t - w), sin(2t - w))``
-- sample to cradle: ``R(chi, phi) = rot(e_y, s_chi chi) @ rot(e_x, s_phi phi) @ M0``
+- sample to cradle: ``R(chi, phi) = rot(e_y, s_chi chi) @ rot(e_x, s_phi phi) @ M0`` (``rotation.rot``)
 - pole in the sample frame: ``h = R^T q``
 
 Typical workflow:
@@ -17,205 +17,42 @@ Typical workflow:
 1. Describe how the sample sits on the cradle with :class:`MountConventions`.
 2. Build a :class:`Mount` for one omega and 2theta.
 3. Get the pole of each cradle chi, phi with :meth:`Mount.pole` or :meth:`Mount.poles`.
-4. Place the poles on a pole figure with :func:`project`.
+4. Place the poles on a pole figure with ``projection.project``.
 
 Example:
     >>> m = Mount(MountConventions(), omega=45.0, tth=90.0)
     >>> m.pole(0.0, 0.0)
     array([0., 0., 1.])
-    >>> project(m.pole(0.0, 0.0))
-    array([[0., 0.]])
 """
 
 import difflib
 import typing
 from dataclasses import dataclass, fields, replace
-from typing import Any, Literal
+from typing import Any, Literal, NamedTuple
 
 import numpy as np
 import numpy.typing as npt
 
-FloatArray = npt.NDArray[np.float64]
+from .rotation import SampleAxis, axis_name, axis_vector, check_rotation, nearest_rotation, rot
+from .types import FloatArray
+
 PhiSense = Literal["clockwise_from_above", "counterclockwise_from_above"]
 IncidentFrom = Literal["+vy", "-vy"]
-ViewFrom = Literal["+vz", "-vz", "+vx"]
-SampleAxis = Literal["+vx", "-vx", "+vy", "-vy", "+vz", "-vz"]
-SAMPLE_AXES: tuple[SampleAxis, ...] = ("+vx", "-vx", "+vy", "-vy", "+vz", "-vz")
 
 
-def axis_vector(a: str) -> FloatArray:
+class AxesAtZero(NamedTuple):
     """
-    Unit vector of a signed sample axis: '+vx' -> (1, 0, 0), '-vz' -> (0, 0, -1).
+    Sample axis nearest each instrument direction at chi 0, phi 0 (see ``MountConventions.axes_at_zero``).
 
-    Args:
-        a: One of ``SAMPLE_AXES``.
-
-    Returns:
-        The unit vector in the sample frame.
-
-    Raises:
-        ValueError: If ``a`` is not one of ``SAMPLE_AXES``.
+    Attributes:
+        up: Along e_x, the phi axis (up).
+        across: Along e_y, the chi axis.
+        q: Along e_z, Q at omega = theta.
     """
-    if a not in SAMPLE_AXES:
-        raise ValueError(f"sample axis must be one of {', '.join(SAMPLE_AXES)}, not {a!r}")
-    v = np.zeros(3)
-    v["xyz".index(a[2])] = 1.0 if a[0] == "+" else -1.0
-    return v
 
-
-def check_rotation(m: npt.ArrayLike, *, tol: float = 2e-3) -> None:
-    """
-    Check that m is a proper rotation (orthonormal rows, determinant +1) within tol.
-
-    Args:
-        m: A 3 x 3 sample-to-instrument matrix.
-        tol: Largest allowed element of ``|m m^T - I|`` (default: 2e-3, so values typed to 3 or 4 decimals pass).
-
-    Raises:
-        ValueError: If m is not 3 x 3 finite numbers, its rows are not orthonormal within tol, or it is a reflection
-            (negative determinant).
-    """
-    m = np.asarray(m, float)
-    if m.shape != (3, 3) or not np.all(np.isfinite(m)):
-        raise ValueError(f"the sample-to-instrument matrix must be 3 x 3 finite numbers, got {m.tolist()!r}")
-    err = float(np.abs(m @ m.T - np.eye(3)).max())
-    if err > tol:
-        raise ValueError(f"the sample-to-instrument matrix is not a rotation: rows must be unit length and at right "
-                         f"angles (off by {err:.3g})")  # fmt: skip
-    det = float(np.linalg.det(m))
-    if det < 0:
-        raise ValueError(f"the sample-to-instrument matrix is a reflection (determinant {det:.3g}): flip the sign of "
-                         "one row")  # fmt: skip
-
-
-def nearest_rotation(m: npt.ArrayLike) -> FloatArray:
-    """
-    The rotation closest to m (polar decomposition), so a matrix typed to 3 or 4 decimals is exactly orthonormal.
-
-    A matrix that is already orthonormal (to 1e-12) is returned as it is, so the identity stays exact.
-
-    Args:
-        m: A 3 x 3 matrix that is nearly a rotation.
-
-    Returns:
-        The orthonormal 3 x 3 matrix ``U V^T`` from the singular value decomposition of m.
-    """
-    m = np.asarray(m, float)
-    if np.abs(m @ m.T - np.eye(3)).max() < 1e-12:
-        return m.copy()
-    u, _, vt = np.linalg.svd(m)
-    return np.asarray(u @ vt)
-
-
-#: stage (instrument) axes at chi 0, phi 0: e_x up along the phi axis, e_y across (the chi axis), e_z along Q
-STAGE_AXES: tuple[str, ...] = ("phi axis (up)", "chi axis (across)", "Q (omega = theta)")
-IDENTITY9: tuple[float, ...] = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
-
-
-def rotate_mount(m: npt.ArrayLike, stage_axis: int, deg: float) -> tuple[float, ...]:
-    """
-    Turn the mounted sample about a stage axis by deg (right hand).
-
-    The sample-to-instrument matrix M0 becomes rot(e_axis, deg) @ M0, so presses add up in the stage frame. The
-    result is made exactly orthonormal and values below 1e-12 are set to 0.
-
-    Args:
-        m: The current M0, 9 values row by row (or 3 x 3).
-        stage_axis: Stage axis at chi 0, phi 0: 0 the phi axis (e_x, up), 1 the chi axis (e_y), 2 Q (e_z).
-        deg: Rotation angle (deg).
-
-    Returns:
-        The new M0 as 9 values, row by row.
-
-    Example:
-        >>> rotate_mount(IDENTITY9, 2, 90.0)
-        (0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0)
-    """
-    m3 = np.reshape(np.asarray(m, float), (3, 3))
-    new = nearest_rotation(rot(np.eye(3)[stage_axis], deg) @ m3)
-    new[np.abs(new) < 1e-12] = 0.0
-    return tuple(float(x) for x in new.ravel())
-
-
-def parse_matrix(text: str) -> tuple[float, ...] | None:
-    """
-    Read a 3 x 3 matrix typed as text, rows split by ';' or new lines and numbers by spaces or commas.
-
-    Args:
-        text: The matrix, e.g. '0 0 1; 1 0 0; 0 1 0'.
-
-    Returns:
-        The 9 numbers row by row, or None for empty text (no matrix given: the mount uses up_axis and q_axis).
-
-    Raises:
-        ValueError: If the text is not 3 rows of 3 numbers.
-
-    Example:
-        >>> parse_matrix("0 0 1; 1 0 0; 0 1 0")
-        (0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0)
-    """
-    rows = [r for r in text.replace("\n", ";").split(";") if r.strip()]
-    if not rows:
-        return None
-    vals = [[float(x) for x in r.replace(",", " ").split()] for r in rows]
-    if len(vals) != 3 or any(len(r) != 3 for r in vals):
-        raise ValueError(f"the sample-to-instrument matrix needs 3 rows of 3 numbers, e.g. 0 0 1; 1 0 0; 0 1 0, "
-                         f"got {text!r}")  # fmt: skip
-    return tuple(float(x) for r in vals for x in r)
-
-
-def format_matrix(m: npt.ArrayLike) -> str:
-    """
-    Write a 3 x 3 matrix as text that :func:`parse_matrix` reads back.
-
-    Args:
-        m: The matrix.
-
-    Returns:
-        Rows split by '; ', 4 significant digits, values within 5e-5 of 0 shown as 0 (so no '-0').
-
-    Example:
-        >>> format_matrix(np.eye(3))
-        '1 0 0; 0 1 0; 0 0 1'
-    """
-    m = np.asarray(m, float) + 0.0
-    return "; ".join(" ".join(f"{v:.4g}" if abs(v) > 5e-5 else "0" for v in row) for row in m)
-
-
-def axis_name(v: npt.ArrayLike) -> str:
-    """
-    Name of the sample axis nearest a vector: (0, -1, 0) -> '-vy'.
-
-    Args:
-        v: A vector in the sample frame. Only its largest component counts.
-
-    Returns:
-        The signed axis name, one of ``SAMPLE_AXES``.
-    """
-    v = np.asarray(v, float)
-    i = int(np.argmax(np.abs(v)))
-    return ("+" if v[i] > 0 else "-") + "v" + "xyz"[i]
-
-
-# Display frame for "pf_view_from": "+vx": (vy, vz, vx), vx toward the viewer.
-_VIEW_PLUS_VX = np.array([[0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]])
-
-
-def rot(axis: npt.ArrayLike, deg: float) -> FloatArray:
-    """
-    Rotation matrix about an axis (right hand, Rodrigues formula).
-
-    Args:
-        axis: Rotation axis, any length.
-        deg: Rotation angle (deg).
-
-    Returns:
-        The 3 x 3 rotation matrix.
-    """
-    a = np.asarray(axis, float) / np.linalg.norm(axis)
-    t = np.radians(deg)
-    K = np.array([[0, -a[2], a[1]], [a[2], 0, -a[0]], [-a[1], a[0], 0]])
-    return np.eye(3) + np.sin(t) * K + (1 - np.cos(t)) * K @ K
+    up: str
+    across: str
+    q: str
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -251,7 +88,7 @@ class MountConventions:
 
     Example:
         >>> MountConventions(up_axis="+vz", q_axis="+vx").axes_at_zero()
-        {'up': '+vz', 'across': '-vy', 'Q': '+vx'}
+        AxesAtZero(up='+vz', across='-vy', q='+vx')
     """
 
     phi_sense: PhiSense = "clockwise_from_above"
@@ -339,19 +176,17 @@ class MountConventions:
             m = np.vstack([u, np.cross(w, u), w])
         return m if self.vx_up else np.diag([-1.0, -1.0, 1.0]) @ m
 
-    def axes_at_zero(self) -> dict[str, str]:
+    def axes_at_zero(self) -> "AxesAtZero":
         """
         Sample axis nearest each instrument direction at chi 0, phi 0.
 
         Returns:
-            Keys 'up' (e_x), 'across' (e_y) and 'Q' (e_z), values signed sample axes such as '+vx'. A leading '~'
-            marks an axis more than 1 deg from that direction (a tilted mount).
+            The signed sample axes (such as '+vx') along e_x (up), e_y (across) and e_z (Q). A leading '~' marks an
+            axis more than 1 deg from that direction (a tilted mount).
         """
-        m = self.M0
-        out = {}
-        for key, row in zip(("up", "across", "Q"), m, strict=True):
-            out[key] = axis_name(row) if np.abs(row).max() > np.cos(np.radians(1.0)) else "~" + axis_name(row)
-        return out
+        names = [axis_name(row) if np.abs(row).max() > np.cos(np.radians(1.0)) else "~" + axis_name(row)
+                 for row in self.M0]  # fmt: skip
+        return AxesAtZero(up=names[0], across=names[1], q=names[2])
 
     def cradle_chi(self, logged_chi: float | FloatArray) -> float | FloatArray:
         """
@@ -502,87 +337,3 @@ class Mount:
             Unit vector of the phi axis.
         """
         return rot([0, 1, 0], self.s_chi * chi) @ np.array([1.0, 0.0, 0.0])
-
-
-def check_view(view: str) -> None:
-    """
-    Check that ``view`` is one of the pole-figure views (``ViewFrom``).
-
-    Args:
-        view: "+vz", "-vz" or "+vx".
-
-    Raises:
-        ValueError: If view is anything else.
-    """
-    allowed = typing.get_args(ViewFrom)
-    if view not in allowed:
-        raise ValueError(f"view must be one of {', '.join(allowed)}, got {view!r}")
-
-
-def to_view(h: npt.ArrayLike, *, view: ViewFrom = "+vz") -> FloatArray:
-    """
-    Sample-frame vectors in the display frame (x right, y up, z toward the viewer).
-
-    Args:
-        h: Sample-frame vectors, shape (..., 3).
-        view: "+vz", "-vz" or "+vx" (default: "+vz"). Only "+vx" changes the frame: (vy, vz, vx). The "-vz" mirror
-            is applied in :func:`project`.
-
-    Returns:
-        The vectors in the display frame, same shape.
-
-    Raises:
-        ValueError: If view is not one of the pole-figure views.
-    """
-    check_view(view)
-    h = np.asarray(h, float)
-    return h @ _VIEW_PLUS_VX.T if view == "+vx" else h
-
-
-def from_view(d: npt.ArrayLike, *, view: ViewFrom = "+vz") -> FloatArray:
-    """
-    Display-frame vectors back to the sample frame (inverse of :func:`to_view`).
-
-    Args:
-        d: Display-frame vectors, shape (..., 3).
-        view: "+vz", "-vz" or "+vx" (default: "+vz").
-
-    Returns:
-        The vectors in the sample frame, same shape.
-
-    Raises:
-        ValueError: If view is not one of the pole-figure views.
-    """
-    check_view(view)
-    d = np.asarray(d, float)
-    return d @ _VIEW_PLUS_VX if view == "+vx" else d
-
-
-def project(h: npt.ArrayLike, *, view: ViewFrom = "+vz", fold: bool = True) -> FloatArray:
-    """
-    Equal-area (Schmidt) projection of sample-frame unit vectors.
-
-    Args:
-        h: Sample-frame unit vectors, shape (3,) or (n, 3).
-        view: "+vz": seen from +vz, +vx right, +vy up (default). "-vz": as the 2D maps (vx to the left). "+vx": seen
-            down the phi axis, +vy right, +vz up.
-        fold: Replace poles on the far hemisphere with their antipodes (default: True).
-
-    Returns:
-        Projected points, shape (n, 2), radius 1 at the equator.
-
-    Raises:
-        ValueError: If view is not one of the pole-figure views.
-    """
-    check_view(view)
-    sgn = -1.0 if view == "-vz" else 1.0
-    h = np.atleast_2d(np.asarray(h, float))
-    h = to_view(h, view=view)
-    if fold:
-        h = np.where(sgn * h[:, 2:3] < -1e-9, -h, h)
-    alpha = np.arccos(np.clip(sgn * h[:, 2], -1, 1))
-    r = np.sqrt(2) * np.sin(alpha / 2)
-    xy = np.c_[sgn * h[:, 0], h[:, 1]]
-    n = np.linalg.norm(xy, axis=1)
-    n[n < 1e-12] = 1
-    return np.asarray(xy / n[:, None] * r[:, None])

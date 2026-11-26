@@ -1,21 +1,24 @@
 """Combining runs that measured the same pole figure into one."""
 
 from dataclasses import replace
+from typing import Any
 
 import numpy as np
 import pytest
 
 from pyrs.pole_figures.core.combine import combine, combine_by_hkl
+from pyrs.pole_figures.core.geometry import Mount
 from pyrs.pole_figures.core.polefig import PolePeak
 from tests.util.pole_figures_helpers import synthetic_pole_figure
 
 
 def split(r: PolePeak, cut: int) -> tuple[PolePeak, PolePeak]:
     """Two runs that each hold part of one pole figure."""
-    fields = ("chi", "phi", "count_s", "rate", "sigma", "F", "volume_in_sample", "mean_path", "vy_offset", "vy_rms",
-              "correction", "h")  # fmt: skip
-    a = replace(r, run="2001", **{f: getattr(r, f)[:cut] for f in fields})
-    b = replace(r, run="2002", **{f: getattr(r, f)[cut:] for f in fields})
+    fields = ("chi", "phi", "count_s", "rate", "sigma", "h")
+    a = replace(r, run="2001", gauge=r.gauge.take(np.arange(cut)), **{f: getattr(r, f)[:cut] for f in fields})
+    b = replace(
+        r, run="2002", gauge=r.gauge.take(np.arange(cut, r.n_points)), **{f: getattr(r, f)[cut:] for f in fields}
+    )
     return a, b
 
 
@@ -31,10 +34,10 @@ def test_combine_split_scan_names_the_runs(whole_and_combined: tuple[PolePeak, P
     whole, c = whole_and_combined
 
     # Act
-    names = (c.run, c.source_runs, c.n)
+    names = (c.run, c.source_runs, c.n_points)
 
     # Assert
-    assert names == ("2001+2002", ("2001", "2002"), whole.n)
+    assert names == ("2001+2002", ("2001", "2002"), whole.n_points)
 
 
 @pytest.mark.parametrize("field", ["rate", "correction", "ignored"])
@@ -84,11 +87,11 @@ def test_combine_median_scale_matches_medians(median_scaled: tuple[PolePeak, Pol
     kept = ~c.ignored
 
     # Act
-    ra, rb = c.rate[: a.n][kept[: a.n]], c.rate[a.n :][kept[a.n :]]
+    ra, rb = c.rate[: a.n_points][kept[: a.n_points]], c.rate[a.n_points :][kept[a.n_points :]]
 
     # Assert
-    assert np.median(rb * c.correction[a.n :][kept[a.n :]]) == pytest.approx(
-        np.median(ra * c.correction[: a.n][kept[: a.n]]), rel=1e-9
+    assert np.median(rb * c.correction[a.n_points :][kept[a.n_points :]]) == pytest.approx(
+        np.median(ra * c.correction[: a.n_points][kept[: a.n_points]]), rel=1e-9
     )
 
 
@@ -184,3 +187,47 @@ def test_combine_unknown_scale_raises() -> None:
     # Act / Assert
     with pytest.raises(ValueError, match="scale must be one of none, median, got 'mean'"):
         combine([a, b], scale="mean", reference=a.run)  # type: ignore[arg-type]
+
+
+def remounted(r: PolePeak, *, omega: float | None = None, **conventions: Any) -> PolePeak:
+    """The pole figure with its mount changed: another omega (None keeps it) or other mount conventions."""
+    conv = replace(r.mount.conv, **conventions)
+    return replace(r, mount=Mount(conv, omega=r.omega if omega is None else omega, tth=r.mount.tth))
+
+
+def test_combine_different_chi_offset_raises() -> None:
+    # Arrange
+    a, b = synthetic_pole_figure("1001", "200"), synthetic_pole_figure("1002", "200", seed=1)
+
+    # Act / Assert
+    with pytest.raises(ValueError, match=r"chi_offset_deg \(run 1001: 0.0, run 1002: 2.5\)"):
+        combine([a, remounted(b, chi_offset_deg=2.5)], reference=a.run)
+
+
+def test_combine_different_conventions_raises() -> None:
+    # Arrange
+    a, b = synthetic_pole_figure("1001", "200"), synthetic_pole_figure("1002", "200", seed=1)
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="different mount conventions: phi_sense"):
+        combine([a, remounted(b, phi_sense="counterclockwise_from_above")], reference=a.run)
+
+
+def test_combine_different_omega_raises() -> None:
+    # Arrange
+    a, b = synthetic_pole_figure("1001", "200"), synthetic_pole_figure("1002", "200", seed=1)
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="different omega .*run 1001: 28.5, run 1002: 30"):
+        combine([a, remounted(b, omega=30.0)], reference=a.run)
+
+
+def test_combine_omega_within_tolerance_kept() -> None:
+    # Arrange
+    a, b = synthetic_pole_figure("1001", "200"), synthetic_pole_figure("1002", "200", seed=1)
+
+    # Act
+    c = combine([a, remounted(b, omega=a.omega + 0.005)], reference=a.run)
+
+    # Assert
+    assert (c.omega, c.chi_offset_deg) == (a.omega, a.chi_offset_deg)

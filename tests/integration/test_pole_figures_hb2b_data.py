@@ -12,8 +12,9 @@ import numpy as np
 import pytest
 
 from pyrs.pole_figures.core.geometry import MountConventions
-from pyrs.pole_figures.core.materials import presets
-from pyrs.pole_figures.core.polefig import PeakIntensity, cradle_angles, measure_peaks
+from pyrs.pole_figures.core.peaks import PeakIntensity, measure_peaks
+from pyrs.pole_figures.core.phase import presets
+from pyrs.pole_figures.core.polefig import cradle_angles
 from pyrs.pole_figures.core.runs import RunData, read_run
 from tests.util.pole_figures_helpers import REFERENCE, TEST_DATA, needs_data, read_csv_rows
 
@@ -54,7 +55,7 @@ def test_read_run_counts_subruns(measured: Measured) -> None:
     run, d, _, _ = measured
 
     # Act
-    got = (d.run, d.n, d.short_skipped, d.live)
+    got = (d.run, d.n_subruns, d.short_skipped, d.live)
 
     # Assert
     assert got == (run, 649, 1, False)
