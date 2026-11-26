@@ -1,0 +1,7 @@
+name,label,ntri,closed,volume,n,n_inside,mismatch,odd,max_err,max_err_t,n_t,bad_t
+plate_windows_pocket,Plate 40 x 30 x 4 with two through-windows and a blind pocket,244,True,4182.000000003,10000,5122,0,0,1.7794334894460917e-09,2.2797530974116853e-08,1298,0
+c_channel,C channel 20 x 24 x 30; wall 4 (open on one side),60,True,6720.000000010238,10000,2672,0,0,1.0787395421374413e-09,8.241221038929325e-08,643,0
+hollow_box_cavity,Box 20 x 20 x 20 with a closed 10 x 10 x 10 cavity,120,True,7000.000000008862,10000,5042,0,0,1.6806127600688114e-09,2.0073480833104895e-07,1265,0
+two_blocks,Two separate 8 x 10 x 6 blocks; 6 apart,24,True,960.0000000005085,10000,4224,0,0,1.3934933207337963e-09,1.6232550770212129e-07,1060,0
+hex_tube,Hexagonal tube; circumradius 12; hole 6; length 25,48,True,7014.805770661235,10000,3276,0,0,2.3183126529602305e-09,9.438119441540493e-08,813,0
+hollow_sphere,Hollow sphere; outer radius 15; inner 9 (faceted),640,True,10708.480223228684,10000,2295,0,0,2.47804621267278e-09,1.9726484917770293e-08,569,0

@@ -88,6 +88,8 @@ pandas = "*"
 types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
+gemmi = ">=0.6,<0.8"             # pyrs.pole_figures: CIF files and structure factors
+openpyxl = ">=3.1,<4"            # pyrs.pole_figures: Excel scan table
 h5glance = ">=0.9,<0.10"
 py-rattler = "==0.24.0"
 neutrons_standard = "*"
@@ -111,6 +113,8 @@ pandas = "*"
 types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
+gemmi = ">=0.6,<0.8"              # pyrs.pole_figures: CIF files and structure factors
+openpyxl = ">=3.1,<4"             # pyrs.pole_figures: Excel scan table
 neutrons_standard = "*"
 
 
@@ -124,6 +128,8 @@ pytest-cov = "*"
 pytest-timeout = "*"
 pytest-xdist = "*"
 mypy = "*"
+trimesh = ">=4"      # pyrs.pole_figures tests: cross-check the STL path lengths
+rtree = ">=1"        # trimesh ray tests without embree need the R-tree
 
 [tool.pixi.feature.package.dependencies]
 anaconda-client = "*"
@@ -171,6 +177,8 @@ pandas = "*"
 types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
+gemmi = ">=0.6,<0.8"                                                        # pyrs.pole_figures: CIF files and structure factors
+openpyxl = ">=3.1,<4"                                                       # pyrs.pole_figures: Excel scan table
 
 # ------------------------------- #
 # QA Environment Feature #
@@ -188,6 +196,8 @@ pandas = "*"
 types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
+gemmi = ">=0.6,<0.8"                                                           # pyrs.pole_figures: CIF files and structure factors
+openpyxl = ">=3.1,<4"                                                          # pyrs.pole_figures: Excel scan table
 py-rattler = "==0.24.0"
 
 # ------------------------------- #
@@ -205,6 +215,8 @@ pandas = "*"
 types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
+gemmi = ">=0.6,<0.8"                                                           # pyrs.pole_figures: CIF files and structure factors
+openpyxl = ">=3.1,<4"                                                          # pyrs.pole_figures: Excel scan table
 
 [tool.pixi.package]
 name = "pyrs"

@@ -1,0 +1,4 @@
+{"name": "Titanium (hcp)", "space_group": "P63/mmc", "cell": [2.9508, 2.9508, 4.6855, 90, 90, 120],
+ "sites": [{"element": "Ti", "x": 0.3333333333, "y": 0.6666666667, "z": 0.25}],
+ "composition": {"Ti": 100.0}, "density_g_cm3": 4.506,
+ "source": "Alpha titanium, nominal lattice parameters (room temperature), Ti on 2c. Density of commercially pure Ti."}
