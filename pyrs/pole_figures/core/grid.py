@@ -16,7 +16,7 @@ from dataclasses import KW_ONLY, dataclass
 
 import numpy as np
 
-from .types import FloatArray
+from .types import BoolArray, FloatArray
 
 #: whole-degree phi steps that divide 360, for the equal-spacing grid (motor positions stay round numbers)
 PHI_DIVISORS = tuple(d for d in range(1, 361) if 360 % d == 0)
@@ -104,6 +104,19 @@ class Grid:
         steps = np.array([self.ring_phi_step(float(x)) if x < 90 - 1e-6 else self.phi_step for x in c])
         return solid_angle_weights(c, chi_step=self.chi_step, phi_step=self.phi_step, ring_steps=steps)
 
+    def sphere_fraction(self, chi: FloatArray, mask: BoolArray) -> float:
+        """
+        Solid-angle-weighted fraction of the grid points where ``mask`` is True.
+
+        Args:
+            chi: Chi of each grid point (deg).
+            mask: True for each point counted (for example the ignored points), in the order of ``chi``.
+
+        Returns:
+            The fraction, from 0 to 1.
+        """
+        return weighted_fraction(self.weights(chi), mask)
+
     def describe(self) -> str:
         """
         Short text for captions.
@@ -146,3 +159,22 @@ def solid_angle_weights(chi: FloatArray, *, chi_step: float, phi_step: float,
         / max(int(cap.sum()), 1)
     )  # fmt: skip
     return np.asarray(w, float)
+
+
+def weighted_fraction(weights: FloatArray, mask: BoolArray) -> float:
+    """
+    Weighted fraction of the points where ``mask`` is True.
+
+    Args:
+        weights: Weight of each point, for example from :func:`solid_angle_weights`.
+        mask: True for each point counted.
+
+    Returns:
+        sum(weights where mask) / sum(weights).
+
+    Example:
+        >>> weighted_fraction(np.array([1.0, 3.0]), np.array([True, False]))
+        0.25
+    """
+    w = np.asarray(weights, float)
+    return float((w * np.asarray(mask, bool)).sum() / w.sum())

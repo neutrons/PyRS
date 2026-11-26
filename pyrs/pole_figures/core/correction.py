@@ -10,6 +10,7 @@ Typical workflow:
 1. Set the beam and slit sizes with :class:`Beams`.
 2. Call :func:`gauge_corrections` with the mount, the orientations, the sample mesh and mu.
 3. Use the :class:`GaugeCorrections` fields by name, or :meth:`GaugeCorrections.take` to keep some orientations.
+4. Split the correction into its gauge-volume and attenuation factors with :func:`correction_parts`.
 
 Example:
     >>> Beams(incident_width=2.0, incident_height=2.0, diffracted_width=2.0)
@@ -20,8 +21,10 @@ Example:
     1.0
 """
 
+import typing
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 import numpy.typing as npt
@@ -33,6 +36,12 @@ from .stl_mesh import SampleMesh
 from .types import CountProgress, FloatArray
 
 DEFAULT_CUTOFF = 3.0  # points with a correction above this are ignored, as the reference script
+#: a factor of the correction: the whole correction, its gauge-volume part or its attenuation part
+CorrectionPart = Literal["total", "volume", "attenuation"]
+#: every correction part, in the order total, volume, attenuation
+PARTS: tuple[CorrectionPart, ...] = typing.get_args(CorrectionPart)
+#: chi and phi within this of 0 (deg) are the reference orientation of ``correction_parts``
+ZERO_TOL_DEG = 1e-9
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -198,3 +207,42 @@ def gauge_corrections(
     return GaugeCorrections(F=F, F_ref=float(f_ref), volume_in_sample=column("volume_in_sample"),
                             mean_path=column("mean_path"), vy_offset=column("vy_offset"), vy_rms=column("vy_rms"),
                             correction=corr)  # fmt: skip
+
+
+def correction_parts(
+    gauge: GaugeCorrections, *, chi: npt.ArrayLike, phi: npt.ArrayLike
+) -> dict[CorrectionPart, FloatArray]:
+    """
+    The correction and its two factors (correction = volume x attenuation, exactly).
+
+    - volume: V(0,0) / V, the sample volume in the gauge relative to chi 0, phi 0
+    - attenuation: A(0,0) / A, with A = F / V the mean of exp(-mu path) over the sample part of the gauge
+
+    Args:
+        gauge: Gauge Monte Carlo results, one entry per orientation.
+        chi: Cradle chi of each orientation (deg). The reference is the first orientation at chi 0, phi 0.
+        phi: Phi of each orientation (deg).
+
+    Returns:
+        Arrays "total", "volume" and "attenuation", one value per orientation. The volume part is inf and the
+        attenuation part NaN where the gauge misses the sample (V = 0).
+
+    Raises:
+        ValueError: If no orientation is at chi 0, phi 0.
+
+    Example:
+        >>> parts = correction_parts(plane.gauge, chi=plane.chi, phi=plane.phi)  # doctest: +SKIP
+        >>> np.allclose(parts["volume"] * parts["attenuation"], parts["total"])  # doctest: +SKIP
+        True
+    """
+    chi, phi = np.asarray(chi, float), np.asarray(phi, float)
+    V, F = gauge.volume_in_sample, gauge.F
+    at_zero = np.flatnonzero((np.abs(chi) < ZERO_TOL_DEG) & (np.abs(phi) < ZERO_TOL_DEG))
+    if at_zero.size == 0:
+        raise ValueError(f"no grid point at chi 0, phi 0 among the {len(chi)} orientations")
+    i0 = int(at_zero[0])
+    with np.errstate(divide="ignore", invalid="ignore"):
+        A = np.where(V > 0, F / np.where(V > 0, V, 1), np.nan)
+        vol = np.where(V > 0, V[i0] / np.where(V > 0, V, 1), np.inf)
+        att = A[i0] / A
+    return {"total": gauge.correction, "volume": vol, "attenuation": att}

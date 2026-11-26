@@ -8,11 +8,12 @@ from pyrs.pole_figures.core.gauge import (
     beam_value,
     gauge_points,
     intensity_factor,
+    path_at_gauge,
     set_slit_offset,
 )
 from pyrs.pole_figures.core.geometry import Mount, MountConventions
 from pyrs.pole_figures.core.stl_mesh import SampleMesh
-from tests.util.pole_figures_helpers import box_triangles
+from tests.util.pole_figures_helpers import SLAB_CENTER_MM, box_triangles, slab_mesh
 
 CONV = MountConventions(incident_from="+vy")
 EX = np.array([1.0, 0.0, 0.0])
@@ -282,3 +283,26 @@ def test_beam_value_bad_spec_raises(spec: str, message: str) -> None:
     # Act / Assert
     with pytest.raises(ValueError, match=message):
         beam_value(spec, logs)
+
+
+def test_path_at_gauge_symmetric_reflection() -> None:
+    # Arrange: the slab at chi 0, phi 0 with omega = theta, gauge at mid thickness
+    mount = Mount(CONV, omega=56.0, tth=112.0)
+
+    # Act
+    L_in, L_out = path_at_gauge(slab_mesh(), SLAB_CENTER_MM, mount=mount, chi=0.0, phi=0.0)
+
+    # Assert: half the thickness / sin(theta) each way
+    assert L_in == pytest.approx(SLAB_CENTER_MM[2] / np.sin(np.radians(56)))
+    assert L_out == pytest.approx(L_in)
+
+
+def test_path_at_gauge_center_outside_is_nan() -> None:
+    # Arrange
+    mount = Mount(CONV, omega=56.0, tth=112.0)
+
+    # Act
+    L_in, L_out = path_at_gauge(slab_mesh(), (-5.0, -5.0, -5.0), mount=mount, chi=0.0, phi=0.0)
+
+    # Assert
+    assert np.isnan(L_in) and np.isnan(L_out)

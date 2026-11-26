@@ -1,9 +1,9 @@
-"""The chi/phi grid: points, equal spacing and solid-angle weights."""
+"""The chi/phi grid: points, equal spacing, solid-angle weights and weighted fractions."""
 
 import numpy as np
 import pytest
 
-from pyrs.pole_figures.core.grid import Grid, solid_angle_weights
+from pyrs.pole_figures.core.grid import Grid, solid_angle_weights, weighted_fraction
 
 
 def test_grid_points_pf_grid() -> None:
@@ -143,3 +143,41 @@ def test_ring_phi_step_not_dividing_360_kept_at_chi0() -> None:
 
     # Assert
     assert step == 7
+
+
+def test_weighted_fraction_uses_weights() -> None:
+    # Arrange
+    weights, mask = np.array([1.0, 3.0]), np.array([True, False])
+
+    # Act
+    frac = weighted_fraction(weights, mask)
+
+    # Assert
+    assert frac == pytest.approx(0.25)
+
+
+def test_grid_sphere_fraction_whole_and_none() -> None:
+    # Arrange
+    grid = Grid(10, 15)
+    chi, _ = grid.points()
+
+    # Act
+    everything, nothing = np.ones(len(chi), bool), np.zeros(len(chi), bool)
+    fractions = (grid.sphere_fraction(chi, everything), grid.sphere_fraction(chi, nothing))
+
+    # Assert
+    assert fractions == (pytest.approx(1.0), 0.0)
+
+
+def test_grid_sphere_fraction_chi_zero_ring_counts_half() -> None:
+    # Arrange: only the chi 0 ring is masked; its cells are half bands
+    grid = Grid(10, 15)
+    chi, _ = grid.points()
+    w = grid.weights(chi)
+
+    # Act
+    frac = grid.sphere_fraction(chi, chi == 0)
+
+    # Assert
+    assert frac == pytest.approx(w[chi == 0].sum() / w.sum())
+    assert frac < (chi == 0).mean()

@@ -16,6 +16,8 @@ Typical workflow:
 3. Draw the gauge points once with :func:`gauge_points`.
 4. Call :func:`intensity_factor` at each cradle chi, phi (or ``parallel.intensity_factors`` for many).
 
+:func:`path_at_gauge` gives the beam path along the centerlines from the gauge center alone (the mount check).
+
 Example:
     >>> mesh = SampleMesh.from_stl("sample.stl")  # doctest: +SKIP
     >>> m = Mount(MountConventions(), omega=45.0, tth=90.0)
@@ -206,3 +208,32 @@ def beam_value(spec: float | str, logs: Mapping[str, Any]) -> float:
         return float(spec)
     except ValueError as exc:
         raise ValueError(f"beam size must be a number (mm) or {LOG_PREFIX}<log name>, got {spec!r}") from exc
+
+
+def path_at_gauge(
+    mesh: SampleMesh, center: npt.ArrayLike, *, mount: Mount, chi: float, phi: float
+) -> tuple[float, float]:
+    """
+    Beam path in and out from the gauge center at cradle chi, phi, along the beam centerlines.
+
+    Args:
+        mesh: Sample.
+        center: Gauge center (rotation point) in the sample frame (mm), shape (3,).
+        mount: Beams and conventions for one omega and 2theta.
+        chi: Cradle chi (deg).
+        phi: Phi (deg).
+
+    Returns:
+        Path in and path out (mm). Both are NaN when the center is outside the sample.
+
+    Example:
+        >>> path_at_gauge(mesh, (0.0, 0.0, 0.0), mount=m, chi=0.0, phi=0.0)  # doctest: +SKIP
+        (2.0, 2.0)
+    """
+    c = np.asarray(center, float)
+    R = mount.R(chi, phi)
+    ki, kf = R.T @ mount.ki, R.T @ mount.kf
+    wind, L_in = mesh.trace(c[None], -ki)
+    if wind[0] < 0.5:
+        return float("nan"), float("nan")
+    return float(L_in[0]), float(mesh.trace(c[None], kf)[1][0])

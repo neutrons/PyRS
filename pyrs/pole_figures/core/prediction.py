@@ -37,7 +37,7 @@ import numpy.typing as npt
 from .correction import DEFAULT_CUTOFF, Beams, GaugeCorrections, gauge_corrections
 from .gauge import PREDICTION_MC_POINTS
 from .geometry import Mount, MountConventions
-from .grid import DEFAULT_GRID, Grid
+from .grid import DEFAULT_GRID, Grid, weighted_fraction
 from .parallel import Workers
 from .stl_mesh import SampleMesh
 from .types import BoolArray, CountProgress, FloatArray, Progress, no_count_progress, no_progress, part_progress
@@ -266,7 +266,7 @@ def predict_plane(
             rows[i] = first + len(trial)
     q = g.take(rows)
     ign = q.correction > cutoff
-    frac = float((weights * ign).sum() / weights.sum())
+    frac = weighted_fraction(weights, ign)
     return PlanePrediction(plane=plane, mount=m, chi=chi, phi=phi, gauge=q, ignored=ign, sphere_fraction_ignored=frac,
                            phi_chosen=chosen, phi_sweeps=sweeps)  # fmt: skip
 

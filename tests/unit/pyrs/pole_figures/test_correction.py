@@ -1,9 +1,20 @@
-"""Path-length correction step: beam sizes, the reference check, the analytic correction and selecting points."""
+"""
+Path-length correction step: beam sizes, the reference check, the analytic correction and its parts.
+
+Also selecting points, and the split of the correction into its gauge-volume and attenuation parts.
+"""
 
 import numpy as np
 import pytest
 
-from pyrs.pole_figures.core.correction import Beams, GaugeCorrections, check_reference, gauge_corrections
+from pyrs.pole_figures.core.correction import (
+    PARTS,
+    Beams,
+    GaugeCorrections,
+    check_reference,
+    correction_parts,
+    gauge_corrections,
+)
 from pyrs.pole_figures.core.gauge import gauge_points
 from pyrs.pole_figures.core.geometry import Mount, MountConventions
 from pyrs.pole_figures.core.stl_mesh import SampleMesh
@@ -68,3 +79,49 @@ def test_gauge_corrections_take_keeps_reference() -> None:
 
     # Assert
     assert (part.F_ref, part.F.tolist(), part.correction.tolist()) == (2.0, [0.0, 1.0], [np.inf, 2.0])
+
+
+def _split_gauge() -> tuple[GaugeCorrections, np.ndarray, np.ndarray]:
+    """Four orientations: the reference, half the volume, more attenuation, and the gauge off the sample."""
+    V = np.array([40.0, 20.0, 40.0, 0.0])
+    A = np.array([0.5, 0.5, 0.25, np.nan])  # mean exp(-mu path) over the sample part of the gauge
+    F = np.nan_to_num(V * A)
+    with np.errstate(divide="ignore"):
+        corr = np.where(F > 0, F[0] / np.where(F > 0, F, 1), np.inf)
+    g = GaugeCorrections(F=F, F_ref=float(F[0]), volume_in_sample=V, mean_path=np.array([4.0, 4.0, 8.0, np.nan]),
+                         vy_offset=np.zeros(4), vy_rms=np.ones(4), correction=corr)  # fmt: skip
+    return g, np.array([0.0, 30.0, 60.0, 90.0]), np.zeros(4)
+
+
+def test_correction_parts_split_volume_and_attenuation() -> None:
+    # Arrange
+    g, chi, phi = _split_gauge()
+
+    # Act
+    parts = correction_parts(g, chi=chi, phi=phi)
+
+    # Assert
+    np.testing.assert_allclose(parts["volume"][:3], [1.0, 2.0, 1.0])
+    np.testing.assert_allclose(parts["attenuation"][:3], [1.0, 1.0, 2.0])
+    np.testing.assert_allclose(parts["volume"][:3] * parts["attenuation"][:3], parts["total"][:3], rtol=1e-12)
+
+
+def test_correction_parts_gauge_off_sample_inf_and_nan() -> None:
+    # Arrange
+    g, chi, phi = _split_gauge()
+
+    # Act
+    parts = correction_parts(g, chi=chi, phi=phi)
+
+    # Assert
+    assert np.isinf(parts["volume"][3]) and np.isnan(parts["attenuation"][3]) and np.isinf(parts["total"][3])
+    assert tuple(parts) == PARTS
+
+
+def test_correction_parts_without_chi_zero_raises() -> None:
+    # Arrange: the orientations moved off chi 0
+    g, chi, phi = _split_gauge()
+
+    # Act / Assert
+    with pytest.raises(ValueError, match="no grid point at chi 0, phi 0 among the 4 orientations"):
+        correction_parts(g, chi=chi + 5.0, phi=phi)
