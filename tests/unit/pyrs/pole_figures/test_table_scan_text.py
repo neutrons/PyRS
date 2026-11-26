@@ -1,23 +1,12 @@
-"""Text helpers of the table-scan workbooks: file names, durations, and text cells kept as typed."""
+"""Table-scan workbooks: file names, text cells kept as typed, and saves that leave no partial file."""
 
 from pathlib import Path
+from typing import Any
 
 import openpyxl
 import pytest
 
-from pyrs.pole_figures.io.table_scan import format_duration, scan_filename, write_xlsx
-
-
-@pytest.mark.parametrize(("seconds", "want"), [(45, "45 s"), (600, "10 min"), (3 * 3600 + 7 * 60, "3 h 07 min")])
-def test_format_duration(seconds: float, want: str) -> None:
-    # Arrange
-    duration = seconds
-
-    # Act
-    text = format_duration(duration)
-
-    # Assert
-    assert text == want
+from pyrs.pole_figures.io.table_scan import scan_filename, write_xlsx
 
 
 @pytest.mark.parametrize("text", ["=1+1", "-10C anneal | {200} pole figure", "+x", "@y", "-2 0 0"])
@@ -86,3 +75,34 @@ def test_scan_filename_empty_prefix() -> None:
 
     # Assert
     assert name == "pole_figure_311.xlsx"
+
+
+def test_scan_filename_path_in_hkl_stays_in_folder() -> None:
+    # Arrange
+    hkl = "../../../tmp/evil"
+
+    # Act
+    name = scan_filename("IN718", hkl)
+
+    # Assert
+    assert name == "IN718_tmp_evil.xlsx"
+    assert "/" not in name and "\\" not in name and ".." not in name
+
+
+def test_write_xlsx_failed_save_leaves_old_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Arrange: an older workbook, then a save that writes part of the file and fails
+    path = tmp_path / "scan.xlsx"
+    write_xlsx(path, [["old"]])
+
+    def broken_save(self: Any, filename: Any) -> None:
+        Path(filename).write_bytes(b"PK partial")
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(openpyxl.Workbook, "save", broken_save)
+
+    # Act / Assert
+    with pytest.raises(OSError, match="No space"):
+        write_xlsx(path, [["new"]])
+    ws = openpyxl.load_workbook(path).active
+    assert ws is not None and ws["A1"].value == "old"
+    assert [p.name for p in tmp_path.iterdir()] == ["scan.xlsx"]

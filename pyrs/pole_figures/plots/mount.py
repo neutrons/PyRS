@@ -9,6 +9,8 @@ Typical workflow:
 1. Load the sample with ``core.stl_mesh`` and build a ``core.geometry.Mount`` for one omega and 2theta.
 2. Call ``mount_figure`` for each logged chi, phi to check, or ``draw_mount`` to redraw into the same figure.
 
+The beam path from the gauge center is ``core.gauge.path_at_gauge``.
+
 Example:
     >>> fig = mount_figure(mesh, center=(0.0, 0.0, 5.0), mount=mount, chi_logged=0.0, phi=90.0, view="+vz",
     ...                    vz_name="BD")
@@ -22,22 +24,40 @@ import matplotlib.patheffects as pe
 import numpy as np
 import numpy.typing as npt
 from matplotlib.figure import Figure
-from matplotlib.patches import Circle
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
+from ..core.gauge import path_at_gauge
 from ..core.geometry import Mount
 from ..core.projection import ViewFrom, project
 from ..core.stl_mesh import SampleMesh
 from ..core.types import FloatArray
-from ..io.matrix_text import format_matrix
-from .style import AXIS_COLORS, DIAL, DIFFRACTED, GAUGE, INCIDENT, Q_COLOR, SAMPLE, TEXT_COLORS
+from ..text import format_matrix
+from .annotate import vz_label
+from .polefig_cells import pf_frame
+from .style import (
+    AXIS_COLORS,
+    CHI_AXIS,
+    CRADLE_TO_PLOT,
+    DIAL,
+    DIFFRACTED,
+    DIFFRACTED_TEXT,
+    GAUGE,
+    INCIDENT,
+    INCIDENT_TEXT,
+    LABEL_TEXT,
+    LIGHT,
+    Q_COLOR,
+    Q_TEXT,
+    RING_OTHER,
+    RING_ZERO,
+    SAMPLE,
+    TEXT_COLORS,
+)
 
 Transform = Callable[[FloatArray], FloatArray]
 
-# cradle (e_x, e_y, e_z) -> plot (X, Y, Z) = (e_y, e_z, e_x): the phi axis (e_x) is drawn up
-_MP = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]], float)
-_LIGHT = np.array([0.4, -0.5, 0.75]) / np.linalg.norm([0.4, -0.5, 0.75])
+_MP = CRADLE_TO_PLOT
 #: size (in) of a new mount figure
 FIGSIZE = (16.0, 6.2)
 
@@ -46,7 +66,7 @@ def _mesh_poly(ax: Axes3D, mesh: SampleMesh, *, T: Transform, z: float, alpha: f
     P = T(mesh.triangles().reshape(-1, 3)).reshape(-1, 3, 3)
     n = np.cross(P[:, 1] - P[:, 0], P[:, 2] - P[:, 0])
     n /= np.linalg.norm(n, axis=1, keepdims=True) + 1e-12
-    shade = 0.55 + 0.45 * np.abs(n @ _LIGHT)
+    shade = 0.55 + 0.45 * np.abs(n @ LIGHT)
     base = np.array(mcolors.to_rgb(SAMPLE))
     pc = Poly3DCollection(
         list(P), facecolors=np.clip(base[None] * shade[:, None], 0, 1), edgecolors="none", alpha=alpha
@@ -81,30 +101,6 @@ def _cube_limits(ax: Axes3D, center: FloatArray, half: float) -> None:
     ax.set_box_aspect((1, 1, 1))
     ax.set_proj_type("ortho")
     ax.set_axis_off()
-
-
-def path_at_gauge(
-    mesh: SampleMesh, center: FloatArray, *, mount: Mount, chi: float, phi: float
-) -> tuple[float, float]:
-    """
-    Beam path in and out from the gauge center at cradle chi, phi, along the beam centerlines.
-
-    Args:
-        mesh: Sample.
-        center: Gauge center (rotation point) in the sample frame (mm).
-        mount: Beams and conventions for one omega and 2theta.
-        chi: Cradle chi (deg).
-        phi: Phi (deg).
-
-    Returns:
-        Path in and path out (mm). Both are NaN when the center is outside the sample.
-    """
-    R = mount.R(chi, phi)
-    ki, kf = R.T @ mount.ki, R.T @ mount.kf
-    wind, L_in = mesh.trace(center[None], -ki)
-    if wind[0] < 0.5:
-        return float("nan"), float("nan")
-    return float(L_in[0]), float(mesh.trace(center[None], kf)[1][0])
 
 
 def mount_figure(
@@ -173,7 +169,7 @@ def draw_mount(
     )
     span = float(np.max(mesh.size))
     t_ring = np.linspace(0, 2 * np.pi, 80)
-    vzl = "+vz" if vz_name in ("vz", "+vz") else f"+vz ({vz_name})"
+    vzl = vz_label(vz_name)
 
     # (a) on the stage at chi 0, phi 0: the sample turned by the sample-to-instrument matrix M0, gauge at the rotation
     # point, plot (X, Y, Z) = (e_y, e_z, e_x) so the phi axis is up, the phi dial under the sample
@@ -197,12 +193,12 @@ def draw_mount(
     La = 1.25 * reach0
     _arrow(ax, np.asarray(z0 * ex @ _MP), vec=np.asarray((La - z0) * ex @ _MP), col=AXIS_COLORS["vx"], lw=1.4, z=31,
            ratio=0.06)  # fmt: skip
-    _text(ax, np.asarray(1.05 * La * ex @ _MP), s="phi axis", col="#555555")
-    _arrow(ax, [0, 0, 0], vec=np.asarray(0.95 * La * ey0 @ _MP), col="#888888", lw=1.2, z=31, ratio=0.08)
-    _text(ax, np.asarray(1.02 * La * ey0 @ _MP), s="chi axis", col="#555555")
+    _text(ax, np.asarray(1.05 * La * ex @ _MP), s="phi axis", col=LABEL_TEXT)
+    _arrow(ax, [0, 0, 0], vec=np.asarray(0.95 * La * ey0 @ _MP), col=CHI_AXIS, lw=1.2, z=31, ratio=0.08)
+    _text(ax, np.asarray(1.02 * La * ey0 @ _MP), s="chi axis", col=LABEL_TEXT)
     _arrow(ax, [0, 0, 0], vec=np.asarray(0.95 * La * np.array([0, 0, 1.0]) @ _MP), col=Q_COLOR, lw=1.2, z=31,
            ratio=0.08)  # fmt: skip
-    _text(ax, np.asarray(1.02 * La * np.array([0, 0, 1.0]) @ _MP), s="Q (omega = theta)", col="#6a2a91")
+    _text(ax, np.asarray(1.02 * La * np.array([0, 0, 1.0]) @ _MP), s="Q (omega = theta)", col=Q_TEXT)
     # the sample's own axes, from a corner of its bounding box, turned as mounted
     o = Ta(mesh.lo[None])[0]
     L = 0.4 * span
@@ -250,11 +246,11 @@ def draw_mount(
 
     ki, kf, q = Lv(mount.ki), Lv(mount.kf), Lv(mount.q)
     _arrow(ax, -1.15 * Lb * ki, vec=1.05 * Lb * ki, col=INCIDENT, lw=2.6, z=30, ratio=0.06)
-    _text(ax, -1.2 * Lb * ki, s="incident", col="#333333")
+    _text(ax, -1.2 * Lb * ki, s="incident", col=INCIDENT_TEXT)
     _arrow(ax, 0.05 * Lb * kf, vec=1.05 * Lb * kf, col=DIFFRACTED, lw=2.6, z=30, ratio=0.07)
-    _text(ax, 1.18 * Lb * kf, s="to detector", col="#8a4424")
+    _text(ax, 1.18 * Lb * kf, s="to detector", col=DIFFRACTED_TEXT)
     _arrow(ax, [0, 0, 0], vec=0.45 * Lb * q, col=Q_COLOR, lw=2.4, z=31, ratio=0.2)
-    _text(ax, 0.55 * Lb * q, s="Q", col="#6a2a91")
+    _text(ax, 0.55 * Lb * q, s="Q", col=Q_TEXT)
     _arrow(ax, Lv(zb * a_phi), vec=Lv((0.9 * Lb - zb) * a_phi), col=AXIS_COLORS["vx"], lw=1.8, z=31, ratio=0.06)
     _text(ax, Lv(0.95 * Lb * a_phi), s="phi axis", col=TEXT_COLORS["vx"])
     _arrow(ax, [0, 0, 0], vec=0.8 * Lb * Lv(ey), col=AXIS_COLORS["vy"], lw=1.8, z=31, ratio=0.08)
@@ -269,51 +265,29 @@ def draw_mount(
     ax.view_init(elev=30, azim=117)
     _cube_limits(ax, np.zeros(3), 0.8 * Lb)
     L_in, L_out = path_at_gauge(mesh, c, mount=mount, chi=chi, phi=phi)
-    path = (
-        "gauge center is OUTSIDE the sample"
-        if np.isnan(L_in)
-        else f"path from the gauge center: in {L_in:.2f} + out {L_out:.2f} = {L_in + L_out:.2f} mm"
-    )
+    path = ("gauge center is OUTSIDE the sample" if np.isnan(L_in)
+            else f"path from the gauge center: in {L_in:.2f} + out {L_out:.2f} = {L_in + L_out:.2f} mm")  # fmt: skip
     sense = "clockwise" if conv.s_phi < 0 else "counterclockwise"
     chi_txt = f"chi {chi_logged:g} (logged)" + (f", cradle {chi:g}" if conv.chi_offset_deg else "")
-    ax.set_title(
-        f"(b) As mounted: {chi_txt}, phi {phi:g}, omega {mount.omega:g}, 2theta {mount.tth:g}\n"
-        f"incident from {conv.incident_from}, +phi {sense} from above\n" + path,
-        fontsize=8.5,
-        loc="left",
-    )
+    ax.set_title(f"(b) As mounted: {chi_txt}, phi {phi:g}, omega {mount.omega:g}, 2theta {mount.tth:g}\n"
+                 f"incident from {conv.incident_from}, +phi {sense} from above\n" + path,
+                 fontsize=8.5, loc="left")  # fmt: skip
 
     # (c) pole-figure key with the current pole
     ax2 = fig.add_subplot(gs[0, 2])
-    ax2.add_patch(Circle((0, 0), 1, fill=False, lw=0.9, ec="0.25", zorder=5))
-    ax2.set_xlim(-1.2, 1.2)
-    ax2.set_ylim(-1.2, 1.2)
-    ax2.set_aspect("equal")
-    ax2.axis("off")
+    pf_frame(ax2, view=view, vz_name=vz_name)
     phis = np.linspace(0, 360, 361)
     for cc in range(0, 90, 10):
         h = np.array([mount.pole(cc, p) for p in phis])
         for s in (1, -1):
             xy = project(s * h, view=view, fold=False)
             xy[np.hypot(*xy.T) > 1.0001] = np.nan
-            ax2.plot(*xy.T, color="#3987e5" if cc == 0 else "#9dbbe3", lw=1.3 if cc == 0 else 0.6,
+            ax2.plot(*xy.T, color=RING_ZERO if cc == 0 else RING_OTHER, lw=1.3 if cc == 0 else 0.6,
                      ls="-" if cc == 0 else "--")  # fmt: skip
     hp = mount.pole(chi, phi)
     xy = project(hp, view=view)[0]
     ax2.plot(*xy, "o", ms=9, color=Q_COLOR, mec="white", mew=1.5, zorder=8)
-    if view == "+vx":
-        keys = (("+vz", [0, 0, 1], "vz"), ("+vy", [0, 1, 0], "vy"), ("vx", [1, 0, 0], "vx"))
-    else:
-        keys = (("+vy", [0, 1, 0], "vy"), ("+vx", [1, 0, 0], "vx"), (vz_name, [0, 0, 1], "vz"))
-    for txt, axis, col in keys:
-        p = project(np.array(axis, float), view=view)[0]
-        p = p * 1.1 if np.hypot(*p) > 0.5 else p
-        ax2.text(float(p[0]), float(p[1]), txt, fontsize=8, color=AXIS_COLORS[col], ha="center", va="center",
-                 bbox={"fc": "white", "ec": "none", "pad": 0.8, "alpha": 0.85})  # fmt: skip
-    ax2.set_title(
-        f"(c) Pole figure key, seen from {view}: solid chi {conv.logged_chi(0.0):g} ring,\n"
-        f"dashed every 10 deg of chi. Current pole (purple):\n"
-        f"h = ({hp[0]:+.3f}, {hp[1]:+.3f}, {hp[2]:+.3f}) in (vx, vy, vz)",
-        fontsize=8.5,
-        loc="left",
-    )
+    ax2.set_title(f"(c) Pole figure key, seen from {view}: solid chi {conv.logged_chi(0.0):g} ring,\n"
+                  f"dashed every 10 deg of chi. Current pole (purple):\n"
+                  f"h = ({hp[0]:+.3f}, {hp[1]:+.3f}, {hp[2]:+.3f}) in (vx, vy, vz)", fontsize=8.5,
+                  loc="left")  # fmt: skip

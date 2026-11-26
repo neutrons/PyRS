@@ -1,5 +1,8 @@
 """
-Save a figure, retrying while a viewer or a sync client briefly holds the file (as the reference script's ``save``).
+Save a figure whole or not at all, retrying while a viewer or a sync client briefly holds the file.
+
+As the reference script's ``save``, through ``io.retry.write_atomic``: the figure goes to a temporary file in the
+same folder, which then replaces the final file.
 
 Example:
     >>> from matplotlib.figure import Figure
@@ -7,32 +10,27 @@ Example:
     >>> save_figure(Figure(), "empty.png", dpi=100)
 """
 
-import time
 from pathlib import Path
 from typing import Any
 
 from matplotlib.figure import Figure
 
+from ..io.retry import RETRIES, WAIT_S, write_atomic
 
-def save_figure(fig: Figure, path: str | Path, *, retries: int = 20, wait_s: float = 1.5, **kw: Any) -> None:
+
+def save_figure(fig: Figure, path: str | Path, *, retries: int = RETRIES, wait_s: float = WAIT_S, **kw: Any) -> None:
     """
-    Call ``fig.savefig(path, **kw)``, retrying on OSError.
+    Call ``fig.savefig`` on a temporary file next to ``path``, then move it over ``path``.
 
     Args:
         fig: Figure to save.
-        path: Output file. The format follows the extension.
-        retries: Number of attempts before the error is raised (default: 20).
+        path: Output file. The format follows the extension (the temporary file keeps it).
+        retries: Attempts to replace a locked file before the error is raised (default: 20).
         wait_s: Wait between attempts, in seconds (default: 1.5).
         **kw: Passed to ``Figure.savefig`` (for example ``dpi`` or ``bbox_inches``).
 
     Raises:
-        OSError: If the file is still locked after the last attempt.
+        PermissionError: If the file is still locked after the last attempt.
+        OSError: At once for any other file error.
     """
-    for k in range(retries):
-        try:
-            fig.savefig(path, **kw)
-            return
-        except OSError:
-            if k == retries - 1:
-                raise
-            time.sleep(wait_s)
+    write_atomic(path, lambda tmp: fig.savefig(tmp, **kw), retries=retries, wait_s=wait_s)

@@ -1,27 +1,22 @@
 """Figures and table rows built from a prediction (predict, then plots and table-scan rows), and the mount check."""
 
-from dataclasses import replace
-
 import numpy as np
 import pytest
+from matplotlib.collections import PolyCollection
+from matplotlib.figure import Figure
 
-from pyrs.pole_figures.core.correction import Beams
+from pyrs.pole_figures.core.correction import PARTS, CorrectionPart
 from pyrs.pole_figures.core.geometry import Mount, MountConventions
-from pyrs.pole_figures.core.grid import Grid
-from pyrs.pole_figures.core.prediction import Plane, Prediction, predict
+from pyrs.pole_figures.core.prediction import Prediction
 from pyrs.pole_figures.core.stl_mesh import SampleMesh
 from pyrs.pole_figures.core.table_scan import PlaneScan, plan_scan
 from pyrs.pole_figures.io.table_scan import COLUMNS, WAIT_SECONDS, run_title, table_rows
+from pyrs.pole_figures.plots.correction_profile import correction_profile_figure, draw_correction_profile
 from pyrs.pole_figures.plots.mount import mount_figure
-from pyrs.pole_figures.plots.predicted import (
-    PARTS,
-    correction_parts,
-    correction_profile_figure,
-    plane_figure,
-    predicted_figure,
-)
-from pyrs.pole_figures.plots.table_scan import table_scan_figure
-from tests.util.pole_figures_helpers import SLAB_CENTER_MM, STL_DIR, slab_mesh
+from pyrs.pole_figures.plots.predicted import draw_plane, draw_predicted, plane_figure, predicted_figure
+from pyrs.pole_figures.plots.style import TIME_CMAP
+from pyrs.pole_figures.plots.table_scan import draw_table_scan, scan_times, table_scan_figure
+from tests.util.pole_figures_helpers import STL_DIR, slab_prediction
 
 pytestmark = pytest.mark.integration
 
@@ -31,9 +26,13 @@ ScanRows = tuple[PlaneScan, str, list[list[object]]]
 
 @pytest.fixture(scope="module")
 def pred() -> Prediction:
-    return predict(slab_mesh(), center=SLAB_CENTER_MM, conv=CONV,
-                   planes=[Plane.symmetric("200", 57.0), Plane("222", 112.0, 56.0)], beams=Beams(), mu=0.14,
-                   grid=Grid(10, 15), n_points=2000)  # fmt: skip
+    return slab_prediction()
+
+
+@pytest.fixture(scope="module")
+def pred_offset() -> Prediction:
+    """The same prediction on a goniometer whose chi zero is 5 deg off the cradle's."""
+    return slab_prediction(chi_offset_deg=5.0)
 
 
 @pytest.fixture(scope="module")
@@ -44,28 +43,6 @@ def scan_222(pred: Prediction) -> ScanRows:
 
 
 # ---------------------------------------------------------------- predicted figures
-def test_correction_parts_multiply_to_total(pred: Prediction) -> None:
-    # Arrange
-    q = pred.planes[0]
-
-    # Act
-    parts = correction_parts(q)
-
-    # Assert
-    ok = np.isfinite(parts["total"])
-    np.testing.assert_allclose(parts["volume"][ok] * parts["attenuation"][ok], parts["total"][ok], rtol=1e-10)
-    assert parts["volume"][0] == pytest.approx(1.0) and parts["attenuation"][0] == pytest.approx(1.0)
-
-
-def test_correction_parts_without_chi_zero_raises(pred: Prediction) -> None:
-    # Arrange: the grid moved off chi 0
-    q = replace(pred.planes[0], chi=pred.planes[0].chi + 5.0)
-
-    # Act / Assert
-    with pytest.raises(ValueError, match="no grid point at chi 0, phi 0"):
-        correction_parts(q)
-
-
 def test_predicted_figure_two_rows_per_plane(pred: Prediction) -> None:
     # Arrange
     n_planes = len(pred.planes)
@@ -90,9 +67,31 @@ def test_plane_figure_title_names_plane(pred: Prediction) -> None:
     assert fig.get_suptitle().startswith("Predicted {222}")
 
 
+@pytest.mark.parametrize("draw", ["predicted", "plane", "profile", "table_scan"])
+def test_draw_into_existing_figure_replaces_content(pred: Prediction, scan_222: ScanRows, draw: str) -> None:
+    # Arrange: a canvas figure that already holds a plot (as in the GUI)
+    fig = Figure()
+    old = fig.add_subplot()
+    old.plot([0, 1], [0, 1])
+
+    # Act
+    if draw == "predicted":
+        draw_predicted(fig, pred, cutoff=3.0)
+    elif draw == "plane":
+        draw_plane(fig, pred, 1, cutoff=3.0)
+    elif draw == "profile":
+        draw_correction_profile(fig, pred, 0, cutoff=3.0)
+    else:
+        draw_table_scan(fig, pred, 1, scan=scan_222[0])
+
+    # Assert: the old plot is gone, the new figure has its title
+    assert old not in fig.axes and len(fig.axes) >= 2
+    assert fig.get_suptitle() != ""
+
+
 def test_correction_profile_figure_draws_parts(pred: Prediction) -> None:
     # Arrange
-    parts = ("total", "volume")
+    parts: tuple[CorrectionPart, ...] = ("total", "volume")
 
     # Act
     fig = correction_profile_figure(pred, 0, cutoff=3.0, parts=parts)
@@ -108,7 +107,7 @@ def test_correction_profile_figure_unknown_part_raises(pred: Prediction) -> None
 
     # Act / Assert
     with pytest.raises(ValueError, match="absorption"):
-        correction_profile_figure(pred, 0, cutoff=3.0, parts=parts)
+        correction_profile_figure(pred, 0, cutoff=3.0, parts=parts)  # type: ignore[arg-type]
 
 
 def test_correction_profile_figure_default_parts(pred: Prediction) -> None:
@@ -123,6 +122,20 @@ def test_correction_profile_figure_default_parts(pred: Prediction) -> None:
     assert all(words[p] in title for p in PARTS)
 
 
+def test_correction_profile_figure_rings_logged_chi(pred_offset: Prediction) -> None:
+    # Arrange: cradle chi 0 to 80 and 90 on a goniometer with a 5 deg chi offset
+    q = pred_offset.planes[0]
+    want = [f"chi {c - 5.0:g}" for c in np.unique(np.round(q.chi, 3))]
+
+    # Act
+    fig = correction_profile_figure(pred_offset, 0, cutoff=3.0)
+
+    # Assert
+    legend = fig.axes[0].get_legend()
+    assert legend is not None
+    assert [t.get_text() for t in legend.get_texts()] == want
+
+
 def test_table_scan_figure_counts_points(pred: Prediction, scan_222: ScanRows) -> None:
     # Arrange
     sc, _, _ = scan_222
@@ -132,6 +145,37 @@ def test_table_scan_figure_counts_points(pred: Prediction, scan_222: ScanRows) -
 
     # Assert
     assert f"{len(sc.points)} of {sc.n_grid} points kept" in fig.axes[0].get_title(loc="left")
+
+
+def test_scan_times_chi_offset_match_grid(pred_offset: Prediction) -> None:
+    # Arrange: the scan points hold the logged chi, the grid the cradle chi
+    q = pred_offset.planes[1]
+    sc = plan_scan(q, cutoff=3.0, base_s=12.0)
+    assert sc.chi_offset_deg == 5.0 and sc.points[0].chi == q.chi[0] - 5.0
+
+    # Act
+    times = scan_times(q, sc)
+
+    # Assert: every scan point found its grid cell
+    assert np.isfinite(times).sum() == len(sc.points)
+    assert sorted(times[np.isfinite(times)]) == sorted(p.count_s for p in sc.points)
+
+
+def test_table_scan_figure_chi_offset_colors_count_times(pred_offset: Prediction) -> None:
+    # Arrange
+    q = pred_offset.planes[1]
+    sc = plan_scan(q, cutoff=3.0, base_s=12.0)
+    counts = np.array([p.count_s for p in sc.points])
+
+    # Act
+    fig = table_scan_figure(pred_offset, 1, scan=sc)
+
+    # Assert: the kept cells span the colors of the shortest and the longest count time
+    ax = fig.axes[0]
+    (kept,) = [c for c in ax.collections if isinstance(c, PolyCollection) and not c.get_hatch()]
+    colors = {tuple(np.round(c, 6)) for c in np.array(kept.get_facecolor(), dtype=float)}
+    assert counts.max() > counts.min()
+    assert tuple(np.round(TIME_CMAP(0.0), 6)) in colors and tuple(np.round(TIME_CMAP(1.0), 6)) in colors
 
 
 # ---------------------------------------------------------------- table-scan rows

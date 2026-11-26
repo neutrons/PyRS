@@ -12,7 +12,8 @@ Typical workflow:
 Example:
     >>> outlines = cells(r.mount, r.chi, r.phi)
     >>> pf_frame(ax, view="+vz", vz_name="BD")
-    >>> draw_cells(ax, outlines, values=r.rate, ignored=r.ignored, norm=Normalize(0, 100), cmap=SEQUENTIAL)
+    >>> draw_cells(ax, outlines, values=r.rate, ignored=r.ignored, norm=Normalize(0, 100), cmap=SEQUENTIAL,
+    ...            view="+vz")
 """
 
 import threading
@@ -29,6 +30,7 @@ from matplotlib.patches import Circle
 from ..core.geometry import Mount
 from ..core.projection import ViewFrom, project, to_view
 from ..core.types import FloatArray
+from .annotate import vz_label
 from .style import AXIS_COLORS, IGNORED, SURFACE
 
 _HATCHCOLOR_KW = hasattr(PolyCollection, "set_hatchcolor")  # matplotlib >= 3.11
@@ -143,25 +145,28 @@ def _cells(m: Mount, chi: FloatArray, phi: FloatArray) -> list[FloatArray]:
     return out
 
 
-def pf_frame(ax: Axes, *, view: ViewFrom = "+vz", vz_name: str = "vz", labels: bool = True) -> None:
+PF_LIMIT = 1.18  # a pole-figure axes spans -PF_LIMIT to PF_LIMIT (room for the axis labels outside the circle)
+
+
+def pf_frame(ax: Axes, *, view: ViewFrom, vz_name: str = "vz", labels: bool = True) -> None:
     """
     Unit circle and axis labels for one pole figure.
 
     Args:
-        ax: Axes to set up (equal aspect, no axis lines, limits -1.18 to 1.18).
-        view: Pole-figure view, "+vz", "-vz" or "+vx" (default: "+vz").
+        ax: Axes to set up (equal aspect, no axis lines, limits -PF_LIMIT to PF_LIMIT).
+        view: Pole-figure view, "+vz", "-vz" or "+vx".
         vz_name: Label of +vz, for example "BD" (default: "vz").
         labels: Draw the axis labels (default: True).
     """
     ax.add_patch(Circle((0, 0), 1, fill=False, lw=0.9, ec="0.25", zorder=5))
-    ax.set_xlim(-1.18, 1.18)
-    ax.set_ylim(-1.18, 1.18)
+    ax.set_xlim(-PF_LIMIT, PF_LIMIT)
+    ax.set_ylim(-PF_LIMIT, PF_LIMIT)
     ax.set_aspect("equal")
     ax.axis("off")
     if not labels:
         return
     sgn = -1.0 if view == "-vz" else 1.0
-    vzlab = "+vz" if vz_name in ("vz", "+vz") else f"+vz ({vz_name})"
+    vzlab = vz_label(vz_name)
     if view == "+vx":
         labs = [(vzlab, (0.0, 1.09), AXIS_COLORS["vz"]), ("+vy", (1.03, 0.0), AXIS_COLORS["vy"]),
                 ("vx\n(phi axis)", (0.0, 0.0), AXIS_COLORS["vx"])]  # fmt: skip
@@ -182,7 +187,7 @@ def draw_cells(
     ignored: npt.NDArray[np.bool_],
     norm: Normalize,
     cmap: Colormap,
-    view: ViewFrom = "+vz",
+    view: ViewFrom,
     ignored_colored: bool = False,
 ) -> None:
     """
@@ -200,7 +205,7 @@ def draw_cells(
         ignored: True for ignored cells.
         norm: Color scale.
         cmap: Colormap.
-        view: Pole-figure view, "+vz", "-vz" or "+vx" (default: "+vz").
+        view: Pole-figure view, "+vz", "-vz" or "+vx".
         ignored_colored: Ignored cells keep their color under a white hatch instead of turning gray (default: False).
     """
     sgn_view = -1.0 if view == "-vz" else 1.0

@@ -18,6 +18,7 @@ from pyrs.pole_figures.core.correction import Beams, GaugeCorrections
 from pyrs.pole_figures.core.geometry import Mount, MountConventions
 from pyrs.pole_figures.core.grid import Grid
 from pyrs.pole_figures.core.polefig import PolePeak
+from pyrs.pole_figures.core.prediction import Plane, Prediction, predict
 from pyrs.pole_figures.core.runs import RunData
 from pyrs.pole_figures.core.stl_mesh import SampleMesh, moller_trumbore
 
@@ -119,6 +120,21 @@ def icosphere(radius: float, *, subdivisions: int = 4, outward: bool = True) -> 
     inward = np.einsum("ij,ij->i", normal, T.mean(axis=1)) < 0
     T[inward] = T[inward][:, ::-1]
     return T if outward else T[:, ::-1]
+
+
+def slab_prediction(chi_offset_deg: float = 0.0) -> Prediction:
+    """
+    A small prediction on the in-memory slab: {200} and {222} on a 10 x 15 deg grid, 2000 Monte Carlo points.
+
+    Shared by the figure and file tests (a module-scope fixture in each test module calls it once).
+
+    Args:
+        chi_offset_deg: The mount's chi offset (cradle chi = logged chi + offset, deg).
+    """
+    conv = MountConventions(incident_from="+vy", chi_offset_deg=chi_offset_deg)
+    return predict(slab_mesh(), center=SLAB_CENTER_MM, conv=conv,
+                   planes=[Plane.symmetric("200", 57.0), Plane("222", 112.0, 56.0)], beams=Beams(), mu=0.14,
+                   grid=Grid(10, 15), n_points=2000)  # fmt: skip
 
 
 def synthetic_pole_figure(run: str = "1001", hkl: str = "200", chi_step: float = 30.0, phi_step: float = 30.0,

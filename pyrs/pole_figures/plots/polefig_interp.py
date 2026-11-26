@@ -14,7 +14,8 @@ Use it in place of ``polefig_cells.draw_cells`` on an axes set up by ``polefig_c
 
 Example:
     >>> pf_frame(ax, view="+vz")
-    >>> draw_interp(ax, r.poles(), values=r.corrected, ignored=r.ignored, norm=Normalize(0, 100), cmap=SEQUENTIAL)
+    >>> draw_interp(ax, r.poles(), values=r.corrected, ignored=r.ignored, norm=Normalize(0, 100), cmap=SEQUENTIAL,
+    ...             view="+vz")
 """
 
 from functools import lru_cache
@@ -95,7 +96,7 @@ def draw_interp(
     ignored: npt.NDArray[np.bool_],
     norm: Normalize,
     cmap: Colormap,
-    view: ViewFrom = "+vz",
+    view: ViewFrom,
     ignored_colored: bool = False,
     log: bool = False,
     n: int = 401,
@@ -114,7 +115,7 @@ def draw_interp(
         ignored: True for ignored poles, shape (n,).
         norm: Color scale.
         cmap: Colormap.
-        view: Pole-figure view, "+vz", "-vz" or "+vx" (default: "+vz").
+        view: Pole-figure view, "+vz", "-vz" or "+vx".
         ignored_colored: If True, ignored poles are interpolated and keep their color under a white hatch. If False,
             pixels nearest an ignored pole are gray with a gray hatch (default: False).
         log: Interpolate log(values), using only positive values (default: False).
