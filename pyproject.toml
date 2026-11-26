@@ -89,6 +89,7 @@ types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
 gemmi = ">=0.6,<0.8"             # pyrs.pole_figures: CIF files and structure factors
+openpyxl = ">=3.1,<4"            # pyrs.pole_figures: Excel scan table
 h5glance = ">=0.9,<0.10"
 py-rattler = "==0.24.0"
 neutrons_standard = "*"
@@ -113,6 +114,7 @@ types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
 gemmi = ">=0.6,<0.8"              # pyrs.pole_figures: CIF files and structure factors
+openpyxl = ">=3.1,<4"             # pyrs.pole_figures: Excel scan table
 neutrons_standard = "*"
 
 
@@ -176,6 +178,7 @@ types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
 gemmi = ">=0.6,<0.8"                                                        # pyrs.pole_figures: CIF files and structure factors
+openpyxl = ">=3.1,<4"                                                       # pyrs.pole_figures: Excel scan table
 
 # ------------------------------- #
 # QA Environment Feature #
@@ -194,6 +197,7 @@ types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
 gemmi = ">=0.6,<0.8"                                                           # pyrs.pole_figures: CIF files and structure factors
+openpyxl = ">=3.1,<4"                                                          # pyrs.pole_figures: Excel scan table
 py-rattler = "==0.24.0"
 
 # ------------------------------- #
@@ -212,6 +216,7 @@ types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
 gemmi = ">=0.6,<0.8"                                                           # pyrs.pole_figures: CIF files and structure factors
+openpyxl = ">=3.1,<4"                                                          # pyrs.pole_figures: Excel scan table
 
 [tool.pixi.package]
 name = "pyrs"
