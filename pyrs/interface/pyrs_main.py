@@ -1,4 +1,6 @@
-from qtpy.QtWidgets import QMainWindow  # type:ignore
+import logging
+
+from qtpy.QtWidgets import QMainWindow, QMessageBox  # type:ignore
 from pyrs.utilities import load_ui  # type: ignore
 from pyrs.core import pyrscore
 from pyrs.interface.peak_fitting.peak_fitting_viewer import PeakFittingViewer
@@ -32,6 +34,10 @@ from pyrs.interface.combine_runs.combine_runs_viewer import CombineRunsViewer  #
 from pyrs.interface.combine_runs.combine_runs_model import CombineRunsModel  # noqa: E402
 from pyrs.interface.combine_runs.combine_runs_crtl import CombineRunsCrtl  # noqa: E402
 
+from pyrs.interface.pole_figures.app import open_window as open_pole_figure_window  # noqa: E402
+
+LOG = logging.getLogger(__name__)
+
 
 class PyRSLauncher(QMainWindow):
     """
@@ -52,6 +58,7 @@ class PyRSLauncher(QMainWindow):
         self.ui.pushButton_fitPeaks.clicked.connect(self.do_launch_fit_peak_window)
         self.ui.pushButton_fitTexture.clicked.connect(self.do_launch_fit_texture_window)
         self.ui.pushButton_launchStrainStressCalculation.clicked.connect(self.do_launch_strain_stress_window)
+        self.ui.pushButton_poleFigures.clicked.connect(self.do_launch_pole_figure_window)
 
         self.ui.actionQuit.triggered.connect(self.do_quit)
         self.ui.actionCalibration.triggered.connect(self.do_launch_calibration_window)
@@ -63,6 +70,7 @@ class PyRSLauncher(QMainWindow):
         self.strain_stress_window = None
         self.texture_fit_window = None
         self.combine_run_window = None
+        self.pole_figure_window = None
 
     def do_launch_fit_texture_window(self):
         """
@@ -145,6 +153,24 @@ class PyRSLauncher(QMainWindow):
         # launch
         self.strain_stress_window.show()
 
+    def do_launch_pole_figure_window(self) -> None:
+        """
+        Open the path-length-corrected pole-figure window, or bring the open one to the front.
+
+        The window is owned by this one but stays a separate top-level window. If it cannot be opened, the error is
+        logged and shown in a message box, and PyRS keeps running (an exception escaping a slot would end PyRS
+        under PyQt6).
+        """
+        if self.pole_figure_window is not None and self.pole_figure_window.isVisible():
+            self.pole_figure_window.raise_()
+            self.pole_figure_window.activateWindow()
+            return
+        try:
+            self.pole_figure_window = open_pole_figure_window(self, guide="pyrs")
+        except Exception as exc:  # any failure is reported to the user instead of ending PyRS
+            LOG.exception("Could not open the pole-figure window")
+            QMessageBox.critical(self, "Pole figures", f"Could not open the pole-figure window:\n\n{exc}")
+
     def do_quit(self):
         """
         close window
@@ -159,5 +185,8 @@ class PyRSLauncher(QMainWindow):
 
         if self.strain_stress_window is not None:
             self.strain_stress_window.close()
+
+        if self.pole_figure_window is not None:
+            self.pole_figure_window.close()
 
         self.close()
