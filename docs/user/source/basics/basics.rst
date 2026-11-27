@@ -18,7 +18,7 @@ you should be able to see pyRS's MainWindow:
   :width: 400
   :alt: pyrsplot startup window
 
-As listed in the MainWindow, pyrsplot can run 3 different usage modes as described in the next sections.
+As listed in the MainWindow, pyrsplot can run several different usage modes as described in the next sections.
 
 Data Manual Reduction
 =====================
@@ -98,6 +98,25 @@ After defining the Materials properties and d0, the user can now visualize the d
   .. image:: ../figures/Stress_Final.png
     :width: 800
     :alt: visualize stress strain
+
+Path-Length-Corrected Pole Figures
+==================================
+
+The last button of the MainWindow, **Path-Length-Corrected Pole Figures**, opens the pole figure tool in its own
+window. The tool predicts how the beam path inside the sample changes the measured intensity at every chi and phi.
+It works from a 3D model of the sample (an STL file). It plans table scans from the prediction and corrects measured
+pole figures for the path length.
+
+The tabs follow the workflow: Sample, Experiment setup, Predict, Table scan, and Data and Corrections. The user
+guide for the tool is not yet part of this documentation.
+
+The last tab, **MTEX**, fits the orientation distribution function (ODF) from the corrected pole figures. It uses
+MTEX for Python (pymtex, the PyPI package ``mtex``) and does not need MATLAB. pymtex is not part of PyRS. It is
+installed separately on the analysis cluster. Without it the MTEX tab shows a note and its **Run MTEX** button stays
+off. The other tabs work without it. In a PyRS checkout, the pixi ``odf`` environment has pymtex, ``finufft`` and
+``numba``: ``pixi run -e odf pyrs`` starts PyRS with the MTEX tab working, and ``pixi run -e odf test-odf`` runs the
+ODF tests. In another Python environment, add the PyPI package ``mtex`` (version 1) with that environment's
+installer. It also needs ``finufft`` and ``numba``.
 
 Detector Calibration
 ====================

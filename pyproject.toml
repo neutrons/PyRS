@@ -13,6 +13,13 @@ pyrs-calibration = "pyrs.calibration.peakfit_driver:main"
 pyrs-pixel-calibration = "pyrs.calibration.ring_driver:main"
 create-mask = "scripts.create_mask:main"
 
+[project.optional-dependencies]
+# The ODF step of pyrs.pole_figures (the MTEX tab) needs MTEX for Python (pymtex, PyPI "mtex", GPL-2.0-only).
+# PyRS does not distribute it: it is installed separately on the analysis cluster. It is kept out of the
+# default, prod, dev and qa environments and of the conda package's run-dependencies. The pixi environment
+# "odf" adds it for local runs of the ODF tests.
+odf = ["mtex>=1.0,<2"]
+
 ####################
 ### Build config ###
 ####################
@@ -88,6 +95,8 @@ pandas = "*"
 types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
+gemmi = ">=0.6,<0.8"             # pyrs.pole_figures: CIF files and structure factors
+openpyxl = ">=3.1,<4"            # pyrs.pole_figures: Excel scan table
 h5glance = ">=0.9,<0.10"
 py-rattler = "==0.24.0"
 neutrons_standard = "*"
@@ -111,6 +120,8 @@ pandas = "*"
 types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
+gemmi = ">=0.6,<0.8"              # pyrs.pole_figures: CIF files and structure factors
+openpyxl = ">=3.1,<4"             # pyrs.pole_figures: Excel scan table
 neutrons_standard = "*"
 
 
@@ -124,6 +135,8 @@ pytest-cov = "*"
 pytest-timeout = "*"
 pytest-xdist = "*"
 mypy = "*"
+trimesh = ">=4"      # pyrs.pole_figures tests: cross-check the STL path lengths
+rtree = ">=1"        # trimesh ray tests without embree need the R-tree
 
 [tool.pixi.feature.package.dependencies]
 anaconda-client = "*"
@@ -148,6 +161,21 @@ mypy = "*"
 python-build = "*"
 pip-audit = "*"
 
+# ------------------------------- #
+# ODF feature (opt-in)            #
+# ------------------------------- #
+# MTEX for Python (pymtex) for the ODF step of pyrs.pole_figures. Only the "odf" environment has it: pymtex is
+# not distributed with PyRS (see [project.optional-dependencies] odf).
+[tool.pixi.feature.odf.dependencies]
+finufft = ">=2.5.1" # pymtex's NUFFT library (conda-forge has it compiled)
+numba = ">=0.61"    # pymtex's compiled kernels (much faster)
+
+[tool.pixi.feature.odf.pypi-dependencies]
+mtex = ">=1.0,<2" # MTEX for Python (mtex-toolbox/pymtex), GPL-2.0-only, not distributed with PyRS
+
+[tool.pixi.feature.odf.tasks]
+test-odf = { cmd = "python scripts/development/run_tests.py tests/unit/pyrs/pole_figures/test_odf.py tests/unit/pyrs/pole_figures/test_mtex_options.py tests/integration/test_pole_figures_odf_reference.py tests/integration/test_pole_figures_odf_settings.py tests/ui/test_pole_figures_odf_tab.py", env = { QT_QPA_PLATFORM = "offscreen" }, description = "Run the ODF (MTEX for Python) tests, offscreen, in the odf environment" }
+
 [tool.pixi.feature.docs.dependencies]
 sphinx = "*"
 sphinx_rtd_theme = "*"
@@ -171,6 +199,8 @@ pandas = "*"
 types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
+gemmi = ">=0.6,<0.8"                                                        # pyrs.pole_figures: CIF files and structure factors
+openpyxl = ">=3.1,<4"                                                       # pyrs.pole_figures: Excel scan table
 
 # ------------------------------- #
 # QA Environment Feature #
@@ -188,6 +218,8 @@ pandas = "*"
 types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
+gemmi = ">=0.6,<0.8"                                                           # pyrs.pole_figures: CIF files and structure factors
+openpyxl = ">=3.1,<4"                                                          # pyrs.pole_figures: Excel scan table
 py-rattler = "==0.24.0"
 
 # ------------------------------- #
@@ -205,6 +237,8 @@ pandas = "*"
 types-six = "*"
 nexusformat = ">=1.0.8,<2"
 pydantic = ">=2.7.3,<3"
+gemmi = ">=0.6,<0.8"                                                           # pyrs.pole_figures: CIF files and structure factors
+openpyxl = ">=3.1,<4"                                                          # pyrs.pole_figures: Excel scan table
 
 [tool.pixi.package]
 name = "pyrs"
@@ -244,6 +278,16 @@ prod = { features = ["test", "package", "docs", "prod"], solve-group = "prod" }
 dev = { features = ["test", "package", "docs", "dev"], solve-group = "dev" }
 # QA environment with RC or prod packages
 qa = { features = ["test", "package", "docs", "qa"], solve-group = "qa" }
+# Opt-in: the default environment plus MTEX for Python (pymtex) for the ODF step. Same solve group as default,
+# so the packages they share have the same versions.
+odf = { features = [
+  "docs",
+  "developer",
+  "dev",
+  "package",
+  "test",
+  "odf",
+], solve-group = "default" }
 
 # Environment-specific channel configurations
 [tool.pixi.feature.dev.activation.env]

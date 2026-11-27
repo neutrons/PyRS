@@ -211,3 +211,8 @@ without renumbering.
   `TextureFittingModel.from_json(filename)` with one argument; it needs `(filename, fit_range_table)`, so the
   menu action raises `TypeError` out of a Qt slot (`texture_fitting_viewer.py:1186`, `texture_fitting_crtl.py:225`).
   Found while moving `from_json` onto the checked peak-range reader (#1147).
+- **DD-37**, 2026-11-25: the texture window's pole figures (`PoleFigureCalculator.rotate_project_q`) take
+  χ = 0 as φ along Q (He's convention). On the HB-2B cradle the φ axis is vertical at χ = 0 and lies along Q at
+  χ = 90° (ω = θ), checked with the cradle camera. For HB-2B data the poles then match `pyrs.pole_figures`
+  only with χ → 90° − χ and the axes relabeled ([ground_truths.md](ground_truths.md), "Path-length-corrected
+  pole figures"). Recorded, not changed: the fix is a production change that needs the maintainers' decision.

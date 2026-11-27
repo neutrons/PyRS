@@ -3371,6 +3371,114 @@ Found while testing; all four are fixed, see the next section ([deferred_defects
   longer returns a stale result.
 
 Tests: `tests/unit/pyrs/core/test_polefigurecalculator.py`. Each new test fails without its fix.
+
+## Path-length-corrected pole figures: conventions and approved parameters (2026-11-25)
+
+`pyrs.pole_figures` corrects HB-2B pole figures for the beam path through the sample. The sample shape is a
+closed STL mesh. The core is a port of an earlier HB-2B pole-figure script, called "the reference script" in
+the core docstrings and "PF" in the tests. The integration tests in
+`tests/integration/test_pole_figures_parity.py` check the port against its outputs for a slab measured on HB-2B
+(`tests/data/pole_figures/reference/`).
+
+**Frames and angles.**
+- The sample frame is the STL frame, with axes vx, vy and vz. `gauge_center_mm` is the rotation point.
+- In the cradle frame, eₓ is the vertical φ axis at χ = 0. The incident beam is `ki = (0, s·cos ω, −sin ω)`
+  and the diffracted beam is `kf = (0, s·cos(2θ−ω), sin(2θ−ω))`. `s` is ±1 and sets the side the beam comes
+  from.
+- The sample turns as `R(χ, φ) = R_y(χ) · R_x(φ) · M0`. `M0` is the mount matrix, the identity by default.
+  The pole is `h = Rᵀ q̂`.
+- With ω = θ, the φ axis is perpendicular to Q at χ = 0 and lies along Q at χ = 90°. At χ = 90° every φ
+  measures the same pole. The owner (HB-2B instrument scientist) checked this against the cradle camera.
+
+**Relation to `PoleFigureCalculator` (#411).** The two give the same pole once χ and the axes are mapped:
+- χ_PyRS = 90° − χ_HB-2B.
+- PyRS (x, y, normal) = (vy, vz, −vx). PyRS's "sample normal" is the φ axis.
+
+Checked at 2θ/ω = 90/45, 105/52.5, 57/28.5, 90/40 and 105/60, over χ 0–90° and φ 0–345°. The largest
+difference is 2e-8. So `rotate_project_q` puts φ along Q at χ = 0 (He's convention), and the HB-2B cradle
+puts it along Q at χ = 90°. See DD-37 for what this means for the texture window.
+
+**Attenuation.**
+- μ = Σ nᵢ (σ_s,i + σ_a,i · λ / 1.798 Å). σ_s is the bound scattering cross section (coherent + incoherent)
+  and σ_a the 2200 m/s absorption cross section, from Sears (1992).
+- σ_s is taken as constant. This is the free-atom approximation, with no Bragg edges and no wavelength
+  dependence of the scattering.
+- The unit tests check μ for Fe, Ni and Al by hand from the published cross sections. For example, Fe at
+  1.54 Å gives 0.1173 /mm.
+- The intensity factor is F = V · ⟨inside · exp(−μ(L_in + L_out))⟩, averaged over Monte Carlo points in
+  the gauge parallelepiped. The correction is F(0,0)/F.
+
+**Empirical parameters, approved by the owner (2026-11-25).** Each is a named constant or a function
+argument with a default, and the user can change the ones that matter. They come from the reference script
+unless marked new.
+
+| Parameter | Value | Effect |
+|---|---|---|
+| Correction cutoff | 3.0 | points with a larger correction are ignored |
+| Central half width | ±5° of the arm 2θ | which peaks are used |
+| Integration window | ±1.5 FWHM | net counts above a straight background |
+| Edge margin | peak at least 0.5° inside the detector | which peaks are used |
+| `find_peak` | search ±1.0°, background 1.2–3.0°, centroid ±1.2° | peak position and FWHM |
+| Background band | half width + 0.3° to + 2.5° | background level |
+| Pseudo-Voigt fit (`method="fit"`) | span half + 2.5°, center ±1°, FWHM 0.3–3×, η 0–1 | fitted rate |
+| Live sub-run | last sub-run of 1000 s or more dropped | sub-runs used |
+| Short sub-run | under 10 % of the median count time dropped | sub-runs used |
+| χ, φ rounding | 0.01° | ≤ 0.005° |
+| Monte Carlo | 40,000 points (runs), 20,000 (prediction), seed 3 | noise only |
+| Allowed 2θ (new) | 50–120° | reflections offered |
+| Extinct reflection (new) | \|F\|² < 1e-6 · Σ\|b\|² | reflection list |
+| Free φ at χ 90 (new, option, off) | φ axis within 0.1° of Q, ties within 1 %, lowest φ wins | planned φ |
+| Equal spacing (new, option, off) | ring step = divisor of 360 nearest φ_step / cos χ | grid |
+| Combine scale (option, default none) | median(reference) / median(run) | merged runs |
+
+Some checks only flag a run and do not change results. They flag a weak peak below net/σ = 5, an FWHM
+under 2 bins and overlapping peaks. They also flag a density outside 0.5–25 g/cm³, a mesh size outside
+1–1000 mm, and ω or the arm moving more than 0.01° during a run.
+
+Tests: unit in `tests/unit/pyrs/pole_figures/`, integration in `tests/integration/test_pole_figures_*.py`.
+A 13-sub-run subset of one reduced run (`tests/data/pole_figures/hb2b/`) runs in CI. The full-run tests skip
+unless `HIDRA_PF_TEST_DATA` points to the folder that holds the full reduced runs HB2B_6494 to HB2B_6497.
+
+## Pole figures: the ODF step uses MTEX for Python, an optional dependency (2026-11-27)
+
+The MTEX tab of the pole-figure window fits the orientation distribution function (ODF) from the corrected pole
+figures with MTEX for Python (pymtex, PyPI package `mtex`, mtex-toolbox/pymtex). The code is
+`pyrs/pole_figures/core/odf.py` (fit), `plots/odf.py` (figures drawn with matplotlib) and `io/odf.py` (files).
+MATLAB is not used and not needed: there is no MATLAB call, path setting or `.m` file.
+
+**Dependency (maintainers' answer and owner's decision, 2026-11-27).**
+- pymtex is GPL-2.0-only. PyRS does not distribute it. It is installed separately on the analysis cluster.
+- It is the optional extra `odf` in `[project.optional-dependencies]`, and the pixi feature and environment `odf`
+  add it (with finufft and numba from conda-forge) for local runs. It is not in the default, prod, dev or qa
+  environments, and not in the conda package's run-dependencies.
+- Only `core.odf.compute` and `plots.odf.white_jet` import `mtex`, inside the function (optional dependency, and
+  the first import takes seconds while numba compiles its kernels). Every pole-figure module imports without it.
+- Without pymtex the MTEX tab still opens. It shows a note that pymtex is installed separately on the analysis
+  cluster, and Run stays off (`core.odf.pymtex_installed`).
+
+**Parity with the stored reference.** The reference values are in
+`tests/data/pole_figures/reference/slab_vx29.4vy19.75/mtex/`. They were made once with MTEX 7.2.0 from the four
+reference pole figures of the slab (an fcc alloy). MTEX for Python 1.0.0 with the same settings (de la Vallée Poussin
+kernel, halfwidth and resolution 5°, no specimen symmetry) gives:
+
+| Quantity | pymtex 1.0.0 | Stored reference (MTEX 7.2.0) |
+|---|---|---|
+| RP errors of the 4 pole figures | equal to 3 decimals | 0.106, 0.073, 0.072, 0.068 |
+| Texture index | 1.1508 | 1.1475 |
+| Entropy | −0.067 | −0.064 |
+| ODF on the 5° Bunge grid (24,624 points) | rms difference 0.035 mrd, correlation 0.998 | |
+| ODF maximum | 2.91 mrd | 2.80 mrd |
+| Color ranges (ODF, pole figures, IPFs) | equal | 0–3, 0–2.5, 0–2.5 mrd |
+
+The ODF maximum is the least certain number. It moves between 2.70 and 2.88 mrd with pymtex's iteration limits
+alone, and the reference value lies in that range. The tolerances of
+`tests/integration/test_pole_figures_odf_reference.py` follow from this (RP errors 2e-3, texture index 1 %,
+maximum 0.15 mrd, grid rms below 0.05 mrd).
+
+Tests: `tests/unit/pyrs/pole_figures/test_odf.py` and `test_mtex_options.py` (no pymtex needed),
+`tests/integration/test_pole_figures_odf_reference.py` and `_odf_settings.py`, `tests/ui/test_pole_figures_odf_tab.py`.
+The tests that need pymtex skip without it (`pytest.importorskip("mtex")`). `pixi run -e odf test-odf` runs them all.
+
 ## Calibration drivers in the package; one shared ring calibration for the unit tier (2026-11-18, #1101)
 
 **Drivers moved into the package** (user decision): `scripts/pyrs_pixel_calibration.py` and

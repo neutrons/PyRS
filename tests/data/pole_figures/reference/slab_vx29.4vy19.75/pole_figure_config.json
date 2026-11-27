@@ -1,0 +1,49 @@
+{
+  "sample": {
+    "gauge_center_mm": [
+      29.4,
+      19.75,
+      1.65
+    ],
+    "mu_per_mm": 0.14
+  },
+  "beams": {
+    "incident_width_mm": "log:ISR:X:Gap",
+    "incident_height_mm": "log:ISR:Y:Gap",
+    "diffracted_width_mm": 3.0
+  },
+  "conventions": {
+    "phi_sense": "clockwise_from_above",
+    "vx_up": true,
+    "chi_tilts_up_axis_toward_Q": true,
+    "incident_from": "+vy"
+  },
+  "predict": {
+    "planes": [
+      {
+        "hkl": "222",
+        "two_theta": 112.0,
+        "omega": 56.0
+      },
+      {
+        "hkl": "311",
+        "two_theta": 105.0,
+        "omega": 52.5
+      },
+      {
+        "hkl": "220",
+        "two_theta": 85.1,
+        "omega": 42.55
+      },
+      {
+        "hkl": "200",
+        "two_theta": 57.0,
+        "omega": 28.5
+      }
+    ],
+    "chi_step": 10,
+    "phi_step": 5
+  },
+  "ignore_if_correction_above": 3.0,
+  "monte_carlo_points": 40000
+}

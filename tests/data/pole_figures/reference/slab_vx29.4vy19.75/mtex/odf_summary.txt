@@ -1,0 +1,12 @@
+ODF from corrected pole figures (corrected_per_s), de la Vallee Poussin kernel, halfwidth 5 deg, resolution 5 deg
+{222} run 6494        610 of  649 points, RP error 0.106
+{311} run 6495        613 of  649 points, RP error 0.073
+{220} run 6496        567 of  649 points, RP error 0.072
+{200} run 6497        549 of  649 points, RP error 0.068
+ODF max 2.80 mrd at phi1 349.4, Phi 3.0, phi2 35.5 deg (Bunge)
+  along +vx      the max orientation has its crystal direction 24.9 deg from <001>, 20.1 from <011>, 39.4 from <111>
+  along +vy      the max orientation has its crystal direction 25.1 deg from <001>, 20.3 from <011>, 37.3 from <111>
+  along BD       the max orientation has its crystal direction 3.0 deg from <001>, 42.6 from <011>, 51.7 from <111>
+texture index norm(odf)^2 1.148, entropy -0.064
+{100} recalculated peak near vz: 2.27 mrd, 2.50 deg from vz, at (-0.0417, -0.0129, 0.9990)
+color ranges: ODF 0-3, pole figures 0-2.5, inverse pole figures 0-2.5 mrd
