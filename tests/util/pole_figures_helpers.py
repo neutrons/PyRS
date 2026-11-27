@@ -39,6 +39,24 @@ needs_data = pytest.mark.skipif(not (TEST_DATA / "HB2B_6494.h5").exists(), reaso
 SLAB_SIZE_MM = (35.4, 54.6, 3.3)
 #: the reference gauge center in that slab (pole_figure_config.json, sample.gauge_center_mm)
 SLAB_CENTER_MM = (29.4, 19.75, 1.65)
+#: a minimal copper CIF (fcc, Fm-3m) for the CIF readers
+CU_CIF = """data_Cu
+_cell_length_a 3.6149
+_cell_length_b 3.6149
+_cell_length_c 3.6149
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 90
+_symmetry_space_group_name_H-M 'F m -3 m'
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+Cu1 Cu 0 0 0 1
+"""
 
 
 def read_csv_rows(path: Path) -> list[dict[str, str]]:
