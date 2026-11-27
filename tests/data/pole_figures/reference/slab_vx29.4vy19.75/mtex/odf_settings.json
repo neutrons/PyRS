@@ -1,0 +1,55 @@
+{
+ "csv_files": [
+  "pole_figure_6494_222.csv",
+  "pole_figure_6495_311.csv",
+  "pole_figure_6496_220.csv",
+  "pole_figure_6497_200.csv"
+ ],
+ "out_dir": "mtex",
+ "lattice_A": 3.597,
+ "phase_name": "IN718",
+ "view_from": "+vz",
+ "vz_label": "BD",
+ "mtex": {
+  "enabled": true,
+  "crystal_symmetry": "m-3m",
+  "specimen_symmetry": "1",
+  "intensity_column": "corrected_per_s",
+  "drop_ignored": true,
+  "halfwidth_deg": 5,
+  "resolution_deg": 5,
+  "merge_chi90": false,
+  "plot_view": "plotx2east, plotzOutOfPlane",
+  "ipf_directions": [
+   "vx",
+   "vy",
+   "vz"
+  ],
+  "output_subfolder": "mtex",
+  "plot": {
+   "colormap": "WhiteJetColorMap",
+   "contour_levels": 20,
+   "contour_lines": false,
+   "odf_section": {
+    "phi2_deg": 45,
+    "phi1_ticks_deg": 45,
+    "Phi_ticks_deg": 30
+   },
+   "pf_hkl": [
+    "111",
+    "200",
+    "220"
+   ],
+   "cmax_odf": "data",
+   "cmax_pf": "data",
+   "plotkowski": {
+    "hkl": [
+     "100",
+     "110",
+     "111"
+    ],
+    "max": "data"
+   }
+  }
+ }
+}
