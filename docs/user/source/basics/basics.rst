@@ -113,9 +113,10 @@ guide for the tool is not yet part of this documentation.
 The last tab, **MTEX**, fits the orientation distribution function (ODF) from the corrected pole figures. It uses
 MTEX for Python (pymtex, the PyPI package ``mtex``) and does not need MATLAB. pymtex is not part of PyRS. It is
 installed separately on the analysis cluster. Without it the MTEX tab shows a note and its **Run MTEX** button stays
-off. The other tabs work without it. To use the tab on another computer, install pymtex in the PyRS environment
-with ``pip install "mtex>=1.0,<2"``. It also needs ``finufft`` and ``numba`` from conda-forge. In a PyRS checkout,
-``pixi run -e odf test-odf`` runs the ODF tests in an environment that has pymtex.
+off. The other tabs work without it. In a PyRS checkout, the pixi ``odf`` environment has pymtex, ``finufft`` and
+``numba``: ``pixi run -e odf pyrs`` starts PyRS with the MTEX tab working, and ``pixi run -e odf test-odf`` runs the
+ODF tests. In another Python environment, add the PyPI package ``mtex`` (version 1) with that environment's
+installer. It also needs ``finufft`` and ``numba``.
 
 Detector Calibration
 ====================
